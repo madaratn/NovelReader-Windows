@@ -244,6 +244,36 @@ jobs:
           grep -q 'name.startsWith("android.")' miwayomi/server/src/main/kotlin/miwayomi/extension/ChildFirstURLClassLoader.kt
           grep -q 'ChildFirstURLClassLoader::class.java.classLoader' miwayomi/server/src/main/kotlin/miwayomi/extension/ChildFirstURLClassLoader.kt
           echo "Android compatibility packages are forced through Miwayomi app loader"
+      - name: Harden anime video routes against extension Rx errors
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/api/AnimeRoutes.kt")
+          s = p.read_text()
+          old = '''        get("/api/v1/anime/{sourceId}/hosterVideos") {
+            val source = call.sourceId().anime(animeSources) ?: return@get call.respondNotFound()
+            val url = call.requiredUrl() ?: return@get call.respondMissingUrl()
+            val hoster = Hoster(hosterUrl = url)
+            val videos = source.getVideoList(hoster)
+            call.respond(VideosDto(videos.map { it.toDtoNormalized() }))
+        }'''
+          new = '''        get("/api/v1/anime/{sourceId}/hosterVideos") {
+            val source = call.sourceId().anime(animeSources) ?: return@get call.respondNotFound()
+            val url = call.requiredUrl() ?: return@get call.respondMissingUrl()
+            val hoster = Hoster(hosterUrl = url)
+            val videos = try {
+                source.getVideoList(hoster)
+            } catch (e: Throwable) {
+                val root = generateSequence(e) { it.cause }.lastOrNull() ?: e
+                println("[miwayomi] hosterVideos " + source.name + ": " + root.javaClass.simpleName + ": " + root.message)
+                emptyList()
+            }
+            call.respond(VideosDto(videos.map { it.toDtoNormalized() }))
+        }'''
+          if old not in s:
+              raise SystemExit("hosterVideos route anchor not found")
+          p.write_text(s.replace(old, new, 1))
+
       - name: Build patched fat JAR
         working-directory: miwayomi
         run: ./gradlew :server:shadowJar --no-daemon
