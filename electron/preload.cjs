@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('novelReader',{
  archiveSearch:(query)=>ipcRenderer.invoke('archive:search',query),
  archiveFiles:(identifier)=>ipcRenderer.invoke('archive:files',identifier),
  torrentStart:(identifier,fileName)=>ipcRenderer.invoke('torrent:start',{identifier,fileName}),
+ torrentStartMagnet:(magnet)=>ipcRenderer.invoke('torrent:start',{magnet}),
  torrentStatus:(sessionId)=>ipcRenderer.invoke('torrent:status',sessionId),
  torrentStop:(sessionId)=>ipcRenderer.invoke('torrent:stop',sessionId)
 })
