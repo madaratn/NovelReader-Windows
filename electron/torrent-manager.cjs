@@ -6,9 +6,7 @@
 // current range are fetched first (WebTorrent's file stream selects them at
 // high priority); the rest of the chosen file downloads in the background.
 //
-// Scope: only torrents published by archive.org are accepted. The manager
-// fetches the .torrent itself from archive.org for a validated identifier;
-// it never accepts arbitrary magnet links or URLs from the renderer.
+// Supports trusted Internet Archive torrents plus magnet URIs supplied by the\n// main process for streams already extracted by the local Miwayomi engine.\n// The renderer only receives a narrow IPC bridge; WebTorrent stays here.
 
 const fs = require('fs')
 const path = require('path')
@@ -82,23 +80,17 @@ function createTorrentManager({ cacheRoot, log = () => {} }) {
     return videos.sort((a, b) => rank(b) - rank(a) || b.length - a.length)[0] || null
   }
 
-  async function start({ identifier, fileName }) {
-    if (!archive.isValidIdentifier(identifier)) throw friendly('Invalid Internet Archive identifier.')
-    if (fileName != null && (typeof fileName !== 'string' || fileName.length > 300)) throw friendly('Invalid file name.')
+  async function start({ identifier, fileName, magnet }) {\n    const hasMagnet = typeof magnet === 'string' && magnet.startsWith('magnet:?')\n    if (!hasMagnet && !archive.isValidIdentifier(identifier)) throw friendly('Invalid Internet Archive identifier.')\n    if (magnet != null && !hasMagnet) throw friendly('Invalid magnet URI.')\n    if (magnet && magnet.length > 20000) throw friendly('Magnet URI is too long.')\n    if (fileName != null && (typeof fileName !== 'string' || fileName.length > 300)) throw friendly('Invalid file name.')
 
     // One active stream at a time: switching video frees the previous one.
     await stopAll()
 
     const sessionId = crypto.randomBytes(12).toString('hex')
-    const session = { id: sessionId, identifier, state: 'fetching', error: null, torrent: null, file: null, lastBytes: 0, lastChange: Date.now(), stopped: false }
+    const session = { id: sessionId, identifier: identifier || '', state: hasMagnet ? 'metadata' : 'fetching', error: null, torrent: null, file: null, lastBytes: 0, lastChange: Date.now(), stopped: false }
     sessions.set(sessionId, session)
 
     try {
-      const [wt, localPort, torrentBuf] = await Promise.all([getClient(), getPort(), fetchTorrentFile(identifier)])
-      if (session.stopped) throw friendly('Stopped.')
-      session.state = 'metadata'
-
-      const torrent = wt.add(torrentBuf, { path: path.join(cacheRoot, sessionId), deselect: true, destroyStoreOnDestroy: true })
+      const [wt, localPort, torrentInput] = await Promise.all([getClient(), getPort(), hasMagnet ? Promise.resolve(magnet) : fetchTorrentFile(identifier)])\n      if (session.stopped) throw friendly('Stopped.')\n      session.state = 'metadata'\n\n      const torrent = wt.add(torrentInput, { path: path.join(cacheRoot, sessionId), deselect: true, destroyStoreOnDestroy: true })
       session.torrent = torrent
       torrent.on('error', e => { session.error = friendly('The torrent failed.', String(e && e.message || e)); session.state = 'error'; log('torrent error', e) })
       torrent.on('warning', w => log('torrent warning', String(w && w.message || w)))
