@@ -2,6 +2,7 @@ name: Build Windows EXE
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     tags: ['v*']
 jobs:
   windows:
@@ -13,10 +14,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          # No `cache: npm` here: it fails when package-lock.json is not committed.
       - run: npm install
       - run: npm run dist
+        env:
+          # Authenticated GitHub API calls in scripts/prepare-miwayomi.cjs avoid rate-limit failures.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-artifact@v4
         with:
           name: NovelReader-Windows
           path: release/*.exe
+          if-no-files-found: error

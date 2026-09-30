@@ -16,5 +16,13 @@ The included remote provider is deliberately a demo provider. Real providers mus
     npm install
     npm run start
 
+## Local videos
+Anime mode → **Local Videos**: add a folder from your PC, then play MP4/WebM/MKV files in the app. Seeking works, playback position is remembered per file, and the next file plays automatically. Files are served through a private `nrlocal://` scheme, only from folders you added.
+
+Note: the built-in (Chromium) player decodes H.264/VP9/AV1 video with AAC/Opus audio. MKV files using HEVC (H.265) or AC3/DTS audio will show a codec message.
+
+## Windows build (GitHub Actions)
+The **Build Windows EXE** workflow runs on pushes to `main`, on `v*` tags, or manually (Actions → Build Windows EXE → Run workflow). The installer is attached to the run as the `NovelReader-Windows` artifact.
+
 ## Architecture
 src/sources/registry.ts defines the provider contract. Community plugins should not execute with unrestricted Electron/Node privileges. Next: isolated adapter, manifest validation, global-search UI and update checks.
