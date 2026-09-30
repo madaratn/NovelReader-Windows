@@ -23,7 +23,8 @@
     "cheerio": "^1.1.2",
     "dayjs": "^1.11.13",
     "htmlparser2": "^10.0.0",
-    "urlencode": "^2.0.0"
+    "urlencode": "^2.0.0",
+    "hls.js": "^1.6.13"
   },
   "devDependencies": {
     "electron": "^34.0.0",
