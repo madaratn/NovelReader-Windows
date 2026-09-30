@@ -4,3 +4,5 @@
 .sourcecard button.installed{color:#b8afff;border-color:#6258b8}.sourcecard button:not(:disabled){cursor:pointer}
 
 .scanlist{display:flex;flex-direction:column;gap:7px}.scanrow{display:grid;grid-template-columns:1fr 180px 120px;gap:12px;background:#11141b;border:1px solid #242936;border-radius:9px;padding:11px 14px}.scanrow small{color:#8f94a3}.status{text-align:right;font-size:12px}.status.reachable{color:#9ee6b0}.status.unreachable{color:#d98d8d}.status.checking{color:#b8afff}
+
+.scanrow.clickable{cursor:pointer;transition:border-color .15s,background .15s}.scanrow.clickable:hover{border-color:#6258b8;background:#151824}.scanrow.selected{border-color:#6258b8}.status.installed{color:#b8afff}
