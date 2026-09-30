@@ -6,3 +6,5 @@
 .scanlist{display:flex;flex-direction:column;gap:7px}.scanrow{display:grid;grid-template-columns:1fr 180px 120px;gap:12px;background:#11141b;border:1px solid #242936;border-radius:9px;padding:11px 14px}.scanrow small{color:#8f94a3}.status{text-align:right;font-size:12px}.status.reachable{color:#9ee6b0}.status.unreachable{color:#d98d8d}.status.checking{color:#b8afff}
 
 .scanrow.clickable{cursor:pointer;transition:border-color .15s,background .15s}.scanrow.clickable:hover{border-color:#6258b8;background:#151824}.scanrow.selected{border-color:#6258b8}.status.installed{color:#b8afff}
+
+.librarygrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:18px}.novelcard{display:flex;gap:18px;padding:18px;border:1px solid #252a38;border-radius:16px;background:#11141c}.novelcard img,.coverplaceholder{width:110px;height:160px;object-fit:cover;border-radius:10px;background:#1c2030;display:grid;place-items:center;font-weight:800;color:#8c7cff}.novelmeta{display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-width:0}.novelmeta h2,.novelmeta p{margin:0}.novelmeta small{color:#98a2bd;margin-bottom:auto}
