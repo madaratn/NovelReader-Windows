@@ -1,0 +1,61 @@
+name: Build patched Miwayomi engine
+
+"on":
+  workflow_dispatch: {}
+  push:
+    branches:
+      - v0.2-sources
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Miwayomi v0.2.9
+        uses: actions/checkout@v4
+        with:
+          repository: miwayomi/miwayomi
+          ref: v0.2.9
+          path: miwayomi
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Patch JarFixer stack-map generation
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/extension/JarFixer.kt")
+          s = p.read_text()
+          start = s.index("                    classes.forEach { (name, cn) ->")
+          end = s.index("                    others.forEach { (name, data) ->", start)
+          replacement = """                    classes.forEach { (name, cn) ->
+                        val bytes = try {
+                            ClassWriter(ClassWriter.COMPUTE_FRAMES or ClassWriter.COMPUTE_MAXS).apply {
+                                cn.accept(this)
+                            }.toByteArray()
+                        } catch (e: Throwable) {
+                            System.err.println("[miwayomi] frame rebuild failed for $name: $e")
+                            originalBytes[name]
+                        }
+                        if (bytes != null) {
+                            jos.putNextEntry(JarEntry(name))
+                            jos.write(bytes)
+                            jos.closeEntry()
+                        }
+                    }
+"""
+          p.write_text(s[:start] + replacement + s[end:])
+
+      - name: Build patched fat JAR
+        working-directory: miwayomi
+        run: ./gradlew :server:shadowJar --no-daemon
+
+      - name: Upload patched engine
+        uses: actions/upload-artifact@v4
+        with:
+          name: novelreader-miwayomi-v0.2.9-stackframes
+          path: miwayomi/server/build/libs/miwayomi-all.jar
+          if-no-files-found: error
