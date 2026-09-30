@@ -45,3 +45,5 @@
 .engine-offline{border-color:#63363e}.engine-online{border-color:#315c48}.engine-row small{display:block;margin-top:7px;color:#d28e98}
 
 .anime-toast{position:sticky;bottom:18px;z-index:30;margin-top:12px;padding:12px 14px;border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,.35)}.anime-toast.error{background:#321a20;border:1px solid #7d3f4b;color:#ffb2bd}.anime-toast.ok{background:#173025;border:1px solid #3d765b;color:#b8f3d2}.anime-toast button{border:0;background:transparent;color:inherit;font-size:20px;cursor:pointer}
+
+.mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:18px 20px 22px;padding:4px;background:#151720;border:1px solid #262a36;border-radius:10px}.mode-switch button{margin:0!important;padding:9px 8px!important;border-radius:7px!important;font-size:13px!important;text-align:center!important}.mode-switch button.active{background:#7562ef!important;color:white!important}
