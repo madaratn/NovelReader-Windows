@@ -133,7 +133,8 @@ jobs:
 
 import java.net.URI
 
-object URLUtil {
+class URLUtil private constructor() {
+    companion object {
     @JvmStatic
     fun isValidUrl(url: String?): Boolean {
         if (url.isNullOrBlank()) return false
@@ -146,6 +147,7 @@ object URLUtil {
         } catch (_: Throwable) {
             false
         }
+    }
     }
 }
 """)
