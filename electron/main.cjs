@@ -22,6 +22,13 @@ function startMiwayomi(){
  miwayomiProcess=spawn(java,['-jar',jar,'--host','127.0.0.1','--port','4567','--no-open','--data',data],{windowsHide:true,stdio:['ignore','pipe','pipe']});
  miwayomiProcess.stdout?.on('data',d=>pushMiwayomiLog('stdout',d));
  miwayomiProcess.stderr?.on('data',d=>pushMiwayomiLog('stderr',d));
+ // Surface the runtime compatibility probe prominently in the Electron console.
+ const runtimeProbeTimer=setTimeout(()=>{
+   const probe=miwayomiLogs.filter(x=>x.line.includes('[novelreader] URLUtil')).map(x=>x.line);
+   if(probe.length) console.log('[NovelReader Anime runtime probe]',probe.join(' | '));
+   else console.warn('[NovelReader Anime runtime probe] URLUtil probe lines not seen yet');
+ },2500);
+ miwayomiProcess.once('exit',()=>clearTimeout(runtimeProbeTimer));
  miwayomiProcess.on('error',e=>pushMiwayomiLog('stderr','Process error: '+String(e.message||e)));
  miwayomiProcess.on('exit',(code,signal)=>{pushMiwayomiLog('stderr','Process exited code='+code+' signal='+signal);miwayomiProcess=null}); return true;
 }
