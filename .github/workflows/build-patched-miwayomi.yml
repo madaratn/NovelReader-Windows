@@ -82,7 +82,15 @@ jobs:
                         }
                     }
           """
-          p.write_text(s[:start] + replacement + s[end:])
+          s = s[:start] + replacement + s[end:]
+          # Windows keeps the extension JAR locked while URLClassLoader is open.
+          # JarFixer creates this loader before rewriting the JAR, so close it
+          # after frame computation and before Files.move replaces the original.
+          move_marker = "                // Replace the original jar only after the fixed copy was written"
+          if move_marker not in s:
+              raise SystemExit("JarFixer move marker not found")
+          s = s.replace(move_marker, "                loader.close()\n\n" + move_marker, 1)
+          p.write_text(s)
 
       - name: Build patched fat JAR
         working-directory: miwayomi
