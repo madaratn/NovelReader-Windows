@@ -2,6 +2,10 @@ name: Build patched Miwayomi engine
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-patched-miwayomi.yml"
   push:
     branches: [v0.2-sources]
     paths:
