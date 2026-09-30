@@ -130,27 +130,27 @@ jobs:
           from pathlib import Path
           p = Path("miwayomi/android-compat/src/main/kotlin/android/webkit/URLUtil.kt")
           p.write_text("""package android.webkit
-
-import java.net.URI
-
-class URLUtil private constructor() {
-    companion object {
-    @JvmStatic
-    fun isValidUrl(url: String?): Boolean {
-        if (url.isNullOrBlank()) return false
-        return try {
-            val uri = URI(url.trim())
-            when (uri.scheme?.lowercase()) {
-                "http", "https", "ftp", "file" -> true
-                else -> false
-            }
-        } catch (_: Throwable) {
-            false
-        }
-    }
-    }
-}
-""")
+          
+          import java.net.URI
+          
+          class URLUtil private constructor() {
+              companion object {
+                  @JvmStatic
+                  fun isValidUrl(url: String?): Boolean {
+                      if (url.isNullOrBlank()) return false
+                      return try {
+                          val uri = URI(url.trim())
+                          when (uri.scheme?.lowercase()) {
+                              "http", "https", "ftp", "file" -> true
+                              else -> false
+                          }
+                      } catch (_: Throwable) {
+                          false
+                      }
+                  }
+              }
+          }
+          """)
 
       - name: Build patched fat JAR
         working-directory: miwayomi
