@@ -223,10 +223,8 @@ jobs:
           from pathlib import Path
           p = Path("miwayomi/server/src/main/kotlin/miwayomi/extension/ChildFirstURLClassLoader.kt")
           s = p.read_text()
-          old = """    override fun loadClass(name: String?, resolve: Boolean): Class<*> {
-        var c = findLoadedClass(name)
-"""
-          new = """    override fun loadClass(name: String?, resolve: Boolean): Class<*> {
+          old = '    override fun loadClass(name: String?, resolve: Boolean): Class<*> {\\n        var c = findLoadedClass(name)\\n'
+          new = '''    override fun loadClass(name: String?, resolve: Boolean): Class<*> {
         // Android classes in extension APKs are compile-time stubs. They must
         // never override Miwayomi's android-compat implementation at runtime.
         if (name != null && name.startsWith("android.")) {
@@ -236,7 +234,7 @@ jobs:
         }
 
         var c = findLoadedClass(name)
-"""
+'''
           if old not in s:
               raise SystemExit("ChildFirstURLClassLoader loadClass anchor not found")
           p.write_text(s.replace(old, new))
