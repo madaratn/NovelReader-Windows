@@ -12,13 +12,15 @@
     "dist": "npm run prepare:anime-engine && npm run build && electron-builder --win nsis",
     "dist:portable": "npm run prepare:anime-engine && npm run build && electron-builder --win portable",
     "prepare:anime-engine": "node scripts/prepare-miwayomi.cjs",
-    "anime:engine:info": "node -e \"console.log(require('./engine/miwayomi-version.json'))\""
+    "anime:engine:info": "node -e \"console.log(require('./engine/miwayomi-version.json'))\"",
+    "test:torrent": "node scripts/test-archive-torrent.mjs"
   },
   "dependencies": {
     "cheerio": "^1.1.2",
     "dayjs": "^1.11.13",
     "htmlparser2": "^10.0.0",
-    "urlencode": "^2.0.0"
+    "urlencode": "^2.0.0",
+    "webtorrent": "~2.8.5"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",

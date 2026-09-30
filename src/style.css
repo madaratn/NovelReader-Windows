@@ -62,3 +62,6 @@
 .localcard{display:flex;flex-direction:column;gap:6px;padding:12px;border:1px solid #292f40;border-radius:12px;background:#11141c;color:#f4f5fb;text-align:left;cursor:pointer;transition:border-color .15s ease,background .15s ease}.localcard:hover,.localcard.active{border-color:#7667ee;background:#171a26}
 .localname{font-size:14px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.localcard small{color:#9aa0b4}
 .localbar{height:3px;border-radius:2px;background:#262a36;overflow:hidden}.localbar span{display:block;height:100%;background:#7562ef}
+
+/* Internet Archive torrent status */
+.torrent-status{display:flex;flex-direction:column;gap:6px;margin:4px 0 10px;color:#b7bccd;font-size:13px}.torrent-status.state-stalled,.torrent-status.state-error{color:#ffb2bd}.torrent-status.state-done{color:#b8f3d2}.torrent-status .localbar{max-width:420px}

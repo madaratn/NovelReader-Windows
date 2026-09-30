@@ -4,7 +4,10 @@ const {spawn}=require('child_process')
 const fs=require('fs')
 const path=require('path')
 const runner=require('./plugin-runner.cjs')
-function createWindow(){const win=new BrowserWindow({width:1280,height:820,minWidth:900,minHeight:600,backgroundColor:'#0b0c10',title:'Novel Reader',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});if(!app.isPackaged)win.loadURL('http://127.0.0.1:5173');else win.loadFile(path.join(app.getAppPath(),'dist','index.html'));win.webContents.on('did-fail-load',(_e,code,desc,url)=>console.error('Load failed',code,desc,url))}
+const archive=require('./archive.cjs')
+const {createTorrentManager}=require('./torrent-manager.cjs')
+const SMOKE_TEST=process.env.NR_SMOKE_TEST==='1'
+function createWindow(){const win=new BrowserWindow({width:1280,height:820,minWidth:900,minHeight:600,backgroundColor:'#0b0c10',title:'Novel Reader',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});if(!app.isPackaged&&!SMOKE_TEST)win.loadURL('http://127.0.0.1:5173');else win.loadFile(path.join(app.getAppPath(),'dist','index.html'));win.webContents.on('did-fail-load',(_e,code,desc,url)=>console.error('Load failed',code,desc,url));return win}
 ipcMain.handle('plugin:search',async(_e,{plugin,query})=>runner.search(plugin,query))
 ipcMain.handle('plugin:parseNovel',async(_e,{plugin,path})=>runner.parseNovel(plugin,path))
 ipcMain.handle('plugin:parseChapter',async(_e,{plugin,path})=>runner.parseChapter(plugin,path))
@@ -90,6 +93,42 @@ function registerLocalProtocol(){
  })
 }
 
-app.whenReady().then(()=>{registerLocalProtocol();startMiwayomi();createWindow()})
+
+// ---- Internet Archive + torrent streaming ---------------------------------
+// Errors crossing IPC keep a short user-facing message; details go to the console.
+let torrents=null
+function getTorrents(){if(!torrents)torrents=createTorrentManager({cacheRoot:path.join(app.getPath('temp'),'novelreader-torrents'),log:(...a)=>console.warn('[torrent]',...a)});return torrents}
+const cleanIpc=fn=>async(_e,arg)=>{try{return await fn(arg)}catch(e){if(e&&e.detail)console.warn('[archive/torrent]',e.message,e.detail);else console.warn('[archive/torrent]',e);throw new Error(e&&e.message||String(e))}}
+ipcMain.handle('archive:search',cleanIpc(q=>archive.search(String(q||''))))
+ipcMain.handle('archive:files',cleanIpc(id=>archive.files(String(id||''))))
+ipcMain.handle('torrent:start',cleanIpc(o=>getTorrents().start({identifier:String(o&&o.identifier||''),fileName:o&&o.fileName!=null?String(o.fileName):undefined})))
+ipcMain.handle('torrent:status',cleanIpc(id=>getTorrents().status(String(id||''))))
+ipcMain.handle('torrent:stop',cleanIpc(async id=>{await getTorrents().stop(String(id||''));return true}))
+let torrentsShutDown=false
+app.on('before-quit',e=>{if(torrents&&!torrentsShutDown){e.preventDefault();torrentsShutDown=true;torrents.shutdown().catch(()=>{}).finally(()=>app.quit())}})
+
+// NR_SMOKE_TEST=1: start Electron, check the preload bridge and (optionally)
+// stream the first MiB of an Internet Archive torrent, then exit. Used in CI.
+async function runSmokeTest(win){
+ const result={}
+ try{
+  await new Promise(r=>win.webContents.once('did-finish-load',r))
+  result.bridge=await win.webContents.executeJavaScript("['torrentStart','torrentStatus','torrentStop','archiveSearch','archiveFiles'].every(k=>typeof window.novelReader[k]==='function')")
+  const id=process.env.NR_SMOKE_ARCHIVE_ID
+  if(id){
+   const info=await getTorrents().start({identifier:id})
+   const r=await fetch(info.streamUrl,{headers:{Range:'bytes=0-1048575'}})
+   const buf=Buffer.from(await r.arrayBuffer())
+   result.stream={status:r.status,contentRange:r.headers.get('content-range'),bytes:buf.length,mp4:buf.slice(4,8).toString('latin1')==='ftyp',file:info.fileName}
+   await getTorrents().stop(info.sessionId)
+  }
+  result.ok=result.bridge===true&&(!id||(result.stream.status===206&&result.stream.bytes===1048576))
+ }catch(e){result.ok=false;result.error=String(e&&e.message||e)}
+ console.log('SMOKE_RESULT '+JSON.stringify(result))
+ if(torrents)await torrents.shutdown().catch(()=>{})
+ app.exit(result.ok?0:1)
+}
+
+app.whenReady().then(()=>{registerLocalProtocol();if(SMOKE_TEST){runSmokeTest(createWindow());return}startMiwayomi();createWindow()})
 app.on('before-quit',()=>{if(miwayomiProcess){miwayomiProcess.kill();miwayomiProcess=null}})
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()})
