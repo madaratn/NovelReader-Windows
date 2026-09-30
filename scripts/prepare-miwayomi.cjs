@@ -6,7 +6,9 @@ function download(url,dest){return new Promise((resolve,reject)=>{const go=u=>ht
 (async()=>{console.log('Preparing bundled Anime engine…');
  const rel=await getJson('https://api.github.com/repos/miwayomi/miwayomi/releases/latest');
  const asset=rel.assets.find(a=>a.name==='miwayomi-all.jar'); if(!asset)throw Error('Miwayomi JAR asset not found');
+ console.log('Miwayomi release selected:',rel.tag_name,rel.target_commitish||'');
  await download(asset.browser_download_url,jar); console.log('Miwayomi '+rel.tag_name+' downloaded.');
+ fs.writeFileSync(path.join(engine,'miwayomi-version.json'),JSON.stringify({tag:rel.tag_name,target:rel.target_commitish||null,asset:asset.name,downloadedAt:new Date().toISOString()},null,2));
  if(!fs.existsSync(path.join(jreDir,'bin','java.exe'))){
   const tmp=path.join(engine,'temurin.zip');
   await download('https://api.adoptium.net/v3/binary/latest/21/ga/windows/x64/jre/hotspot/normal/eclipse',tmp);
