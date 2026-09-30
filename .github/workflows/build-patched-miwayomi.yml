@@ -179,9 +179,31 @@ jobs:
           }
           """)
 
+      - name: Verify URLUtil shim wins over Android stub
+        working-directory: miwayomi
+        shell: bash
+        run: |
+          ./gradlew :android-compat:classes --no-daemon
+          test -f android-compat/build/classes/kotlin/main/android/webkit/URLUtil.class
+          javap -classpath android-compat/build/classes/kotlin/main -c android.webkit.URLUtil | grep -q "isValidUrl"
+          echo "NovelReader URLUtil shim compiled successfully"
+
       - name: Build patched fat JAR
         working-directory: miwayomi
         run: ./gradlew :server:shadowJar --no-daemon
+
+      - name: Verify packaged URLUtil is not android.jar Stub
+        working-directory: miwayomi
+        shell: bash
+        run: |
+          JAR="server/build/libs/miwayomi-all.jar"
+          javap -classpath "$JAR" -c android.webkit.URLUtil > /tmp/urlutil.txt
+          cat /tmp/urlutil.txt
+          grep -q "java/net/URI" /tmp/urlutil.txt
+          if grep -q "RuntimeException" /tmp/urlutil.txt; then
+            echo "Packaged URLUtil still contains Android Stub bytecode" >&2
+            exit 1
+          fi
 
       - name: Upload patched engine
         uses: actions/upload-artifact@v4
