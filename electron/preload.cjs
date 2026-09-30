@@ -8,5 +8,10 @@ contextBridge.exposeInMainWorld('novelReader',{
  localFolders:()=>ipcRenderer.invoke('local:folders'),
  localAddFolder:()=>ipcRenderer.invoke('local:addFolder'),
  localRemoveFolder:(folder)=>ipcRenderer.invoke('local:removeFolder',folder),
- localListVideos:()=>ipcRenderer.invoke('local:listVideos')
+ localListVideos:()=>ipcRenderer.invoke('local:listVideos'),
+ archiveSearch:(query)=>ipcRenderer.invoke('archive:search',query),
+ archiveFiles:(identifier)=>ipcRenderer.invoke('archive:files',identifier),
+ torrentStart:(identifier,fileName)=>ipcRenderer.invoke('torrent:start',{identifier,fileName}),
+ torrentStatus:(sessionId)=>ipcRenderer.invoke('torrent:status',sessionId),
+ torrentStop:(sessionId)=>ipcRenderer.invoke('torrent:stop',sessionId)
 })
