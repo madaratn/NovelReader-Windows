@@ -15,7 +15,11 @@
     "vite": "^6.0.7",
     "typescript": "^5.7.3",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "cheerio": "^1.1.2",
+    "dayjs": "^1.11.13",
+    "htmlparser2": "^10.0.0",
+    "urlencode": "^2.0.0"
   },
   "devDependencies": {
     "electron": "^34.0.0",
