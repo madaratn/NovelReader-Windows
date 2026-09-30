@@ -46,7 +46,7 @@ jobs:
                             jos.closeEntry()
                         }
                     }
-"""
+          """
           p.write_text(s[:start] + replacement + s[end:])
 
       - name: Build patched fat JAR
