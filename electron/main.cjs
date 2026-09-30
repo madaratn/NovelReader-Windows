@@ -1,4 +1,5 @@
-const {app,BrowserWindow,ipcMain}=require('electron')
+const {app,BrowserWindow,ipcMain,dialog,protocol}=require('electron')
+const {Readable}=require('stream')
 const {spawn}=require('child_process')
 const fs=require('fs')
 const path=require('path')
@@ -54,6 +55,41 @@ ipcMain.handle('anime:miwayomiFetch', async(_e,{path,method='GET',body})=>{
  return miwayomiRequest(path,{method,body:body==null?undefined:JSON.stringify(body)});
 });
 
-app.whenReady().then(()=>{startMiwayomi();createWindow()})
+
+// ---- Local videos -------------------------------------------------------
+// Files are served through a private nrlocal:// scheme, only from folders the
+// user picked in a dialog. Range requests are supported so seeking works.
+protocol.registerSchemesAsPrivileged([{scheme:'nrlocal',privileges:{standard:true,secure:true,stream:true,supportFetchAPI:true}}])
+const VIDEO_EXT=new Set(['.mp4','.m4v','.webm','.mkv','.mov','.ogv'])
+const MIME={'.mp4':'video/mp4','.m4v':'video/mp4','.webm':'video/webm','.mkv':'video/x-matroska','.mov':'video/quicktime','.ogv':'video/ogg'}
+function foldersFile(){return path.join(app.getPath('userData'),'local-video-folders.json')}
+function loadFolders(){try{const x=JSON.parse(fs.readFileSync(foldersFile(),'utf8'));return Array.isArray(x)?x.filter(f=>typeof f==='string'):[]}catch{return []}}
+function saveFolders(list){fs.mkdirSync(path.dirname(foldersFile()),{recursive:true});fs.writeFileSync(foldersFile(),JSON.stringify(list,null,2))}
+function isInsideAllowed(file){const real=path.resolve(file);return loadFolders().some(root=>{const rel=path.relative(path.resolve(root),real);return rel&&!rel.startsWith('..')&&!path.isAbsolute(rel)})}
+function scanVideos(root,limit=5000){const out=[];const walk=(dir,depth)=>{if(depth>6||out.length>=limit)return;let entries=[];try{entries=fs.readdirSync(dir,{withFileTypes:true})}catch{return}
+ for(const e of entries){if(e.name.startsWith('.'))continue;const full=path.join(dir,e.name);if(e.isDirectory())walk(full,depth+1);else if(e.isFile()&&VIDEO_EXT.has(path.extname(e.name).toLowerCase())){let size=0,mtime=0;try{const st=fs.statSync(full);size=st.size;mtime=st.mtimeMs}catch{}
+  out.push({name:e.name,folder:root,relPath:path.relative(root,full),size,mtime,url:'nrlocal://media/?p='+encodeURIComponent(full)})}}};
+ walk(root,0);return out.sort((a,b)=>a.relPath.localeCompare(b.relPath,undefined,{numeric:true,sensitivity:'base'}))}
+ipcMain.handle('local:folders',async()=>loadFolders())
+ipcMain.handle('local:addFolder',async e=>{const win=BrowserWindow.fromWebContents(e.sender);const r=await dialog.showOpenDialog(win,{title:'Choose a video folder',properties:['openDirectory']});if(r.canceled||!r.filePaths[0])return loadFolders();const list=loadFolders();if(!list.includes(r.filePaths[0]))list.push(r.filePaths[0]);saveFolders(list);return list})
+ipcMain.handle('local:removeFolder',async(_e,folder)=>{const list=loadFolders().filter(f=>f!==folder);saveFolders(list);return list})
+ipcMain.handle('local:listVideos',async()=>loadFolders().flatMap(f=>fs.existsSync(f)?scanVideos(f):[]))
+function registerLocalProtocol(){
+ protocol.handle('nrlocal',async req=>{
+  try{
+   const file=new URL(req.url).searchParams.get('p')||'';
+   if(!file||!isInsideAllowed(file))return new Response('Forbidden',{status:403});
+   const st=await fs.promises.stat(file);if(!st.isFile())return new Response('Not found',{status:404});
+   const type=MIME[path.extname(file).toLowerCase()]||'application/octet-stream';
+   const range=/bytes=(\d*)-(\d*)/.exec(req.headers.get('range')||'');
+   if(range){let start=range[1]?Number(range[1]):0,end=range[2]?Number(range[2]):st.size-1;if(!range[1]&&range[2]){start=Math.max(0,st.size-Number(range[2]));end=st.size-1}
+    end=Math.min(end,st.size-1);if(start>end||start>=st.size)return new Response(null,{status:416,headers:{'Content-Range':'bytes */'+st.size}});
+    return new Response(Readable.toWeb(fs.createReadStream(file,{start,end})),{status:206,headers:{'Content-Type':type,'Content-Length':String(end-start+1),'Content-Range':`bytes ${start}-${end}/${st.size}`,'Accept-Ranges':'bytes'}})}
+   return new Response(Readable.toWeb(fs.createReadStream(file)),{status:200,headers:{'Content-Type':type,'Content-Length':String(st.size),'Accept-Ranges':'bytes'}})
+  }catch(e){return new Response('Error: '+String(e&&e.message||e),{status:500})}
+ })
+}
+
+app.whenReady().then(()=>{registerLocalProtocol();startMiwayomi();createWindow()})
 app.on('before-quit',()=>{if(miwayomiProcess){miwayomiProcess.kill();miwayomiProcess=null}})
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()})

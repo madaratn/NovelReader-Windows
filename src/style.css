@@ -51,3 +51,14 @@
 
 /* Anime episode browser */
 .episodegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;max-height:68vh;overflow:auto;padding:4px 8px 4px 2px}.episodecard{min-height:58px;display:grid;grid-template-columns:42px minmax(0,1fr) 28px;align-items:center;gap:12px;padding:9px 12px;border:1px solid #292f40;border-radius:12px;background:#11141c;color:#f4f5fb;text-align:left;cursor:pointer;transition:transform .15s ease,border-color .15s ease,background .15s ease}.episodecard:hover{transform:translateY(-1px);border-color:#7667ee;background:#171a26}.episodecard:disabled{opacity:.6;cursor:wait;transform:none}.episodebadge{width:38px;height:38px;border-radius:10px;background:#201d38;color:#9b8cff;display:grid;place-items:center;font-size:12px;font-weight:800;overflow:hidden}.episodetitle{font-size:14px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.episodeplay{color:#8173f1;text-align:center;font-size:13px}.episodegrid::-webkit-scrollbar{width:8px}.episodegrid::-webkit-scrollbar-thumb{background:#34394c;border-radius:8px}@media(max-width:760px){.episodegrid{grid-template-columns:1fr}}
+
+
+/* Collapsible error details */
+.notice-text{flex:1;min-width:0}.notice-text>span{display:block;line-height:1.45}.notice-details{margin-top:8px}.notice-details summary{cursor:pointer;font-size:12px;opacity:.8}.notice-details pre{max-height:240px;overflow:auto;margin:8px 0;padding:10px;background:rgba(0,0,0,.35);border-radius:8px;font-size:11px;line-height:1.4;white-space:pre-wrap;word-break:break-word;color:#d8dbe6}.notice-details button{font-size:12px!important;padding:5px 10px!important;border:1px solid currentColor!important;border-radius:6px!important}
+
+/* Local videos */
+.local-player video{width:100%;max-height:70vh;background:#000;border-radius:10px;display:block;margin:6px 0 12px}
+.localgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;margin-top:12px;max-height:60vh;overflow:auto;padding-right:6px}
+.localcard{display:flex;flex-direction:column;gap:6px;padding:12px;border:1px solid #292f40;border-radius:12px;background:#11141c;color:#f4f5fb;text-align:left;cursor:pointer;transition:border-color .15s ease,background .15s ease}.localcard:hover,.localcard.active{border-color:#7667ee;background:#171a26}
+.localname{font-size:14px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.localcard small{color:#9aa0b4}
+.localbar{height:3px;border-radius:2px;background:#262a36;overflow:hidden}.localbar span{display:block;height:100%;background:#7562ef}
