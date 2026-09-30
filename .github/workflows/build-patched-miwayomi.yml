@@ -36,9 +36,38 @@ jobs:
           end = s.index("                    others.forEach { (name, data) ->", start)
           replacement = """                    classes.forEach { (name, cn) ->
                         val bytes = try {
-                            ClassWriter(ClassWriter.COMPUTE_FRAMES or ClassWriter.COMPUTE_MAXS).apply {
-                                cn.accept(this)
-                            }.toByteArray()
+                            // dex2jar may leave invalid StackMapTable entries. Re-read
+                            // the original class while discarding every old frame, then
+                            // let ASM rebuild frames/maxs from bytecode control flow.
+                            val clean = ClassNode()
+                            ClassReader(originalBytes[name]).accept(clean, ClassReader.SKIP_FRAMES)
+                            // Re-apply Miwayomi's safe bytecode repair to the clean node.
+                            fixWrongInitOwner(clean, needInit, classes)
+                            val writer = object : ClassWriter(ClassWriter.COMPUTE_FRAMES or ClassWriter.COMPUTE_MAXS) {
+                                override fun getCommonSuperClass(type1: String, type2: String): String {
+                                    if (type1 == type2) return type1
+                                    return try {
+                                        val c1 = Class.forName(type1.replace('/', '.'), false, loader)
+                                        val c2 = Class.forName(type2.replace('/', '.'), false, loader)
+                                        when {
+                                            c1.isAssignableFrom(c2) -> type1
+                                            c2.isAssignableFrom(c1) -> type2
+                                            c1.isInterface || c2.isInterface -> "java/lang/Object"
+                                            else -> {
+                                                var c = c1
+                                                while (!c.isAssignableFrom(c2)) c = c.superclass
+                                                c.name.replace('.', '/')
+                                            }
+                                        }
+                                    } catch (_: Throwable) {
+                                        // Extension dependencies are not always resolvable
+                                        // while converting. Object is verifier-safe fallback.
+                                        "java/lang/Object"
+                                    }
+                                }
+                            }
+                            clean.accept(writer)
+                            writer.toByteArray()
                         } catch (e: Throwable) {
                             System.err.println("[miwayomi] frame rebuild failed for $name: $e")
                             originalBytes[name]
