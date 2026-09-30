@@ -35,6 +35,9 @@
     "vite": "^6.0.7",
     "wait-on": "^8.0.2"
   },
+  "overrides": {
+    "uint8-util": "2.2.6"
+  },
   "author": "Ali Mezghenni",
   "build": {
     "appId": "com.novelreader.windows",
