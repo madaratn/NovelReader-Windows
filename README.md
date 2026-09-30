@@ -1,33 +1,20 @@
-# Novel Reader Windows — v0.1
+# Novel Reader Windows — v0.2 alpha
 
-Prototype Windows d'une liseuse de web novels.
+Windows desktop novel reader with an extensible source engine.
 
-## Fonctions v0.1
-- Bibliothèque sombre
-- Progression de lecture
-- Écran Sources
-- Base d'architecture pour sources extensibles
-- Prototype Electron + React + TypeScript
+## v0.2 source-engine milestone
+- Source registry and stable provider contract
+- Parallel search across enabled providers
+- Chapter-list/content provider methods
+- LNReader adapter boundary prepared
+- Electron desktop shell
 
-## Lancer en développement
-```bash
-npm install
-npm run dev
-```
+The included remote provider is deliberately a demo provider. Real providers must respect source access rules, authentication, paywalls and DRM.
 
-Puis ouvrir l'URL Vite affichée.
+## Run
 
-## Lancer dans Electron
-```bash
-npm install
-npm run start
-```
+    npm install
+    npm run start
 
-## Roadmap v0.2
-- moteur de sources / adaptateur LNReader
-- recherche multi-source
-- suivi des nouveaux chapitres
-- import EPUB/TXT
-- stockage local
-- notifications Windows
-- installateur Windows
+## Architecture
+src/sources/registry.ts defines the provider contract. Community plugins should not execute with unrestricted Electron/Node privileges. Next: isolated adapter, manifest validation, global-search UI and update checks.
