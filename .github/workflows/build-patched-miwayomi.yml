@@ -224,7 +224,15 @@ jobs:
           p = Path("miwayomi/server/src/main/kotlin/miwayomi/extension/ChildFirstURLClassLoader.kt")
           s = p.read_text()
           marker = "        var c = findLoadedClass(name)"
-          guard = '        if (name != null && name.startsWith("android.")) {\\n            val c = systemClassLoader?.loadClass(name) ?: super.loadClass(name, false)\\n            if (resolve) resolveClass(c)\\n            return c\\n        }\\n\\n'
+          lines = [
+              '        if (name != null && name.startsWith("android.")) {',
+              '            val c = systemClassLoader?.loadClass(name) ?: super.loadClass(name, false)',
+              '            if (resolve) resolveClass(c)',
+              '            return c',
+              '        }',
+              '',
+          ]
+          guard = chr(10).join(lines) + chr(10)
           if marker not in s:
               raise SystemExit("ChildFirstURLClassLoader marker not found")
           p.write_text(s.replace(marker, guard + marker, 1))
