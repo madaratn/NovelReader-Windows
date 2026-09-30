@@ -1,5 +1,8 @@
 name: Build patched Miwayomi engine
 
+permissions:
+  contents: write
+
 "on":
   workflow_dispatch: {}
   push:
@@ -59,3 +62,13 @@ jobs:
           name: novelreader-miwayomi-v0.2.9-stackframes
           path: miwayomi/server/build/libs/miwayomi-all.jar
           if-no-files-found: error
+
+      - name: Publish stable patched engine release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="miwayomi-v0.2.9-novelreader"
+          JAR="miwayomi/server/build/libs/miwayomi-all.jar"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "NovelReader Miwayomi v0.2.9 patched" --notes "Miwayomi v0.2.9 compatibility build with StackMap frame regeneration for Aniyomi extensions."
+          gh release upload "$TAG" "$JAR#miwayomi-all.jar" --repo "$GITHUB_REPOSITORY" --clobber
