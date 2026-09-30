@@ -9,8 +9,9 @@
     "build": "vite build",
     "electron": "electron .",
     "start": "concurrently \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && electron .\"",
-    "dist": "npm run build && electron-builder --win nsis",
-    "dist:portable": "npm run build && electron-builder --win portable"
+    "dist": "npm run prepare:anime-engine && npm run build && electron-builder --win nsis",
+    "dist:portable": "npm run prepare:anime-engine && npm run build && electron-builder --win portable",
+    "prepare:anime-engine": "node scripts/prepare-miwayomi.cjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
@@ -27,7 +28,8 @@
     "electron": "^34.0.0",
     "concurrently": "^9.1.2",
     "wait-on": "^8.0.2",
-    "electron-builder": "^26.0.12"
+    "electron-builder": "^26.0.12",
+    "extract-zip": "^2.0.1"
   },
   "author": "Ali Mezghenni",
   "build": {
@@ -53,6 +55,15 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "NovelReader"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "engine",
+        "to": "engine",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ]
   }
 }
