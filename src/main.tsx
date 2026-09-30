@@ -92,7 +92,10 @@ const playAnimeEpisode=async(ep:any)=>{if(!selectedAnime)return;setAnimeVideoLoa
     const foundData=await window.novelReader.miwayomiFetch('/api/v1/anime/'+encodeURIComponent(sid)+'/search?query='+query+'&page=1');
     const found=Array.isArray(foundData)?foundData:(foundData.animes||foundData.items||foundData.results||[]);
     const title=String(selectedAnime.name||selectedAnime.title||'').trim().toLowerCase();
-    const hit=found.find((x:any)=>String(x.title||x.name||'').trim().toLowerCase()===title);if(!hit)continue;
+    const normTitle=(v:any)=>String(v||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+    const wanted=normTitle(title);
+    const ranked=found.map((x:any)=>{const got=normTitle(x.title||x.name||'');let score=0;if(got===wanted)score=100;else if(got.startsWith(wanted+' ')||wanted.startsWith(got+' '))score=80;else if(got.includes(wanted)||wanted.includes(got))score=60;return{x,score}}).filter((r:any)=>r.score>0).sort((a:any,b:any)=>b.score-a.score);
+    const hit=ranked[0]?.x;if(!hit)continue;
     const animeUrl=hit.url||hit.path;if(!animeUrl)continue;
     const epData=await window.novelReader.miwayomiFetch('/api/v1/anime/'+encodeURIComponent(sid)+'/episodes?url='+encodeURIComponent(animeUrl));
     const eps=Array.isArray(epData)?epData:(epData.episodes||epData.items||epData.list||[]);
