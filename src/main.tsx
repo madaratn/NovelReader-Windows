@@ -33,6 +33,32 @@ const playAnimeEpisode=async(ep:any)=>{if(!selectedAnime)return;setAnimeVideoLoa
    lastError=Error('no playable streams from '+candidate.sourceName);
   }catch(e){lastError=e}
  }
+ // Saved alternates can become stale as extensions/sites change. Refresh the
+ // global search once and try matching sources that were not in the saved set.
+ try{
+  const query=encodeURIComponent(String(selectedAnime.name||selectedAnime.title||''));
+  const sourcesData=await window.novelReader.miwayomiFetch('/api/v1/sources');
+  const sources=Array.isArray(sourcesData)?sourcesData:(sourcesData.sources||sourcesData.items||[]);
+  const seen=new Set(candidates.map((x:any)=>String(x.sourceId||'')));
+  for(const src of sources){
+   const sid=String(src.id||src.sourceId||'');if(!sid||seen.has(sid))continue;
+   try{
+    const foundData=await window.novelReader.miwayomiFetch('/api/v1/anime/'+encodeURIComponent(sid)+'/search?query='+query+'&page=1');
+    const found=Array.isArray(foundData)?foundData:(foundData.animes||foundData.items||foundData.results||[]);
+    const title=String(selectedAnime.name||selectedAnime.title||'').trim().toLowerCase();
+    const hit=found.find((x:any)=>String(x.title||x.name||'').trim().toLowerCase()===title);if(!hit)continue;
+    const animeUrl=hit.url||hit.path;if(!animeUrl)continue;
+    const epData=await window.novelReader.miwayomiFetch('/api/v1/anime/'+encodeURIComponent(sid)+'/episodes?url='+encodeURIComponent(animeUrl));
+    const eps=Array.isArray(epData)?epData:(epData.episodes||epData.items||epData.list||[]);
+    const targetEp=eps.find((x:any)=>String(x.number||String(x.name||x.title||'').match(/\d+(?:\.\d+)?/)?.[0]||'')===episodeNumber);
+    const episodeUrl=targetEp&&(targetEp.url||targetEp.path);if(!episodeUrl)continue;
+    const data=await window.novelReader.miwayomiFetch('/api/v1/anime/'+encodeURIComponent(sid)+'/videos?url='+encodeURIComponent(episodeUrl));
+    const videos=Array.isArray(data)?data:(data.videos||data.items||data.list||[]);
+    const normalized=videos.map((v:any)=>{const raw=v.videoUrl||v.url||v.link||'';const headers=v.headers||{};const lower=String(raw).toLowerCase();if(!/^https?:\/\//i.test(String(raw)))return null;const headerText=Object.entries(headers).map(([k,val])=>k+': '+String(val)).join('\n');const qs='sourceId='+encodeURIComponent(sid)+'&url='+encodeURIComponent(raw)+'&headers='+encodeURIComponent(headerText);const route=lower.includes('.m3u8')?'hls':lower.includes('.mpd')?'dash':'proxy';return{...v,streamUrl:'http://127.0.0.1:4567/api/v1/'+route+'?'+qs,sourceName:src.name||'alternate source'}}).filter(Boolean);
+    if(normalized.length){setAnimeVideos(normalized);setSelectedVideo(normalized.find((v:any)=>v.preferred)||normalized[0]);setAnimeNotice({ok:true,scope:'detail',text:'Saved sources failed. Playing from '+(src.name||'a refreshed source')+'.'});return}
+   }catch(e){lastError=e}
+  }
+ }catch(e){lastError=e}
  let extra='';try{const dbg=await window.novelReader.miwayomiDebug();const logs=Array.isArray(dbg?.logs)?dbg.logs:[];const relevant=logs.slice(-12).map((entry:any)=>typeof entry==='string'?entry:([entry?.time,entry?.kind,entry?.line].filter(Boolean).join(' ')));if(relevant.length)extra=' Engine: '+relevant.join(' | ')}catch{}
  throw Error('No playable stream from this source'+(candidates.length>1?' or '+(candidates.length-1)+' alternate source(s)':'')+'. '+(lastError?.message||'')+extra)
 }catch(e:any){setAnimeNotice({ok:false,scope:'detail',text:'Could not load video: '+(e.message||String(e))})}finally{setAnimeVideoLoading(false)}};
