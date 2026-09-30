@@ -35,6 +35,7 @@ async function miwayomiRequest(pathname, init={}) {
   } finally { clearTimeout(timer) }
 }
 ipcMain.handle('anime:miwayomiStatus', async()=>{try{const health=await miwayomiRequest('/api/v1/health');return {online:true,baseUrl:MIWAYOMI_BASE,health}}catch(e){if(!miwayomiProcess)startMiwayomi();return {online:false,starting:!!miwayomiProcess,baseUrl:MIWAYOMI_BASE,error:String(e.message||e)}}});
+ipcMain.handle('anime:miwayomiDebug',async()=>{const [health,sources,installed]=await Promise.all([miwayomiRequest('/api/v1/health'),miwayomiRequest('/api/v1/sources'),miwayomiRequest('/api/v1/extensions/installed')]);return {health,sources,installed,dataDir:path.join(app.getPath('userData'),'miwayomi'),engineJar:path.join(engineRoot(),'miwayomi-all.jar')}});
 ipcMain.handle('anime:miwayomiFetch', async(_e,{path,method='GET',body})=>{
  if(typeof path!=='string'||!path.startsWith('/')) throw new Error('Invalid Miwayomi path');
  return miwayomiRequest(path,{method,body:body==null?undefined:JSON.stringify(body)});
