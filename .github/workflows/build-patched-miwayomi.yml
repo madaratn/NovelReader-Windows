@@ -90,6 +90,29 @@ jobs:
           if move_marker not in s:
               raise SystemExit("JarFixer move marker not found")
           s = s.replace(move_marker, "                loader.close()\n\n" + move_marker, 1)
+          # dex2jar can encode calls to desugared/default-interface methods with
+          # the wrong invocation kind. The JVM then throws
+          # IncompatibleClassChangeError ("must be InterfaceMethodref"). Normalize
+          # method instructions from owners that are known interfaces in the
+          # extension/dependency classpath before ASM recomputes frames.
+          old_fix = "fixWrongInitOwner(clean, needInit, classes)"
+          new_fix = """fixWrongInitOwner(clean, needInit, classes)
+                            clean.methods.forEach { method ->
+                                method.instructions?.iterator()?.forEachRemaining { insn ->
+                                    if (insn is org.objectweb.asm.tree.MethodInsnNode) {
+                                        val ownerNode = classes[insn.owner + ".class"]
+                                        if (ownerNode != null && (ownerNode.access and org.objectweb.asm.Opcodes.ACC_INTERFACE) != 0) {
+                                            if (insn.opcode == org.objectweb.asm.Opcodes.INVOKEVIRTUAL) {
+                                                insn.opcode = org.objectweb.asm.Opcodes.INVOKEINTERFACE
+                                                insn.itf = true
+                                            }
+                                        }
+                                    }
+                                }
+                            }"""
+          if old_fix not in s:
+              raise SystemExit("JarFixer clean repair marker not found")
+          s = s.replace(old_fix, new_fix, 1)
           p.write_text(s)
 
       - name: Patch Android Log shim for extension compatibility
