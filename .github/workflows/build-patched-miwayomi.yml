@@ -1,7 +1,7 @@
 name: Build patched Miwayomi engine
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
   pull_request:
     branches: [main]
     paths:
