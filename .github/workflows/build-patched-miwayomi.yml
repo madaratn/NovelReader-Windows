@@ -315,6 +315,23 @@ jobs:
           s = s.replace(setup, setup + chr(10) + "    installNovelReaderRxErrorHandler()", 1)
           p.write_text(s)
 
+      - name: Log per-source video extraction results
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/api/AnimeRoutes.kt")
+          s = p.read_text()
+          marker = "            call.respond(VideosDto(videos))"
+          lines = [
+              '            val schemes = videos.map { v -> v.videoUrl.substringBefore(":", "none") }.distinct().joinToString(",")',
+              '            println("[novelreader] video-probe source=" + source.name + " hosters=" + hosters.size + " videos=" + videos.size + " schemes=" + schemes)',
+              "            call.respond(VideosDto(videos))",
+          ]
+          replacement = chr(10).join(lines)
+          if marker not in s:
+              raise SystemExit("videos response anchor not found")
+          p.write_text(s.replace(marker, replacement, 1))
+
       - name: Build patched fat JAR
         working-directory: miwayomi
         run: ./gradlew :server:shadowJar --no-daemon
