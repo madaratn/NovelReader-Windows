@@ -277,6 +277,18 @@ jobs:
               raise SystemExit("hosterVideos call anchor not found")
           p.write_text(s.replace(marker, replacement, 1))
 
+      - name: Isolate each hoster during video extraction
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/api/AnimeRoutes.kt")
+          s = p.read_text()
+          old = "                    val list = hoster.videoList" + chr(10) + "                        ?: runCatching { source.getVideoList(hoster) }.getOrNull().orEmpty()" + chr(10) + "                    videos.addAll(list.map { it.toDtoNormalized() })"
+          new = "                    try {" + chr(10) + "                        val list = hoster.videoList" + chr(10) + "                            ?: runCatching { source.getVideoList(hoster) }.getOrNull().orEmpty()" + chr(10) + "                        videos.addAll(list.map { it.toDtoNormalized() })" + chr(10) + "                    } catch (e: Throwable) {" + chr(10) + "                        val root = generateSequence(e) { it.cause }.lastOrNull() ?: e" + chr(10) + '                        println("[miwayomi] video hoster " + source.name + ": " + root.javaClass.simpleName + ": " + root.message)' + chr(10) + "                    }"
+          if old not in s:
+              raise SystemExit("video hoster loop anchor not found")
+          p.write_text(s.replace(old, new, 1))
+
       - name: Build patched fat JAR
         working-directory: miwayomi
         run: ./gradlew :server:shadowJar --no-daemon
