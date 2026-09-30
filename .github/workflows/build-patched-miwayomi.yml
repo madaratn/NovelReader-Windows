@@ -32,6 +32,9 @@ jobs:
           from pathlib import Path
           p = Path("miwayomi/server/src/main/kotlin/miwayomi/extension/JarFixer.kt")
           s = p.read_text()
+          # Force extensions processed by older NovelReader/Miwayomi JarFixer builds
+          # through the new stack-frame repair once.
+          s = s.replace('private const val FIX_MARKER = "META-INF/miwayomi-jarfixed"', 'private const val FIX_MARKER = "META-INF/miwayomi-jarfixed-v2"')
           start = s.index("                    classes.forEach { (name, cn) ->")
           end = s.index("                    others.forEach { (name, data) ->", start)
           replacement = """                    classes.forEach { (name, cn) ->
