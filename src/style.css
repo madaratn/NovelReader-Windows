@@ -18,3 +18,14 @@
 .readerpage{transition:background .2s,color .2s}.readerpage.light{background:#f6f1e7;color:#26221d;box-shadow:0 0 0 100vmax #f6f1e7;clip-path:inset(0 -100vmax)}.readerpage.light .readercontent{color:#26221d}.readerpage.light .readertop{border-color:#d8d0c2}.readerpage.light .readertop small,.readerpage.light .readertop span,.readerpage.light .backbtn{color:#665f55}.readerpage.light .readernav button,.readerpage.light .themebtn{background:#fffaf0;color:#26221d;border-color:#cfc6b8}.readertools{display:flex;align-items:center;justify-content:flex-end;gap:14px}.themebtn{padding:8px 12px;border:1px solid #353a4c;border-radius:9px;background:#151824;color:#eee;cursor:pointer;white-space:nowrap}
 
 .lastread{color:#8c7cff!important;font-weight:600}
+
+/* Responsive reader width: use the available window instead of a fixed 760/900px column */
+.readerpage{width:100%;max-width:none;margin:0;padding:0 clamp(24px,4vw,80px) 60px;box-sizing:border-box}
+.readercontent{width:100%;max-width:none;margin:42px auto;font-size:clamp(18px,1.05vw,23px);line-height:1.85}
+.readercontent>div{width:100%;max-width:none}
+.readercontent p{max-width:none;width:100%}
+.readernav{width:100%;max-width:none}
+@media (max-width:900px){
+ .readerpage{padding-left:20px;padding-right:20px}
+ .readercontent{font-size:18px;line-height:1.75}
+}
