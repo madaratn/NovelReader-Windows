@@ -244,6 +244,18 @@ jobs:
           grep -q 'name.startsWith("android.")' miwayomi/server/src/main/kotlin/miwayomi/extension/ChildFirstURLClassLoader.kt
           grep -q 'ChildFirstURLClassLoader::class.java.classLoader' miwayomi/server/src/main/kotlin/miwayomi/extension/ChildFirstURLClassLoader.kt
           echo "Android compatibility packages are forced through Miwayomi app loader"
+      - name: Harden hoster discovery against extension Rx errors
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/api/AnimeRoutes.kt")
+          s = p.read_text()
+          marker = "            val hosters = source.getHosterList(episode)"
+          replacement = "            val hosters = runCatching { source.getHosterList(episode) }.getOrElse { e ->" + chr(10) + "                val root = generateSequence(e) { it.cause }.lastOrNull() ?: e" + chr(10) + '                println("[miwayomi] hosters " + source.name + ": " + root.javaClass.simpleName + ": " + root.message)' + chr(10) + "                emptyList()" + chr(10) + "            }"
+          if marker not in s:
+              raise SystemExit("hosters route call anchor not found")
+          p.write_text(s.replace(marker, replacement, 1))
+
       - name: Harden anime video routes against extension Rx errors
         shell: python
         run: |
