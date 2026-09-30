@@ -120,7 +120,7 @@ jobs:
               return println(ps, level, tag, msg)
           }
 
-'''
+          '''
           s = s.replace(marker, compat + marker, 1)
           p.write_text(s)
 
