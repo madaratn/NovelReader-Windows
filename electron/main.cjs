@@ -101,7 +101,7 @@ function getTorrents(){if(!torrents)torrents=createTorrentManager({cacheRoot:pat
 const cleanIpc=fn=>async(_e,arg)=>{try{return await fn(arg)}catch(e){if(e&&e.detail)console.warn('[archive/torrent]',e.message,e.detail);else console.warn('[archive/torrent]',e);throw new Error(e&&e.message||String(e))}}
 ipcMain.handle('archive:search',cleanIpc(q=>archive.search(String(q||''))))
 ipcMain.handle('archive:files',cleanIpc(id=>archive.files(String(id||''))))
-ipcMain.handle('torrent:start',cleanIpc(o=>getTorrents().start({identifier:String(o&&o.identifier||''),fileName:o&&o.fileName!=null?String(o.fileName):undefined})))
+ipcMain.handle('torrent:start',cleanIpc(o=>getTorrents().start({identifier:String(o&&o.identifier||''),fileName:o&&o.fileName!=null?String(o.fileName):undefined,magnet:o&&o.magnet!=null?String(o.magnet):undefined})))
 ipcMain.handle('torrent:status',cleanIpc(id=>getTorrents().status(String(id||''))))
 ipcMain.handle('torrent:stop',cleanIpc(async id=>{await getTorrents().stop(String(id||''));return true}))
 let torrentsShutDown=false
