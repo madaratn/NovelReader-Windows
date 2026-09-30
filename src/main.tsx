@@ -38,10 +38,12 @@ const playAnimeEpisode=async(ep:any)=>{if(!selectedAnime)return;setAnimeVideoLoa
  try{
   const query=encodeURIComponent(String(selectedAnime.name||selectedAnime.title||''));
   const sourcesData=await window.novelReader.miwayomiFetch('/api/v1/sources');
-  const sources=Array.isArray(sourcesData)?sourcesData:(sourcesData.sources||sourcesData.items||[]);
+  const rawSources=Array.isArray(sourcesData)?sourcesData:(sourcesData.sources||sourcesData.items||sourcesData.anime||[]);
+  const sources=Array.isArray(rawSources)?rawSources:[];
   const seen=new Set(candidates.map((x:any)=>String(x.sourceId||'')));
   for(const src of sources){
    const sid=String(src.id||src.sourceId||'');if(!sid||seen.has(sid))continue;
+   seen.add(sid);
    try{
     const foundData=await window.novelReader.miwayomiFetch('/api/v1/anime/'+encodeURIComponent(sid)+'/search?query='+query+'&page=1');
     const found=Array.isArray(foundData)?foundData:(foundData.animes||foundData.items||foundData.results||[]);
