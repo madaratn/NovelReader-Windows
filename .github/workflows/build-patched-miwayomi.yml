@@ -92,6 +92,38 @@ jobs:
           s = s.replace(move_marker, "                loader.close()\n\n" + move_marker, 1)
           p.write_text(s)
 
+      - name: Patch Android Log shim for extension compatibility
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/android-compat/src/main/kotlin/android/util/Log.kt")
+          s = p.read_text()
+          marker = '    @JvmStatic\n    fun isLoggable(tag: String, level: Int): Boolean = level >= Log.INFO\n'
+          if marker not in s:
+              raise SystemExit("android.util.Log marker not found")
+          # Some current Aniyomi extensions call Log.println(priority, tag, msg).
+          # Android exposes this as a public static API; Miwayomi v0.2.9 only had
+          # a private PrintStream helper with the same name, causing Stub!/linkage
+          # failures when extractors execute on the JVM.
+          compat = '''    @JvmStatic
+          fun println(priority: Int, tag: String, msg: String): Int {
+              val level = when (priority) {
+                  VERBOSE -> "V"
+                  DEBUG -> "D"
+                  INFO -> "I"
+                  WARN -> "W"
+                  ERROR -> "E"
+                  ASSERT -> "A"
+                  else -> priority.toString()
+              }
+              val ps = if (priority >= WARN) PrintStream(System.err) else PrintStream(System.out)
+              return println(ps, level, tag, msg)
+          }
+
+'''
+          s = s.replace(marker, compat + marker, 1)
+          p.write_text(s)
+
       - name: Build patched fat JAR
         working-directory: miwayomi
         run: ./gradlew :server:shadowJar --no-daemon
