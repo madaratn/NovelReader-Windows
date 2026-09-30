@@ -179,6 +179,35 @@ jobs:
           }
           """)
 
+      - name: Instrument runtime URLUtil class origin
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/Main.kt")
+          s = p.read_text()
+          marker = "fun buildServer(config: ServerConfig): EmbeddedServer<*, *> {\n"
+          if marker not in s:
+              raise SystemExit("buildServer marker not found")
+          probe = """fun logNovelReaderAndroidCompatOrigin() {
+              try {
+                  val cls = Class.forName("android.webkit.URLUtil")
+                  val resource = cls.getResource("/android/webkit/URLUtil.class")
+                  val loader = cls.classLoader
+                  val method = cls.getMethod("isValidUrl", String::class.java)
+                  val probe = runCatching { method.invoke(null, "https://example.com") }
+                  println("[novelreader] URLUtil origin=" + resource)
+                  println("[novelreader] URLUtil loader=" + loader)
+                  println("[novelreader] URLUtil isValidUrl probe=" + probe)
+              } catch (t: Throwable) {
+                  println("[novelreader] URLUtil runtime probe failed: " + t)
+                  t.printStackTrace()
+              }
+          }
+
+          """
+          s = s.replace(marker, probe + marker + "    logNovelReaderAndroidCompatOrigin()\n", 1)
+          p.write_text(s)
+
       - name: Verify URLUtil shim wins over Android stub
         working-directory: miwayomi
         shell: bash
