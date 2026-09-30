@@ -217,6 +217,35 @@ jobs:
           javap -classpath android-compat/build/classes/kotlin/main -c android.webkit.URLUtil | grep -q "isValidUrl"
           echo "NovelReader URLUtil shim compiled successfully"
 
+      - name: Force Android compatibility classes to parent loader
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/extension/ChildFirstURLClassLoader.kt")
+          s = p.read_text()
+          old = """    override fun loadClass(name: String?, resolve: Boolean): Class<*> {
+        var c = findLoadedClass(name)
+"""
+          new = """    override fun loadClass(name: String?, resolve: Boolean): Class<*> {
+        // Android classes in extension APKs are compile-time stubs. They must
+        // never override Miwayomi's android-compat implementation at runtime.
+        if (name != null && name.startsWith("android.")) {
+            val c = systemClassLoader?.loadClass(name) ?: super.loadClass(name, false)
+            if (resolve) resolveClass(c)
+            return c
+        }
+
+        var c = findLoadedClass(name)
+"""
+          if old not in s:
+              raise SystemExit("ChildFirstURLClassLoader loadClass anchor not found")
+          p.write_text(s.replace(old, new))
+
+      - name: Verify Android classes are parent-first
+        shell: bash
+        run: |
+          grep -q 'name.startsWith("android.")' miwayomi/server/src/main/kotlin/miwayomi/extension/ChildFirstURLClassLoader.kt
+          echo "Android compatibility packages are parent-first"
       - name: Build patched fat JAR
         working-directory: miwayomi
         run: ./gradlew :server:shadowJar --no-daemon
