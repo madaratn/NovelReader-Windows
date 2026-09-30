@@ -23,8 +23,14 @@ async function miwayomiRequest(pathname, init={}) {
   const controller=new AbortController(); const timer=setTimeout(()=>controller.abort(),8000);
   try {
     const r=await fetch(MIWAYOMI_BASE+pathname,{...init,signal:controller.signal,headers:{'Content-Type':'application/json',...(init.headers||{})}});
-    if(!r.ok) throw new Error('Miwayomi HTTP '+r.status);
     const ct=r.headers.get('content-type')||'';
+    if(!r.ok) {
+      let detail='';
+      try { detail=await r.text() } catch {}
+      detail=String(detail||'').trim();
+      if(detail.length>2000) detail=detail.slice(0,2000)+'…';
+      throw new Error('Miwayomi HTTP '+r.status+(detail?' — '+detail:''));
+    }
     return ct.includes('json')?await r.json():await r.text();
   } finally { clearTimeout(timer) }
 }
