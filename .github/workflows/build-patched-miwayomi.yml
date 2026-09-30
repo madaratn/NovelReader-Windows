@@ -113,6 +113,10 @@ jobs:
           if old_fix not in s:
               raise SystemExit("JarFixer clean repair marker not found")
           s = s.replace(old_fix, new_fix, 1)
+          # The extension JARs already repaired by older NovelReader builds carry
+          # the v2 marker. Bump it so the new interface-call normalization is
+          # actually applied to those cached JARs on the next launch.
+          s = s.replace('META-INF/miwayomi-jarfixed-v2', 'META-INF/miwayomi-jarfixed-v3')
           p.write_text(s)
 
       - name: Patch Android Log shim for extension compatibility
