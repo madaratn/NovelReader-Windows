@@ -5,3 +5,8 @@ class SourceRegistry{private sources:NovelSource[]=[];register(s:NovelSource){th
 export const sourceRegistry=new SourceRegistry()
 sourceRegistry.register({id:'local',name:'Local EPUB / TXT',language:'en',description:'Local books on this PC',enabled:true,async search(){return []},async getChapters(){return []},async getChapterContent(){return ''}})
 sourceRegistry.register({id:'demo',name:'Demo Web Novel Source',language:'en',description:'Development provider for the source engine',enabled:true,async search(q){const all=[{title:'Shadow Slave',author:'Guiltythree',url:'demo://shadow-slave',chapterCount:1534},{title:'Lord of Mysteries',author:'Cuttlefish That Loves Diving',url:'demo://lord-of-mysteries',chapterCount:1432}];return all.filter(x=>x.title.toLowerCase().includes(q.toLowerCase())).map(x=>({...x,sourceId:'demo',sourceName:'Demo Web Novel Source'}))},async getChapters(url){const n=url.includes('shadow')?1534:1432;return Array.from({length:n},(_,i)=>({id:String(i+1),title:'Chapter '+(i+1),url:url+'/'+(i+1),index:i+1}))},async getChapterContent(){return '<p>Demo chapter content.</p>'}})
+
+export async function checkForNewChapters(source:NovelSource, novelUrl:string, knownChapterCount:number){
+ const chapters=await source.getChapters(novelUrl)
+ return {chapters,newCount:Math.max(0,chapters.length-knownChapterCount),latest:chapters.at(-1)}
+}
