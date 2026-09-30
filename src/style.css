@@ -31,3 +31,5 @@
 }
 
 .comic-tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}.comic-tabs button{padding:10px 16px;border:1px solid #292e3d;border-radius:999px;background:#11141c;color:#aab3cc;cursor:pointer}.comic-tabs button.active{background:#7664f5;color:white;border-color:#7664f5}.comic-empty{margin-top:20px}.comicgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:18px;margin-top:22px}.comiccard{padding:14px;border:1px solid #252a38;border-radius:14px;background:#11141c}.comiccard img,.comiccard .coverplaceholder{width:100%;aspect-ratio:2/3;height:auto;object-fit:cover;border-radius:10px}.comiccard h3{margin:12px 0 5px}.comiccard small{color:#8994b2}
+
+.libraryactions{display:flex;gap:9px;flex-wrap:wrap}.removebtn{padding:11px 15px;border:1px solid #55343b;border-radius:10px;background:transparent;color:#d98b96;cursor:pointer}.removebtn:hover{background:#2a171b;border-color:#9c4e5b;color:#ffadb7}
