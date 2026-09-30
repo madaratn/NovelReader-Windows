@@ -199,7 +199,9 @@ jobs:
           JAR="server/build/libs/miwayomi-all.jar"
           javap -classpath "$JAR" -c android.webkit.URLUtil > /tmp/urlutil.txt
           cat /tmp/urlutil.txt
-          grep -q "java/net/URI" /tmp/urlutil.txt
+          javap -classpath "$JAR" -c android.webkit.URLUtil\$Companion > /tmp/urlutil-companion.txt
+          cat /tmp/urlutil-companion.txt
+          grep -q "java/net/URI" /tmp/urlutil-companion.txt
           if grep -q "RuntimeException" /tmp/urlutil.txt; then
             echo "Packaged URLUtil still contains Android Stub bytecode" >&2
             exit 1
