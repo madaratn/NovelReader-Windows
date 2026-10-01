@@ -3,6 +3,7 @@ import{t,plural}from'../i18n'
 import{ReadingStats}from'../features/stats'
 import{lsGet,lsSet,timeAgo}from'../lib/util'
 import{Cover}from'../ui/common'
+import{useAnnotations}from'./annotations'
 
 // ---- Novel library ----------------------------------------------------------
 export type ReadingState={index:number,path?:string,scroll?:number,at?:number}
@@ -53,7 +54,8 @@ export function NovelLibrary({library,updates,onCheckUpdates,onOpen,onDetails,on
 }
 
 // ---- Novel detail (chapter list) ---------------------------------------------
-export function NovelDetail({novel,filter,setFilter,loading,onBack,onOpenChapter,onContinue}:{novel:any,filter:string,setFilter:(v:string)=>void,loading:boolean,onBack:()=>void,onOpenChapter:(c:any,i:number)=>void,onContinue:()=>void}){
+export function NovelDetail({novel,filter,setFilter,loading,onBack,onOpenChapter,onContinue,onShowNotes}:{novel:any,filter:string,setFilter:(v:string)=>void,loading:boolean,onBack:()=>void,onOpenChapter:(c:any,i:number)=>void,onContinue:()=>void,onShowNotes?:()=>void}){
+ const notesCount=useAnnotations().filter(a=>a.novelId===novel.id).length
  const chapters:any[]=novel.chapters||[],total=chapters.length||Number(novel.chapterCount)||0
  const r=readingOf(novel.id),current=r?r.index:-1,done=r?r.index+1:0
  const[newestFirst,setNewestFirst]=useState(()=>lsGet('chapterOrder')==='desc'),[hideRead,setHideRead]=useState(()=>lsGet('chapterHideRead')==='1'),[clicked,setClicked]=useState(-1)
@@ -96,7 +98,7 @@ export function NovelDetail({novel,filter,setFilter,loading,onBack,onOpenChapter
       <select value={dlCount} aria-label={t('How many chapters to download')} onChange={e=>{setDlCount(e.target.value);lsSet('offlineBatch',e.target.value)}}><option value="10">{t('Next {n} chapters',{n:10})}</option><option value="50">{t('Next {n} chapters',{n:50})}</option><option value="all">{t('All remaining chapters')}</option></select>
       <button onClick={download} disabled={!chapters.length}>{t('Download')}</button>
       {offline.size>0&&<button className="ghostbtn" onClick={removeDownloads}>{t('Delete downloads')}</button>}</>}</div>
-     <div className="libraryactions">{r?<button className="primary" disabled={loading} onClick={()=>{setClicked(-2);onContinue()}}>{loading&&clicked===-2?t('Loading…'):t('Continue · Ch. {n}',{n:current+1})}</button>:<button className="primary" disabled={loading||!chapters.length} onClick={()=>open(chapters[0],0)}>{t('Start reading')}</button>}{r&&<button onClick={()=>{if(hideRead){setHideRead(false);lsSet('chapterHideRead','0')}requestAnimationFrame(()=>jumpToCurrent())}}>{t('Show current chapter')}</button>}</div>
+     <div className="libraryactions">{r?<button className="primary" disabled={loading} onClick={()=>{setClicked(-2);onContinue()}}>{loading&&clicked===-2?t('Loading…'):t('Continue · Ch. {n}',{n:current+1})}</button>:<button className="primary" disabled={loading||!chapters.length} onClick={()=>open(chapters[0],0)}>{t('Start reading')}</button>}{r&&<button onClick={()=>{if(hideRead){setHideRead(false);lsSet('chapterHideRead','0')}requestAnimationFrame(()=>jumpToCurrent())}}>{t('Show current chapter')}</button>}{notesCount>0&&onShowNotes&&<button onClick={onShowNotes}>🔖 {plural(notesCount,'{n} saved passage','{n} saved passages')}</button>}</div>
    </div>
   </section>
   <section className="chapterarea">

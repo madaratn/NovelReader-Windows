@@ -3,7 +3,7 @@ import { open, nav } from './helpers'
 
 test('sidebar: modes, active page, remembered page per mode and after restart', async ({ page }) => {
   await open(page)
-  await expect(page.locator('.nav-list .nav-item')).toHaveText(['Library', 'Global Search', 'Sources'])
+  await expect(page.locator('.nav-list .nav-item')).toHaveText(['Library', 'Global Search', 'Bookmarks & notes', 'Sources'])
   await nav(page, 'Global Search')
   await expect(page.locator('.nav-item[aria-current=page]')).toHaveText('Global Search')
   await expect(page).toHaveTitle('Global Search · NovelReader')

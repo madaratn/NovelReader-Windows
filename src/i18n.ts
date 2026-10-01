@@ -224,6 +224,15 @@ const FR: Record<string, string> = {
   'Your reading this week': 'Ta lecture cette semaine', 'chapters in 7 days': 'chapitres en 7 jours', 'reading time in 7 days': 'de lecture en 7 jours',
   'day in a row': 'jour d’affilée', 'days in a row': 'jours d’affilée', 'Chapters read per day, last 7 days': 'Chapitres lus par jour, 7 derniers jours',
   '{n} min': '{n} min', '{h} h {m} min': '{h} h {m} min', '{h} h': '{h} h',
+  // Bookmarks & notes
+  'Bookmarks & notes': 'Marque-pages et notes', 'Highlight': 'Surligner', 'yellow': 'jaune', 'green': 'vert', 'pink': 'rose',
+  'Add a note…': 'Ajouter une note…', 'Your note': 'Ta note', 'Cancel': 'Annuler', 'Save': 'Enregistrer',
+  'Note saved': 'Note enregistrée', 'Highlighted': 'Passage surligné', 'Bookmark this place': 'Ajouter un marque-page ici', 'Bookmark added': 'Marque-page ajouté',
+  '{n} saved passage': '{n} passage enregistré', '{n} saved passages': '{n} passages enregistrés', 'Nothing saved yet': 'Rien d’enregistré pour l’instant',
+  'While reading, select text to highlight it or add a note, or press the bookmark button to remember a place. Everything appears here.': 'Pendant la lecture, sélectionne du texte pour le surligner ou y ajouter une note, ou appuie sur le bouton marque-page pour retenir un endroit. Tout apparaît ici.',
+  'Search your notes…': 'Rechercher dans tes notes…', 'Highlights & notes': 'Surlignages et notes', 'Bookmarks': 'Marque-pages',
+  'No saved passage matches.': 'Aucun passage enregistré ne correspond.', 'This novel is no longer in your library': 'Ce roman n’est plus dans ta bibliothèque',
+  'Edit note': 'Modifier la note', 'Delete': 'Supprimer',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

@@ -492,3 +492,30 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .media-episodes .episodebadge b{font-size:15px;color:#b8afff}
 .media-episodes .episodecard.active .episodebadge,.media-episodes .episodecard.active .episodebadge b{color:#fff}
 @media(max-width:700px){.series-title-row{align-items:flex-start;flex-direction:column;gap:7px}.series-title-row p{white-space:normal}}
+
+/* ---- Bookmarks, highlights and notes ------------------------------------------------- */
+::highlight(nr-hl-yellow){background-color:rgba(255,207,92,.42)}
+::highlight(nr-hl-green){background-color:rgba(127,214,164,.40)}
+::highlight(nr-hl-pink){background-color:rgba(255,141,184,.40)}
+.readercontent .flash{animation:nrflash 1.8s ease-out}
+@keyframes nrflash{0%,40%{background:color-mix(in srgb,var(--r-accent) 28%,transparent);box-shadow:0 0 0 8px color-mix(in srgb,var(--r-accent) 28%,transparent);border-radius:6px}100%{background:transparent;box-shadow:none}}
+.readerpage .bm-toggle{font-size:15px;font-weight:400}.readerpage .bm-toggle.on{border-color:var(--r-accent)}
+.selbar{position:fixed;z-index:60;transform:translate(-50%,calc(-100% - 10px));display:flex;align-items:center;gap:6px;padding:6px 8px;background:#12151d;border:1px solid #2b3040;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.45);font-family:'Segoe UI',Inter,system-ui,sans-serif}
+.selcolor{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.25);cursor:pointer}
+.selcolor.c-yellow,.notekind.c-yellow{background:#ffcf5c}.selcolor.c-green,.notekind.c-green{background:#7fd6a4}.selcolor.c-pink,.notekind.c-pink{background:#ff8db8}
+.seltext{min-height:28px;padding:0 10px;border:1px solid #30364a;border-radius:8px;background:#161a24;color:#e6e8ef;font:inherit;font-size:13px;cursor:pointer}
+.selnote{display:flex;flex-direction:column;gap:6px;width:280px}.selnote textarea{min-height:70px;resize:vertical;padding:8px;border:1px solid #2b3040;border-radius:8px;background:#0d1016;color:#e6e8ef;font:inherit;font-size:13.5px}
+.selnote>div{display:flex;justify-content:flex-end;gap:6px}.selnote button{min-height:30px;padding:0 12px;border:1px solid #30364a;border-radius:8px;background:#161a24;color:#e6e8ef;font:inherit;font-size:13px;cursor:pointer}.selnote button.primary{background:#7562ef;border-color:#7562ef;color:#fff}
+.selnote.inline{width:auto;max-width:640px;margin:6px 0}
+.selsaved{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:70;padding:8px 14px;border-radius:10px;background:#173025;border:1px solid #3d765b;color:#b8f3d2;font-size:14px;font-family:'Segoe UI',Inter,system-ui,sans-serif}
+.notesgroup h2{display:flex;align-items:baseline;gap:8px;margin:0 0 10px;font-size:18px}.notesgroup h2 small{color:#8f94a3;font-weight:500;font-size:13px}
+.noteslist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.noteitem{padding:12px 14px;border:1px solid #232838;border-radius:12px;background:#0f1218}
+.notemeta{display:flex;align-items:center;gap:8px;margin-bottom:6px}.notemeta small{color:#8f94a3}
+.notekind{display:inline-block;width:12px;height:12px;border-radius:50%}.notekind.bm{width:auto;height:auto;border-radius:0;font-size:13px}
+.noteitem blockquote{margin:0;padding-left:12px;border-left:3px solid #3a3f55;color:#d5d8e2;font-family:Georgia,'Palatino Linotype',serif;font-size:15px;line-height:1.55}
+.notetext{margin:8px 0 0;color:#e6e8ef;font-size:14px;white-space:pre-wrap}
+.noteactions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.noteactions button{min-height:32px;padding:0 12px;border:1px solid #30364a;border-radius:8px;background:#161a24;color:#e6e8ef;font:inherit;font-size:13px;cursor:pointer}
+.noteactions button.primary{background:#7562ef;border-color:#7562ef;color:#fff}.noteactions button:disabled{opacity:.45;cursor:not-allowed}
+.notes-filter{margin-left:auto}
