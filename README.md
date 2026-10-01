@@ -31,7 +31,7 @@ The **Build Windows EXE** workflow runs on pushes to `main`, on `v*` tags, or ma
 - `src/lib/` — small helpers and shared types; `src/i18n.ts` — English/French strings
 - `electron/` — main process: window and updates (`app-shell.cjs`), backups, offline chapters, LNReader import, local videos, torrent streaming
 
-Checks: `npm run test:unit`, `npm run check:i18n`, `npm run build && npm run test:ui` (all run on every push).
+Checks: `npm run typecheck`, `npm run test:unit`, `npm run check:i18n`, `npm run build && npm run test:ui` (all run on every push).
 
 ## UI tests
 The interface is covered by Playwright tests (`tests/ui/`) that run the built renderer in Chromium with a stubbed Electron bridge: navigation, library and shelves, novel page, reader (settings, resume, read aloud), global search, sources, settings and backups, welcome guide, crash screen, French UI and Local Videos.

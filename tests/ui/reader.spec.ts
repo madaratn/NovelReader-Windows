@@ -78,3 +78,13 @@ test('read aloud: highlight, pause, click to jump, continues to next chapter', a
   await page.locator('.tts-close').click()
   await expect(page.locator('.tts-current')).toHaveCount(0)
 })
+
+test('scripts hidden in chapter HTML never run (content security policy)', async ({ page }) => {
+  await page.addInitScript(() => { (window as any).__chapterOverride = '<p>Safe text</p><img src="data:x" onerror="window.__xss=1"><p onclick="window.__xss=2">Click me</p><script>window.__xss=3</script>' })
+  await open(page, { library: [novel('n1', 'The Lantern Road', 3)] })
+  await page.locator('.libcard .primary').click()
+  await expect(page.locator('.readercontent')).toContainText('Safe text')
+  await page.locator('.readercontent p', { hasText: 'Click me' }).click()
+  await page.waitForTimeout(300)
+  expect(await page.evaluate(() => (window as any).__xss)).toBeUndefined()
+})
