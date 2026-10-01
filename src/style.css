@@ -175,3 +175,49 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .readerpage .readernav button{background:var(--r-btn);color:var(--r-fg);border-color:var(--r-border);min-height:46px}
 .readerpage .readernav .readernext{flex:0 1 260px;font-weight:600}
 @media (max-width:700px){.readerbar{grid-template-columns:auto minmax(0,1fr) auto;gap:10px}.readerpos{display:none}}
+
+/* ---- Novel library ---------------------------------------------------------- */
+.libcover{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:10px;background:#1c2030;display:block}
+.libcover.placeholder{display:grid;place-items:center;color:rgba(255,255,255,.88);font-weight:800;font-size:26px;letter-spacing:1px}
+.lib-empty{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.lib-resume{display:grid;grid-template-columns:72px minmax(0,1fr) auto;align-items:center;gap:18px;margin:0 0 20px;padding:14px 18px;border:1px solid #2f2a5a;border-radius:16px;background:linear-gradient(120deg,#17142b,#11141c 70%);cursor:pointer}
+.lib-resume:hover{border-color:#5a4fc0}
+.lib-resume-meta{min-width:0;display:flex;flex-direction:column;gap:4px}
+.lib-resume-meta small{color:#a99fff;font-size:12.5px}
+.lib-resume-meta h2{margin:0;font-size:19px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lib-resume-meta p{margin:0;color:#aeb3c2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lib-resume .libbar{max-width:360px;margin-top:4px}
+.lib-toolbar{display:flex;align-items:flex-start;gap:12px}
+.lib-toolbar .searchbar{flex:1}
+.lib-sort{display:flex;align-items:center;gap:8px;color:#9aa0b4;font-size:13px;white-space:nowrap;min-height:47px}
+.lib-sort select{min-height:40px;padding:0 10px;border:1px solid #2b3040;border-radius:9px;background:#11141b;color:#e6e8ef;font:inherit;font-size:14px}
+.libgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+.libcard{display:grid;grid-template-columns:96px minmax(0,1fr);gap:16px;padding:14px;border:1px solid #252a38;border-radius:14px;background:#11141c}
+.libcard:hover{border-color:#343a50}
+.libcard-cover{padding:0;border:0;background:none;cursor:pointer;border-radius:10px;align-self:start}
+.libcard-meta{min-width:0;display:flex;flex-direction:column;gap:6px}
+.libcard-meta h2{margin:0;font-size:16.5px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.libcard-meta p{margin:0;color:#98a2bd;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.libcard-meta small{color:#8f94a3;font-size:12.5px}
+.libcard .libraryactions{margin-top:auto;display:flex;gap:8px;flex-wrap:wrap}
+.libbar{height:4px;border-radius:3px;background:#232838;overflow:hidden}.libbar span{display:block;height:100%;background:#8b7cff}
+.lib-undo{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);width:auto;min-width:300px}
+.lib-undo>div{display:flex;align-items:center;gap:6px}
+.lib-undo .undo-btn{font-size:14px!important;font-weight:700;padding:6px 10px!important;border:1px solid currentColor!important;border-radius:7px}
+@media (max-width:700px){.lib-resume{grid-template-columns:56px minmax(0,1fr)}.lib-resume>.primary{grid-column:1/-1}.lib-toolbar{flex-direction:column;align-items:stretch}.libgrid{grid-template-columns:1fr}}
+
+/* ---- Local Videos / Internet Archive players ------------------------------ */
+.player-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.player-row .libraryactions{margin:0}
+.player-hint{color:#7f8598;font-size:12.5px}.player-hint b{color:#c9cbe0;font-weight:600}
+.localgroup+.localgroup{margin-top:18px}
+.localgroup h3{margin:14px 0 0;font-size:14px;color:#c9cbd6;font-weight:650}.localgroup h3 small{color:#7f8598;font-weight:500;margin-left:6px}
+.localgrid.compact{max-height:none;overflow:visible}
+.localcard.watched .localname{color:#9aa0b4}
+.watched-mark{color:#7fd6a4}
+.folders-panel>summary{display:flex;align-items:baseline;gap:10px;cursor:pointer;list-style:none}
+.folders-panel>summary::-webkit-details-marker{display:none}
+.folders-panel>summary::before{content:'›';display:inline-block;width:12px;font-size:18px;line-height:1;color:#7f8598;transition:transform .15s}
+.folders-panel[open]>summary::before{transform:rotate(90deg)}
+.folders-panel>summary h2{margin:0;font-size:17px}.folders-panel>summary small{color:#7f8598}
+.folders-panel[open]>summary{margin-bottom:12px}
