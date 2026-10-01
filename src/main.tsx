@@ -669,7 +669,7 @@ function MediaSearch({kind,query,setQuery,library,onAdd}:{kind:MediaKind,query:s
  const stop=()=>{token.current++;setStatus(x=>x?{...x,running:false,stopped:true}:x)}
  const qn=mediaNorm(query),words=qn.split(' ').filter(Boolean),groups=new Map<string,any[]>()
  for(const a of rows){const title=mediaNorm(a.title||a.name||'');if(!title||!words.every(w=>title.includes(w)))continue;if(!groups.has(title))groups.set(title,[]);groups.get(title)!.push(a)}
- const results=[...groups.entries()].map(([key,hits])=>({key,hits,primary:hits[0],score:key===qn?100:key.startsWith(qn)?90:key.includes(qn)?80:60})).sort((a,b)=>b.score-a.score||b.hits.length-a.hits.length)
+ const results=Array.from(groups.entries()).map(([key,hits])=>({key,hits,primary:hits[0],score:key===qn?100:key.startsWith(qn)?90:key.includes(qn)?80:60})).sort((a,b)=>b.score-a.score||b.hits.length-a.hits.length)
  const pct=status?.total?Math.round(status.checked/status.total*100):0
  return <><header><div><h1>{kind}</h1><p>Search compatible video sources, with live progress and grouped results.</p></div></header>
   <form className="searchbar search-main" onSubmit={e=>{e.preventDefault();status?.running?stop():run()}}><input placeholder={'Search '+kind.toLowerCase()+'…'} value={query} onChange={e=>setQuery(e.target.value)} aria-label={'Search '+kind}/><button type="submit" className={status?.running?'stopbtn':'primary'} disabled={!status?.running&&!query.trim()}>{status?.running?'Stop':'Search'}</button></form>
