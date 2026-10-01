@@ -24,7 +24,7 @@ export type Setup = {
   reading?: Record<string, { index: number, scroll?: number, at?: number }>
   plugins?: any[]                        // LNReader manifest served to the app
   newChapters?: Record<string, number>   // parseNovel returns this many chapters for a novel path
-  videos?: { relPath: string }[]         // Local Videos
+  videos?: { relPath: string, file?: string, subtitles?: any[] }[] // Local Videos (file in tests/ui/fixtures, stubbed subtitle list)
   slowSources?: boolean                  // make each source take ~2 s (to test Stop)
 }
 
@@ -50,7 +50,7 @@ export async function setup(page: Page, s: Setup = {}) {
     const saveAutos = () => sessionStorage.setItem('__autos', JSON.stringify(autos))
     const w = window as any
     w.__calls = { search: [] as string[], parseChapter: 0 }
-    const vids = (videos || []).map((v: any, i: number) => ({ name: v.relPath.split('/').pop(), folder: 'D:/Videos', relPath: v.relPath, size: 1_000_000 * (i + 1), mtime: Date.now() - i * 86400_000, url: '/fixtures/clip.webm?v=' + encodeURIComponent(v.relPath) }))
+    const vids = (videos || []).map((v: any, i: number) => ({ name: v.relPath.split('/').pop(), folder: 'D:/Videos', relPath: v.relPath, size: 1_000_000 * (i + 1), mtime: Date.now() - i * 86400_000, url: '/fixtures/' + (v.file || 'clip.webm') + '?v=' + encodeURIComponent(v.relPath), subtitles: v.subtitles || [] }))
     let folders = vids.length ? ['D:/Videos'] : []
     w.novelReader = {
       searchPlugin: async (pl: any, q: string) => {
@@ -74,7 +74,9 @@ export async function setup(page: Page, s: Setup = {}) {
         return '<p>' + Array.from({ length: 40 }, (_, i) => `Paragraph ${i + 1} of chapter ${n}. The lantern light trembled across the old stone corridor as the travellers paused to listen.`).join('</p><p>') + '</p>'
       },
       miwayomiStatus: async () => ({ online: false, baseUrl: 'http://127.0.0.1:4567' }), miwayomiDebug: async () => ({}), miwayomiFetch: async () => [],
-      localFolders: async () => folders, localAddFolder: async () => (folders = ['D:/Videos']), localRemoveFolder: async () => (folders = []), localListVideos: async () => (folders.length ? vids : []),
+      localFolders: async () => folders, localAddFolder: async () => (folders = ['D:/Videos']), localRemoveFolder: async () => (folders = []), localListVideos: async () => (folders.length ? vids.map(({ subtitles, ...v }: any) => v) : []),
+      localTracks: async (url: string) => ({ subtitles: (vids.find((v: any) => v.url === url) || { subtitles: [] }).subtitles }),
+      localSubtitle: async (url: string, id: string) => { (w.__subCalls ||= []).push(id); await new Promise(r => setTimeout(r, 50)); if (id === 'broken') throw new Error("Error invoking remote method 'local:subtitle': Error: These subtitles use an unsupported compression."); return 'WEBVTT\n\n00:00:00.000 --> 00:01:00.000\nCue from ' + id + '\n' },
       archiveSearch: async () => [], archiveFiles: async () => ({ files: [], hasTorrent: false }),
       torrentStart: async () => ({}), torrentStartMagnet: async () => ({}), torrentStatus: async () => ({ state: 'stopped' }), torrentStop: async () => true,
       backupAuto: async (payload: any, force?: boolean) => {

@@ -244,6 +244,15 @@ const FR: Record<string, string> = {
   'The sync file is damaged. It will be rewritten from this PC.': 'Le fichier de synchronisation est endommagé. Il sera réécrit depuis ce PC.',
   'The sync file is not a NovelReader file.': 'Le fichier de synchronisation n’est pas un fichier NovelReader.', 'Sync is not set up.': 'La synchronisation n’est pas configurée.',
   'Appearance': 'Apparence', 'Like Windows': 'Comme Windows', 'The reader has its own themes: open Aa while reading.': 'Le lecteur a ses propres thèmes : ouvre Aa pendant la lecture.',
+  'Subtitles': 'Sous-titres', 'Off': 'Désactivés', 'Audio': 'Audio', 'Track {n}': 'Piste {n}', 'forced': 'forcés', 'file': 'fichier',
+  'pictures, cannot be shown': 'images, impossibles à afficher', 'Loading subtitles…': 'Chargement des sous-titres…',
+  'No subtitles found. To add some, put a .srt file with the same name next to the video.': 'Aucun sous-titre trouvé. Pour en ajouter, place un fichier .srt portant le même nom à côté de la vidéo.',
+  'C subtitles': 'C sous-titres', 'A audio': 'A audio',
+  'This video is not in one of your folders.': 'Cette vidéo n’est dans aucun de tes dossiers.', 'This subtitle track was not found.': 'Cette piste de sous-titres est introuvable.',
+  'These subtitles are pictures and cannot be shown.': 'Ces sous-titres sont des images et ne peuvent pas être affichés.',
+  'These subtitles use an unsupported compression.': 'Ces sous-titres utilisent une compression non prise en charge.',
+  'This subtitle file is not next to the video.': 'Ce fichier de sous-titres n’est pas à côté de la vidéo.', 'The subtitle file is too large.': 'Le fichier de sous-titres est trop volumineux.',
+  'Not a Matroska/WebM file.': 'Ce n’est pas un fichier Matroska/WebM.',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
