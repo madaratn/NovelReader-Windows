@@ -15,7 +15,9 @@ export default defineConfig({
     viewport: { width: 1280, height: 860 },
     locale: 'en-US',
     trace: 'retain-on-failure',
-    screenshot: 'only-on-failure'
+    screenshot: 'only-on-failure',
+    // Same Blink feature as the app (electron/main.cjs): video.audioTracks.
+    launchOptions: { args: ['--enable-blink-features=AudioVideoTracks'] }
   },
   webServer: {
     command: `node tests/ui/serve.mjs ${PORT}`,

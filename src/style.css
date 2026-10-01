@@ -209,6 +209,7 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 /* ---- Local Videos / Internet Archive players ------------------------------ */
 .player-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .player-row .libraryactions{margin:0}
+.track-row{display:flex;align-items:center;gap:6px 18px;flex-wrap:wrap;margin:6px 0 2px}.track-row .lib-sort{min-height:40px}.track-row select{max-width:340px}.track-row .spinner{margin-left:2px}
 .player-hint{color:#7f8598;font-size:12.5px}.player-hint b{color:#c9cbe0;font-weight:600}
 .localgroup+.localgroup{margin-top:18px}
 .localgroup h3{margin:14px 0 0;font-size:14px;color:#c9cbd6;font-weight:650}.localgroup h3 small{color:#7f8598;font-weight:500;margin-left:6px}

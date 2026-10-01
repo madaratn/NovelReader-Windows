@@ -14,6 +14,10 @@ const {createOfflineStore}=require('./offline.cjs')
 const {createLNReaderImporter}=require('./lnreader-import.cjs')
 const {createFolderSync}=require('./sync.cjs')
 const folderSync=createFolderSync({app,dialog})
+const {createLocalTracks}=require('./local-tracks.cjs')
+const localTracks=createLocalTracks()
+// Lets the Local Videos player list and switch audio tracks (video.audioTracks).
+app.commandLine.appendSwitch('enable-blink-features','AudioVideoTracks')
 const offline=createOfflineStore({app})
 const lnImporter=createLNReaderImporter({dialog})
 const APP_ID='com.novelreader.windows'
@@ -93,6 +97,11 @@ function scanVideos(root,limit=5000){const out=[];const walk=(dir,depth)=>{if(de
 ipcMain.handle('local:folders',async()=>loadFolders())
 ipcMain.handle('local:addFolder',async e=>{const win=BrowserWindow.fromWebContents(e.sender);const r=await dialog.showOpenDialog(win,{title:'Choose a video folder',properties:['openDirectory']});if(r.canceled||!r.filePaths[0])return loadFolders();const list=loadFolders();if(!list.includes(r.filePaths[0]))list.push(r.filePaths[0]);saveFolders(list);return list})
 ipcMain.handle('local:removeFolder',async(_e,folder)=>{const list=loadFolders().filter(f=>f!==folder);saveFolders(list);return list})
+// Subtitles for a local video: files next to it and text tracks inside MKV files.
+const localFileOf=url=>{let file='';try{file=new URL(String(url||'')).searchParams.get('p')||''}catch{};if(!file||!isInsideAllowed(file))throw new Error('This video is not in one of your folders.');return file}
+const cleanLocal=fn=>async(_e,o)=>{try{return await fn(o||{})}catch(err){console.warn('[local tracks]',err);throw new Error(err&&err.message||String(err))}}
+ipcMain.handle('local:tracks',cleanLocal(o=>localTracks.list(localFileOf(o.url))))
+ipcMain.handle('local:subtitle',cleanLocal(o=>localTracks.subtitle(localFileOf(o.url),String(o.id||''))))
 ipcMain.handle('local:listVideos',async()=>loadFolders().flatMap(f=>fs.existsSync(f)?scanVideos(f):[]))
 function registerLocalProtocol(){
  protocol.handle('nrlocal',async req=>{
@@ -171,7 +180,7 @@ async function runSmokeTest(win){
  const result={}
  try{
   await new Promise(r=>win.webContents.once('did-finish-load',r))
-  result.bridge=await win.webContents.executeJavaScript("['torrentStart','torrentStatus','torrentStop','archiveSearch','archiveFiles','backupExport','backupImport','backupAuto','backupListAuto','backupReadAuto','appVersion','updateCheck','onUpdateStatus','focusWindow','offlineSave','offlineGet','importLNReader','syncStatus','syncRead','syncWrite'].every(k=>typeof window.novelReader[k]==='function')")
+  result.bridge=await win.webContents.executeJavaScript("['torrentStart','torrentStatus','torrentStop','archiveSearch','archiveFiles','backupExport','backupImport','backupAuto','backupListAuto','backupReadAuto','appVersion','updateCheck','onUpdateStatus','focusWindow','offlineSave','offlineGet','importLNReader','syncStatus','syncRead','syncWrite','localTracks','localSubtitle'].every(k=>typeof window.novelReader[k]==='function')")
   result.backup=await win.webContents.executeJavaScript("(async()=>{const p={app:'NovelReader',version:1,exportedAt:Date.now(),data:{library:JSON.stringify([{id:'x',name:'Smoke'}])}};const a=await window.novelReader.backupAuto(p);const b=await window.novelReader.backupAuto(p);const list=await window.novelReader.backupListAuto();const back=await window.novelReader.backupReadAuto(list[0].name);return {first:a.saved,second:b.saved,listed:list.length,novels:list[0].novels,same:back.data.library===p.data.library}})()")
   const id=process.env.NR_SMOKE_ARCHIVE_ID
   if(id){
@@ -181,8 +190,16 @@ async function runSmokeTest(win){
    result.stream={status:r.status,contentRange:r.headers.get('content-range'),bytes:buf.length,mp4:buf.slice(4,8).toString('latin1')==='ftyp',file:info.fileName}
    await getTorrents().stop(info.sessionId)
   }
+  // Local Videos tracks on a real Chromium: embedded subtitles + audio track switching.
+  const vdir=process.env.NR_SMOKE_VIDEO_DIR
+  if(vdir){
+   saveFolders([path.resolve(vdir)])
+   result.tracks=await win.webContents.executeJavaScript(`(async()=>{const nr=window.novelReader;const v=(await nr.localListVideos()).find(x=>x.name==='tracks.mkv');const t=await nr.localTracks(v.url);const vtt=await nr.localSubtitle(v.url,t.subtitles[1].id);
+    const el=document.createElement('video');el.muted=true;el.src=v.url;document.body.append(el);await new Promise((ok,ko)=>{el.onloadedmetadata=ok;el.onerror=()=>ko(new Error('video error '+(el.error&&el.error.code)))});
+    const at=el.audioTracks;const n=at?at.length:0;if(n>1)at[1].enabled=true;const r={subs:t.subtitles.length,vtt:vtt.includes('Hello, world'),audio:n,labels:at?[...at].map(x=>x.label):[],switched:n>1&&at[1].enabled&&!at[0].enabled};el.remove();return r})()`)
+  }
   result.security=await win.webContents.executeJavaScript("(async()=>{const csp=!!document.querySelector('meta[http-equiv=Content-Security-Policy]');const before=location.href;const w=window.open('https://example.com');try{location.href='https://example.com/'}catch{}await new Promise(r=>setTimeout(r,800));return{csp,popupBlocked:w===null,stayed:location.href===before}})()")
-  result.ok=result.bridge===true&&result.security&&result.security.csp&&result.security.popupBlocked&&result.security.stayed&&result.backup&&result.backup.first===true&&result.backup.second===false&&result.backup.same===true&&(!id||(result.stream.status===206&&result.stream.bytes===1048576))
+  result.ok=result.bridge===true&&result.security&&result.security.csp&&result.security.popupBlocked&&result.security.stayed&&result.backup&&result.backup.first===true&&result.backup.second===false&&result.backup.same===true&&(!id||(result.stream.status===206&&result.stream.bytes===1048576))&&(!vdir||(result.tracks.subs===2&&result.tracks.vtt&&result.tracks.audio===2&&result.tracks.switched))
  }catch(e){result.ok=false;result.error=String(e&&e.message||e)}
  console.log('SMOKE_RESULT '+JSON.stringify(result))
  if(torrents)await torrents.shutdown().catch(()=>{})

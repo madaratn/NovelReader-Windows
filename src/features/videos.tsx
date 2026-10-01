@@ -25,6 +25,64 @@ export function useVideoShortcuts(ref:React.RefObject<HTMLVideoElement|null>,act
   window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey)},[active])
 }
 export const playerKeys=()=>t('Space play/pause · ← → 10 s · F fullscreen · M mute')
+
+// ---- Local Videos: subtitles and audio tracks ----------------------------------------
+// Subtitles come from the main process (files next to the video, text tracks
+// inside MKV files) as WebVTT; audio tracks from video.audioTracks (enabled
+// with the AudioVideoTracks Blink feature). Choices are remembered per video,
+// and the language picked last is preferred for the next videos.
+const BIB:Record<string,string>={fre:'fr',ger:'de',chi:'zh',cze:'cs',dut:'nl',gre:'el',per:'fa',rum:'ro',slo:'sk',alb:'sq',arm:'hy',baq:'eu',bur:'my',geo:'ka',ice:'is',mac:'mk',mao:'mi',may:'ms',tib:'bo',wel:'cy'}
+export const normLang=(code:string)=>{const c=(code||'').trim().toLowerCase();if(!c||c==='und'||c==='zxx'||c==='mul')return'';return BIB[c]||c}
+export function langName(code:string){const c=normLang(code);if(!c)return'';try{const n=new Intl.DisplayNames([getLang()],{type:'language'}).of(c);if(n&&n.toLowerCase()!==c)return n.charAt(0).toUpperCase()+n.slice(1)}catch{}return c.toUpperCase()}
+const joinLabel=(lang:string,label:string)=>(!label?lang:!lang||label.toLowerCase().includes(lang.toLowerCase())?label:lang+' — '+label)
+export function subtitleLabel(s:LocalSubtitle,i:number){const parts=[joinLabel(langName(s.lang),s.label)].filter(Boolean);let out=parts.join(' — ')||t('Track {n}',{n:i+1});if(s.forced)out+=' ('+t('forced')+')';if(s.source==='file')out+=' · '+t('file');if(!s.supported)out+=' — '+t('pictures, cannot be shown');return out}
+type AudioChoice={label:string,lang:string}
+function pickSubtitle(list:LocalSubtitle[],url:string){const ok=list.filter(s=>s.supported);const saved=lsGet('localsub:'+url);if(saved==='off')return null;if(saved&&ok.some(s=>s.id===saved))return saved
+ const pref=lsGet('subLang')||'';if(pref==='off')return null
+ if(pref){const m=ok.filter(s=>normLang(s.lang)===pref);const full=m.find(s=>!s.forced)||m[0];if(full)return full.id}
+ return(ok.find(s=>s.source==='file')||ok.find(s=>s.default&&s.source==='embedded'&&!pref)||null)?.id||null}
+export function useLocalTracks(ref:React.RefObject<HTMLVideoElement|null>,current:LocalVideo|null,onError:(msg:string)=>void){
+ const[subs,setSubs]=useState<LocalSubtitle[]>([]),[subId,setSubId]=useState(''),[subSrc,setSubSrc]=useState(''),[subBusy,setSubBusy]=useState(false),[audio,setAudio]=useState<AudioChoice[]>([]),[audioIdx,setAudioIdx]=useState(0)
+ const token=useRef(0),api=(window as any).novelReader
+ const load=async(id:string,remember:boolean)=>{const my=++token.current;if(!current)return
+  if(remember){lsSet('localsub:'+current.url,id||'off');const s=subs.find(x=>x.id===id);lsSet('subLang',id?(normLang(s?.lang||'')||lsGet('subLang')||''):'off')}
+  if(!id){setSubId('');setSubSrc('');setSubBusy(false);return}
+  setSubBusy(true)
+  try{const vtt:string=await api.localSubtitle(current.url,id);if(my!==token.current)return;setSubSrc(URL.createObjectURL(new Blob([vtt],{type:'text/vtt'})));setSubId(id)}
+  catch(e:any){if(my===token.current){setSubId('');setSubSrc('');onError(String(e?.message||e).replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/,''))}}
+  finally{if(my===token.current)setSubBusy(false)}}
+ useEffect(()=>{token.current++;setSubs([]);setSubId('');setSubSrc('');setSubBusy(false);setAudio([]);setAudioIdx(0)
+  if(!current||!api?.localTracks)return
+  let alive=true
+  api.localTracks(current.url).then((r:{subtitles:LocalSubtitle[]})=>{if(!alive)return;setSubs(r.subtitles||[]);const pick=pickSubtitle(r.subtitles||[],current.url);if(pick)loadRef.current(pick,false)}).catch(()=>{})
+  return()=>{alive=false}},[current?.url])
+ const loadRef=useRef(load);loadRef.current=load
+ useEffect(()=>()=>{if(subSrc)URL.revokeObjectURL(subSrc)},[subSrc])
+ // Show the (single) subtitle track once it is attached.
+ useEffect(()=>{const v=ref.current;if(!v)return;const tracks=[...v.textTracks];tracks.forEach((tr,i)=>{tr.mode=subSrc&&i===tracks.length-1?'showing':'disabled'})},[subSrc])
+ const onMetadata=(el:HTMLVideoElement)=>{const at=(el as any).audioTracks;if(!at||at.length<2){setAudio([]);return}
+  const list:AudioChoice[]=[...at].map((x:any,i:number)=>({label:x.label||'',lang:x.language||'',i}))
+  setAudio(list)
+  const pref=lsGet('audioLang')||'';let idx=[...at].findIndex((x:any)=>x.enabled);if(idx<0)idx=0
+  if(pref){const m=list.findIndex(a=>normLang(a.lang)===pref||(!a.lang&&a.label===pref));if(m>=0&&m!==idx){selectAudioOn(el,m);idx=m}}
+  setAudioIdx(idx)}
+ const selectAudioOn=(el:HTMLVideoElement,i:number)=>{const at=(el as any).audioTracks;if(!at||!at[i])return;at[i].enabled=true;for(let k=0;k<at.length;k++)if(k!==i)at[k].enabled=false}
+ const chooseAudio=(i:number)=>{const el=ref.current;if(!el)return;selectAudioOn(el,i);setAudioIdx(i);const a=audio[i];if(a)lsSet('audioLang',normLang(a.lang)||a.label)}
+ const audioLabel=(a:AudioChoice,i:number)=>joinLabel(langName(a.lang),a.label)||t('Track {n}',{n:i+1})
+ const cycleSub=()=>{const ok=subs.filter(s=>s.supported);if(!ok.length)return;const i=ok.findIndex(s=>s.id===subId);load(i+1<ok.length?ok[i+1].id:'',true)}
+ const cycleAudio=()=>{if(audio.length>1)chooseAudio((audioIdx+1)%audio.length)}
+ const sub=subs.find(s=>s.id===subId)
+ const track=subSrc?<track key={subSrc} kind="subtitles" src={subSrc} srcLang={normLang(sub?.lang||'')||undefined} label={sub?subtitleLabel(sub,subs.indexOf(sub)):''} default/>:null
+ return{subs,subId,subBusy,audio,audioIdx,track,onMetadata,chooseSub:(id:string)=>load(id,true),chooseAudio,audioLabel,cycleSub,cycleAudio}
+}
+export function TrackControls({tr}:{tr:ReturnType<typeof useLocalTracks>}){
+ return <div className="track-row">
+  {tr.subs.length>0?<label className="lib-sort">{t('Subtitles')}<select value={tr.subId} onChange={e=>tr.chooseSub(e.target.value)} aria-label={t('Subtitles')}>
+   <option value="">{t('Off')}</option>{tr.subs.map((s,i)=><option key={s.id} value={s.id} disabled={!s.supported}>{subtitleLabel(s,i)}</option>)}</select>{tr.subBusy&&<span className="spinner" aria-label={t('Loading subtitles…')}/>}</label>
+  :<small className="player-hint">{t('No subtitles found. To add some, put a .srt file with the same name next to the video.')}</small>}
+  {tr.audio.length>1&&<label className="lib-sort">{t('Audio')}<select value={tr.audioIdx} onChange={e=>tr.chooseAudio(Number(e.target.value))} aria-label={t('Audio')}>{tr.audio.map((a,i)=><option key={i} value={i}>{tr.audioLabel(a,i)}</option>)}</select></label>}
+ </div>
+}
 export function LocalVideos(){
  const[folders,setFolders]=useState<string[]>([]),[videos,setVideos]=useState<LocalVideo[]>([]),[filter,setFilter]=useState(''),[sort,setSort]=useState<'name'|'added'>(()=>lsGet('localSort')==='added'?'added':'name'),[current,setCurrent]=useState<LocalVideo|null>(null),[loading,setLoading]=useState(true),[playError,setPlayError]=useState(''),[,tick]=useState(0)
  const ref=useRef<HTMLVideoElement>(null),lastSave=useRef(0)
@@ -37,6 +95,9 @@ export function LocalVideos(){
  const step=(d:number)=>{const n=neighbour(d);if(n)play(n)}
  const save=(el:HTMLVideoElement,done=false)=>{if(!current||!el.duration)return;localStorage.setItem('localpos:'+current.url,JSON.stringify({t:done?0:el.currentTime,d:el.duration,done:done||el.currentTime>el.duration-30,at:Date.now()}))}
  useVideoShortcuts(ref,!!current,{onNext:()=>step(1),onPrev:()=>step(-1)})
+ const tracks=useLocalTracks(ref,current,msg=>setPlayError(t(msg))),tracksRef=useRef(tracks);tracksRef.current=tracks
+ // C: next subtitles (or off), A: next audio track.
+ useEffect(()=>{if(!current)return;const onKey=(e:KeyboardEvent)=>{if(isTyping(e.target)||e.ctrlKey||e.metaKey||e.altKey)return;const k=e.key.toLowerCase();if(k==='c'){tracksRef.current.cycleSub();e.preventDefault()}else if(k==='a'){tracksRef.current.cycleAudio();e.preventDefault()}};window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey)},[!!current])
  // "Continue watching": started but unfinished, most recent first.
  const inProgress=videos.map(v=>({v,p:readPos(v.url)})).filter(x=>x.p&&!x.p.done&&x.p.t>5).sort((a,b)=>(b.p!.at||0)-(a.p!.at||0)).slice(0,6)
  // Group by sub-folder (one group per season/series folder) when sorted by name.
@@ -50,15 +111,16 @@ export function LocalVideos(){
   <header><div><h1>{t('Local Videos')}</h1><p>{t('Play video files stored on this PC. {files} in {folders}.',{files:plural(videos.length,'{n} file','{n} files'),folders:plural(folders.length,'{n} folder','{n} folders')})}</p></div></header>
   {current&&<section className="panel local-player"><h2>{current.name}</h2>
    <video ref={ref} key={current.url} src={current.url} controls autoPlay
-    onLoadedMetadata={e=>{const el=e.currentTarget;restoreVolume(el);const p=readPos(current.url);if(p&&!p.done&&p.t>5&&p.t<el.duration-10)el.currentTime=p.t}}
+    onLoadedMetadata={e=>{const el=e.currentTarget;restoreVolume(el);tracks.onMetadata(el);const p=readPos(current.url);if(p&&!p.done&&p.t>5&&p.t<el.duration-10)el.currentTime=p.t}}
     onVolumeChange={e=>rememberVolume(e.currentTarget)}
     onTimeUpdate={e=>{const now=Date.now();if(now-lastSave.current>4000){lastSave.current=now;save(e.currentTarget)}}}
     onPause={e=>{save(e.currentTarget);tick(x=>x+1)}}
     onEnded={e=>{save(e.currentTarget,true);tick(x=>x+1);step(1)}}
-    onError={e=>{const c=e.currentTarget.error?.code;setPlayError(c===4?t('This file uses a format or codec the built-in player cannot decode (common with HEVC/H.265 video or AC3/DTS audio in MKV files). An MP4 with H.264 video and AAC audio will play.'):t('The file could not be read. It may have been moved, renamed or deleted — try Rescan.'))}}/>
+    onError={e=>{const c=e.currentTarget.error?.code;setPlayError(c===4?t('This file uses a format or codec the built-in player cannot decode (common with HEVC/H.265 video or AC3/DTS audio in MKV files). An MP4 with H.264 video and AAC audio will play.'):t('The file could not be read. It may have been moved, renamed or deleted — try Rescan.'))}}>{tracks.track}</video>
    {playError&&<div className="anime-toast error"><NoticeText text={playError}/><button onClick={()=>setPlayError('')}>×</button></div>}
+   <TrackControls tr={tracks}/>
    <div className="player-row"><div className="libraryactions"><button disabled={!neighbour(-1)} onClick={()=>step(-1)} title={t('Previous')+' (P)'}>← {t('Previous')}</button><button disabled={!next} onClick={()=>step(1)} title={t('Next')+' (N)'}>{t('Next')} →</button><button onClick={()=>{if(ref.current)ref.current.pause();setCurrent(null)}}>{t('Close player')}</button></div>
-    <small className="player-hint">{next?<>{t('Up next:')} <b>{next.relPath.split(/[\\/]/).pop()}</b> · </>:null}{playerKeys()} · {t('N/P next/previous')}</small></div>
+    <small className="player-hint">{next?<>{t('Up next:')} <b>{next.relPath.split(/[\\/]/).pop()}</b> · </>:null}{playerKeys()} · {t('N/P next/previous')}{tracks.subs.some(x=>x.supported)?' · '+t('C subtitles'):''}{tracks.audio.length>1?' · '+t('A audio'):''}</small></div>
   </section>}
   {folders.length===0&&!loading?<section className="panel lib-empty"><h2>{t('Add your video folders')}</h2><p>{t('Pick a folder on this PC that contains videos (MP4, WebM, MKV…). Sub-folders are scanned too, and each one becomes its own group.')}</p><button className="primary" onClick={async()=>{await window.novelReader.localAddFolder();refresh()}}>{t('Add folder…')}</button></section>:<>
    {inProgress.length>0&&!q&&<section className="panel"><h2>{t('Continue watching')}</h2><div className="localgrid compact">{inProgress.map(x=>card(x.v))}</div></section>}
