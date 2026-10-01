@@ -424,3 +424,45 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .stats-tip{position:absolute;top:-6px;transform:translate(-50%,-100%);padding:6px 10px;border:1px solid #2b3040;border-radius:8px;background:#0d1016;color:#e6e8ef;font-size:12.5px;white-space:nowrap;pointer-events:none}
 .stats-chart{margin-bottom:22px}
 @media (max-width:820px){.stats-body{grid-template-columns:1fr}}
+
+
+/* ---- Media polish: Anime / Series / Movies only --------------------------- */
+.media-page{--media-card:#11141c;--media-line:#252a38;max-width:1280px}
+.media-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #232838}
+.media-heading h1{margin:3px 0 5px;font-size:30px;letter-spacing:-.5px}
+.media-heading p{margin:0;color:#9aa0b4;max-width:700px}
+.media-kicker{color:#9b8fff;font-size:11px;font-weight:800;letter-spacing:1.4px}
+.media-add{min-height:42px;padding:0 16px;white-space:nowrap}
+.media-page .lib-toolbar{margin-bottom:18px;padding:10px;border:1px solid #232838;border-radius:13px;background:#0f1218}
+.media-page .libgrid{grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:16px}
+.media-page .libcard{grid-template-columns:112px minmax(0,1fr);min-height:190px;padding:12px;border-radius:16px;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
+.media-page .libcard:hover{transform:translateY(-2px);border-color:#4a4380;box-shadow:0 12px 28px rgba(0,0,0,.2)}
+.media-page .libcard-cover{overflow:hidden}
+.media-page .libcard-cover .libcover{transition:transform .2s ease}
+.media-page .libcard:hover .libcard-cover .libcover{transform:scale(1.025)}
+.media-page .libcard-meta h2{font-size:18px;margin-top:2px}
+.media-page .libcard-meta p{color:#a7adc0}
+.media-page .lib-empty{min-height:220px;justify-content:center;padding:28px;background:radial-gradient(circle at 15% 10%,rgba(117,98,239,.13),transparent 38%),#0f1218}
+.media-search-page .search-main{margin:0 0 12px;padding:10px;border:1px solid #2a3040;border-radius:14px;background:#0f1218}
+.media-search-page .search-main input{min-height:48px;font-size:15px}
+.media-search-page .search-main button{min-width:112px;min-height:48px}
+.media-search-page .recent-searches{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 0 16px}
+.media-search-page .recent-searches small{margin-right:3px;color:#7f8598}
+.media-search-page .recent-searches .chip{padding:6px 10px;border:1px solid #2b3040;border-radius:999px;background:#11141b;color:#b9bdca;cursor:pointer}
+.media-results{margin-top:22px}
+.media-results-head{display:flex;justify-content:space-between;align-items:end;margin-bottom:12px}
+.media-results-head h2{margin:0 0 3px;font-size:19px}.media-results-head p{margin:0;color:#858b9d;font-size:13px}
+.media-resultgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.media-resultcard{display:grid;grid-template-columns:104px minmax(0,1fr);gap:14px;min-height:174px;padding:11px;border:1px solid var(--media-line);border-radius:15px;background:var(--media-card);transition:transform .16s ease,border-color .16s ease}
+.media-resultcard:hover{transform:translateY(-2px);border-color:#48416f}
+.media-poster{position:relative;align-self:start}.media-poster .libcover{width:104px}
+.source-count{position:absolute;left:6px;bottom:6px;padding:3px 7px;border-radius:999px;background:rgba(8,10,15,.88);color:#d8d4ff;font-size:10.5px;font-weight:700;backdrop-filter:blur(5px)}
+.media-resultmeta{min-width:0;display:flex;flex-direction:column;gap:6px;padding:3px 2px}
+.media-resultmeta h3{margin:0;font-size:17px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.media-resultmeta>small{color:#8f94a3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.media-resultactions{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin-top:auto}
+.media-resultactions button.primary{min-height:36px;padding:0 13px}
+.media-resultactions .othersources>summary{color:#999fb1}
+.media-source-chip{display:inline-block;margin:3px 4px 0 0;padding:4px 7px;border:1px solid #30364a;border-radius:999px;color:#9fa5b8;font-size:11px}
+.media-page .searchstatus{margin-top:10px;background:#10131b}
+@media(max-width:760px){.media-heading{align-items:flex-start;flex-direction:column}.media-page .libgrid,.media-resultgrid{grid-template-columns:1fr}.media-page .libcard{grid-template-columns:96px minmax(0,1fr)}}
