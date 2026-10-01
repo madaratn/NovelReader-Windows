@@ -221,3 +221,29 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .folders-panel[open]>summary::before{transform:rotate(90deg)}
 .folders-panel>summary h2{margin:0;font-size:17px}.folders-panel>summary small{color:#7f8598}
 .folders-panel[open]>summary{margin-bottom:12px}
+
+/* ---- Novel detail ------------------------------------------------------------ */
+.novelhead{display:grid;grid-template-columns:150px minmax(0,1fr);gap:26px;align-items:end;margin:0 0 26px}
+.novelhead-cover .libcover{border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.novelhead-cover .libcover.placeholder{font-size:34px}
+.novelhead-meta{display:flex;flex-direction:column;gap:8px;min-width:0}
+.novelhead-meta h1{margin:0;font-size:30px;line-height:1.2}
+.novelhead-meta p{margin:0;color:#98a2bd}
+.novelhead-meta .libbar{max-width:420px;height:5px;margin-top:4px}
+.novelhead-meta small{color:#8f94a3}
+.novelhead-meta .libraryactions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.chaptertools{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.chaptertools .searchbar{flex:1 1 280px;margin-bottom:10px}
+.chapter-order{min-height:47px;align-items:stretch}.chapter-order button{padding:0 12px;white-space:nowrap}
+.hideread{display:flex;align-items:center;gap:7px;min-height:47px;color:#aeb3c2;font-size:14px;cursor:pointer;white-space:nowrap}
+.hideread input{width:16px;height:16px;accent-color:#7562ef}
+.chaptercount{display:block;color:#7f8598;margin:0 0 10px}
+.chapterempty{color:#8f94a3}
+.chapterrow{min-height:48px}
+.chapterrow .chaptername{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chapterrow.read{background:#0e1117;border-color:#1f2330}.chapterrow.read .chaptername{color:#8a90a2}
+.chaptercheck{color:#7fd6a4;margin-right:8px}
+.chapterrow.current{border-color:#6258b8;background:#17142b}.chapterrow.current small{color:#b3a8ff;font-weight:600}
+@media (max-width:700px){.novelhead{grid-template-columns:96px minmax(0,1fr);gap:16px}.novelhead-meta h1{font-size:22px}}
+.libtitle{all:unset;cursor:pointer}.libtitle:hover{color:#c5bdff;text-decoration:underline;text-underline-offset:3px}.libtitle:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
+.chapter-order button{font-size:14px;min-height:39px}
