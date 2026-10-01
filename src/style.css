@@ -466,3 +466,18 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .media-source-chip{display:inline-block;margin:3px 4px 0 0;padding:4px 7px;border:1px solid #30364a;border-radius:999px;color:#9fa5b8;font-size:11px}
 .media-page .searchstatus{margin-top:10px;background:#10131b}
 @media(max-width:760px){.media-heading{align-items:flex-start;flex-direction:column}.media-page .libgrid,.media-resultgrid{grid-template-columns:1fr}.media-page .libcard{grid-template-columns:96px minmax(0,1fr)}}
+
+
+/* ---- Series detail: player first, episodes in natural order ---------------- */
+.media-detail-page{max-width:1280px}
+.media-player-top{margin-bottom:18px;padding:16px}
+.media-player-title{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:12px}
+.media-player-title h2{margin:3px 0 0;font-size:20px}.media-player-title>small{color:#8f94a3;white-space:nowrap}
+.media-player-top .remote-player video{border-radius:12px;border:1px solid #292f40;box-shadow:0 14px 36px rgba(0,0,0,.24)}
+.player-loading{min-height:180px;display:grid;place-items:center;color:#aeb3c2;background:#0b0d12;border-radius:12px}
+.episode-heading{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:12px}
+.episode-heading h2{margin:0}.episode-heading p{margin:4px 0 0;color:#858b9d;font-size:13px}.episode-heading>span{color:#8f94a3;font-size:13px}
+.media-episodes .episodegrid{margin-top:0}
+.episodecard.active{border-color:#7562ef!important;background:#1b1830!important;box-shadow:inset 3px 0 #8b7cff}
+.episodecard.active .episodebadge{background:#7562ef;color:#fff}
+@media(max-width:700px){.media-player-title{align-items:flex-start;flex-direction:column}.media-player-title>small{white-space:normal}}
