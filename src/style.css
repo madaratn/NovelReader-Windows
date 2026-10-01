@@ -247,3 +247,20 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 @media (max-width:700px){.novelhead{grid-template-columns:96px minmax(0,1fr);gap:16px}.novelhead-meta h1{font-size:22px}}
 .libtitle{all:unset;cursor:pointer}.libtitle:hover{color:#c5bdff;text-decoration:underline;text-underline-offset:3px}.libtitle:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
 .chapter-order button{font-size:14px;min-height:39px}
+
+/* ---- Settings / updates ------------------------------------------------------ */
+.settings-block{display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.settings-block h2{margin:0 0 4px}
+.settings-sub{margin:14px 0 0;font-size:15px}
+.settings-help{margin:0;color:#9aa0b4;max-width:720px;line-height:1.5}
+.settings-seg{min-width:280px}.settings-seg button{min-height:36px;padding:0 16px;font-size:14px}
+.settings-block .scanlist{width:100%;max-width:720px}
+.settings-row{grid-template-columns:1fr 140px 150px;align-items:center}
+.settings-row button.danger{border-color:#a3505e!important;color:#ffb2bd!important;background:#2a171c!important}
+.settings-check{display:flex;align-items:center;gap:9px;color:#d5d8e2;cursor:pointer}.settings-check input{width:16px;height:16px;accent-color:#7562ef}
+.settings-block .anime-toast{position:static;width:100%;max-width:720px}
+.lib-update{min-height:47px;padding:0 14px;border:1px solid #30364a;border-radius:10px;background:#161a24;color:#e6e8ef;font:inherit;font-size:14px;cursor:pointer;white-space:nowrap}
+.lib-update:hover:not(:disabled){border-color:#454d68;background:#1d2230}.lib-update:disabled{opacity:.75;cursor:progress}
+.lib-update-status{margin:-6px 0 14px;color:#a9b0c4;font-size:13.5px}
+.newbadge{align-self:flex-start;padding:2px 8px;border-radius:999px;background:#2b2160;color:#cfc6ff;font-size:12px;font-weight:700}
+@media (max-width:700px){.settings-row{grid-template-columns:1fr auto}.settings-row small{display:none}}

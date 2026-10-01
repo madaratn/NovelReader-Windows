@@ -14,5 +14,11 @@ contextBridge.exposeInMainWorld('novelReader',{
  torrentStart:(identifier,fileName)=>ipcRenderer.invoke('torrent:start',{identifier,fileName}),
  torrentStartMagnet:(magnet)=>ipcRenderer.invoke('torrent:start',{magnet}),
  torrentStatus:(sessionId)=>ipcRenderer.invoke('torrent:status',sessionId),
- torrentStop:(sessionId)=>ipcRenderer.invoke('torrent:stop',sessionId)
+ torrentStop:(sessionId)=>ipcRenderer.invoke('torrent:stop',sessionId),
+ backupExport:(payload)=>ipcRenderer.invoke('backup:export',payload),
+ backupImport:()=>ipcRenderer.invoke('backup:import'),
+ backupAuto:(payload,force)=>ipcRenderer.invoke('backup:auto',{payload,force:!!force}),
+ backupListAuto:()=>ipcRenderer.invoke('backup:listAuto'),
+ backupReadAuto:(name)=>ipcRenderer.invoke('backup:readAuto',name),
+ backupOpenFolder:()=>ipcRenderer.invoke('backup:openFolder')
 })
