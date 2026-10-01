@@ -84,8 +84,18 @@ export async function setup(page: Page, s: Setup = {}) {
       backupListAuto: async () => autos.map(a => ({ name: a.name, novels: JSON.parse(a.p.data.library || '[]').length, keys: 0, exportedAt: a.p.exportedAt })),
       backupReadAuto: async (name: string) => autos.find(a => a.name === name).p,
       backupExport: async () => ({ ok: true, path: 'C:/Users/test/Documents/NovelReader-backup.json', novels: 1 }),
-      backupImport: async () => ({ ok: false, canceled: true }), backupOpenFolder: async () => true
+      backupImport: async () => ({ ok: false, canceled: true }), backupOpenFolder: async () => true,
+      appVersion: async () => '0.2.0', focusWindow: async () => { w.__focused = (w.__focused || 0) + 1; return true },
+      updateStatus: async () => w.__update, updateCheck: async () => { w.__update = { state: 'up-to-date', version: '0.2.0', checkedAt: Date.now() }; w.__updateCb && w.__updateCb(w.__update); return w.__update },
+      updateInstall: async () => { w.__installed = true; return true },
+      onUpdateStatus: (cb: any) => { w.__updateCb = cb; return () => { w.__updateCb = null } }
     }
+    w.__update = { state: 'idle', version: '0.2.0' }
+    w.__emitUpdate = (st: any) => { w.__update = st; w.__updateCb && w.__updateCb(st) }
+    // Windows notifications: record them; pretend the window is in the background when asked.
+    w.__notes = []
+    w.Notification = class { onclick: any; constructor(title: string, opts: any) { w.__notes.push({ title, body: opts && opts.body }); w.__lastNote = this } }
+    if (sessionStorage.getItem('__background')) document.hasFocus = () => false
   }, [storage, s.newChapters || {}, s.videos || [], !!s.slowSources] as const)
 }
 

@@ -9,16 +9,18 @@
     "build": "vite build",
     "electron": "electron .",
     "start": "concurrently \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && electron .\"",
-    "dist": "npm run prepare:anime-engine && npm run build && electron-builder --win nsis",
-    "dist:portable": "npm run prepare:anime-engine && npm run build && electron-builder --win portable",
+    "dist": "npm run prepare:anime-engine && npm run build && electron-builder --win nsis --publish never",
+    "dist:portable": "npm run prepare:anime-engine && npm run build && electron-builder --win portable --publish never",
     "prepare:anime-engine": "node scripts/prepare-miwayomi.cjs",
     "anime:engine:info": "node -e \"console.log(require('./engine/miwayomi-version.json'))\"",
     "test:torrent": "node scripts/test-archive-torrent.mjs",
-    "test:ui": "playwright test"
+    "test:ui": "playwright test",
+    "release": "npm run prepare:anime-engine && npm run build && electron-builder --win nsis --publish always"
   },
   "dependencies": {
     "cheerio": "^1.1.2",
     "dayjs": "^1.11.13",
+    "electron-updater": "^6.8.10",
     "htmlparser2": "^10.0.0",
     "urlencode": "^2.0.0",
     "webtorrent": "~2.8.5"
@@ -56,14 +58,17 @@
       "target": [
         "nsis"
       ],
-      "artifactName": "NovelReader-Setup-${version}.${ext}"
+      "artifactName": "NovelReader-Setup-${version}.${ext}",
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "NovelReader"
+      "shortcutName": "NovelReader",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
     },
     "extraResources": [
       {
@@ -72,6 +77,14 @@
         "filter": [
           "**/*"
         ]
+      }
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "madaratn",
+        "repo": "NovelReader-Windows",
+        "releaseType": "release"
       }
     ]
   }
