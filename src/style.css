@@ -481,3 +481,14 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .episodecard.active{border-color:#7562ef!important;background:#1b1830!important;box-shadow:inset 3px 0 #8b7cff}
 .episodecard.active .episodebadge{background:#7562ef;color:#fff}
 @media(max-width:700px){.media-player-title{align-items:flex-start;flex-direction:column}.media-player-title>small{white-space:normal}}
+
+/* Series detail compact identity + season-aware episode badges */
+.series-detail-head{margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #232838}
+.series-detail-head .backbtn{margin-bottom:9px}
+.series-title-row{display:flex;align-items:flex-end;justify-content:space-between;gap:18px}
+.series-title-row h1{margin:2px 0 0;font-size:24px;line-height:1.15;letter-spacing:-.35px}
+.series-title-row p{margin:0;color:#8f94a3;font-size:13px;white-space:nowrap}
+.media-episodes .episodebadge{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:10px;line-height:1;color:#9f94ff}
+.media-episodes .episodebadge b{font-size:15px;color:#b8afff}
+.media-episodes .episodecard.active .episodebadge,.media-episodes .episodecard.active .episodebadge b{color:#fff}
+@media(max-width:700px){.series-title-row{align-items:flex-start;flex-direction:column;gap:7px}.series-title-row p{white-space:normal}}
