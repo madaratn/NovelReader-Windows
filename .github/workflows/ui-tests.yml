@@ -15,6 +15,8 @@ jobs:
         with:
           node-version: 22
       - run: npm install
+      - name: Every UI string has a French translation
+        run: npm run check:i18n
       - name: Unit tests (main-process modules)
         run: npm run test:unit
       - name: Build renderer
