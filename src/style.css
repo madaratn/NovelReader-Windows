@@ -65,3 +65,65 @@
 
 /* Internet Archive torrent status */
 .torrent-status{display:flex;flex-direction:column;gap:6px;margin:4px 0 10px;color:#b7bccd;font-size:13px}.torrent-status.state-stalled,.torrent-status.state-error{color:#ffb2bd}.torrent-status.state-done{color:#b8f3d2}.torrent-status .localbar{max-width:420px}
+
+/* ---- App shell (sidebar, navigation, accessibility) ---------------------- */
+:root{--accent:#8b7cff;--accent-strong:#7562ef;--side-bg:#0f1117;--side-border:#242731;--side-hover:#1a1d26;--muted:#9aa0b4;--focus:#b3a8ff}
+.app{align-items:flex-start}
+aside.sidebar{position:sticky;top:0;height:100vh;flex:0 0 236px;width:236px;overflow-y:auto;overflow-x:hidden;padding:18px 12px 14px;gap:4px;background:var(--side-bg);border-right:1px solid var(--side-border);transition:width .18s ease,flex-basis .18s ease}
+.sidebar .brand-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 14px 8px;min-height:36px}
+.sidebar .brand{margin:0;white-space:nowrap}
+.sidebar .icon{flex:0 0 auto}
+.sidebar .iconbtn{display:grid;place-items:center;width:34px;height:34px;padding:0!important;border-radius:8px;color:var(--muted)}
+.sidebar .mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:0 0 14px;padding:4px;background:#151720;border:1px solid #262a36;border-radius:11px}
+.sidebar .mode-switch button{display:flex!important;align-items:center;justify-content:center;gap:6px;min-height:38px;margin:0!important;padding:8px 6px!important;border-radius:8px!important;font-size:13px!important;color:#b9bdca}
+.sidebar .mode-switch button .icon{width:16px;height:16px}
+.sidebar .mode-switch button.active{background:var(--accent-strong)!important;color:#fff!important}
+.sidebar .nav-list{display:flex;flex-direction:column;gap:2px}
+.sidebar .nav-item{position:relative;display:flex;align-items:center;gap:12px;min-height:42px;padding:10px 12px!important;border-radius:9px;color:#aeb3c2;font-size:14.5px;white-space:nowrap}
+.sidebar .nav-item.active{background:var(--side-hover);color:#fff}
+.sidebar .nav-item.active::before{content:'';position:absolute;left:-12px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--accent)}
+.sidebar .nav-item.subtle{color:var(--muted);font-size:13.5px;min-height:38px}
+.sidebar .version{margin:6px 12px 0;color:#6f7588;font-size:12px;white-space:nowrap}
+main#main{flex:1;min-width:0}
+
+/* Collapsed rail: icons only (toggle with Ctrl+B, automatic on narrow windows) */
+.app.collapsed aside.sidebar{flex-basis:68px;width:68px;padding-left:10px;padding-right:10px}
+.app.collapsed .sidebar .label{display:none}
+.app.collapsed .sidebar .brand-row{flex-direction:column;margin:0 0 12px;gap:10px}
+.app.collapsed .sidebar .mode-switch{grid-template-columns:1fr;padding:3px}
+.app.collapsed .sidebar .nav-item{justify-content:center;padding:10px 0!important}
+.app.collapsed .sidebar .nav-item.active::before{left:-10px}
+.app.collapsed .sidebar .version{margin:6px 0 0;text-align:center}
+@media (max-width:980px){
+ aside.sidebar{flex-basis:68px;width:68px;padding-left:10px;padding-right:10px}
+ .sidebar .label,.sidebar .collapse-btn{display:none}
+ .sidebar .brand-row{justify-content:center;margin:0 0 12px}
+ .sidebar .mode-switch{grid-template-columns:1fr;padding:3px}
+ .sidebar .nav-item{justify-content:center;padding:10px 0!important}
+ .sidebar .nav-item.active::before{left:-10px}
+ .sidebar .version{display:none}
+}
+
+/* Keyboard focus is always visible; mouse clicks stay clean */
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.searchbar input:focus{border-color:#6c5ee0;outline:none;box-shadow:0 0 0 3px rgba(139,124,255,.25)}
+button:disabled{cursor:not-allowed}
+
+/* Shortcuts dialog */
+.kbd-overlay{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:16px;background:rgba(5,6,9,.66);backdrop-filter:blur(2px)}
+.kbd-dialog{width:min(520px,100%);background:#12151d;border:1px solid #2b3040;border-radius:14px;padding:22px 24px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.kbd-dialog h2{margin:0 0 16px;font-size:18px}
+.kbd-dialog dl{display:grid;grid-template-columns:auto 1fr;gap:10px 18px;margin:0 0 20px;align-items:center}
+.kbd-dialog dt{margin:0;white-space:nowrap}.kbd-dialog dd{margin:0;color:#c3c7d3;font-size:14px}
+kbd{display:inline-block;padding:3px 8px;border:1px solid #39405a;border-bottom-width:2px;border-radius:6px;background:#1a1e2a;color:#e8e9f0;font:12.5px/1.4 ui-monospace,Consolas,monospace}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+.kbd-dialog:focus,.kbd-dialog:focus-visible{outline:none}
+/* Unstyled buttons in pages get a consistent secondary look (zero specificity, so page-specific rules still win) */
+:where(main button:not([class])){min-height:36px;padding:8px 14px;border:1px solid #30364a;border-radius:9px;background:#161a24;color:#e6e8ef;font:inherit;font-size:14px;cursor:pointer}
+:where(main button:not([class]):hover:not(:disabled)){background:#1d2230;border-color:#454d68}
+:where(main button:not([class]):disabled){opacity:.55}
+.sidebar .brand-short{display:none}
+.app.collapsed .sidebar .brand-full{display:none}.app.collapsed .sidebar .brand-short{display:inline}
+@media (max-width:980px){.sidebar .brand-full{display:none}.sidebar .brand-short{display:inline}}
+.sidebar .brand>span{color:inherit}.sidebar .brand>span>span{color:var(--accent)}
