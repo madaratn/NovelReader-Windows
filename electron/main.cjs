@@ -1,4 +1,4 @@
-const {app,BrowserWindow,ipcMain,dialog,protocol}=require('electron')
+const {app,BrowserWindow,ipcMain,dialog,protocol,shell}=require('electron')
 const {Readable}=require('stream')
 const {spawn}=require('child_process')
 const fs=require('fs')
@@ -6,6 +6,8 @@ const path=require('path')
 const runner=require('./plugin-runner.cjs')
 const archive=require('./archive.cjs')
 const {createTorrentManager}=require('./torrent-manager.cjs')
+const {createBackupManager}=require('./backup.cjs')
+const backups=createBackupManager({app,dialog,shell})
 const SMOKE_TEST=process.env.NR_SMOKE_TEST==='1'
 function createWindow(){const win=new BrowserWindow({width:1280,height:820,minWidth:900,minHeight:600,backgroundColor:'#0b0c10',title:'Novel Reader',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});if(!app.isPackaged&&!SMOKE_TEST)win.loadURL('http://127.0.0.1:5173');else win.loadFile(path.join(app.getAppPath(),'dist','index.html'));win.webContents.on('did-fail-load',(_e,code,desc,url)=>console.error('Load failed',code,desc,url));return win}
 ipcMain.handle('plugin:search',async(_e,{plugin,query})=>runner.search(plugin,query))
@@ -104,6 +106,15 @@ ipcMain.handle('archive:files',cleanIpc(id=>archive.files(String(id||''))))
 ipcMain.handle('torrent:start',cleanIpc(o=>getTorrents().start({identifier:String(o&&o.identifier||''),fileName:o&&o.fileName!=null?String(o.fileName):undefined,magnet:o&&o.magnet!=null?String(o.magnet):undefined})))
 ipcMain.handle('torrent:status',cleanIpc(id=>getTorrents().status(String(id||''))))
 ipcMain.handle('torrent:stop',cleanIpc(async id=>{await getTorrents().stop(String(id||''));return true}))
+// ---- Backup / restore ----------------------------------------------------------
+const winOf=e=>BrowserWindow.fromWebContents(e.sender)
+const cleanErr=fn=>async(e,arg)=>{try{return await fn(e,arg)}catch(err){console.warn('[backup]',err);throw new Error(err&&err.message||String(err))}}
+ipcMain.handle('backup:export',cleanErr((e,payload)=>backups.exportBackup(winOf(e),payload)))
+ipcMain.handle('backup:import',cleanErr(e=>backups.importBackup(winOf(e))))
+ipcMain.handle('backup:auto',cleanErr((_e,o)=>backups.autoBackup(o&&o.payload,{force:!!(o&&o.force)})))
+ipcMain.handle('backup:listAuto',cleanErr(()=>backups.listAuto()))
+ipcMain.handle('backup:readAuto',cleanErr((_e,name)=>backups.readAuto(String(name||''))))
+ipcMain.handle('backup:openFolder',cleanErr(()=>backups.openFolder()))
 let torrentsShutDown=false
 app.on('before-quit',e=>{if(torrents&&!torrentsShutDown){e.preventDefault();torrentsShutDown=true;torrents.shutdown().catch(()=>{}).finally(()=>app.quit())}})
 
@@ -113,7 +124,8 @@ async function runSmokeTest(win){
  const result={}
  try{
   await new Promise(r=>win.webContents.once('did-finish-load',r))
-  result.bridge=await win.webContents.executeJavaScript("['torrentStart','torrentStatus','torrentStop','archiveSearch','archiveFiles'].every(k=>typeof window.novelReader[k]==='function')")
+  result.bridge=await win.webContents.executeJavaScript("['torrentStart','torrentStatus','torrentStop','archiveSearch','archiveFiles','backupExport','backupImport','backupAuto','backupListAuto','backupReadAuto'].every(k=>typeof window.novelReader[k]==='function')")
+  result.backup=await win.webContents.executeJavaScript("(async()=>{const p={app:'NovelReader',version:1,exportedAt:Date.now(),data:{library:JSON.stringify([{id:'x',name:'Smoke'}])}};const a=await window.novelReader.backupAuto(p);const b=await window.novelReader.backupAuto(p);const list=await window.novelReader.backupListAuto();const back=await window.novelReader.backupReadAuto(list[0].name);return {first:a.saved,second:b.saved,listed:list.length,novels:list[0].novels,same:back.data.library===p.data.library}})()")
   const id=process.env.NR_SMOKE_ARCHIVE_ID
   if(id){
    const info=await getTorrents().start({identifier:id})
@@ -122,7 +134,7 @@ async function runSmokeTest(win){
    result.stream={status:r.status,contentRange:r.headers.get('content-range'),bytes:buf.length,mp4:buf.slice(4,8).toString('latin1')==='ftyp',file:info.fileName}
    await getTorrents().stop(info.sessionId)
   }
-  result.ok=result.bridge===true&&(!id||(result.stream.status===206&&result.stream.bytes===1048576))
+  result.ok=result.bridge===true&&result.backup&&result.backup.first===true&&result.backup.second===false&&result.backup.same===true&&(!id||(result.stream.status===206&&result.stream.bytes===1048576))
  }catch(e){result.ok=false;result.error=String(e&&e.message||e)}
  console.log('SMOKE_RESULT '+JSON.stringify(result))
  if(torrents)await torrents.shutdown().catch(()=>{})
