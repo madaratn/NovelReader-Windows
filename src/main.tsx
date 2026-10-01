@@ -622,12 +622,12 @@ function App(){
  // Reader: preferences, auto-hiding toolbar, progress, exact resume position.
  const[readerPrefs,setReaderPrefs]=useState<ReaderPrefs>(loadReaderPrefs),[readerSettingsOpen,setReaderSettingsOpen]=useState(false),[readerBarHidden,setReaderBarHidden]=useState(false),[readProgress,setReadProgress]=useState(0)
  const updateReaderPrefs=(patch:Partial<ReaderPrefs>)=>setReaderPrefs(prev=>{const next={...prev,...patch};lsSet('readerPrefs',JSON.stringify(next));return next})
- const pendingScrollRef=useRef(0),ignoreScrollUntil=useRef(0),moveChapterRef=useRef<(d:number)=>void>(()=>{}),readerRef=useRef<any>(null)
+ const pendingScrollRef=useRef(0),ignoreScroll=useRef<{until:number,target:number}|null>(null),moveChapterRef=useRef<(d:number)=>void>(()=>{}),readerRef=useRef<any>(null)
  useEffect(()=>{
   if(page!=='reader')return
   let lastY=window.scrollY,saveTimer:any=null
   const onScroll=()=>{const y=window.scrollY,max=document.documentElement.scrollHeight-window.innerHeight;const ratio=max>0?clamp(y/max,0,1):1;setReadProgress(ratio)
-   if(Date.now()<ignoreScrollUntil.current){lastY=y}else if(Math.abs(y-lastY)>6){setReaderBarHidden(y>lastY&&y>140);lastY=y}
+   const ig=ignoreScroll.current;if(ig&&Date.now()<ig.until&&Math.abs(y-ig.target)<4){lastY=y;ignoreScroll.current=null}else if(Math.abs(y-lastY)>6){setReaderBarHidden(y>lastY&&y>140);lastY=y}
    clearTimeout(saveTimer);saveTimer=setTimeout(()=>{const r=readerRef.current;if(!r)return;try{const key='reading:'+r.novel.id;const cur=JSON.parse(localStorage.getItem(key)||'{}')||{};if(cur.index===r.index)localStorage.setItem(key,JSON.stringify({...cur,scroll:Math.round(ratio*1000)/1000}))}catch{}},400)}
   const onKey=(e:KeyboardEvent)=>{if(isTyping(e.target)||e.ctrlKey||e.metaKey||e.altKey)return
    if(e.key==='ArrowRight'){e.preventDefault();moveChapterRef.current(1)}
@@ -639,7 +639,7 @@ function App(){
   return()=>{window.removeEventListener('scroll',onScroll);window.removeEventListener('keydown',onKey);clearTimeout(saveTimer)}
  },[page])
  useEffect(()=>{readerRef.current=reader;if(page!=='reader'||!reader)return;setReaderBarHidden(false);const ratio=pendingScrollRef.current;pendingScrollRef.current=0
-  ignoreScrollUntil.current=Date.now()+400;requestAnimationFrame(()=>{const max=document.documentElement.scrollHeight-window.innerHeight;window.scrollTo({top:ratio>0?ratio*max:0})})},[page,reader?.novel?.id,reader?.index])
+  requestAnimationFrame(()=>{const max=document.documentElement.scrollHeight-window.innerHeight;const top=Math.round(ratio>0?ratio*max:0);ignoreScroll.current={until:Date.now()+600,target:top};window.scrollTo({top})})},[page,reader?.novel?.id,reader?.index])
  // Automatic backups: shortly after any library change, and every 15 minutes.
  useEffect(()=>{const tm=setTimeout(()=>{window.novelReader.backupAuto?.(collectBackup()).catch(()=>{})},8000);return()=>clearTimeout(tm)},[library])
  useEffect(()=>{const iv=setInterval(()=>{window.novelReader.backupAuto?.(collectBackup()).catch(()=>{})},15*60*1000);return()=>clearInterval(iv)},[])

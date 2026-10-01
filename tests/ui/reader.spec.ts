@@ -41,6 +41,16 @@ test('reader: settings, keyboard, auto-hiding bar, exact resume', async ({ page 
   expect(await page.evaluate(() => scrollY)).toBeLessThan(y + 20)
 })
 
+test('scrolling right after a chapter change still hides the toolbar', async ({ page }) => {
+  await open(page, { library: [novel('n1', 'The Lantern Road', 3)] })
+  await page.locator('.libcard .primary').click()
+  await page.locator('.readercontent p').nth(3).hover()
+  await page.keyboard.press('ArrowRight')
+  await expect(page.locator('.readerbar-title small')).toHaveText('Chapter 2: The Road')
+  await page.mouse.wheel(0, 1500) // immediately, like a fast reader
+  await expect(page.locator('.readerbar')).toHaveClass(/hidden/)
+})
+
 test('chapter text is not rebuilt while scrolling (React 19 innerHTML regression)', async ({ page }) => {
   await open(page, { library: [novel('n1', 'The Lantern Road', 3)] })
   await page.locator('.libcard .primary').click()
