@@ -271,6 +271,7 @@ function NovelLibrary({library,updates,onCheckUpdates,onOpen,onDetails,onRemove,
     <div className="lib-resume-meta"><small>{t('Continue where you left off')} · {timeAgo(last.r!.at)}</small><h2>{last.n.name}</h2><p>{lastTitle(last)}</p><div className="libbar"><span style={{width:(last.total?Math.min(100,last.done/last.total*100):0)+'%'}}/></div></div>
     <button className="primary" onClick={e=>{e.stopPropagation();onOpen(last.n)}}>{t('Continue · Ch. {n}',{n:last.r!.index+1})}</button>
    </section>}
+   {!q&&<ReadingStats/>}
    <div className="shelftabs" role="tablist" aria-label={t('Shelves')}>{([['all',t('All'),rows.length]] as [string,string,number][]).concat(SHELVES.map(x=>[x.id,t(x.label),counts[x.id]] as [string,string,number])).map(([id,label,n])=><button key={id} role="tab" aria-selected={shelf===id} className={'shelftab'+(shelf===id?' on':'')} onClick={()=>{setShelf(id as any);lsSet('libraryShelf',id)}}>{label} <small>{n}</small></button>)}</div>
    <div className="lib-toolbar"><div className="searchbar"><input placeholder={t('Filter by title, author or source…')} value={filter} onChange={e=>setFilter(e.target.value)} aria-label={t('Filter by title, author or source…')}/></div>
     <button className="lib-update" disabled={updates.running} onClick={onCheckUpdates} title={updates.at?t('Last check: {when}',{when:timeAgo(updates.at)}):undefined}>{updates.running?t('Checking {done}/{total}…',{done:updates.done,total:updates.total}):t('Check for new chapters')}</button>
@@ -297,6 +298,21 @@ function NovelDetail({novel,filter,setFilter,loading,onBack,onOpenChapter,onCont
  const r=readingOf(novel.id),current=r?r.index:-1,done=r?r.index+1:0
  const[newestFirst,setNewestFirst]=useState(()=>lsGet('chapterOrder')==='desc'),[hideRead,setHideRead]=useState(()=>lsGet('chapterHideRead')==='1'),[clicked,setClicked]=useState(-1)
  const listRef=useRef<HTMLDivElement>(null)
+ // Offline downloads
+ const[offline,setOffline]=useState<Set<string>>(new Set()),[dl,setDl]=useState<{done:number,total:number,failed:number}|null>(null),[dlCount,setDlCount]=useState(()=>lsGet('offlineBatch')||'10')
+ const dlToken=useRef(0)
+ useEffect(()=>{window.novelReader.offlineList?.(novel.id).then(l=>setOffline(new Set(l))).catch(()=>{});return()=>{dlToken.current++}},[novel.id])
+ const download=async()=>{
+  const start=Math.max(0,current),targets=chapters.slice(start).filter(c=>!offline.has(c.path||c.url)).slice(0,dlCount==='all'?undefined:Number(dlCount))
+  if(!targets.length)return
+  const token=++dlToken.current,queue=[...targets];let done=0,failed=0;setDl({done,total:targets.length,failed})
+  const worker=async()=>{while(queue.length&&token===dlToken.current){const c=queue.shift()!,cp=c.path||c.url
+   try{const d:any=await window.novelReader.parseChapter(novel.source,cp);const html=typeof d==='string'?d:(d?.text||d?.content||d?.html||d?.body||'');await window.novelReader.offlineSave(novel.id,cp,String(html),novel.name);if(token!==dlToken.current)return;setOffline(prev=>{const n=new Set(prev);n.add(cp);return n})}catch{failed++}
+   if(token!==dlToken.current)return;done++;setDl({done,total:targets.length,failed})}}
+  await Promise.all([worker(),worker()])
+  if(token===dlToken.current)setDl(st=>st&&{...st,done:st.total})
+ }
+ const removeDownloads=async()=>{dlToken.current++;setDl(null);await window.novelReader.offlineRemove?.(novel.id).catch(()=>{});setOffline(new Set())}
  const q=filter.trim().toLowerCase()
  const rows=chapters.map((c,i)=>({c,i,label:String(c.name||c.title||t('Chapter {n}',{n:i+1}))}))
   .filter(x=>!q||x.label.toLowerCase().includes(q)||String(x.i+1)===q||String(x.i+1).startsWith(q)&&/^\d+$/.test(q))
@@ -315,7 +331,12 @@ function NovelDetail({novel,filter,setFilter,loading,onBack,onOpenChapter,onCont
     <p>{[novel.author||t('Unknown author'),novel.source?.name].filter(Boolean).join(' · ')}</p>
     <div className="libbar"><span style={{width:(total?Math.min(100,done/total*100):0)+'%'}}/></div>
     <small>{r?`${t('{done} / {total} read',{done,total})} · ${t('{n} left',{n:Math.max(0,total-done)})}${r.at?' · '+t('last read {when}',{when:timeAgo(r.at)}):''}`:plural(total,'{n} chapter','{n} chapters')+' · '+t('not started')}</small>
-    <div className="libraryactions">{r?<button className="primary" disabled={loading} onClick={()=>{setClicked(-2);onContinue()}}>{loading&&clicked===-2?t('Loading…'):t('Continue · Ch. {n}',{n:current+1})}</button>:<button className="primary" disabled={loading||!chapters.length} onClick={()=>open(chapters[0],0)}>{t('Start reading')}</button>}{r&&<button onClick={()=>{if(hideRead){setHideRead(false);lsSet('chapterHideRead','0')}requestAnimationFrame(()=>jumpToCurrent())}}>{t('Show current chapter')}</button>}</div>
+    <div className="offlinebar">{dl&&dl.done<dl.total?<><span className="spinner" aria-hidden="true"/><span>{t('Downloading chapters {done} / {total}…',{done:dl.done,total:dl.total})}</span><button onClick={()=>{dlToken.current++;setDl(null)}}>{t('Stop')}</button></>:<>
+      <span className="offline-label">⤓ {plural(offline.size,'{n} chapter available offline','{n} chapters available offline')}{dl&&dl.failed>0?' · '+plural(dl.failed,'{n} failed','{n} failed'):''}</span>
+      <select value={dlCount} aria-label={t('How many chapters to download')} onChange={e=>{setDlCount(e.target.value);lsSet('offlineBatch',e.target.value)}}><option value="10">{t('Next {n} chapters',{n:10})}</option><option value="50">{t('Next {n} chapters',{n:50})}</option><option value="all">{t('All remaining chapters')}</option></select>
+      <button onClick={download} disabled={!chapters.length}>{t('Download')}</button>
+      {offline.size>0&&<button className="ghostbtn" onClick={removeDownloads}>{t('Delete downloads')}</button>}</>}</div>
+     <div className="libraryactions">{r?<button className="primary" disabled={loading} onClick={()=>{setClicked(-2);onContinue()}}>{loading&&clicked===-2?t('Loading…'):t('Continue · Ch. {n}',{n:current+1})}</button>:<button className="primary" disabled={loading||!chapters.length} onClick={()=>open(chapters[0],0)}>{t('Start reading')}</button>}{r&&<button onClick={()=>{if(hideRead){setHideRead(false);lsSet('chapterHideRead','0')}requestAnimationFrame(()=>jumpToCurrent())}}>{t('Show current chapter')}</button>}</div>
    </div>
   </section>
   <section className="chapterarea">
@@ -324,7 +345,7 @@ function NovelDetail({novel,filter,setFilter,loading,onBack,onOpenChapter,onCont
     <label className="hideread"><input type="checkbox" checked={hideRead} onChange={e=>{setHideRead(e.target.checked);lsSet('chapterHideRead',e.target.checked?'1':'0')}}/> {t('Hide read')}</label></div>
    <small className="chaptercount">{rows.length===total?plural(total,'{n} chapter','{n} chapters'):t('{done} of {total} chapters',{done:rows.length,total})}</small>
    {rows.length===0?<p className="chapterempty">{t('No chapter matches.')}</p>:<div className="chapterlist" ref={listRef}>{rows.map(({c,i,label})=>{const state=i<current?'read':i===current?'current':'';return <button className={'chapterrow '+state} disabled={loading} onClick={()=>open(c,i)} key={(c.path||c.url||'chapter')+i} aria-current={state==='current'?'true':undefined}>
-    <span className="chaptername">{state==='read'&&<span className="chaptercheck" aria-label={t('Read')}>✓</span>}{label}</span>
+    <span className="chaptername">{state==='read'&&<span className="chaptercheck" aria-label={t('Read')}>✓</span>}{label}</span>{offline.has(c.path||c.url)&&<span className="offline-mark" title={t('Available offline')} aria-label={t('Available offline')}>⤓</span>}
     <small>{loading&&clicked===i?t('Loading…'):state==='current'?t('Reading · Ch. {n}',{n:i+1}):t('Ch. {n}',{n:i+1})}</small></button>})}</div>}
   </section>
  </>
@@ -344,7 +365,10 @@ async function applyBackup(payload:BackupPayload){
 }
 const fmtDateTime=(ms:number)=>ms?new Date(ms).toLocaleString(getLang(),{dateStyle:'medium',timeStyle:'short'}):''
 
-function SettingsPage({lang,onLang,onWelcome,update}:{lang:Lang,onLang:(l:Lang)=>void,onWelcome:()=>void,update:UpdateStatus|null}){
+type ImportResult={added:number,exists:number,skipped:number,unknown:string[]}
+function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onShowLibrary}:{lang:Lang,onLang:(l:Lang)=>void,onWelcome:()=>void,update:UpdateStatus|null,onImportLNReader:()=>Promise<ImportResult|null>,onShowLibrary:()=>void}){
+ const[imp,setImp]=useState<ImportResult|null>(null),[impBusy,setImpBusy]=useState(false),[usage,setUsage]=useState<{bytes:number,chapters:number,novels:number}|null>(null),[clearConfirm,setClearConfirm]=useState(false)
+ useEffect(()=>{window.novelReader.offlineUsage?.().then(setUsage).catch(()=>{})},[])
  const version=useAppVersion(),[notify,setNotify]=useState(()=>lsGet('notifyNewChapters')!=='0')
  const[autos,setAutos]=useState<{name:string,novels:number,exportedAt:number}[]>([]),[msg,setMsg]=useState<{ok:boolean,text:string}|null>(null),[confirm,setConfirm]=useState<string|null>(null),[busy,setBusy]=useState(false)
  const[autoCheck,setAutoCheck]=useState(()=>lsGet('autoCheckUpdates')!=='0')
@@ -373,6 +397,15 @@ function SettingsPage({lang,onLang,onWelcome,update}:{lang:Lang,onLang:(l:Lang)=
   <section className="panel settings-block"><h2>{t('New chapters')}</h2>
    <label className="settings-check"><input type="checkbox" checked={autoCheck} onChange={e=>{setAutoCheck(e.target.checked);lsSet('autoCheckUpdates',e.target.checked?'1':'0')}}/> {t('Check my library for new chapters when NovelReader starts (at most every 12 hours)')}</label>
    <label className="settings-check"><input type="checkbox" checked={notify} onChange={e=>{setNotify(e.target.checked);lsSet('notifyNewChapters',e.target.checked?'1':'0')}}/> {t('Show a Windows notification when new chapters are found')}</label>
+  </section>
+  <section className="panel settings-block"><h2>{t('Import from LNReader (Android)')}</h2>
+   <p className="settings-help">{t('In the LNReader app, open More > Backup and restore > Create backup, copy the .zip file to this PC, then import it here. Your novels and where you stopped reading are added to your library.')}</p>
+   <div className="libraryactions"><button className="primary" disabled={impBusy} onClick={async()=>{setImpBusy(true);setMsg(null);setImp(null);try{setImp(await onImportLNReader())}catch(e:any){setMsg({ok:false,text:t(String(e?.message||e).replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/,''))})}finally{setImpBusy(false)}}}>{impBusy?t('Importing…'):t('Import an LNReader backup…')}</button></div>
+   {imp&&<div className="anime-toast ok" role="status"><span>{plural(imp.added,'{n} novel imported','{n} novels imported')}{imp.exists?' · '+plural(imp.exists,'{n} already in your library','{n} already in your library'):''}{imp.unknown.length?' · '+t('{n} skipped (source not available: {list})',{n:imp.unknown.length,list:imp.unknown.slice(0,4).join(', ')}):''}</span><button className="undo-btn" onClick={onShowLibrary}>{t('Open library')}</button></div>}
+  </section>
+  <section className="panel settings-block"><h2>{t('Offline chapters')}</h2>
+   <p className="settings-help">{usage&&usage.chapters?t('{chapters} for {novels} use {size} on this PC.',{chapters:plural(usage.chapters,'{n} chapter','{n} chapters'),novels:plural(usage.novels,'{n} novel','{n} novels'),size:(usage.bytes/1048576).toFixed(1)+' MB'}):t('No chapter downloaded yet. Use Download on a novel page to read without an internet connection.')}</p>
+   {usage&&usage.chapters>0&&<div className="libraryactions"><button className={clearConfirm?'danger':undefined} onClick={async()=>{if(!clearConfirm){setClearConfirm(true);setTimeout(()=>setClearConfirm(false),6000);return}await window.novelReader.offlineClear?.();setClearConfirm(false);setUsage({bytes:0,chapters:0,novels:0})}}>{clearConfirm?t('Confirm: delete all downloads'):t('Delete all downloaded chapters')}</button></div>}
   </section>
   <UpdateSettings status={update} version={version}/>
   <section className="panel settings-block"><h2>{t('About')}</h2><p className="settings-help">NovelReader · Windows · {version?'v'+version:''}</p><button onClick={onWelcome}>{t('Show the welcome guide again')}</button></section>
@@ -443,7 +476,7 @@ function ReaderTTS({rootRef,chapterKey,hasNext,onNext,onClose}:{rootRef:React.Re
  const speak=(i:number)=>{
   const els=readableBlocks(rootRef.current)
   if(i>=els.length){mark(-1);if(prefsRef.current.autoNext&&hasNextRef.current){pendingNext.current=true;onNextRef.current()}else{playingRef.current=false;setPlaying(false);idxRef.current=0;setIdx(0)}return}
-  idxRef.current=i;setIdx(i);mark(i)
+  idxRef.current=i;setIdx(i);mark(i);markActivity()
   els[i].scrollIntoView({block:'center',behavior:'smooth'})
   const u=new SpeechSynthesisUtterance((els[i].textContent||'').replace(/\s+/g,' ').trim())
   const v=voiceFor();if(v){u.voice=v;u.lang=v.lang}
@@ -679,6 +712,67 @@ function MediaSearch({kind,query,setQuery,library,onAdd}:{kind:MediaKind,query:s
   {status&&!status.running&&results.length===0&&!error&&<section className="panel lib-empty"><h2>No title found</h2><p>Check the spelling or try a shorter title.</p></section>}
   {results.length>0&&<section className="panel anime-results"><h2>Search results</h2><div className="animegrid">{results.map(({key,hits,primary})=>{const id=(kind==='Anime'?(primary.id||primary.url):kind.toLowerCase()+':'+(primary.sourceId||'')+':'+(primary.url||primary.path||key));const saved=library.some(x=>x.id===id||mediaNorm(x.name||x.title)===key);return <article className="animecard" key={key}><Cover src={primary.thumbnail||primary.cover} name={primary.title||primary.name||kind}/><h3>{primary.title||primary.name||'Untitled'}</h3><small>Found on {hits.length} source{hits.length===1?'':'s'} · {primary.sourceName||'Video source'}</small>{saved?<button disabled>In your library ✓</button>:<button className="primary" onClick={()=>onAdd({...primary,alternates:hits.slice(1).map((x:any)=>({sourceId:String(x.sourceId||''),sourceName:x.sourceName||'Video source',url:x.url||x.path,name:x.title||x.name})).filter((x:any)=>x.sourceId&&x.url)})}>Add to library</button>}{hits.length>1&&<details><summary>Other sources</summary><div className="scanlist">{hits.slice(1).map((x:any,i:number)=><div className="scanrow" key={(x.sourceId||'s')+i}><span>{x.sourceName||'Video source'}</span></div>)}</div></details>}</article>})}</div></section>}
  </>}
+
+// ---- Reading statistics ------------------------------------------------------------
+type DayStat={c:number,s:number}
+const dayKey=(d=new Date())=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')
+function readStats():Record<string,DayStat>{try{return JSON.parse(lsGet('readingStats')||'{}')||{}}catch{return{}}}
+function bumpStats(patch:{c?:number,s?:number}){const all=readStats(),k=dayKey(),d=all[k]||{c:0,s:0};d.c+=patch.c||0;d.s+=patch.s||0;all[k]=d;const keys=Object.keys(all).sort();for(const old of keys.slice(0,Math.max(0,keys.length-400)))delete all[old];lsSet('readingStats',JSON.stringify(all))}
+let lastActivity=Date.now();const markActivity=()=>{lastActivity=Date.now()}
+const fmtDuration=(sec:number)=>{const m=Math.round(sec/60);if(m<60)return t('{n} min',{n:m});const h=Math.floor(m/60),r=m%60;return r?t('{h} h {m} min',{h,m:r}):t('{h} h',{h})}
+function ReadingStats(){
+ const[open,setOpen]=useState(()=>lsGet('statsOpen')!=='0'),[hover,setHover]=useState<number|null>(null)
+ const all=readStats()
+ const days=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));const k=dayKey(d);return{date:d,key:k,...(all[k]||{c:0,s:0})}})
+ const week={c:days.reduce((a,d)=>a+d.c,0),s:days.reduce((a,d)=>a+d.s,0)}
+ let streak=0;{const d=new Date();if(!(all[dayKey(d)]?.c||0)&&!((all[dayKey(d)]?.s||0)>=60))d.setDate(d.getDate()-1);for(;;){const x=all[dayKey(d)];if(x&&(x.c>0||x.s>=60)){streak++;d.setDate(d.getDate()-1)}else break}}
+ if(!Object.keys(all).length)return null
+ const max=Math.max(1,...days.map(d=>d.c))
+ const label=(d:typeof days[number])=>d.date.toLocaleDateString(getLang(),{weekday:'long',day:'numeric',month:'short'})+' · '+plural(d.c,'{n} chapter','{n} chapters')+(d.s>=60?' · '+fmtDuration(d.s):'')
+ return <section className="panel stats">
+  <button className="stats-head" aria-expanded={open} onClick={()=>{setOpen(!open);lsSet('statsOpen',open?'0':'1')}}><span>{t('Your reading this week')}</span><small>{plural(week.c,'{n} chapter','{n} chapters')} · {fmtDuration(week.s)}</small><span className="stats-chev" aria-hidden="true">{open?'▾':'▸'}</span></button>
+  {open&&<div className="stats-body">
+   <div className="stats-tiles">
+    <div><b>{week.c}</b><small>{t('chapters in 7 days')}</small></div>
+    <div><b>{fmtDuration(week.s)}</b><small>{t('reading time in 7 days')}</small></div>
+    <div><b>{streak}</b><small>{plural(streak,'day in a row','days in a row')}</small></div>
+   </div>
+   <figure className="stats-chart" aria-label={t('Chapters read per day, last 7 days')}>
+    <div className="stats-bars" onMouseLeave={()=>setHover(null)}>
+     {days.map((d,i)=><button key={d.key} className={'stats-bar'+(hover===i?' on':'')} onMouseEnter={()=>setHover(i)} onFocus={()=>setHover(i)} onBlur={()=>setHover(null)} aria-label={label(d)}>
+      <span className="stats-fill" style={{height:d.c?Math.max(4,d.c/max*100)+'%':'0'}}/>
+      <span className="stats-day">{d.date.toLocaleDateString(getLang(),{weekday:'short'})}</span>
+     </button>)}
+    </div>
+    {hover!=null&&<div className="stats-tip" role="status" style={{left:((hover+0.5)/7*100)+'%'}}>{label(days[hover])}</div>}
+   </figure>
+  </div>}
+ </section>
+}
+
+// ---- Find in chapter (Ctrl+F) — uses the CSS Custom Highlight API, no DOM changes ----
+function FindBar({rootRef,chapterKey,onClose}:{rootRef:React.RefObject<HTMLElement|null>,chapterKey:string,onClose:()=>void}){
+ const[q,setQ]=useState(''),[count,setCount]=useState(0),[cur,setCur]=useState(0),ranges=useRef<Range[]>([]),input=useRef<HTMLInputElement>(null)
+ const hl=(window as any).CSS?.highlights,Highlight=(window as any).Highlight
+ const clear=()=>{try{hl?.delete('nr-find');hl?.delete('nr-find-current')}catch{}}
+ const show=(i:number)=>{const r=ranges.current[i];if(!r||!hl||!Highlight)return;hl.set('nr-find-current',new Highlight(r));const b=r.getBoundingClientRect();if(b.top<90||b.bottom>window.innerHeight-90)window.scrollBy({top:b.top-window.innerHeight/2,behavior:'smooth'})}
+ useEffect(()=>{input.current?.focus();input.current?.select()},[])
+ useEffect(()=>{
+  clear();ranges.current=[];const root=rootRef.current,needle=q.trim().toLowerCase()
+  if(!root||needle.length<2){setCount(0);setCur(0);return}
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let node:Node|null
+  while((node=walker.nextNode())){const text=(node.textContent||'').toLowerCase();let at=text.indexOf(needle);while(at>=0&&ranges.current.length<2000){const r=document.createRange();r.setStart(node,at);r.setEnd(node,at+needle.length);ranges.current.push(r);at=text.indexOf(needle,at+needle.length)}}
+  setCount(ranges.current.length);setCur(0)
+  if(ranges.current.length&&hl&&Highlight){hl.set('nr-find',new Highlight(...ranges.current));show(0)}
+ },[q,chapterKey])
+ useEffect(()=>()=>clear(),[])
+ const step=(d:number)=>{if(!count)return;const n=(cur+d+count)%count;setCur(n);show(n)}
+ return <div className="findbar" role="search">
+  <input ref={input} value={q} placeholder={t('Find in chapter…')} aria-label={t('Find in chapter…')} onChange={e=>setQ(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();step(e.shiftKey?-1:1)}else if(e.key==='Escape'){e.preventDefault();e.stopPropagation();onClose()}}}/>
+  <small className="findcount">{q.trim().length<2?'':count?t('{i} of {n}',{i:cur+1,n:count}):t('No match')}</small>
+  <button onClick={()=>step(-1)} disabled={!count} aria-label={t('Previous match')}>↑</button><button onClick={()=>step(1)} disabled={!count} aria-label={t('Next match')}>↓</button>
+  <button onClick={onClose} aria-label={t('Close')}>×</button>
+ </div>
 }
 
 function App(){
@@ -724,15 +818,20 @@ function App(){
   const onScroll=()=>{const y=window.scrollY,max=document.documentElement.scrollHeight-window.innerHeight;const ratio=max>0?clamp(y/max,0,1):1;setReadProgress(ratio)
    const ig=ignoreScroll.current;if(ig&&Date.now()<ig.until&&Math.abs(y-ig.target)<4){lastY=y;ignoreScroll.current=null}else if(Math.abs(y-lastY)>6){setReaderBarHidden(y>lastY&&y>140);lastY=y}
    clearTimeout(saveTimer);saveTimer=setTimeout(()=>{const r=readerRef.current;if(!r)return;try{const key='reading:'+r.novel.id;const cur=JSON.parse(localStorage.getItem(key)||'{}')||{};if(cur.index===r.index)localStorage.setItem(key,JSON.stringify({...cur,scroll:Math.round(ratio*1000)/1000}))}catch{}},400)}
-  const onKey=(e:KeyboardEvent)=>{if(isTyping(e.target)||e.ctrlKey||e.metaKey||e.altKey)return
+  const onKey=(e:KeyboardEvent)=>{markActivity();if(((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='f')||e.key==='F3'){e.preventDefault();setFindOpen(true);return}
+   if(isTyping(e.target)||e.ctrlKey||e.metaKey||e.altKey)return
    if(e.key==='ArrowRight'){e.preventDefault();moveChapterRef.current(1)}
    else if(e.key==='ArrowLeft'){e.preventDefault();moveChapterRef.current(-1)}
    else if(e.key==='+'||e.key==='='){e.preventDefault();setReaderPrefs(p=>{const n={...p,size:clamp(p.size+1,14,32)};lsSet('readerPrefs',JSON.stringify(n));return n})}
    else if(e.key==='-'||e.key==='_'){e.preventDefault();setReaderPrefs(p=>{const n={...p,size:clamp(p.size-1,14,32)};lsSet('readerPrefs',JSON.stringify(n));return n})}
    else if(e.key==='Escape')setReaderSettingsOpen(false)}
-  window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('keydown',onKey);onScroll()
-  return()=>{window.removeEventListener('scroll',onScroll);window.removeEventListener('keydown',onKey);clearTimeout(saveTimer)}
+  const onAct=()=>markActivity()
+  // Reading time: count 20 s slices while the reader is visible, focused and recently used.
+  const tick=setInterval(()=>{if(document.visibilityState==='visible'&&document.hasFocus()&&Date.now()-lastActivity<120000)bumpStats({s:20})},20000)
+  window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('keydown',onKey);window.addEventListener('scroll',onAct,{passive:true});window.addEventListener('mousemove',onAct,{passive:true});onScroll()
+  return()=>{window.removeEventListener('scroll',onScroll);window.removeEventListener('keydown',onKey);window.removeEventListener('scroll',onAct);window.removeEventListener('mousemove',onAct);clearInterval(tick);clearTimeout(saveTimer)}
  },[page])
+ useEffect(()=>{if(page!=='reader'||!reader)return;const key=reader.novel.id+'#'+reader.index;if(lsGet('lastCountedChapter')!==key){lsSet('lastCountedChapter',key);bumpStats({c:1})}},[page,reader?.novel?.id,reader?.index])
  useEffect(()=>{readerRef.current=reader;if(page!=='reader'||!reader)return;setReaderBarHidden(false);const ratio=pendingScrollRef.current;pendingScrollRef.current=0
   requestAnimationFrame(()=>{const max=document.documentElement.scrollHeight-window.innerHeight;const top=Math.round(ratio>0?ratio*max:0);ignoreScroll.current={until:Date.now()+600,target:top};window.scrollTo({top})})},[page,reader?.novel?.id,reader?.index])
  // Automatic backups: shortly after any library change, and every 15 minutes.
@@ -765,15 +864,29 @@ function App(){
  const[showWelcome,setShowWelcome]=useState(()=>{if(lsGet('onboarded'))return false;try{if(JSON.parse(localStorage.getItem('library')||'[]').length){lsSet('onboarded','1');return false}}catch{}return true})
  const closeWelcome=()=>{lsSet('onboarded','1');setShowWelcome(false)}
  // Read aloud panel in the reader.
- const[ttsOpen,setTtsOpen]=useState(false),readerArticleRef=useRef<HTMLElement>(null)
- useEffect(()=>{if(page!=='reader')setTtsOpen(false)},[page])
+ const[ttsOpen,setTtsOpen]=useState(false),[findOpen,setFindOpen]=useState(false),readerArticleRef=useRef<HTMLElement>(null)
+ useEffect(()=>{if(page!=='reader'){setTtsOpen(false);setFindOpen(false)}},[page])
  const setShelfOf=(n:any,shelf:Shelf)=>setLibrary(prev=>{const next=prev.map(x=>x.id===n.id?{...x,shelf}:x);lsSet('library',JSON.stringify(next));return next})
  const updateStatus=useUpdateStatus()
+ useEffect(()=>{setError('')},[page])
+ // Import an LNReader (Android) backup: match each novel to its LNReader source.
+ const importLNReader=async():Promise<ImportResult|null>=>{
+  const r=await window.novelReader.importLNReader();if(!r.ok||!r.novels)return null
+  const list=await ensurePlugins(),byId=new Map(list.map(pl=>[pl.id,pl]))
+  try{await window.novelReader.backupAuto(collectBackup(),true)}catch{}
+  const current=libraryRef.current,items:any[]=[],unknown=new Set<string>();let exists=0
+  for(const n of r.novels){const plugin=byId.get(n.pluginId);if(!plugin){unknown.add(n.pluginId);continue}
+   const id=plugin.id+':'+n.path;if(current.some(x=>x.id===id)||items.some(x=>x.id===id)){exists++;continue}
+   items.push({id,name:n.name,cover:n.cover,author:n.author,path:n.path,source:plugin,chapterCount:n.chapters.length,chapters:n.chapters,addedAt:Date.now()})
+   if(n.reading)lsSet('reading:'+id,JSON.stringify(n.reading))}
+  if(items.length)setLibrary(prev=>{const next=[...items,...prev];lsSet('library',JSON.stringify(next));return next})
+  return{added:items.length,exists,skipped:r.skipped||0,unknown:[...unknown]}
+ }
  const clearNew=(n:any)=>{if(!n?.newChapters)return;setLibrary(prev=>{const next=prev.map(x=>x.id===n.id?{...x,newChapters:0}:x);lsSet('library',JSON.stringify(next));return next})}
  const ensurePlugins=async():Promise<Plugin[]>=>{if(plugins.length)return plugins;const r=await fetch(MANIFEST);if(!r.ok)throw Error('HTTP '+r.status);const j=await r.json();const list=Array.isArray(j)?j:(j.plugins||[]);setPlugins(list);return list};const load=async()=>{setLoading(true);setError('');try{const r=await fetch(MANIFEST);if(!r.ok)throw Error('HTTP '+r.status);const j=await r.json();setPlugins(Array.isArray(j)?j:(j.plugins||[]))}catch(e){setError(String(e))}finally{setLoading(false)}}
  useEffect(()=>{if(page==='sources'&&!plugins.length)load()},[page]);const save=(x:Record<string,Plugin>)=>{setInstalled(x);localStorage.setItem('installedSources',JSON.stringify(x))};const install=async(p:Plugin)=>{try{const r=await fetch(p.url);if(!r.ok)throw Error('Plugin HTTP '+r.status);const code=await r.text();if(!code||code.length<50)throw Error('Invalid plugin bundle');const x={...installed,[p.id]:p};localStorage.setItem('plugin:'+p.id,code);save(x)}catch(e){setError('Install '+p.name+': '+String(e))}};const uninstall=(p:Plugin)=>{const x={...installed};delete x[p.id];localStorage.removeItem('plugin:'+p.id);save(x)}
  const shown=plugins.filter(p=>(p.name+' '+p.lang).toLowerCase().includes(filter.toLowerCase()));const discover=async()=>{const q=novelQuery.trim();if(!q)return;setError('');setMatches([]);let pool=plugins;if(!pool.length){try{const r=await fetch(MANIFEST);const j=await r.json();pool=Array.isArray(j)?j:(j.plugins||[]);setPlugins(pool)}catch(e){setError(String(e));return}}setScan(pool.map(plugin=>({plugin,status:'queued'})));const found:{plugin:Plugin,novel:any}[]=[];const batch=6;for(let i=0;i<pool.length;i+=batch){const part=pool.slice(i,i+batch);setScan(x=>x.map(r=>part.some(p=>p.id===r.plugin.id)?{...r,status:'checking'}:r));await Promise.all(part.map(async plugin=>{try{const results=await window.novelReader.searchPlugin(plugin,q);const exact=results.filter((n:any)=>n.name?.toLowerCase().includes(q.toLowerCase()));if(exact.length){exact.forEach((novel:any)=>found.push({plugin,novel}));setMatches([...found]);setScan(x=>x.map(v=>v.plugin.id===plugin.id?{...v,status:'found'}:v))}else setScan(x=>x.map(v=>v.plugin.id===plugin.id?{...v,status:'no-match'}:v))}catch{setScan(x=>x.map(v=>v.plugin.id===plugin.id?{...v,status:'error'}:v))}}))}};const choose=async(m:{plugin:Plugin,novel:any})=>{await install(m.plugin);const detail=await window.novelReader.parseNovel(m.plugin,m.novel.path);const item={id:m.plugin.id+':'+m.novel.path,name:detail.name||m.novel.name,cover:detail.cover||m.novel.cover||'',author:detail.author||'',path:m.novel.path,source:m.plugin,chapterCount:detail.chapters?.length||0,chapters:detail.chapters||[],addedAt:Date.now()};const next=[item,...library.filter(x=>x.id!==item.id)];setLibrary(next);localStorage.setItem('library',JSON.stringify(next));return item};
-;const openChapter=async(n:any,c:any,i:number)=>{setReaderLoading(true);setError('');try{const d=await window.novelReader.parseChapter(n.source,c.path||c.url);const content=typeof d==='string'?d:(d?.text||d?.content||d?.html||d?.body||'');if(!String(content).trim())throw Error('The source returned an empty chapter');setReader({novel:n,chapter:c,index:i,content});localStorage.setItem('reading:'+n.id,JSON.stringify({index:i,path:c.path||c.url,at:Date.now()}));setPage('reader')}catch(e){setError(t('Could not load chapter:')+' '+String(e))}finally{setReaderLoading(false)}};const moveChapter=async(delta:number)=>{if(!reader||readerLoading)return;const i=reader.index+delta;if(i<0||i>=reader.novel.chapters.length)return;await openChapter(reader.novel,reader.novel.chapters[i],i)};const removeNovel=(n:any)=>{if(!confirm('Remove “'+n.name+'” from your Library?'))return;const next=library.filter(x=>x.id!==n.id);setLibrary(next);localStorage.setItem('library',JSON.stringify(next));localStorage.removeItem('reading:'+n.id)};const resumeNovel=(n:any)=>{setSelectedNovel(n);setChapterFilter('');try{const saved=JSON.parse(localStorage.getItem('reading:'+n.id)||'null');if(saved&&Number.isInteger(saved.index)&&n.chapters?.[saved.index]){pendingScrollRef.current=Number(saved.scroll)||0;openChapter(n,n.chapters[saved.index],saved.index);return}}catch{}setPage('novel')};
+;const openChapter=async(n:any,c:any,i:number)=>{setReaderLoading(true);setError('');try{const cpath=c.path||c.url;const cached=await window.novelReader.offlineGet?.(n.id,cpath).catch(()=>null);if(!cached&&typeof navigator!=='undefined'&&navigator.onLine===false)throw Error(t('You are offline and this chapter is not downloaded.'));const d=cached||await window.novelReader.parseChapter(n.source,cpath);const content=typeof d==='string'?d:(d?.text||d?.content||d?.html||d?.body||'');if(!String(content).trim())throw Error('The source returned an empty chapter');setReader({novel:n,chapter:c,index:i,content});localStorage.setItem('reading:'+n.id,JSON.stringify({index:i,path:c.path||c.url,at:Date.now()}));setPage('reader')}catch(e:any){setError(t('Could not load chapter:')+' '+String(e?.message||e))}finally{setReaderLoading(false)}};const moveChapter=async(delta:number)=>{if(!reader||readerLoading)return;const i=reader.index+delta;if(i<0||i>=reader.novel.chapters.length)return;await openChapter(reader.novel,reader.novel.chapters[i],i)};const removeNovel=(n:any)=>{if(!confirm('Remove “'+n.name+'” from your Library?'))return;const next=library.filter(x=>x.id!==n.id);setLibrary(next);localStorage.setItem('library',JSON.stringify(next));localStorage.removeItem('reading:'+n.id)};const resumeNovel=(n:any)=>{setSelectedNovel(n);setChapterFilter('');try{const saved=JSON.parse(localStorage.getItem('reading:'+n.id)||'null');if(saved&&Number.isInteger(saved.index)&&n.chapters?.[saved.index]){pendingScrollRef.current=Number(saved.scroll)||0;openChapter(n,n.chapters[saved.index],saved.index);return}}catch{}setPage('novel')};
 const playAnimeEpisode=async(ep:any)=>{if(!selectedAnime)return;setAnimeVideoLoading(true);setAnimeNotice(null);setSelectedEpisode(ep);setAnimeVideos([]);setSelectedVideo(null);try{
  const episodeNumber=String(ep.number||String(ep.name||ep.title||'').match(/\d+(?:\.\d+)?/)?.[0]||'');
  const candidates=[{sourceId:String(selectedAnime.sourceId||''),sourceName:selectedAnime.sourceName||selectedAnime.source||'Current source',url:selectedAnime.url||selectedAnime.path,episode:ep},...((selectedAnime.alternates||[]) as any[]).map((x:any)=>({...x,episode:null}))];
@@ -840,15 +953,17 @@ const installAnimeSource=async(src:any)=>{setAnimeNotice(null);try{const pkg=src
  {page==='seriesDetail'&&selectedSeries&&<><header><div><button className="backbtn" onClick={()=>setPage('series')}>← Series Library</button><h1>{selectedSeries.name||selectedSeries.title}</h1><p>{selectedSeries.sourceName||'Series'} · {selectedSeries.episodes?.length||0} episodes</p></div></header><section className="panel"><h2>Episodes</h2>{!selectedSeries.episodes?.length?<p>No episodes returned by this source.</p>:<div className="episodegrid">{selectedSeries.episodes.map((ep:any,i:number)=>{const label=ep.name||ep.title||('Episode '+(ep.number||i+1));return <button className="episodecard" key={(ep.url||ep.path||ep.name||'series-ep')+i} onClick={()=>{setSelectedAnime({...selectedSeries,sourceId:selectedSeries.sourceId,url:selectedSeries.url||selectedSeries.path});playAnimeEpisode(ep)}}><span className="episodebadge">{ep.number||String(label).match(/\d+(?:\.\d+)?/)?.[0]||'#'}</span><span className="episodetitle">{label}</span><span className="episodeplay">▶</span></button>})}</div>}{selectedEpisode&&<div className="anime-player"><h2>{selectedEpisode.name||selectedEpisode.title||'Episode'}</h2>{animeVideoLoading?<p>Extracting video streams…</p>:selectedVideo?(()=>{const eps=selectedSeries.episodes||[],idx=eps.indexOf(selectedEpisode),prev=idx>0?()=>{setSelectedAnime({...selectedSeries,sourceId:selectedSeries.sourceId,url:selectedSeries.url||selectedSeries.path});playAnimeEpisode(eps[idx-1])}:undefined,next=idx>=0&&idx<eps.length-1?()=>{setSelectedAnime({...selectedSeries,sourceId:selectedSeries.sourceId,url:selectedSeries.url||selectedSeries.path});playAnimeEpisode(eps[idx+1])}:undefined,key='series:'+(selectedSeries.id||selectedSeries.url||selectedSeries.name)+':'+(selectedEpisode.url||selectedEpisode.path||selectedEpisode.number||idx);return <AnimeVideo key={selectedVideo.streamUrl} video={selectedVideo} mediaKey={key} onPrev={prev} onNext={next}/>})():null}</div>}</section></>}
  {page==='seriesSearch'&&<MediaSearch kind="Series" query={seriesQuery} setQuery={setSeriesQuery} library={seriesLibrary} onAdd={(a:any)=>{const item={...a,id:'series:'+(a.sourceId||'')+':'+(a.url||a.path||Date.now()),name:a.title||a.name,addedAt:Date.now()};const next=[item,...seriesLibrary.filter(x=>x.id!==item.id)];setSeriesLibrary(next);localStorage.setItem('seriesLibrary',JSON.stringify(next))}}/>}
  {page==='library'&&<NovelLibrary library={library} updates={updateState} onCheckUpdates={checkUpdates} onShelf={setShelfOf} onOpen={(n:any)=>{clearNew(n);if(n.shelf==='plan')setShelfOf(n,'reading');if(!readingOf(n.id)&&n.chapters?.length){setSelectedNovel(n);setChapterFilter('');openChapter(n,n.chapters[0],0)}else resumeNovel(n)}} onDetails={(n:any)=>{clearNew(n);setSelectedNovel(n);setChapterFilter('');setPage('novel')}} onRemove={removeFromLibrary} onRestore={restoreToLibrary} onSearch={()=>setPage('search')}/>}
- {page==='novel'&&selectedNovel&&<NovelDetail novel={selectedNovel} filter={chapterFilter} setFilter={setChapterFilter} loading={readerLoading} onBack={()=>setPage('library')} onOpenChapter={(c,i)=>openChapter(selectedNovel,c,i)} onContinue={()=>resumeNovel(selectedNovel)}/>}
+ {(page==='novel'||page==='reader')&&error&&<div className="anime-toast error search-toast" role="alert"><NoticeText text={error}/><button aria-label={t('Dismiss')} onClick={()=>setError('')}>×</button></div>}
+{page==='novel'&&selectedNovel&&<NovelDetail novel={selectedNovel} filter={chapterFilter} setFilter={setChapterFilter} loading={readerLoading} onBack={()=>setPage('library')} onOpenChapter={(c,i)=>openChapter(selectedNovel,c,i)} onContinue={()=>resumeNovel(selectedNovel)}/>}
  {page==='reader'&&reader&&(()=>{const total=reader.novel.chapters.length,title=reader.chapter.name||reader.chapter.title||t('Chapter {n}',{n:reader.index+1}),first=reader.index===0,last=reader.index>=total-1
  return <section className={'readerpage rtheme-'+readerPrefs.theme} style={{'--r-size':readerPrefs.size+'px','--r-leading':String(readerPrefs.leading),'--r-width':READER_WIDTHS[readerPrefs.width],'--r-font':READER_FONTS[readerPrefs.font]} as React.CSSProperties}>
-  <div className={'readerbar'+(readerBarHidden&&!readerSettingsOpen?' hidden':'')}>
+  <div className={'readerbar'+(readerBarHidden&&!readerSettingsOpen&&!findOpen?' hidden':'')}>
    <button className="backbtn" onClick={()=>setPage('novel')}>← {t('Chapters')}</button>
    <div className="readerbar-title"><b>{reader.novel.name}</b><small>{title}</small></div>
-   <div className="readertools"><button className={'themebtn tts-toggle'+(ttsOpen?' on':'')} aria-pressed={ttsOpen} title={t('Read aloud')} aria-label={t('Read aloud')} onClick={()=>setTtsOpen(o=>!o)}>🔊</button><span className="readerpos" title={t('Chapter position')}>{reader.index+1} / {total}</span><button className="themebtn readersettings-btn" aria-expanded={readerSettingsOpen} title={t('Reading settings')} onClick={()=>setReaderSettingsOpen(o=>!o)}>Aa</button></div>
+   <div className="readertools"><button className={'themebtn tts-toggle'+(ttsOpen?' on':'')} aria-pressed={ttsOpen} title={t('Read aloud')} aria-label={t('Read aloud')} onClick={()=>setTtsOpen(o=>!o)}>🔊</button><button className="themebtn find-toggle" title={t('Find in chapter…')+' (Ctrl+F)'} aria-label={t('Find in chapter…')} onClick={()=>setFindOpen(o=>!o)}>⌕</button><span className="readerpos" title={t('Chapter position')}>{reader.index+1} / {total}</span><button className="themebtn readersettings-btn" aria-expanded={readerSettingsOpen} title={t('Reading settings')} onClick={()=>setReaderSettingsOpen(o=>!o)}>Aa</button></div>
    <div className="readprogress" aria-hidden="true"><span style={{width:(readProgress*100).toFixed(1)+'%'}}/></div>
    {readerSettingsOpen&&<ReaderSettings prefs={readerPrefs} onChange={updateReaderPrefs} onClose={()=>setReaderSettingsOpen(false)}/>}
+   {findOpen&&<FindBar rootRef={readerArticleRef} chapterKey={reader.novel.id+':'+reader.index} onClose={()=>setFindOpen(false)}/>}
   </div>
   <article className="readercontent" ref={readerArticleRef}><h1>{title}</h1><div dangerouslySetInnerHTML={chapterHtml(reader.content)} /></article>
   {ttsOpen&&<ReaderTTS rootRef={readerArticleRef} chapterKey={reader.novel.id+':'+reader.index} hasNext={!last} onNext={()=>moveChapter(1)} onClose={()=>setTtsOpen(false)}/>}
@@ -858,7 +973,7 @@ const installAnimeSource=async(src:any)=>{setAnimeNotice(null);try{const pkg=src
  {page==='animeSearch'&&<MediaSearch kind="Anime" query={animeQuery} setQuery={setAnimeQuery} library={animeLibrary} onAdd={(a:any)=>{const item={...a,id:a.id||a.url||Date.now(),name:a.title||a.name,addedAt:Date.now()};const next=[item,...animeLibrary.filter(x=>x.id!==item.id)];setAnimeLibrary(next);localStorage.setItem('animeLibrary',JSON.stringify(next))}}/>}
  {page==='anime'&&<><MediaLibrary kind="Anime" items={animeLibrary} onChange={setAnimeLibrary} onSearch={()=>setPage('animeSearch')} onOpen={openAnime} loading={animeDetailLoading}/>{animeNotice&&animeNotice.scope==='library'&&<div className={'anime-toast '+(animeNotice.ok?'ok':'error')}><NoticeText text={animeNotice.text}/><button onClick={()=>setAnimeNotice(null)}>×</button></div>}</>}
 {page==='animeDetail'&&selectedAnime&&<><header><div><button className="backbtn" onClick={()=>setPage('anime')}>← Anime Library</button><h1>{selectedAnime.name||selectedAnime.title}</h1><p>{selectedAnime.sourceName||selectedAnime.source||'Anime'} · {selectedAnime.episodeCount??selectedAnime.episodes?.length??0} episodes</p></div></header><section className="panel"><h2>Episodes</h2>{!selectedAnime.episodes?.length?<p>No episodes returned by this source.</p>:<div className="episodegrid">{selectedAnime.episodes.map((ep:any,i:number)=>{const label=ep.name||ep.title||('Episode '+(ep.number||i+1));return <button className="episodecard" key={(ep.url||ep.path||ep.name||'ep')+i} disabled={animeVideoLoading} onClick={()=>playAnimeEpisode(ep)}><span className="episodebadge">{ep.number||String(label).match(/\d+(?:\.\d+)?/)?.[0]||'#'}</span><span className="episodetitle">{label}</span><span className="episodeplay">▶</span></button>})}</div>}{selectedEpisode&&<div className="anime-player"><h2>{selectedEpisode.name||selectedEpisode.title||'Episode'}</h2>{animeVideoLoading?<p>Extracting video streams…</p>:selectedVideo?<><AnimeVideo key={selectedVideo.streamUrl} video={selectedVideo} mediaKey={'anime:'+(selectedAnime.id||selectedAnime.url||selectedAnime.name)+':'+(selectedEpisode?.url||selectedEpisode?.path||selectedEpisode?.number||selectedEpisode?.name||'episode')} onPrev={(()=>{const eps=selectedAnime.episodes||[],i=eps.indexOf(selectedEpisode);return i>0?()=>playAnimeEpisode(eps[i-1]):undefined})()} onNext={(()=>{const eps=selectedAnime.episodes||[],i=eps.indexOf(selectedEpisode);return i>=0&&i<eps.length-1?()=>playAnimeEpisode(eps[i+1]):undefined})()}/>{animeVideos.length>1&&<div className="libraryactions">{animeVideos.map((v:any,i:number)=><button key={(v.videoUrl||v.url||'video')+i} className={selectedVideo===v?'primary':''} onClick={()=>setSelectedVideo(v)}>{v.videoTitle||v.quality||v.resolution||('Stream '+(i+1))}</button>)}</div>}</>:null}</div>}{animeNotice&&animeNotice.scope==='detail'&&<div className={'anime-toast '+(animeNotice.ok?'ok':'error')}><NoticeText text={animeNotice.text}/><button onClick={()=>setAnimeNotice(null)}>×</button></div>}</section></>}
-{page==='settings'&&<SettingsPage lang={lang} onLang={changeLang} onWelcome={()=>setShowWelcome(true)} update={updateStatus}/>}
+{page==='settings'&&<SettingsPage lang={lang} onLang={changeLang} onWelcome={()=>setShowWelcome(true)} update={updateStatus} onImportLNReader={importLNReader} onShowLibrary={()=>{setModeState('books');lsSet('mode','books');setPageState('library')}}/>}
 {page==='localVideos'&&<LocalVideos/>}
 {page==='archive'&&<ArchivePage/>}
 {page==='animeSources'&&<><header><div><h1>Anime Sources</h1><p>Install and manage Aniyomi-compatible sources.</p></div></header><section className={'panel anime-status '+(animeEngine?.online?'engine-online':animeEngine?'engine-offline':'')}><div className="engine-row"><div><h2>Anime Engine</h2><p>{animeEngine==null?'Not checked yet':animeEngine.online?'✓ Connected to Miwayomi':'✕ Offline — '+animeEngine.baseUrl}</p></div><button onClick={async()=>setAnimeEngine(await window.novelReader.miwayomiStatus())}>Check engine</button></div></section><section className="panel"><h2>Source repository</h2><input className="repo-input" value={animeRepoUrl} onChange={e=>setAnimeRepoUrl(e.target.value)}/><button className="primary" disabled={animeSourceLoading} onClick={async()=>{setAnimeSourceLoading(true);setAnimeNotice(null);try{const r=await fetch(animeRepoUrl);if(!r.ok)throw Error('Repository HTTP '+r.status);const data=await r.json();const list=Array.isArray(data)?data:(data.extensions||data.plugins||[]);const blocked=/hentai|jav|missav|xvideos|xnxx|myreadingmanga|torrent|debrid|nyaa|jable/i;setAnimeSources(list.filter((x:any)=>!blocked.test(String(x.name||x.pkg||''))))}catch(e:any){setAnimeNotice({ok:false,text:e.message})}finally{setAnimeSourceLoading(false)}}}>{animeSourceLoading?'Loading…':'Load sources'}</button>{animeSources.length>0&&<><p><b>{animeSources.length}</b> suitable sources</p><input className="repo-input" placeholder="Filter sources…" value={animeCatalogFilter} onChange={e=>setAnimeCatalogFilter(e.target.value)}/><div className="anime-source-list">{animeSources.filter((x:any)=>{const q=animeCatalogFilter.toLowerCase();return !q||String(x.name||x.pkg||'').toLowerCase().includes(q)||String(x.lang||'').toLowerCase().includes(q)}).slice(0,100).map((x:any,i:number)=><button className="anime-source-chip" key={(x.pkg||x.name||'source')+i} onClick={()=>installAnimeSource(x)}>{x.name||x.pkg}{x.lang?' · '+x.lang:''}</button>)}</div></>}{animeNotice&&animeNotice.scope==='sources'&&<div className={'anime-toast '+(animeNotice.ok?'ok':'error')}><NoticeText text={animeNotice.text}/><button onClick={()=>setAnimeNotice(null)}>×</button></div>}</section></>}

@@ -203,6 +203,27 @@ const FR: Record<string, string> = {
   'Updates are checked automatically when NovelReader starts.': 'Les mises à jour sont vérifiées automatiquement au démarrage.',
   'Updates': 'Mises à jour', 'Installed version: {v}': 'Version installée : {v}', 'Check for updates': 'Rechercher des mises à jour',
   'Show a Windows notification when new chapters are found': 'Afficher une notification Windows quand de nouveaux chapitres sont trouvés',
+  // Offline / import / find / stats
+  'You are offline and this chapter is not downloaded.': 'Tu es hors connexion et ce chapitre n’est pas téléchargé.',
+  'Downloading chapters {done} / {total}…': 'Téléchargement des chapitres : {done} / {total}…',
+  '{n} chapter available offline': '{n} chapitre disponible hors ligne', '{n} chapters available offline': '{n} chapitres disponibles hors ligne',
+  '{n} failed': '{n} en échec', 'How many chapters to download': 'Combien de chapitres télécharger',
+  'Next {n} chapters': 'Les {n} prochains chapitres', 'All remaining chapters': 'Tous les chapitres restants', 'Download': 'Télécharger',
+  'Delete downloads': 'Supprimer les téléchargements', 'Available offline': 'Disponible hors ligne',
+  'Import from LNReader (Android)': 'Importer depuis LNReader (Android)',
+  'In the LNReader app, open More > Backup and restore > Create backup, copy the .zip file to this PC, then import it here. Your novels and where you stopped reading are added to your library.': 'Dans l’appli LNReader, ouvre Plus > Sauvegarde et restauration > Créer une sauvegarde, copie le fichier .zip sur ce PC, puis importe-le ici. Tes romans et l’endroit où tu t’es arrêté sont ajoutés à ta bibliothèque.',
+  'Importing…': 'Import…', 'Import an LNReader backup…': 'Importer une sauvegarde LNReader…',
+  '{n} novel imported': '{n} roman importé', '{n} novels imported': '{n} romans importés', '{n} already in your library': '{n} déjà dans ta bibliothèque',
+  '{n} skipped (source not available: {list})': '{n} ignorés (source indisponible : {list})', 'Open library': 'Ouvrir la bibliothèque',
+  'This file is not an LNReader backup (not a zip file).': 'Ce fichier n’est pas une sauvegarde LNReader (pas un fichier zip).',
+  'No novels were found in this LNReader backup.': 'Aucun roman trouvé dans cette sauvegarde LNReader.',
+  'Offline chapters': 'Chapitres hors ligne', '{chapters} for {novels} use {size} on this PC.': '{chapters} pour {novels} occupent {size} sur ce PC.',
+  'No chapter downloaded yet. Use Download on a novel page to read without an internet connection.': 'Aucun chapitre téléchargé pour l’instant. Utilise Télécharger sur la page d’un roman pour lire sans connexion.',
+  'Confirm: delete all downloads': 'Confirmer : tout supprimer', 'Delete all downloaded chapters': 'Supprimer tous les chapitres téléchargés',
+  'Find in chapter…': 'Rechercher dans le chapitre…', '{i} of {n}': '{i} sur {n}', 'No match': 'Aucun résultat', 'Previous match': 'Résultat précédent', 'Next match': 'Résultat suivant',
+  'Your reading this week': 'Ta lecture cette semaine', 'chapters in 7 days': 'chapitres en 7 jours', 'reading time in 7 days': 'de lecture en 7 jours',
+  'day in a row': 'jour d’affilée', 'days in a row': 'jours d’affilée', 'Chapters read per day, last 7 days': 'Chapitres lus par jour, 7 derniers jours',
+  '{n} min': '{n} min', '{h} h {m} min': '{h} h {m} min', '{h} h': '{h} h',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

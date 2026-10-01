@@ -10,6 +10,10 @@ const {createBackupManager}=require('./backup.cjs')
 const backups=createBackupManager({app,dialog,shell})
 const SMOKE_TEST=process.env.NR_SMOKE_TEST==='1'
 const {createWindowState,createUpdater}=require('./app-shell.cjs')
+const {createOfflineStore}=require('./offline.cjs')
+const {createLNReaderImporter}=require('./lnreader-import.cjs')
+const offline=createOfflineStore({app})
+const lnImporter=createLNReaderImporter({dialog})
 const APP_ID='com.novelreader.windows'
 let mainWindow=null
 // One NovelReader at a time: a second launch focuses the existing window.
@@ -124,6 +128,15 @@ ipcMain.handle('backup:auto',cleanErr((_e,o)=>backups.autoBackup(o&&o.payload,{f
 ipcMain.handle('backup:listAuto',cleanErr(()=>backups.listAuto()))
 ipcMain.handle('backup:readAuto',cleanErr((_e,name)=>backups.readAuto(String(name||''))))
 ipcMain.handle('backup:openFolder',cleanErr(()=>backups.openFolder()))
+// ---- Offline chapters + LNReader import ------------------------------------------
+const plainErr=fn=>async(e,arg)=>{try{return await fn(e,arg||{})}catch(err){console.warn('[offline/import]',err);throw new Error(err&&err.message||String(err))}}
+ipcMain.handle('offline:save',plainErr((_e,o)=>offline.save(String(o.novelId||''),String(o.path||''),String(o.html||''),o.name)))
+ipcMain.handle('offline:get',plainErr((_e,o)=>offline.get(String(o.novelId||''),String(o.path||''))))
+ipcMain.handle('offline:list',plainErr((_e,o)=>offline.list(String(o.novelId||''))))
+ipcMain.handle('offline:remove',plainErr((_e,o)=>offline.remove(String(o.novelId||''))))
+ipcMain.handle('offline:usage',plainErr(()=>offline.usage()))
+ipcMain.handle('offline:clear',plainErr(()=>offline.clearAll()))
+ipcMain.handle('lnreader:import',plainErr(e=>lnImporter.importBackup(BrowserWindow.fromWebContents(e.sender))))
 let torrentsShutDown=false
 app.on('before-quit',e=>{if(torrents&&!torrentsShutDown){e.preventDefault();torrentsShutDown=true;torrents.shutdown().catch(()=>{}).finally(()=>app.quit())}})
 
@@ -133,7 +146,7 @@ async function runSmokeTest(win){
  const result={}
  try{
   await new Promise(r=>win.webContents.once('did-finish-load',r))
-  result.bridge=await win.webContents.executeJavaScript("['torrentStart','torrentStatus','torrentStop','archiveSearch','archiveFiles','backupExport','backupImport','backupAuto','backupListAuto','backupReadAuto','appVersion','updateCheck','onUpdateStatus','focusWindow'].every(k=>typeof window.novelReader[k]==='function')")
+  result.bridge=await win.webContents.executeJavaScript("['torrentStart','torrentStatus','torrentStop','archiveSearch','archiveFiles','backupExport','backupImport','backupAuto','backupListAuto','backupReadAuto','appVersion','updateCheck','onUpdateStatus','focusWindow','offlineSave','offlineGet','importLNReader'].every(k=>typeof window.novelReader[k]==='function')")
   result.backup=await win.webContents.executeJavaScript("(async()=>{const p={app:'NovelReader',version:1,exportedAt:Date.now(),data:{library:JSON.stringify([{id:'x',name:'Smoke'}])}};const a=await window.novelReader.backupAuto(p);const b=await window.novelReader.backupAuto(p);const list=await window.novelReader.backupListAuto();const back=await window.novelReader.backupReadAuto(list[0].name);return {first:a.saved,second:b.saved,listed:list.length,novels:list[0].novels,same:back.data.library===p.data.library}})()")
   const id=process.env.NR_SMOKE_ARCHIVE_ID
   if(id){

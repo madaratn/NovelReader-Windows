@@ -386,3 +386,41 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .libcard .libraryactions>.primary{grid-column:1/-1;width:100%}
 .libcard .libraryactions .shelfselect{max-width:none;width:100%}
 .libcard .libraryactions .removebtn{min-height:36px;padding:0 12px}
+
+/* ---- Offline chapters --------------------------------------------------------------- */
+.offlinebar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;color:#aeb3c2;font-size:13.5px}
+.offlinebar select,.offlinebar button{min-height:34px;padding:0 10px;border:1px solid #30364a;border-radius:9px;background:#161a24;color:#e6e8ef;font:inherit;font-size:13px;cursor:pointer}
+.offlinebar .ghostbtn{background:transparent;color:#9aa0b4}
+.offline-label{color:#9fd8b8}
+.offline-mark{margin-left:auto;margin-right:10px;color:#7fd6a4;font-size:13px}
+.settings-block .anime-toast.ok>.undo-btn{font-size:14px!important;font-weight:700;padding:6px 12px!important;border:1px solid currentColor!important;border-radius:7px}
+.settings-block button.danger{border-color:#a3505e!important;color:#ffb2bd!important;background:#2a171c!important}
+
+/* ---- Find in chapter ---------------------------------------------------------------- */
+.findbar{position:absolute;right:0;top:calc(100% + 8px);display:flex;align-items:center;gap:6px;padding:8px;background:#12151d;border:1px solid #2b3040;border-radius:12px;box-shadow:0 12px 36px rgba(0,0,0,.4);font-family:'Segoe UI',Inter,system-ui,sans-serif;z-index:5}
+.findbar input{width:240px;min-height:34px;padding:0 10px;border:1px solid #2b3040;border-radius:8px;background:#0d1016;color:#e6e8ef;font:inherit;font-size:14px}
+.findbar input:focus{outline:none;border-color:#6c5ee0}
+.findbar button{width:32px;height:32px;border:1px solid #30364a;border-radius:8px;background:#161a24;color:#e6e8ef;cursor:pointer}
+.findbar button:disabled{opacity:.4}
+.findcount{min-width:70px;color:#9aa0b4;font-size:12.5px;text-align:center}
+.readerpage .find-toggle{font-size:17px;font-weight:400}
+::highlight(nr-find){background-color:rgba(255,207,92,.38);color:inherit}
+::highlight(nr-find-current){background-color:#ffcf5c;color:#1b1608}
+
+/* ---- Reading statistics -------------------------------------------------------------- */
+.stats{padding:0;margin:0 0 18px;overflow:hidden}
+.stats-head{width:100%;display:flex;align-items:baseline;gap:12px;padding:14px 18px;border:0;background:transparent;color:#e6e8ef;font:inherit;text-align:left;cursor:pointer}
+.stats-head>span:first-child{font-weight:700;font-size:15px}.stats-head small{color:#9aa0b4}.stats-chev{margin-left:auto;color:#7f8598}
+.stats-body{display:grid;grid-template-columns:minmax(220px,300px) minmax(0,1fr);gap:22px;padding:0 18px 18px}
+.stats-tiles{display:grid;grid-template-columns:1fr;gap:8px}
+.stats-tiles>div{display:flex;align-items:baseline;gap:10px;padding:10px 12px;border:1px solid #232838;border-radius:10px;background:#0f1218}
+.stats-tiles b{font-size:20px;color:#fff;font-variant-numeric:tabular-nums}.stats-tiles small{color:#9aa0b4}
+.stats-chart{position:relative;margin:0;min-height:150px}
+.stats-bars{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;height:150px;align-items:end;border-bottom:1px solid #2b3040}
+.stats-bar{position:relative;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding:0;border:0;background:transparent;cursor:default}
+.stats-fill{display:block;width:min(28px,70%);background:#8b7cff;border-radius:4px 4px 0 0}
+.stats-bar.on .stats-fill,.stats-bar:focus-visible .stats-fill{background:#a99fff}
+.stats-day{position:absolute;bottom:-22px;color:#8f94a3;font-size:12px;text-transform:capitalize}
+.stats-tip{position:absolute;top:-6px;transform:translate(-50%,-100%);padding:6px 10px;border:1px solid #2b3040;border-radius:8px;background:#0d1016;color:#e6e8ef;font-size:12.5px;white-space:nowrap;pointer-events:none}
+.stats-chart{margin-bottom:22px}
+@media (max-width:820px){.stats-body{grid-template-columns:1fr}}
