@@ -351,3 +351,26 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .inlib{color:#7fd6a4;font-size:13.5px;font-weight:600}
 .othersources>summary{cursor:pointer;color:#9aa0b4;font-size:13px}.othersources>div{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .search-toast .undo-btn{font-size:14px!important;font-weight:700;padding:6px 12px!important;border:1px solid currentColor!important;border-radius:7px}
+
+/* ---- Shelves --------------------------------------------------------------------- */
+.shelftabs{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 14px;border-bottom:1px solid #232838}
+.shelftab{position:relative;display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:0 14px;border:0;background:transparent;color:#9aa0b4;font:inherit;font-size:14px;cursor:pointer}
+.shelftab small{padding:1px 7px;border-radius:999px;background:#1a1e2a;color:#8f94a3;font-size:12px}
+.shelftab:hover{color:#e6e8ef}
+.shelftab.on{color:#fff}.shelftab.on::after{content:'';position:absolute;left:10px;right:10px;bottom:-1px;height:2px;border-radius:2px;background:#8b7cff}.shelftab.on small{background:#2b2160;color:#cfc6ff}
+.shelfselect{min-height:36px;max-width:150px;padding:0 8px;border:1px solid #30364a;border-radius:9px;background:#161a24;color:#d5d8e2;font:inherit;font-size:13px;cursor:pointer}
+
+/* ---- Sources page ------------------------------------------------------------------- */
+.sources-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 16px}
+.sources-actions button{min-height:42px;padding:0 16px;border:1px solid #30364a;border-radius:10px;background:#161a24;color:#e6e8ef;font:inherit;font-size:14px;cursor:pointer}
+.sources-actions button.primary{background:#7562ef;border-color:#7562ef;color:#fff;font-weight:600}
+.sources-actions .stopbtn{background:#2a171c;border-color:#a3505e;color:#ffb2bd}
+.sources-actions small{color:#7f8598}
+.sourcelist{display:flex;flex-direction:column;gap:6px}
+.sourcerow{display:grid;grid-template-columns:36px minmax(0,1fr) 210px 90px;align-items:center;gap:14px;padding:10px 14px;border:1px solid #232838;border-radius:11px;background:#11141b}
+.sourcerow img,.sourcerow .srcicon{width:36px;height:36px;border-radius:9px;object-fit:cover;background:#1c2030}
+.sourcerow-main{min-width:0;display:flex;flex-direction:column;gap:2px}.sourcerow-main b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sourcerow-main small{color:#8f94a3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.health{display:flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap}.health small{color:#7f8598;margin-left:4px}
+.health.ok{color:#7fd6a4}.health.bad{color:#f19aa8}.health.untested{color:#8f94a3}
+.sourcerow>button{min-height:34px;border:1px solid #30364a;border-radius:9px;background:#161a24;color:#e6e8ef;font:inherit;font-size:13px;cursor:pointer}
+@media (max-width:820px){.sourcerow{grid-template-columns:36px minmax(0,1fr) 80px}.health{grid-column:2;grid-row:2}}

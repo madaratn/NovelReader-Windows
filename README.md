@@ -24,5 +24,14 @@ Note: the built-in (Chromium) player decodes H.264/VP9/AV1 video with AAC/Opus a
 ## Windows build (GitHub Actions)
 The **Build Windows EXE** workflow runs on pushes to `main`, on `v*` tags, or manually (Actions → Build Windows EXE → Run workflow). The installer is attached to the run as the `NovelReader-Windows` artifact.
 
+## UI tests
+The interface is covered by Playwright tests (`tests/ui/`) that run the built renderer in Chromium with a stubbed Electron bridge: navigation, library and shelves, novel page, reader (settings, resume, read aloud), global search, sources, settings and backups, welcome guide, crash screen, French UI and Local Videos.
+
+    npm run build
+    npx playwright install chromium   # first time only
+    npm run test:ui
+
+They run automatically on every push and pull request (workflow **UI tests**).
+
 ## Architecture
 src/sources/registry.ts defines the provider contract. Community plugins should not execute with unrestricted Electron/Node privileges. Next: isolated adapter, manifest validation, global-search UI and update checks.
