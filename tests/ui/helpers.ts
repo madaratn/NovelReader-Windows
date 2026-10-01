@@ -69,6 +69,7 @@ export async function setup(page: Page, s: Setup = {}) {
       },
       parseChapter: async (_src: any, path: string) => {
         w.__calls.parseChapter++
+        if (w.__chapterOverride) return w.__chapterOverride
         const n = String(path).replace(/\D/g, '')
         return '<p>' + Array.from({ length: 40 }, (_, i) => `Paragraph ${i + 1} of chapter ${n}. The lantern light trembled across the old stone corridor as the travellers paused to listen.`).join('</p><p>') + '</p>'
       },

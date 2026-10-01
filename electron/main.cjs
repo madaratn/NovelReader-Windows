@@ -1,4 +1,4 @@
-const {app,BrowserWindow,ipcMain,dialog,protocol,shell,screen}=require('electron')
+const {app,BrowserWindow,ipcMain,dialog,protocol,shell,screen,session}=require('electron')
 const {Readable}=require('stream')
 const {spawn}=require('child_process')
 const fs=require('fs')
@@ -137,6 +137,24 @@ ipcMain.handle('offline:remove',plainErr((_e,o)=>offline.remove(String(o.novelId
 ipcMain.handle('offline:usage',plainErr(()=>offline.usage()))
 ipcMain.handle('offline:clear',plainErr(()=>offline.clearAll()))
 ipcMain.handle('lnreader:import',plainErr(e=>lnImporter.importBackup(BrowserWindow.fromWebContents(e.sender))))
+// ---- Hardening ---------------------------------------------------------------------
+// The window only ever shows the app itself. Links inside chapters open in the
+// default browser instead of replacing the app; new windows, webviews and
+// unexpected permissions are refused.
+const DEV_ORIGIN='http://127.0.0.1:5173'
+const isAppUrl=u=>{try{const x=new URL(u);return x.protocol==='file:'||(!app.isPackaged&&x.origin===DEV_ORIGIN)}catch{return false}}
+const openOutside=u=>{try{const x=new URL(u);if((x.protocol==='https:'||x.protocol==='http:')&&!SMOKE_TEST)shell.openExternal(x.toString())}catch{}}
+app.on('web-contents-created',(_e,contents)=>{
+ contents.setWindowOpenHandler(({url})=>{openOutside(url);return{action:'deny'}})
+ contents.on('will-navigate',(e,url)=>{if(!isAppUrl(url)){e.preventDefault();openOutside(url)}})
+ contents.on('will-redirect',(e,url)=>{if(!isAppUrl(url))e.preventDefault()})
+ contents.on('will-attach-webview',e=>e.preventDefault())
+})
+const ALLOWED_PERMISSIONS=new Set(['notifications','fullscreen','clipboard-sanitized-write'])
+app.whenReady().then(()=>{
+ session.defaultSession.setPermissionRequestHandler((_wc,permission,cb)=>cb(ALLOWED_PERMISSIONS.has(permission)))
+ session.defaultSession.setPermissionCheckHandler((_wc,permission)=>ALLOWED_PERMISSIONS.has(permission))
+})
 let torrentsShutDown=false
 app.on('before-quit',e=>{if(torrents&&!torrentsShutDown){e.preventDefault();torrentsShutDown=true;torrents.shutdown().catch(()=>{}).finally(()=>app.quit())}})
 
@@ -156,7 +174,8 @@ async function runSmokeTest(win){
    result.stream={status:r.status,contentRange:r.headers.get('content-range'),bytes:buf.length,mp4:buf.slice(4,8).toString('latin1')==='ftyp',file:info.fileName}
    await getTorrents().stop(info.sessionId)
   }
-  result.ok=result.bridge===true&&result.backup&&result.backup.first===true&&result.backup.second===false&&result.backup.same===true&&(!id||(result.stream.status===206&&result.stream.bytes===1048576))
+  result.security=await win.webContents.executeJavaScript("(async()=>{const csp=!!document.querySelector('meta[http-equiv=Content-Security-Policy]');const before=location.href;const w=window.open('https://example.com');try{location.href='https://example.com/'}catch{}await new Promise(r=>setTimeout(r,800));return{csp,popupBlocked:w===null,stayed:location.href===before}})()")
+  result.ok=result.bridge===true&&result.security&&result.security.csp&&result.security.popupBlocked&&result.security.stayed&&result.backup&&result.backup.first===true&&result.backup.second===false&&result.backup.same===true&&(!id||(result.stream.status===206&&result.stream.bytes===1048576))
  }catch(e){result.ok=false;result.error=String(e&&e.message||e)}
  console.log('SMOKE_RESULT '+JSON.stringify(result))
  if(torrents)await torrents.shutdown().catch(()=>{})
