@@ -187,6 +187,13 @@ const FR: Record<string, string> = {
   'Check the spelling, try a shorter title, or select more languages.': 'Vérifie l’orthographe, essaie un titre plus court ou sélectionne plus de langues.',
   'Found on {n} source': 'Trouvé sur {n} source', 'Found on {n} sources': 'Trouvé sur {n} sources',
   'In your library ✓': 'Dans ta bibliothèque ✓', 'Adding…': 'Ajout…', 'Add from {source}': 'Ajouter depuis {source}', 'Other sources': 'Autres sources',
+  // Shelves / sources
+  'Shelves': 'Étagères', 'Shelf': 'Étagère', 'Reading': 'En cours', 'Plan to read': 'À lire', 'Completed': 'Terminés', 'Dropped': 'Abandonnés',
+  'No novel on this shelf yet.': 'Aucun roman sur cette étagère pour l’instant.',
+  'The sites Global Search looks in. You do not need to install anything: search uses them directly. Here you can see which ones work.': 'Les sites dans lesquels cherche la Recherche globale. Rien à installer : la recherche les utilise directement. Ici, tu vois lesquels fonctionnent.',
+  'Test the sources in my languages ({n})': 'Tester les sources de mes langues ({n})', 'Refresh the list': 'Actualiser la liste',
+  'Testing {done} / {total} sources…': 'Test : {done} / {total} sources…', 'Working': 'Fonctionnent', 'Not responding': 'Ne répond pas',
+  'Not tested yet': 'Pas encore testée', 'Testing…': 'Test…', 'Works': 'Fonctionne', 'Failing': 'En panne', 'Test': 'Tester', 'No source matches.': 'Aucune source ne correspond.',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
