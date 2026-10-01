@@ -519,3 +519,12 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .noteactions button{min-height:32px;padding:0 12px;border:1px solid #30364a;border-radius:8px;background:#161a24;color:#e6e8ef;font:inherit;font-size:13px;cursor:pointer}
 .noteactions button.primary{background:#6a55e6;border-color:#6a55e6;color:#fff}.noteactions button:disabled{opacity:.45;cursor:not-allowed}
 .notes-filter{margin-left:auto}
+
+/* Multi-repository video sources */
+.repo-list{display:flex;flex-direction:column;gap:8px;margin:16px 0}
+.repo-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid #292f40;border-radius:11px;background:#10131a}
+.repo-row label{display:flex;align-items:center;gap:11px;min-width:0;cursor:pointer}.repo-row label>span{display:flex;flex-direction:column;gap:3px;min-width:0}.repo-row small{color:#858b9d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:720px}.repo-row input{accent-color:#7562ef}
+.repo-add{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin:12px 0 18px}.repo-add .repo-input{margin:0}
+.source-catalog-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:18px}.source-catalog-head .repo-input{max-width:360px;margin:0}
+.anime-source-chip small{opacity:.65;font-size:10px}
+@media(max-width:720px){.repo-add{grid-template-columns:1fr}.source-catalog-head{align-items:stretch;flex-direction:column}.source-catalog-head .repo-input{max-width:none}}
