@@ -16,7 +16,8 @@
     "test:torrent": "node scripts/test-archive-torrent.mjs",
     "test:ui": "playwright test",
     "release": "npm run prepare:anime-engine && npm run build && electron-builder --win nsis --publish always",
-    "test:unit": "node --test \"tests/unit/*.test.cjs\""
+    "test:unit": "node --test \"tests/unit/*.test.cjs\"",
+    "check:i18n": "node scripts/check-i18n.cjs"
   },
   "dependencies": {
     "cheerio": "^1.1.2",
