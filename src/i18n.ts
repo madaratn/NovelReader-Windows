@@ -171,6 +171,22 @@ const FR: Record<string, string> = {
   'Continue to the next chapter': 'Enchaîner sur le chapitre suivant',
   'The voice stopped unexpectedly.': 'La voix s’est arrêtée de façon inattendue.',
   'Read aloud is not available on this system.': 'La lecture à voix haute n’est pas disponible sur ce système.',
+  // Global search
+  'Could not load the source list:': 'Impossible de charger la liste des sources :', 'Choose at least one language.': 'Choisis au moins une langue.',
+  'Stop': 'Arrêter', 'Languages': 'Langues', 'Loading sources…': 'Chargement des sources…', '+{n} more': '+{n} autres',
+  'Default languages': 'Langues par défaut', 'All languages': 'Toutes les langues',
+  '{n} source selected': '{n} source sélectionnée', '{n} sources selected': '{n} sources sélectionnées',
+  'Searching {checked} / {total} sources…': 'Recherche : {checked} / {total} sources…',
+  'Search stopped after {checked} of {total} sources.': 'Recherche arrêtée après {checked} sources sur {total}.',
+  'Search finished: {n} sources checked.': 'Recherche terminée : {n} sources vérifiées.',
+  '{n} title found': '{n} titre trouvé', '{n} titles found': '{n} titres trouvés',
+  '“{name}” was added to your library.': '« {name} » a été ajouté à ta bibliothèque.', 'Open': 'Ouvrir',
+  'Search tips': 'Conseils de recherche',
+  'Type the title as it is usually written in English. Pick the languages of the sources you want to search: fewer languages means faster results.': 'Tape le titre comme il est habituellement écrit en anglais. Choisis les langues des sources à interroger : moins de langues, c’est des résultats plus rapides.',
+  'Recent searches': 'Recherches récentes', 'No title found': 'Aucun titre trouvé',
+  'Check the spelling, try a shorter title, or select more languages.': 'Vérifie l’orthographe, essaie un titre plus court ou sélectionne plus de langues.',
+  'Found on {n} source': 'Trouvé sur {n} source', 'Found on {n} sources': 'Trouvé sur {n} sources',
+  'In your library ✓': 'Dans ta bibliothèque ✓', 'Adding…': 'Ajout…', 'Add from {source}': 'Ajouter depuis {source}', 'Other sources': 'Autres sources',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
