@@ -5,6 +5,9 @@ import'./style.css'
 import{t,plural,getLang,setLang,LANGS,type Lang}from'./i18n'
 import{NovelDetail,NovelLibrary,readingOf}from'./features/library'
 import type{Removed,Shelf,UpdateState}from'./features/library'
+import{NotesPage,ChapterHighlights,SelectionToolbar,BookmarkButton}from'./features/annotations'
+import type{Annotation}from'./features/annotations'
+import{readableBlocks}from'./features/reader'
 import{FindBar,READER_FONTS,READER_WIDTHS,ReaderSettings,ReaderTTS,chapterHtml,loadReaderPrefs}from'./features/reader'
 import type{ReaderPrefs}from'./features/reader'
 import{NovelSearch,SourcesPage,normTitle}from'./features/search'
@@ -126,7 +129,8 @@ function App(){
  // Reader: preferences, auto-hiding toolbar, progress, exact resume position.
  const[readerPrefs,setReaderPrefs]=useState<ReaderPrefs>(loadReaderPrefs),[readerSettingsOpen,setReaderSettingsOpen]=useState(false),[readerBarHidden,setReaderBarHidden]=useState(false),[readProgress,setReadProgress]=useState(0)
  const updateReaderPrefs=(patch:Partial<ReaderPrefs>)=>setReaderPrefs(prev=>{const next={...prev,...patch};lsSet('readerPrefs',JSON.stringify(next));return next})
- const pendingScrollRef=useRef(0),ignoreScroll=useRef<{until:number,target:number}|null>(null),moveChapterRef=useRef<(d:number)=>void>(()=>{}),readerRef=useRef<any>(null)
+ const[anchorTick,setAnchorTick]=useState(0)
+ const pendingScrollRef=useRef(0),pendingAnchorRef=useRef<number|null>(null),ignoreScroll=useRef<{until:number,target:number}|null>(null),moveChapterRef=useRef<(d:number)=>void>(()=>{}),readerRef=useRef<any>(null)
  useEffect(()=>{
   if(page!=='reader')return
   let lastY=window.scrollY,saveTimer:any=null
@@ -147,8 +151,8 @@ function App(){
   return()=>{window.removeEventListener('scroll',onScroll);window.removeEventListener('keydown',onKey);window.removeEventListener('scroll',onAct);window.removeEventListener('mousemove',onAct);clearInterval(tick);clearTimeout(saveTimer)}
  },[page])
  useEffect(()=>{if(page!=='reader'||!reader)return;const key=reader.novel.id+'#'+reader.index;if(lsGet('lastCountedChapter')!==key){lsSet('lastCountedChapter',key);bumpStats({c:1})}},[page,reader?.novel?.id,reader?.index])
- useEffect(()=>{readerRef.current=reader;if(page!=='reader'||!reader)return;setReaderBarHidden(false);const ratio=pendingScrollRef.current;pendingScrollRef.current=0
-  requestAnimationFrame(()=>{const max=document.documentElement.scrollHeight-window.innerHeight;const top=Math.round(ratio>0?ratio*max:0);ignoreScroll.current={until:Date.now()+600,target:top};window.scrollTo({top})})},[page,reader?.novel?.id,reader?.index])
+ useEffect(()=>{readerRef.current=reader;if(page!=='reader'||!reader)return;setReaderBarHidden(false);const ratio=pendingScrollRef.current;pendingScrollRef.current=0;const anchorPara=pendingAnchorRef.current;pendingAnchorRef.current=null
+  requestAnimationFrame(()=>{if(anchorPara!=null){const el=readableBlocks(readerArticleRef.current)[anchorPara];if(el){el.scrollIntoView({block:'center'});el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),1800)}ignoreScroll.current={until:Date.now()+600,target:Math.round(window.scrollY)};return}const max=document.documentElement.scrollHeight-window.innerHeight;const top=Math.round(ratio>0?ratio*max:0);ignoreScroll.current={until:Date.now()+600,target:top};window.scrollTo({top})})},[page,reader?.novel?.id,reader?.index,anchorTick])
  // Automatic backups: shortly after any library change, and every 15 minutes.
  useEffect(()=>{const tm=setTimeout(()=>{window.novelReader.backupAuto?.(collectBackup()).catch(()=>{})},8000);return()=>clearTimeout(tm)},[library])
  useEffect(()=>{const iv=setInterval(()=>{window.novelReader.backupAuto?.(collectBackup()).catch(()=>{})},15*60*1000);return()=>clearInterval(iv)},[])
@@ -179,11 +183,14 @@ function App(){
  const[showWelcome,setShowWelcome]=useState(()=>{if(lsGet('onboarded'))return false;try{if(JSON.parse(localStorage.getItem('library')||'[]').length){lsSet('onboarded','1');return false}}catch{}return true})
  const closeWelcome=()=>{lsSet('onboarded','1');setShowWelcome(false)}
  // Read aloud panel in the reader.
+ const[notesNovel,setNotesNovel]=useState('')
  const[ttsOpen,setTtsOpen]=useState(false),[findOpen,setFindOpen]=useState(false),readerArticleRef=useRef<HTMLElement>(null)
  useEffect(()=>{if(page!=='reader'){setTtsOpen(false);setFindOpen(false)}},[page])
  const setShelfOf=(n:any,shelf:Shelf)=>setLibrary(prev=>{const next=prev.map(x=>x.id===n.id?{...x,shelf}:x);lsSet('library',JSON.stringify(next));return next})
  const updateStatus=useUpdateStatus()
  useEffect(()=>{setError('')},[page])
+ useEffect(()=>{if(page!=='notes')setNotesNovel('')},[page])
+ const openAnnotation=(a:Annotation)=>{const n=library.find(x=>x.id===a.novelId);if(!n)return;let idx=(n.chapters||[]).findIndex((c:any)=>(c.path||c.url)===a.chapterPath);if(idx<0)idx=Math.min(a.chapterIndex,(n.chapters||[]).length-1);if(idx<0)return;pendingAnchorRef.current=a.para;setAnchorTick(x=>x+1);setSelectedNovel(n);openChapter(n,n.chapters[idx],idx)}
  // Import an LNReader (Android) backup: match each novel to its LNReader source.
  const importLNReader=async():Promise<ImportResult|null>=>{
   const r=await window.novelReader.importLNReader();if(!r.ok||!r.novels)return null
@@ -269,18 +276,19 @@ const installAnimeSource=async(src:any)=>{setAnimeNotice(null);try{const pkg=src
  {page==='seriesSearch'&&<MediaSearch kind="Series" query={seriesQuery} setQuery={setSeriesQuery} library={seriesLibrary} onAdd={(a:any)=>{const item={...a,id:'series:'+(a.sourceId||'')+':'+(a.url||a.path||Date.now()),name:a.title||a.name,addedAt:Date.now()};const next=[item,...seriesLibrary.filter(x=>x.id!==item.id)];setSeriesLibrary(next);localStorage.setItem('seriesLibrary',JSON.stringify(next))}}/>}
  {page==='library'&&<NovelLibrary library={library} updates={updateState} onCheckUpdates={checkUpdates} onShelf={setShelfOf} onOpen={(n:any)=>{clearNew(n);if(n.shelf==='plan')setShelfOf(n,'reading');if(!readingOf(n.id)&&n.chapters?.length){setSelectedNovel(n);setChapterFilter('');openChapter(n,n.chapters[0],0)}else resumeNovel(n)}} onDetails={(n:any)=>{clearNew(n);setSelectedNovel(n);setChapterFilter('');setPage('novel')}} onRemove={removeFromLibrary} onRestore={restoreToLibrary} onSearch={()=>setPage('search')}/>}
  {(page==='novel'||page==='reader')&&error&&<div className="anime-toast error search-toast" role="alert"><NoticeText text={error}/><button aria-label={t('Dismiss')} onClick={()=>setError('')}>×</button></div>}
-{page==='novel'&&selectedNovel&&<NovelDetail novel={selectedNovel} filter={chapterFilter} setFilter={setChapterFilter} loading={readerLoading} onBack={()=>setPage('library')} onOpenChapter={(c,i)=>openChapter(selectedNovel,c,i)} onContinue={()=>resumeNovel(selectedNovel)}/>}
+{page==='novel'&&selectedNovel&&<NovelDetail onShowNotes={()=>{setNotesNovel(selectedNovel.id);setPage('notes')}} novel={selectedNovel} filter={chapterFilter} setFilter={setChapterFilter} loading={readerLoading} onBack={()=>setPage('library')} onOpenChapter={(c,i)=>openChapter(selectedNovel,c,i)} onContinue={()=>resumeNovel(selectedNovel)}/>}
  {page==='reader'&&reader&&(()=>{const total=reader.novel.chapters.length,title=reader.chapter.name||reader.chapter.title||t('Chapter {n}',{n:reader.index+1}),first=reader.index===0,last=reader.index>=total-1
  return <section className={'readerpage rtheme-'+readerPrefs.theme} style={{'--r-size':readerPrefs.size+'px','--r-leading':String(readerPrefs.leading),'--r-width':READER_WIDTHS[readerPrefs.width],'--r-font':READER_FONTS[readerPrefs.font]} as React.CSSProperties}>
   <div className={'readerbar'+(readerBarHidden&&!readerSettingsOpen&&!findOpen?' hidden':'')}>
    <button className="backbtn" onClick={()=>setPage('novel')}>← {t('Chapters')}</button>
    <div className="readerbar-title"><b>{reader.novel.name}</b><small>{title}</small></div>
-   <div className="readertools"><button className={'themebtn tts-toggle'+(ttsOpen?' on':'')} aria-pressed={ttsOpen} title={t('Read aloud')} aria-label={t('Read aloud')} onClick={()=>setTtsOpen(o=>!o)}>🔊</button><button className="themebtn find-toggle" title={t('Find in chapter…')+' (Ctrl+F)'} aria-label={t('Find in chapter…')} onClick={()=>setFindOpen(o=>!o)}>⌕</button><span className="readerpos" title={t('Chapter position')}>{reader.index+1} / {total}</span><button className="themebtn readersettings-btn" aria-expanded={readerSettingsOpen} title={t('Reading settings')} onClick={()=>setReaderSettingsOpen(o=>!o)}>Aa</button></div>
+   <div className="readertools"><BookmarkButton rootRef={readerArticleRef} ctx={{novelId:reader.novel.id,novelName:reader.novel.name,chapterPath:reader.chapter.path||reader.chapter.url,chapterIndex:reader.index,chapterTitle:title}}/><button className={'themebtn tts-toggle'+(ttsOpen?' on':'')} aria-pressed={ttsOpen} title={t('Read aloud')} aria-label={t('Read aloud')} onClick={()=>setTtsOpen(o=>!o)}>🔊</button><button className="themebtn find-toggle" title={t('Find in chapter…')+' (Ctrl+F)'} aria-label={t('Find in chapter…')} onClick={()=>setFindOpen(o=>!o)}>⌕</button><span className="readerpos" title={t('Chapter position')}>{reader.index+1} / {total}</span><button className="themebtn readersettings-btn" aria-expanded={readerSettingsOpen} title={t('Reading settings')} onClick={()=>setReaderSettingsOpen(o=>!o)}>Aa</button></div>
    <div className="readprogress" aria-hidden="true"><span style={{width:(readProgress*100).toFixed(1)+'%'}}/></div>
    {readerSettingsOpen&&<ReaderSettings prefs={readerPrefs} onChange={updateReaderPrefs} onClose={()=>setReaderSettingsOpen(false)}/>}
    {findOpen&&<FindBar rootRef={readerArticleRef} chapterKey={reader.novel.id+':'+reader.index} onClose={()=>setFindOpen(false)}/>}
   </div>
   <article className="readercontent" ref={readerArticleRef}><h1>{title}</h1><div dangerouslySetInnerHTML={chapterHtml(reader.content)} /></article>
+  <ChapterHighlights rootRef={readerArticleRef} novelId={reader.novel.id} chapterPath={reader.chapter.path||reader.chapter.url} contentKey={reader.novel.id+':'+reader.index}/><SelectionToolbar rootRef={readerArticleRef} ctx={{novelId:reader.novel.id,novelName:reader.novel.name,chapterPath:reader.chapter.path||reader.chapter.url,chapterIndex:reader.index,chapterTitle:title}}/>
   {ttsOpen&&<ReaderTTS rootRef={readerArticleRef} chapterKey={reader.novel.id+':'+reader.index} hasNext={!last} onNext={()=>moveChapter(1)} onClose={()=>setTtsOpen(false)}/>}
   <div className="readerend"><small>{t('End of chapter {n} of {total}',{n:reader.index+1,total})}</small></div>
   <div className="readernav"><button disabled={first||readerLoading} onClick={()=>moveChapter(-1)}>← {t('Previous')}</button><button className="readernext" disabled={last||readerLoading} onClick={()=>moveChapter(1)}>{readerLoading?t('Loading…'):last?t('Last chapter'):t('Next chapter')+' →'}</button></div>
@@ -288,6 +296,7 @@ const installAnimeSource=async(src:any)=>{setAnimeNotice(null);try{const pkg=src
  {page==='animeSearch'&&<MediaSearch kind="Anime" query={animeQuery} setQuery={setAnimeQuery} library={animeLibrary} onAdd={(a:any)=>{const item={...a,id:a.id||a.url||Date.now(),name:a.title||a.name,addedAt:Date.now()};const next=[item,...animeLibrary.filter(x=>x.id!==item.id)];setAnimeLibrary(next);localStorage.setItem('animeLibrary',JSON.stringify(next))}}/>}
  {page==='anime'&&<><MediaLibrary kind="Anime" items={animeLibrary} onChange={setAnimeLibrary} onSearch={()=>setPage('animeSearch')} onOpen={openAnime} loading={animeDetailLoading}/>{animeNotice&&animeNotice.scope==='library'&&<div className={'anime-toast '+(animeNotice.ok?'ok':'error')}><NoticeText text={animeNotice.text}/><button onClick={()=>setAnimeNotice(null)}>×</button></div>}</>}
 {page==='animeDetail'&&selectedAnime&&<><header><div><button className="backbtn" onClick={()=>setPage('anime')}>← Anime Library</button><h1>{selectedAnime.name||selectedAnime.title}</h1><p>{selectedAnime.sourceName||selectedAnime.source||'Anime'} · {selectedAnime.episodeCount??selectedAnime.episodes?.length??0} episodes</p></div></header><section className="panel"><h2>Episodes</h2>{!selectedAnime.episodes?.length?<p>No episodes returned by this source.</p>:<div className="episodegrid">{selectedAnime.episodes.map((ep:any,i:number)=>{const label=ep.name||ep.title||('Episode '+(ep.number||i+1));return <button className="episodecard" key={(ep.url||ep.path||ep.name||'ep')+i} disabled={animeVideoLoading} onClick={()=>playAnimeEpisode(ep)}><span className="episodebadge">{ep.number||String(label).match(/\d+(?:\.\d+)?/)?.[0]||'#'}</span><span className="episodetitle">{label}</span><span className="episodeplay">▶</span></button>})}</div>}{selectedEpisode&&<div className="anime-player"><h2>{selectedEpisode.name||selectedEpisode.title||'Episode'}</h2>{animeVideoLoading?<p>Extracting video streams…</p>:selectedVideo?<><AnimeVideo key={selectedVideo.streamUrl} video={selectedVideo} mediaKey={'anime:'+(selectedAnime.id||selectedAnime.url||selectedAnime.name)+':'+(selectedEpisode?.url||selectedEpisode?.path||selectedEpisode?.number||selectedEpisode?.name||'episode')} onPrev={(()=>{const eps=selectedAnime.episodes||[],i=eps.indexOf(selectedEpisode);return i>0?()=>playAnimeEpisode(eps[i-1]):undefined})()} onNext={(()=>{const eps=selectedAnime.episodes||[],i=eps.indexOf(selectedEpisode);return i>=0&&i<eps.length-1?()=>playAnimeEpisode(eps[i+1]):undefined})()}/>{animeVideos.length>1&&<div className="libraryactions">{animeVideos.map((v:any,i:number)=><button key={(v.videoUrl||v.url||'video')+i} className={selectedVideo===v?'primary':''} onClick={()=>setSelectedVideo(v)}>{v.videoTitle||v.quality||v.resolution||('Stream '+(i+1))}</button>)}</div>}</>:null}</div>}{animeNotice&&animeNotice.scope==='detail'&&<div className={'anime-toast '+(animeNotice.ok?'ok':'error')}><NoticeText text={animeNotice.text}/><button onClick={()=>setAnimeNotice(null)}>×</button></div>}</section></>}
+{page==='notes'&&<NotesPage key={notesNovel} initialNovel={notesNovel} onOpen={openAnnotation} inLibrary={(id:string)=>library.some((n:any)=>n.id===id)}/>}
 {page==='settings'&&<SettingsPage lang={lang} onLang={changeLang} onWelcome={()=>setShowWelcome(true)} update={updateStatus} onImportLNReader={importLNReader} onShowLibrary={()=>{setModeState('books');lsSet('mode','books');setPageState('library')}}/>}
 {page==='localVideos'&&<LocalVideos/>}
 {page==='archive'&&<ArchivePage/>}

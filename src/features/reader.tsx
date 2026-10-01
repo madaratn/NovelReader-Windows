@@ -58,7 +58,7 @@ export function ReaderTTS({rootRef,chapterKey,hasNext,onNext,onClose}:{rootRef:R
  // New chapter: start over, and keep reading if we got here by finishing the previous one.
  useEffect(()=>{idxRef.current=0;setIdx(0);mark(-1);if(pendingNext.current&&playingRef.current){pendingNext.current=false;const tm=setTimeout(()=>speak(0),400);return()=>clearTimeout(tm)}pendingNext.current=false},[chapterKey])
  // Click a paragraph to read from there.
- useEffect(()=>{const root=rootRef.current;if(!root)return;const onClick=(e:MouseEvent)=>{if((e.target as HTMLElement).closest('a'))return;const els=readableBlocks(root);const i=els.findIndex(el=>el.contains(e.target as Node));if(i<0)return;if(playingRef.current)speak(i);else{idxRef.current=i;setIdx(i);mark(i)}};root.addEventListener('click',onClick);root.classList.add('tts-on');return()=>{root.removeEventListener('click',onClick);root.classList.remove('tts-on')}},[chapterKey])
+ useEffect(()=>{const root=rootRef.current;if(!root)return;const onClick=(e:MouseEvent)=>{if((e.target as HTMLElement).closest('a'))return;if(!(window.getSelection()?.isCollapsed??true))return;const els=readableBlocks(root);const i=els.findIndex(el=>el.contains(e.target as Node));if(i<0)return;if(playingRef.current)speak(i);else{idxRef.current=i;setIdx(i);mark(i)}};root.addEventListener('click',onClick);root.classList.add('tts-on');return()=>{root.removeEventListener('click',onClick);root.classList.remove('tts-on')}},[chapterKey])
  useEffect(()=>()=>{token.current++;window.speechSynthesis?.cancel();mark(-1)},[])
  const total=readableBlocks(rootRef.current).length
  return <div className="tts-panel" role="region" aria-label={t('Read aloud')}>
