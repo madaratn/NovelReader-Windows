@@ -1,0 +1,27 @@
+const test = require('node:test')
+const assert = require('node:assert')
+const fs = require('fs'), os = require('os'), path = require('path')
+const { createFolderSync } = require('../../electron/sync.cjs')
+
+test('folder sync: choose a folder, write, read back, disable', async () => {
+  const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'nr-ud-'))
+  const cloud = fs.mkdtempSync(path.join(os.tmpdir(), 'nr-cloud-'))
+  const app = { getPath: () => userData }
+  const dialog = { showOpenDialog: async () => ({ canceled: false, filePaths: [cloud] }) }
+  const sync = createFolderSync({ app, dialog })
+  assert.equal((await sync.status()).enabled, false)
+  assert.equal(await sync.read(), null)
+  const st = await sync.choose(null)
+  assert.equal(st.enabled, true); assert.equal(st.folder, cloud)
+  await sync.write({ library: '[]', 'reading:a': '{"index":1}' })
+  const back = await sync.read()
+  assert.equal(back.app, 'NovelReader'); assert.equal(back.data['reading:a'], '{"index":1}')
+  assert.equal(back.deviceId, st.deviceId)
+  assert.ok(fs.existsSync(path.join(cloud, 'NovelReader', 'library-sync.json')))
+  const st2 = await sync.status()
+  assert.equal(st2.remote.deviceId, st.deviceId)
+  await assert.rejects(sync.write({ library: 5 }), /Invalid sync data/)
+  fs.writeFileSync(path.join(cloud, 'NovelReader', 'library-sync.json'), '{broken')
+  await assert.rejects(sync.read(), /damaged/)
+  assert.equal((await sync.disable()).enabled, false)
+})

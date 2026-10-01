@@ -233,6 +233,17 @@ const FR: Record<string, string> = {
   'Search your notes…': 'Rechercher dans tes notes…', 'Highlights & notes': 'Surlignages et notes', 'Bookmarks': 'Marque-pages',
   'No saved passage matches.': 'Aucun passage enregistré ne correspond.', 'This novel is no longer in your library': 'Ce roman n’est plus dans ta bibliothèque',
   'Edit note': 'Modifier la note', 'Delete': 'Supprimer',
+  // Sync / appearance
+  'Sync between PCs': 'Synchronisation entre PC',
+  'Choose a folder that your cloud service keeps in sync (OneDrive, Google Drive, Dropbox…). NovelReader keeps your library, reading positions, bookmarks and notes there, and merges the changes made on each PC. Preferences such as theme and language stay on each PC.': 'Choisis un dossier que ton service cloud synchronise (OneDrive, Google Drive, Dropbox…). NovelReader y garde ta bibliothèque, tes positions de lecture, tes marque-pages et tes notes, et fusionne les changements faits sur chaque PC. Les préférences comme le thème et la langue restent propres à chaque PC.',
+  'Choose a synced folder…': 'Choisir un dossier synchronisé…', 'Folder:': 'Dossier :', 'Syncing…': 'Synchronisation…',
+  'Last synced {when}.': 'Dernière synchronisation {when}.', 'Not synced yet.': 'Pas encore synchronisé.',
+  'Latest changes from {pc}, {when}.': 'Derniers changements depuis {pc}, {when}.', 'Sync now': 'Synchroniser maintenant',
+  'Change folder…': 'Changer de dossier…', 'Stop syncing': 'Arrêter la synchronisation',
+  'The sync file is too large.': 'Le fichier de synchronisation est trop volumineux.',
+  'The sync file is damaged. It will be rewritten from this PC.': 'Le fichier de synchronisation est endommagé. Il sera réécrit depuis ce PC.',
+  'The sync file is not a NovelReader file.': 'Le fichier de synchronisation n’est pas un fichier NovelReader.', 'Sync is not set up.': 'La synchronisation n’est pas configurée.',
+  'Appearance': 'Apparence', 'Like Windows': 'Comme Windows', 'The reader has its own themes: open Aa while reading.': 'Le lecteur a ses propres thèmes : ouvre Aa pendant la lecture.',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

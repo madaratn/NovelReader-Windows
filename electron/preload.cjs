@@ -33,5 +33,10 @@ contextBridge.exposeInMainWorld('novelReader',{
  offlineUsage:()=>ipcRenderer.invoke('offline:usage'),
  offlineClear:()=>ipcRenderer.invoke('offline:clear'),
  importLNReader:()=>ipcRenderer.invoke('lnreader:import'),
+ syncStatus:()=>ipcRenderer.invoke('sync:status'),
+ syncChoose:()=>ipcRenderer.invoke('sync:choose'),
+ syncRead:()=>ipcRenderer.invoke('sync:read'),
+ syncWrite:(data)=>ipcRenderer.invoke('sync:write',{data}),
+ syncDisable:()=>ipcRenderer.invoke('sync:disable'),
  onUpdateStatus:(cb)=>{const h=(_e,s)=>{try{cb(s)}catch{}};ipcRenderer.on('update:status',h);return()=>ipcRenderer.removeListener('update:status',h)}
 })

@@ -94,6 +94,12 @@ export async function setup(page: Page, s: Setup = {}) {
       offlineUsage: async () => { const o = JSON.parse(sessionStorage.getItem('__offline') || '{}'); const n = Object.values(o).reduce((a: number, x: any) => a + Object.keys(x).length, 0); return { bytes: n * 4000, chapters: n, novels: Object.keys(o).length } },
       offlineClear: async () => { sessionStorage.removeItem('__offline'); return true },
       importLNReader: async () => (w.__lnImport || { ok: false, canceled: true }),
+      // Folder sync: the 'cloud file' lives in sessionStorage; tests can play the other PC.
+      syncStatus: async () => { const c = JSON.parse(sessionStorage.getItem('__syncCfg') || '{}'); const f = JSON.parse(sessionStorage.getItem('__syncFile') || 'null'); return { enabled: !!c.folder, folder: c.folder || null, file: c.folder ? c.folder + '/NovelReader/library-sync.json' : null, deviceId: 'this-pc', deviceName: 'THIS-PC', remote: f ? { deviceName: f.deviceName, deviceId: f.deviceId, at: f.at } : null } },
+      syncChoose: async () => { sessionStorage.setItem('__syncCfg', JSON.stringify({ folder: 'C:/Users/test/OneDrive' })); return w.novelReader.syncStatus() },
+      syncDisable: async () => { sessionStorage.removeItem('__syncCfg'); return w.novelReader.syncStatus() },
+      syncRead: async () => JSON.parse(sessionStorage.getItem('__syncFile') || 'null'),
+      syncWrite: async (data: any) => { const at = Date.now(); sessionStorage.setItem('__syncFile', JSON.stringify({ app: 'NovelReader', version: 1, at, deviceId: 'this-pc', deviceName: 'THIS-PC', data })); return { at } },
       appVersion: async () => '0.2.0', focusWindow: async () => { w.__focused = (w.__focused || 0) + 1; return true },
       updateStatus: async () => w.__update, updateCheck: async () => { w.__update = { state: 'up-to-date', version: '0.2.0', checkedAt: Date.now() }; w.__updateCb && w.__updateCb(w.__update); return w.__update },
       updateInstall: async () => { w.__installed = true; return true },
