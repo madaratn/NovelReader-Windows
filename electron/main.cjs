@@ -12,6 +12,8 @@ const SMOKE_TEST=process.env.NR_SMOKE_TEST==='1'
 const {createWindowState,createUpdater}=require('./app-shell.cjs')
 const {createOfflineStore}=require('./offline.cjs')
 const {createLNReaderImporter}=require('./lnreader-import.cjs')
+const {createFolderSync}=require('./sync.cjs')
+const folderSync=createFolderSync({app,dialog})
 const offline=createOfflineStore({app})
 const lnImporter=createLNReaderImporter({dialog})
 const APP_ID='com.novelreader.windows'
@@ -136,6 +138,11 @@ ipcMain.handle('offline:list',plainErr((_e,o)=>offline.list(String(o.novelId||''
 ipcMain.handle('offline:remove',plainErr((_e,o)=>offline.remove(String(o.novelId||''))))
 ipcMain.handle('offline:usage',plainErr(()=>offline.usage()))
 ipcMain.handle('offline:clear',plainErr(()=>offline.clearAll()))
+ipcMain.handle('sync:status',plainErr(()=>folderSync.status()))
+ipcMain.handle('sync:choose',plainErr(e=>folderSync.choose(BrowserWindow.fromWebContents(e.sender))))
+ipcMain.handle('sync:read',plainErr(()=>folderSync.read()))
+ipcMain.handle('sync:write',plainErr((_e,o)=>folderSync.write(o.data)))
+ipcMain.handle('sync:disable',plainErr(()=>folderSync.disable()))
 ipcMain.handle('lnreader:import',plainErr(e=>lnImporter.importBackup(BrowserWindow.fromWebContents(e.sender))))
 // ---- Hardening ---------------------------------------------------------------------
 // The window only ever shows the app itself. Links inside chapters open in the
@@ -164,7 +171,7 @@ async function runSmokeTest(win){
  const result={}
  try{
   await new Promise(r=>win.webContents.once('did-finish-load',r))
-  result.bridge=await win.webContents.executeJavaScript("['torrentStart','torrentStatus','torrentStop','archiveSearch','archiveFiles','backupExport','backupImport','backupAuto','backupListAuto','backupReadAuto','appVersion','updateCheck','onUpdateStatus','focusWindow','offlineSave','offlineGet','importLNReader'].every(k=>typeof window.novelReader[k]==='function')")
+  result.bridge=await win.webContents.executeJavaScript("['torrentStart','torrentStatus','torrentStop','archiveSearch','archiveFiles','backupExport','backupImport','backupAuto','backupListAuto','backupReadAuto','appVersion','updateCheck','onUpdateStatus','focusWindow','offlineSave','offlineGet','importLNReader','syncStatus','syncRead','syncWrite'].every(k=>typeof window.novelReader[k]==='function')")
   result.backup=await win.webContents.executeJavaScript("(async()=>{const p={app:'NovelReader',version:1,exportedAt:Date.now(),data:{library:JSON.stringify([{id:'x',name:'Smoke'}])}};const a=await window.novelReader.backupAuto(p);const b=await window.novelReader.backupAuto(p);const list=await window.novelReader.backupListAuto();const back=await window.novelReader.backupReadAuto(list[0].name);return {first:a.saved,second:b.saved,listed:list.length,novels:list[0].novels,same:back.data.library===p.data.library}})()")
   const id=process.env.NR_SMOKE_ARCHIVE_ID
   if(id){

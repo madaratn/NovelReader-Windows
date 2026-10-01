@@ -1,4 +1,8 @@
 import React,{useEffect,useRef,useState}from'react'
+import{SyncSettings}from'./sync'
+import{getThemePref,setThemePref}from'../lib/theme'
+import type{ThemePref}from'../lib/theme'
+import type{FolderSync}from'./sync'
 import{t,plural,LANGS}from'../i18n'
 import type{Lang}from'../i18n'
 import{fmtDateTime,lsGet,lsSet}from'../lib/util'
@@ -18,10 +22,10 @@ export async function applyBackup(payload:BackupPayload){
 }
 
 export type ImportResult={added:number,exists:number,skipped:number,unknown:string[]}
-export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onShowLibrary}:{lang:Lang,onLang:(l:Lang)=>void,onWelcome:()=>void,update:UpdateStatus|null,onImportLNReader:()=>Promise<ImportResult|null>,onShowLibrary:()=>void}){
+export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onShowLibrary,sync}:{lang:Lang,onLang:(l:Lang)=>void,onWelcome:()=>void,update:UpdateStatus|null,onImportLNReader:()=>Promise<ImportResult|null>,onShowLibrary:()=>void,sync?:FolderSync}){
  const[imp,setImp]=useState<ImportResult|null>(null),[impBusy,setImpBusy]=useState(false),[usage,setUsage]=useState<{bytes:number,chapters:number,novels:number}|null>(null),[clearConfirm,setClearConfirm]=useState(false)
  useEffect(()=>{window.novelReader.offlineUsage?.().then(setUsage).catch(()=>{})},[])
- const version=useAppVersion(),[notify,setNotify]=useState(()=>lsGet('notifyNewChapters')!=='0')
+ const[theme,setTheme]=useState<ThemePref>(getThemePref),version=useAppVersion(),[notify,setNotify]=useState(()=>lsGet('notifyNewChapters')!=='0')
  const[autos,setAutos]=useState<{name:string,novels:number,exportedAt:number}[]>([]),[msg,setMsg]=useState<{ok:boolean,text:string}|null>(null),[confirm,setConfirm]=useState<string|null>(null),[busy,setBusy]=useState(false)
  const[autoCheck,setAutoCheck]=useState(()=>lsGet('autoCheckUpdates')!=='0')
  const refresh=async()=>{try{setAutos(await window.novelReader.backupListAuto())}catch{}}
@@ -34,6 +38,10 @@ export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onSh
  const doBackupNow=()=>run(async()=>{const r=await window.novelReader.backupAuto(collectBackup(),true);setMsg({ok:true,text:r.saved?t('Automatic backup created.'):t('Nothing changed since the last backup.')});refresh()})
  return <>
   <header><div><h1>{t('Settings')}</h1><p>{t('Language, backups and updates.')}</p></div></header>
+  <section className="panel settings-block"><h2>{t('Appearance')}</h2>
+   <div className="rs-seg settings-seg" role="radiogroup" aria-label={t('Appearance')}>{(['system','dark','light'] as ThemePref[]).map(v=><button key={v} role="radio" aria-checked={theme===v} className={theme===v?'on':''} onClick={()=>{setThemePref(v);setTheme(v)}}>{v==='system'?t('Like Windows'):v==='dark'?t('Dark'):t('Light')}</button>)}</div>
+   <p className="settings-help">{t('The reader has its own themes: open Aa while reading.')}</p>
+  </section>
   <section className="panel settings-block"><h2>{t('Language')}</h2>
    <div className="rs-seg settings-seg" role="radiogroup" aria-label={t('Language')}>{LANGS.map(l=><button key={l.id} role="radio" aria-checked={lang===l.id} className={lang===l.id?'on':''} onClick={()=>onLang(l.id)}>{l.label}</button>)}</div>
   </section>
@@ -55,6 +63,7 @@ export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onSh
    <div className="libraryactions"><button className="primary" disabled={impBusy} onClick={async()=>{setImpBusy(true);setMsg(null);setImp(null);try{setImp(await onImportLNReader())}catch(e:any){setMsg({ok:false,text:t(String(e?.message||e).replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/,''))})}finally{setImpBusy(false)}}}>{impBusy?t('Importing…'):t('Import an LNReader backup…')}</button></div>
    {imp&&<div className="anime-toast ok" role="status"><span>{plural(imp.added,'{n} novel imported','{n} novels imported')}{imp.exists?' · '+plural(imp.exists,'{n} already in your library','{n} already in your library'):''}{imp.unknown.length?' · '+t('{n} skipped (source not available: {list})',{n:imp.unknown.length,list:imp.unknown.slice(0,4).join(', ')}):''}</span><button className="undo-btn" onClick={onShowLibrary}>{t('Open library')}</button></div>}
   </section>
+  {sync&&<SyncSettings sync={sync}/>}
   <section className="panel settings-block"><h2>{t('Offline chapters')}</h2>
    <p className="settings-help">{usage&&usage.chapters?t('{chapters} for {novels} use {size} on this PC.',{chapters:plural(usage.chapters,'{n} chapter','{n} chapters'),novels:plural(usage.novels,'{n} novel','{n} novels'),size:(usage.bytes/1048576).toFixed(1)+' MB'}):t('No chapter downloaded yet. Use Download on a novel page to read without an internet connection.')}</p>
    {usage&&usage.chapters>0&&<div className="libraryactions"><button className={clearConfirm?'danger':undefined} onClick={async()=>{if(!clearConfirm){setClearConfirm(true);setTimeout(()=>setClearConfirm(false),6000);return}await window.novelReader.offlineClear?.();setClearConfirm(false);setUsage({bytes:0,chapters:0,novels:0})}}>{clearConfirm?t('Confirm: delete all downloads'):t('Delete all downloaded chapters')}</button></div>}
