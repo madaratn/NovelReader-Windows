@@ -205,3 +205,19 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .lib-undo>div{display:flex;align-items:center;gap:6px}
 .lib-undo .undo-btn{font-size:14px!important;font-weight:700;padding:6px 10px!important;border:1px solid currentColor!important;border-radius:7px}
 @media (max-width:700px){.lib-resume{grid-template-columns:56px minmax(0,1fr)}.lib-resume>.primary{grid-column:1/-1}.lib-toolbar{flex-direction:column;align-items:stretch}.libgrid{grid-template-columns:1fr}}
+
+/* ---- Local Videos / Internet Archive players ------------------------------ */
+.player-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.player-row .libraryactions{margin:0}
+.player-hint{color:#7f8598;font-size:12.5px}.player-hint b{color:#c9cbe0;font-weight:600}
+.localgroup+.localgroup{margin-top:18px}
+.localgroup h3{margin:14px 0 0;font-size:14px;color:#c9cbd6;font-weight:650}.localgroup h3 small{color:#7f8598;font-weight:500;margin-left:6px}
+.localgrid.compact{max-height:none;overflow:visible}
+.localcard.watched .localname{color:#9aa0b4}
+.watched-mark{color:#7fd6a4}
+.folders-panel>summary{display:flex;align-items:baseline;gap:10px;cursor:pointer;list-style:none}
+.folders-panel>summary::-webkit-details-marker{display:none}
+.folders-panel>summary::before{content:'›';display:inline-block;width:12px;font-size:18px;line-height:1;color:#7f8598;transition:transform .15s}
+.folders-panel[open]>summary::before{transform:rotate(90deg)}
+.folders-panel>summary h2{margin:0;font-size:17px}.folders-panel>summary small{color:#7f8598}
+.folders-panel[open]>summary{margin-bottom:12px}
