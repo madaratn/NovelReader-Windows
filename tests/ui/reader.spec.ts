@@ -26,7 +26,11 @@ test('reader: settings, keyboard, auto-hiding bar, exact resume', async ({ page 
   await page.locator('.rs-swatch.sw-sepia').click()
   await expect(page.locator('.readerpage')).toHaveClass(/rtheme-sepia/)
   await page.keyboard.press('Escape')
+  await expect(page.locator('.readersettings')).toHaveCount(0)
+  // Scroll the text like a reader would: pointer over the chapter, then the wheel.
+  await page.locator('.readercontent p').nth(3).hover()
   await page.mouse.wheel(0, 1500)
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(300)
   await expect(page.locator('.readerbar')).toHaveClass(/hidden/)
   await page.waitForTimeout(600) // position is saved after scrolling stops
   const y = await page.evaluate(() => scrollY)
