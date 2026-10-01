@@ -26,5 +26,12 @@ contextBridge.exposeInMainWorld('novelReader',{
  updateStatus:()=>ipcRenderer.invoke('update:status'),
  updateCheck:()=>ipcRenderer.invoke('update:check'),
  updateInstall:()=>ipcRenderer.invoke('update:install'),
+ offlineSave:(novelId,path,html,name)=>ipcRenderer.invoke('offline:save',{novelId,path,html,name}),
+ offlineGet:(novelId,path)=>ipcRenderer.invoke('offline:get',{novelId,path}),
+ offlineList:(novelId)=>ipcRenderer.invoke('offline:list',{novelId}),
+ offlineRemove:(novelId)=>ipcRenderer.invoke('offline:remove',{novelId}),
+ offlineUsage:()=>ipcRenderer.invoke('offline:usage'),
+ offlineClear:()=>ipcRenderer.invoke('offline:clear'),
+ importLNReader:()=>ipcRenderer.invoke('lnreader:import'),
  onUpdateStatus:(cb)=>{const h=(_e,s)=>{try{cb(s)}catch{}};ipcRenderer.on('update:status',h);return()=>ipcRenderer.removeListener('update:status',h)}
 })
