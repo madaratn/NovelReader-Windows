@@ -233,7 +233,7 @@ function App(){
 ;const openChapter=async(n:any,c:any,i:number)=>{setReaderLoading(true);setError('');try{const cpath=c.path||c.url;const cached=await window.novelReader.offlineGet?.(n.id,cpath).catch(()=>null);if(!cached&&typeof navigator!=='undefined'&&navigator.onLine===false)throw Error(t('You are offline and this chapter is not downloaded.'));const d=cached||await window.novelReader.parseChapter(n.source,cpath);const content=typeof d==='string'?d:(d?.text||d?.content||d?.html||d?.body||'');if(!String(content).trim())throw Error('The source returned an empty chapter');setReader({novel:n,chapter:c,index:i,content});localStorage.setItem('reading:'+n.id,JSON.stringify({index:i,path:c.path||c.url,at:Date.now()}));setPage('reader')}catch(e:any){setError(t('Could not load chapter:')+' '+String(e?.message||e))}finally{setReaderLoading(false)}};const moveChapter=async(delta:number)=>{if(!reader||readerLoading)return;const i=reader.index+delta;if(i<0||i>=reader.novel.chapters.length)return;await openChapter(reader.novel,reader.novel.chapters[i],i)};const removeNovel=(n:any)=>{if(!confirm('Remove “'+n.name+'” from your Library?'))return;const next=library.filter(x=>x.id!==n.id);setLibrary(next);localStorage.setItem('library',JSON.stringify(next));localStorage.removeItem('reading:'+n.id)};const resumeNovel=(n:any)=>{setSelectedNovel(n);setChapterFilter('');try{const saved=JSON.parse(localStorage.getItem('reading:'+n.id)||'null');if(saved&&Number.isInteger(saved.index)&&n.chapters?.[saved.index]){pendingScrollRef.current=Number(saved.scroll)||0;openChapter(n,n.chapters[saved.index],saved.index);return}}catch{}setPage('novel')};
 const playAnimeEpisode=async(ep:any,mediaOverride?:any)=>{const media=mediaOverride||selectedAnime;if(!media)return;setAnimeVideoLoading(true);setAnimeNotice(null);setSelectedEpisode(ep);setAnimeVideos([]);setSelectedVideo(null);try{
  const episodeNumber=String(ep.number||String(ep.name||ep.title||'').match(/\d+(?:\.\d+)?/)?.[0]||'');
- const candidates=[{sourceId:String(media.sourceId||''),sourceName:media.sourceName||media.source||'Current source',url:media.url||media.path,episode:ep},...((media.alternates||[]) as any[]).map((x:any)=>({...x,episode:null}))];
+ const blockedPlayback=mode==='anime'?[]:['streamingunity','streamingcommunity'];const candidates=[{sourceId:String(media.sourceId||''),sourceName:media.sourceName||media.source||'Current source',url:media.url||media.path,episode:ep},...((media.alternates||[]) as any[]).map((x:any)=>({...x,episode:null}))].filter((x:any)=>!blockedPlayback.some(b=>String(x.sourceName||'').toLowerCase().includes(b)));
  let lastError:any=null;
  for(const candidate of candidates){
   try{
@@ -261,7 +261,8 @@ const playAnimeEpisode=async(ep:any,mediaOverride?:any)=>{const media=mediaOverr
   const query=encodeURIComponent(String(media.name||media.title||''));
   const sourcesData=await window.novelReader.miwayomiFetch('/api/v1/sources');
   const rawSources=Array.isArray(sourcesData)?sourcesData:(sourcesData.sources||sourcesData.items||sourcesData.anime||[]);
-  const sources=Array.isArray(rawSources)?rawSources:[];
+  const blockedFallback=mode==='anime'?[]:['streamingunity','streamingcommunity'];
+  const sources=(Array.isArray(rawSources)?rawSources:[]).filter((x:any)=>!blockedFallback.some(b=>String(x.name||'').toLowerCase().includes(b)));
   const seen=new Set(candidates.map((x:any)=>String(x.sourceId||'')));
   for(const src of sources){
    const sid=String(src.id||src.sourceId||'');if(!sid||seen.has(sid))continue;
