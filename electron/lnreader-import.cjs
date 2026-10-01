@@ -5,13 +5,20 @@
 // backup are ignored (remote cover URLs are kept).
 
 const fs = require('fs')
-const JSZip = require('jszip')
+let JSZip
+function getJSZip() {
+  if (!JSZip) {
+    try { JSZip = require('jszip') }
+    catch { throw new Error('LNReader backup import needs the jszip dependency. Run npm install once, then restart NovelReader.') }
+  }
+  return JSZip
+}
 
 const MAX_BYTES = 300 * 1024 * 1024
 const MAX_NOVEL_JSON = 20 * 1024 * 1024
 
 async function openZip(buffer) {
-  try { return await JSZip.loadAsync(buffer) } catch { throw new Error('This file is not an LNReader backup (not a zip file).') }
+  try { return await getJSZip().loadAsync(buffer) } catch { throw new Error('This file is not an LNReader backup (not a zip file).') }
 }
 
 function chapterTime(c) {
