@@ -77,6 +77,8 @@ const FR: Record<string, string> = {
   '{n} day ago': 'il y a {n} jour', '{n} days ago': 'il y a {n} jours',
   // Search / sources / comics
   'Find a title everywhere': 'Trouver un titre partout',
+  'Novels, manhwa, manhua and manga: search every LNReader source without installing it first.': 'Romans, manhwa, manhua et manga : cherche dans toutes les sources LNReader sans les installer.',
+  'Title, e.g. Shadow Slave or Solo Leveling': 'Titre, par ex. Shadow Slave ou Solo Leveling',
   'Search LNReader sources without installing them first.': 'Cherche dans les sources LNReader sans les installer d’abord.',
   'Novel title, e.g. Shadow Slave': 'Titre du roman, par ex. Shadow Slave', 'Search all sources': 'Chercher dans toutes les sources',
   'matching source result(s). Only sources that return the requested novel are shown below.': 'résultat(s). Seules les sources qui renvoient le roman demandé sont affichées.',
