@@ -528,3 +528,13 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .source-catalog-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:18px}.source-catalog-head .repo-input{max-width:360px;margin:0}
 .anime-source-chip small{opacity:.65;font-size:10px}
 @media(max-width:720px){.repo-add{grid-template-columns:1fr}.source-catalog-head{align-items:stretch;flex-direction:column}.source-catalog-head .repo-input{max-width:none}}
+
+/* Rich media details: series + movies */
+.media-info{display:grid;grid-template-columns:116px minmax(0,1fr);gap:18px;margin-bottom:18px;padding:14px}
+.media-info>.libcover{width:116px;aspect-ratio:2/3;border-radius:10px;object-fit:cover}
+.media-info-body{min-width:0;display:flex;flex-direction:column;gap:10px}
+.media-description{margin:0;color:#b0b5c4;line-height:1.55;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+.media-genres{display:flex;gap:6px;flex-wrap:wrap}.media-genres span{padding:4px 8px;border:1px solid #30364a;border-radius:999px;color:#aeb3c5;font-size:11px}
+.media-info dl{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;margin:0;font-size:12px}.media-info dt{color:#7f8598}.media-info dd{margin:0;color:#c5c9d4}
+.movie-play{min-height:46px;padding:0 20px}
+@media(max-width:650px){.media-info{grid-template-columns:82px minmax(0,1fr)}.media-info>.libcover{width:82px}}
