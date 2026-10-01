@@ -1,4 +1,4 @@
-const {app,BrowserWindow,ipcMain,dialog,protocol,shell}=require('electron')
+const {app,BrowserWindow,ipcMain,dialog,protocol,shell,screen}=require('electron')
 const {Readable}=require('stream')
 const {spawn}=require('child_process')
 const fs=require('fs')
@@ -9,7 +9,16 @@ const {createTorrentManager}=require('./torrent-manager.cjs')
 const {createBackupManager}=require('./backup.cjs')
 const backups=createBackupManager({app,dialog,shell})
 const SMOKE_TEST=process.env.NR_SMOKE_TEST==='1'
-function createWindow(){const win=new BrowserWindow({width:1280,height:820,minWidth:900,minHeight:600,backgroundColor:'#0b0c10',title:'Novel Reader',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});if(!app.isPackaged&&!SMOKE_TEST)win.loadURL('http://127.0.0.1:5173');else win.loadFile(path.join(app.getAppPath(),'dist','index.html'));win.webContents.on('did-fail-load',(_e,code,desc,url)=>console.error('Load failed',code,desc,url));return win}
+const {createWindowState,createUpdater}=require('./app-shell.cjs')
+const APP_ID='com.novelreader.windows'
+let mainWindow=null
+// One NovelReader at a time: a second launch focuses the existing window.
+if(!SMOKE_TEST&&!app.requestSingleInstanceLock()){app.quit()}
+app.on('second-instance',()=>{if(mainWindow){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.show();mainWindow.focus()}})
+if(process.platform==='win32')app.setAppUserModelId(APP_ID) // required for Windows notifications
+const updater=createUpdater({app,ipcMain,getWindow:()=>mainWindow})
+ipcMain.handle('app:focus',()=>{if(mainWindow){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.show();mainWindow.focus()}return true})
+function createWindow(){const ws=createWindowState({app,screen});const state=ws.load();const win=new BrowserWindow({...state,minWidth:900,minHeight:600,show:false,icon:path.join(__dirname,'icon.png'),backgroundColor:'#0b0c10',title:'NovelReader',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});if(!app.isPackaged&&!SMOKE_TEST)win.loadURL('http://127.0.0.1:5173');else win.loadFile(path.join(app.getAppPath(),'dist','index.html'));win.webContents.on('did-fail-load',(_e,code,desc,url)=>console.error('Load failed',code,desc,url));ws.track(win);win.once('ready-to-show',()=>{if(state.maximized)win.maximize();win.show()});setTimeout(()=>{if(!win.isDestroyed()&&!win.isVisible())win.show()},3000);mainWindow=win;win.on('closed',()=>{if(mainWindow===win)mainWindow=null});return win}
 ipcMain.handle('plugin:search',async(_e,{plugin,query})=>runner.search(plugin,query))
 ipcMain.handle('plugin:parseNovel',async(_e,{plugin,path})=>runner.parseNovel(plugin,path))
 ipcMain.handle('plugin:parseChapter',async(_e,{plugin,path})=>runner.parseChapter(plugin,path))
@@ -124,7 +133,7 @@ async function runSmokeTest(win){
  const result={}
  try{
   await new Promise(r=>win.webContents.once('did-finish-load',r))
-  result.bridge=await win.webContents.executeJavaScript("['torrentStart','torrentStatus','torrentStop','archiveSearch','archiveFiles','backupExport','backupImport','backupAuto','backupListAuto','backupReadAuto'].every(k=>typeof window.novelReader[k]==='function')")
+  result.bridge=await win.webContents.executeJavaScript("['torrentStart','torrentStatus','torrentStop','archiveSearch','archiveFiles','backupExport','backupImport','backupAuto','backupListAuto','backupReadAuto','appVersion','updateCheck','onUpdateStatus','focusWindow'].every(k=>typeof window.novelReader[k]==='function')")
   result.backup=await win.webContents.executeJavaScript("(async()=>{const p={app:'NovelReader',version:1,exportedAt:Date.now(),data:{library:JSON.stringify([{id:'x',name:'Smoke'}])}};const a=await window.novelReader.backupAuto(p);const b=await window.novelReader.backupAuto(p);const list=await window.novelReader.backupListAuto();const back=await window.novelReader.backupReadAuto(list[0].name);return {first:a.saved,second:b.saved,listed:list.length,novels:list[0].novels,same:back.data.library===p.data.library}})()")
   const id=process.env.NR_SMOKE_ARCHIVE_ID
   if(id){
@@ -141,6 +150,6 @@ async function runSmokeTest(win){
  app.exit(result.ok?0:1)
 }
 
-app.whenReady().then(()=>{registerLocalProtocol();if(SMOKE_TEST){runSmokeTest(createWindow());return}startMiwayomi();createWindow()})
+app.whenReady().then(()=>{registerLocalProtocol();if(SMOKE_TEST){runSmokeTest(createWindow());return}startMiwayomi();createWindow();updater.start()})
 app.on('before-quit',()=>{if(miwayomiProcess){miwayomiProcess.kill();miwayomiProcess=null}})
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()})

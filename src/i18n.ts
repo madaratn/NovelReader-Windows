@@ -194,6 +194,15 @@ const FR: Record<string, string> = {
   'Test the sources in my languages ({n})': 'Tester les sources de mes langues ({n})', 'Refresh the list': 'Actualiser la liste',
   'Testing {done} / {total} sources…': 'Test : {done} / {total} sources…', 'Working': 'Fonctionnent', 'Not responding': 'Ne répond pas',
   'Not tested yet': 'Pas encore testée', 'Testing…': 'Test…', 'Works': 'Fonctionne', 'Failing': 'En panne', 'Test': 'Tester', 'No source matches.': 'Aucune source ne correspond.',
+  // Updates / notifications
+  'NovelReader {v} is ready to install.': 'NovelReader {v} est prêt à être installé.', 'Restart and update': 'Redémarrer et mettre à jour', 'Later': 'Plus tard',
+  'Checking for updates…': 'Recherche de mises à jour…', 'Downloading version {v}… {p}%': 'Téléchargement de la version {v}… {p} %',
+  'Version {v} is ready to install.': 'La version {v} est prête à être installée.', 'NovelReader is up to date.': 'NovelReader est à jour.',
+  'Could not check for updates:': 'Impossible de vérifier les mises à jour :',
+  'Automatic updates work in the installed app (not in development mode).': 'Les mises à jour automatiques fonctionnent dans l’appli installée (pas en mode développement).',
+  'Updates are checked automatically when NovelReader starts.': 'Les mises à jour sont vérifiées automatiquement au démarrage.',
+  'Updates': 'Mises à jour', 'Installed version: {v}': 'Version installée : {v}', 'Check for updates': 'Rechercher des mises à jour',
+  'Show a Windows notification when new chapters are found': 'Afficher une notification Windows quand de nouveaux chapitres sont trouvés',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

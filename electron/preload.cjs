@@ -20,5 +20,11 @@ contextBridge.exposeInMainWorld('novelReader',{
  backupAuto:(payload,force)=>ipcRenderer.invoke('backup:auto',{payload,force:!!force}),
  backupListAuto:()=>ipcRenderer.invoke('backup:listAuto'),
  backupReadAuto:(name)=>ipcRenderer.invoke('backup:readAuto',name),
- backupOpenFolder:()=>ipcRenderer.invoke('backup:openFolder')
+ backupOpenFolder:()=>ipcRenderer.invoke('backup:openFolder'),
+ appVersion:()=>ipcRenderer.invoke('app:version'),
+ focusWindow:()=>ipcRenderer.invoke('app:focus'),
+ updateStatus:()=>ipcRenderer.invoke('update:status'),
+ updateCheck:()=>ipcRenderer.invoke('update:check'),
+ updateInstall:()=>ipcRenderer.invoke('update:install'),
+ onUpdateStatus:(cb)=>{const h=(_e,s)=>{try{cb(s)}catch{}};ipcRenderer.on('update:status',h);return()=>ipcRenderer.removeListener('update:status',h)}
 })

@@ -374,3 +374,15 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .health.ok{color:#7fd6a4}.health.bad{color:#f19aa8}.health.untested{color:#8f94a3}
 .sourcerow>button{min-height:34px;border:1px solid #30364a;border-radius:9px;background:#161a24;color:#e6e8ef;font:inherit;font-size:13px;cursor:pointer}
 @media (max-width:820px){.sourcerow{grid-template-columns:36px minmax(0,1fr) 80px}.health{grid-column:2;grid-row:2}}
+
+/* ---- Update banner ------------------------------------------------------------------ */
+.update-banner{position:sticky;top:0;z-index:50;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin:-8px 0 18px;padding:10px 14px;border:1px solid #3d3480;border-radius:12px;background:linear-gradient(120deg,#1d1840,#151824);color:#e6e3ff;font-size:14px}
+.update-banner>div{display:flex;gap:8px}
+.update-banner button{min-height:34px;padding:0 14px;border:1px solid #3a4055;border-radius:9px;background:#161a24;color:#e6e8ef;font:inherit;font-size:13.5px;cursor:pointer}
+.update-banner button.primary{background:#7562ef;border-color:#7562ef;color:#fff;font-weight:600}
+
+/* ---- Library card actions: primary action on its own row, then shelf + remove ---- */
+.libcard .libraryactions{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:auto}
+.libcard .libraryactions>.primary{grid-column:1/-1;width:100%}
+.libcard .libraryactions .shelfselect{max-width:none;width:100%}
+.libcard .libraryactions .removebtn{min-height:36px;padding:0 12px}
