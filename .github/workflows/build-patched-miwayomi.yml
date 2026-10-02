@@ -246,10 +246,10 @@ jobs:
               raise SystemExit("embeddedServer anchor not found")
           new = chr(10).join([
               "    val srv = embeddedServer(Netty, configure = {",
-              "        connector {",
+              "        connectors.add(io.ktor.server.engine.EngineConnectorBuilder().apply {",
               "            port = config.port",
               "            host = config.host",
-              "        }",
+              "        })",
               "        maxInitialLineLength = 1024 * 1024",
               "        maxHeaderSize = 64 * 1024",
               "    }) {",
@@ -534,7 +534,14 @@ jobs:
 
       - name: Build patched fat JAR
         working-directory: miwayomi
-        run: ./gradlew :server:shadowJar --no-daemon
+        shell: bash
+        run: |
+          set -o pipefail
+          if ! ./gradlew :server:shadowJar --no-daemon 2>&1 | tee build.log; then
+            # Surface compiler errors as annotations (readable without log access).
+            grep -E "^e: |error:|FAILURE|What went wrong" -A2 build.log | head -40 | while IFS= read -r line; do echo "::error::$line"; done
+            exit 1
+          fi
 
       - name: Verify packaged URLUtil is not android.jar Stub
         working-directory: miwayomi
