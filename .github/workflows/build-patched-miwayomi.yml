@@ -250,14 +250,39 @@ jobs:
           from pathlib import Path
           p = Path("miwayomi/server/src/main/kotlin/miwayomi/api/AnimeRoutes.kt")
           s = p.read_text()
-          start = s.index("            } else {\n                val legacy = try {")
+          # Only legacy extensions (no getHosterList override) may fall back to the
+          # deprecated getVideoList(SEpisode). Modern hoster-API sources such as
+          # Anichi/AnikotoTheme store opaque episode URLs ("<ids>&epurl=/watch/...")
+          # and the default legacy path turns them into baseUrl + url, which fails
+          # with "Invalid URL host" and hides the real hoster error.
+          old_else = "            } else {\n                val legacy = try {"
+          if old_else not in s:
+              raise SystemExit("legacy fallback anchor not found")
+          s = s.replace(old_else, "            } else if (!novelReaderUsesHosterApi(source)) {\n                val legacy = try {", 1)
           end_marker = "                videos.addAll(legacy.map { it.toDtoNormalized() })\n            }"
-          end = s.index(end_marker, start) + len(end_marker)
-          replacement = """            } else {
-                #NOVELREADER_MODERN_HOSTER_EMPTY#
-                println("[novelreader] modern hoster API returned 0 hosters for " + source.name + "; legacy episode fallback skipped")
-            }""".replace("#NOVELREADER_MODERN_HOSTER_EMPTY#", "// Empty modern hoster result: do not invoke deprecated getVideoList(SEpisode).")
-          p.write_text(s[:start] + replacement + s[end:])
+          if end_marker not in s:
+              raise SystemExit("legacy fallback end anchor not found")
+          tail = chr(10).join([
+              "                videos.addAll(legacy.map { it.toDtoNormalized() })",
+              "            } else {",
+              "                // Modern hoster source returned 0 hosters: never use deprecated getVideoList(SEpisode).",
+              '                println("[novelreader] modern hoster API returned 0 hosters for " + source.name + "; legacy episode fallback skipped")',
+              "            }",
+          ])
+          s = s.replace(end_marker, tail, 1)
+          helper = chr(10).join([
+              "",
+              "private fun novelReaderUsesHosterApi(source: Any): Boolean {",
+              "    var c: Class<*>? = source.javaClass",
+              '    while (c != null && c != Any::class.java && c.name != "eu.kanade.tachiyomi.animesource.online.AnimeHttpSource") {',
+              '        if (c.declaredMethods.any { it.name == "getHosterList" || it.name == "hosterListParse" }) return true',
+              "        c = c.superclass",
+              "    }",
+              "    return false",
+              "}",
+              "",
+          ])
+          p.write_text(s.rstrip() + chr(10) + helper)
 
       - name: Harden hoster discovery against extension Rx errors
         shell: python
@@ -270,6 +295,29 @@ jobs:
           if marker not in s:
               raise SystemExit("hosters route call anchor not found")
           p.write_text(s.replace(marker, replacement, 1))
+
+      - name: Log why modern hoster discovery failed in the videos route
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/api/AnimeRoutes.kt")
+          s = p.read_text()
+          # Upstream swallows getHosterList() failures with runCatching and then
+          # falls back to the legacy getVideoList(SEpisode), which for modern
+          # sources such as Anichi (AnikotoTheme) builds baseUrl + episode.url
+          # and fails with a misleading "Invalid URL host". Surface the real
+          # hoster error instead of hiding it.
+          marker = "            val hosters = runCatching { source.getHosterList(episode) }.getOrNull().orEmpty()"
+          lines = [
+              "            val hosters = runCatching { source.getHosterList(episode) }.getOrElse { e ->",
+              "                val root = generateSequence(e) { it.cause }.lastOrNull() ?: e",
+              '                println("[miwayomi] videos/hosters " + source.name + ": " + root.javaClass.name + ": " + root.message)',
+              "                emptyList()",
+              "            }",
+          ]
+          if marker not in s:
+              raise SystemExit("videos route hoster anchor not found")
+          p.write_text(s.replace(marker, chr(10).join(lines), 1))
 
       - name: Harden anime video routes against extension Rx errors
         shell: python
