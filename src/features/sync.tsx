@@ -39,6 +39,7 @@ export function useFolderSync({ library, onLibrary }: { library: any[], onLibrar
       for (const k of changed) { if (merged[k] == null) localStorage.removeItem(k); else lsSet(k, merged[k]) }
       if (changed.includes('library')) onLibraryRef.current(JSON.parse(merged.library || '[]'))
       if (changed.includes('annotations')) window.dispatchEvent(new Event('nr-annotations'))
+      if (changed.some(k => ['animeLibrary', 'seriesLibrary', 'movieLibrary'].includes(k) || k.startsWith('mediapos:') || k.startsWith('lastEpInfo:'))) window.dispatchEvent(new Event('nr-media-synced'))
       await api.syncWrite(merged)
       const from = remote && remote.deviceId !== status.deviceId ? remote.deviceName : ''
       const at = Date.now(); lsSet('syncLastAt', String(at)); if (from) lsSet('syncLastFrom', from)
@@ -57,7 +58,8 @@ export function useFolderSync({ library, onLibrary }: { library: any[], onLibrar
     document.addEventListener('visibilitychange', onHide)
     const onNotes = () => { clearTimeout((onNotes as any).tm); (onNotes as any).tm = setTimeout(() => syncRef.current(), 10_000) }
     window.addEventListener('nr-annotations', onNotes)
-    return () => { clearInterval(iv); document.removeEventListener('visibilitychange', onHide); window.removeEventListener('nr-annotations', onNotes) }
+    window.addEventListener('nr-media-changed', onNotes)
+    return () => { clearInterval(iv); document.removeEventListener('visibilitychange', onHide); window.removeEventListener('nr-annotations', onNotes); window.removeEventListener('nr-media-changed', onNotes) }
   }, [])
   // Push shortly after library changes (adds, removals, shelves, new chapters).
   const first = useRef(true)
@@ -73,7 +75,7 @@ export type FolderSync = ReturnType<typeof useFolderSync>
 export function SyncSettings({ sync }: { sync: FolderSync }) {
   const s = sync.status
   return <section className="panel settings-block"><h2>{t('Sync between PCs')}</h2>
-    <p className="settings-help">{t('Choose a folder that your cloud service keeps in sync (OneDrive, Google Drive, Dropbox…). NovelReader keeps your library, reading positions, bookmarks and notes there, and merges the changes made on each PC. Preferences such as theme and language stay on each PC.')}</p>
+    <p className="settings-help">{t('Choose a folder that your cloud service keeps in sync (OneDrive, Google Drive, Dropbox…). NovelReader keeps your library, reading positions, bookmarks, notes, anime, series, movies and where you stopped watching there, and merges the changes made on each PC. Preferences such as theme and language stay on each PC.')}</p>
     {!s?.enabled ? <div className="libraryactions"><button className="primary" onClick={sync.choose}>{t('Choose a synced folder…')}</button></div> : <>
       <p className="settings-help sync-line"><b>{t('Folder:')}</b> <code>{s.folder}</code></p>
       <p className="settings-help sync-line">{sync.running ? <><span className="spinner" aria-hidden="true" />{t('Syncing…')}</> : sync.lastAt ? t('Last synced {when}.', { when: timeAgo(sync.lastAt) }) : t('Not synced yet.')}{s.remote && s.remote.deviceId !== s.deviceId ? ' ' + t('Latest changes from {pc}, {when}.', { pc: s.remote.deviceName, when: timeAgo(s.remote.at) }) : ''}</p>

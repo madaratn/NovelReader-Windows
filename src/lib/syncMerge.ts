@@ -8,12 +8,19 @@
 // - reading:<id>: the most recent position wins.
 // - annotations: union by id, latest edit wins, deletions are tombstoned.
 // - readingStats: per day, the larger count/time (never double-counted).
+// - animeLibrary / seriesLibrary / movieLibrary: union by id with tombstones
+//   (mediaRemoved), larger episode count, latest status (shelfAt) wins.
+// - mediapos:<key> (video position, watched flag) and lastEpInfo:<id>: most
+//   recent wins; lastEp:<id> follows lastEpInfo; prefServer:<id> kept if known.
+// - watchStats: per day, the larger value.
 // Preferences (theme, language, layout…) stay per PC and are not synced.
 
 export type SyncData = Record<string, string>
 
+export const MEDIA_LIBS = ['animeLibrary', 'seriesLibrary', 'movieLibrary']
 export const isSyncedKey = (k: string) =>
-  k === 'library' || k === 'libraryRemoved' || k === 'annotations' || k === 'annotationsRemoved' || k === 'readingStats' || k.startsWith('reading:')
+  k === 'library' || k === 'libraryRemoved' || k === 'annotations' || k === 'annotationsRemoved' || k === 'readingStats' || k.startsWith('reading:') ||
+  MEDIA_LIBS.includes(k) || k === 'mediaRemoved' || k === 'watchStats' || k.startsWith('mediapos:') || k.startsWith('lastEpInfo:') || k.startsWith('lastEp:') || k.startsWith('prefServer:')
 
 export function pickSynced(all: Record<string, string>): SyncData {
   const out: SyncData = {}
@@ -84,7 +91,59 @@ export function mergeSync(local: SyncData, remote: SyncData): SyncData {
     stats[day] = { c: Math.max(Number(sl[day]?.c) || 0, Number(sr[day]?.c) || 0), s: Math.max(Number(sl[day]?.s) || 0, Number(sr[day]?.s) || 0) }
   }
   out.readingStats = JSON.stringify(stats)
+  mergeMedia(local, remote, out)
   return out
+}
+
+function mergeMediaItem(local: any, remote: any) {
+  const out = { ...local }
+  const ep = (x: any) => Array.isArray(x?.episodes) ? x.episodes.length : Number(x?.episodes) || 0
+  if (ep(remote) > ep(local)) out.episodes = remote.episodes
+  if ((Number(remote.shelfAt) || 0) > (Number(local.shelfAt) || 0)) { out.shelf = remote.shelf; out.shelfAt = remote.shelfAt }
+  out.addedAt = Math.max(Number(local.addedAt) || 0, Number(remote.addedAt) || 0) || local.addedAt
+  if (!out.thumbnail && remote.thumbnail) out.thumbnail = remote.thumbnail
+  return out
+}
+
+/** Video libraries, positions and stats (Anime / Series / Movies). */
+function mergeMedia(local: SyncData, remote: SyncData, out: SyncData) {
+  const removed = mergeTombstones(parse(local.mediaRemoved, {}), parse(remote.mediaRemoved, {}))
+  out.mediaRemoved = JSON.stringify(removed)
+  for (const key of MEDIA_LIBS) {
+    if (local[key] == null && remote[key] == null) continue
+    const lLib: any[] = parse(local[key], []), rLib: any[] = parse(remote[key], [])
+    const byId = new Map<string, any>(); const order: any[] = []
+    for (const a of lLib) if (a && a.id != null) { byId.set(String(a.id), a); order.push(a) }
+    const remoteOnly: any[] = []
+    for (const a of rLib) {
+      if (!a || a.id == null) continue
+      const id = String(a.id)
+      if (byId.has(id)) byId.set(id, mergeMediaItem(byId.get(id), a)); else { byId.set(id, a); remoteOnly.push(a) }
+    }
+    const seen = new Set<string>(), lib: any[] = []
+    for (const a of [...remoteOnly.sort((x, y) => (Number(y.addedAt) || 0) - (Number(x.addedAt) || 0)), ...order]) {
+      const id = String(a.id); if (seen.has(id)) continue; seen.add(id)
+      const m = byId.get(id); if (!(removed[key + ':' + id] >= (Number(m.addedAt) || 0))) lib.push(m)
+    }
+    out[key] = JSON.stringify(lib)
+  }
+  const keys = new Set([...Object.keys(local), ...Object.keys(remote)])
+  for (const k of keys) {
+    if (k.startsWith('mediapos:') || k.startsWith('lastEpInfo:')) {
+      const a = parse<any>(local[k], null), b = parse<any>(remote[k], null)
+      const win = !a ? b : !b ? a : (Number(b.at) || 0) > (Number(a.at) || 0) ? b : a
+      if (win) out[k] = JSON.stringify(win)
+      if (k.startsWith('lastEpInfo:') && win?.url) out['lastEp:' + k.slice('lastEpInfo:'.length)] = String(win.url)
+    } else if (k.startsWith('prefServer:') || (k.startsWith('lastEp:') && !keys.has('lastEpInfo:' + k.slice('lastEp:'.length)))) {
+      const v = local[k] ?? remote[k]; if (v != null) out[k] = v
+    }
+  }
+  const wl: Record<string, any> = parse(local.watchStats, {}), wr: Record<string, any> = parse(remote.watchStats, {})
+  if (Object.keys(wl).length || Object.keys(wr).length) {
+    const w: Record<string, { e: number, s: number }> = {}
+    for (const day of new Set([...Object.keys(wl), ...Object.keys(wr)])) w[day] = { e: Math.max(Number(wl[day]?.e) || 0, Number(wr[day]?.e) || 0), s: Math.max(Number(wl[day]?.s) || 0, Number(wr[day]?.s) || 0) }
+    out.watchStats = JSON.stringify(w)
+  }
 }
 
 /** Keys whose value differs between two snapshots. */

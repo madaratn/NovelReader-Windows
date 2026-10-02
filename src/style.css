@@ -581,3 +581,27 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .health-state{color:#9aa0b4;font-size:13px}
 .health-row .removebtn{min-height:32px;padding:0 12px}
 .health-actions{margin-top:12px;align-items:center}.health-actions span{color:#d5d8e2}
+
+/* Episode list: watched marks and progress. */
+.episode-tools{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:-4px 0 10px}
+.episode-tools small{color:#8f94a3}
+.episode-tools button{padding:6px 10px;border:1px solid #30364a;border-radius:8px;background:#161a24;color:#d5d8e2;font:inherit;font-size:13px;cursor:pointer}
+.episodecell{position:relative}
+.episodecell .episodecard{width:100%;position:relative;overflow:hidden}
+.episodecard.watched .episodetitle{color:#8f94a3}
+.episodecard.watched .episodebadge{opacity:.6}
+.episodeprog{position:absolute;left:0;bottom:0;height:3px;background:#6a55e6}
+.ep-watch{position:absolute;top:-6px;right:-6px;width:22px;height:22px;padding:0;border:1px solid #3a4058;border-radius:50%;background:#161a24;color:#fff;font-size:12px;line-height:20px;cursor:pointer;opacity:0;transition:opacity .15s}
+.episodecell:hover .ep-watch,.ep-watch:focus-visible,.ep-watch.on{opacity:1}
+.ep-watch.on{background:#3fb37f;border-color:#3fb37f}
+/* Player extras: subtitle style panel, mini player. */
+.trackbtn{min-height:30px;padding:0 10px;border:1px solid #30364a;border-radius:8px;background:#161a24;color:#d5d8e2;font:inherit;font-size:13px;cursor:pointer}
+.sub-panel{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px 14px;margin:6px 0 10px;padding:12px;border:1px solid #232838;border-radius:10px;background:#11141b}
+.sub-panel>span{color:#9aa0b4;font-size:13px}
+.sub-offset{display:flex;align-items:center;gap:8px}.sub-offset b{min-width:56px;text-align:center}
+.sub-offset button{padding:5px 9px;border:1px solid #30364a;border-radius:8px;background:#161a24;color:#d5d8e2;font:inherit;font-size:13px;cursor:pointer}
+.player-stage.cue-s video::cue{font-size:80%}.player-stage.cue-m video::cue{font-size:100%}.player-stage.cue-l video::cue{font-size:130%}.player-stage.cue-xl video::cue{font-size:165%}
+.player-stage.cue-yellow video::cue{color:#ffe14d}.player-stage.cue-white video::cue{color:#fff}
+.player-stage.cue-bg-none video::cue{background:transparent;text-shadow:none}
+.player-stage.cue-bg-shadow video::cue{background:transparent;text-shadow:0 0 4px #000,0 0 2px #000,1px 1px 2px #000}
+.player-stage.cue-bg-box video::cue{background:rgba(0,0,0,.78);text-shadow:none}
