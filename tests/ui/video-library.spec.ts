@@ -76,7 +76,7 @@ test('series detail: Books-style hero, clean facts, remembered server, skip intr
   await expect(page.locator('.media-hero h1')).toHaveText('Lanterns')
   await expect(page.locator('.media-hero .primary')).toHaveText('Start · Ep. 1')
   await expect(page.locator('.media-description')).toHaveText('A mystery.')
-  await expect(page.locator('.media-info dl')).toContainText('Completed') // status 2, not "2"
+  await expect(page.locator('.media-info dl')).toContainText('StatusFinished') // status 2, not "2"
   await expect(page.locator('.media-info')).not.toContainText('Backdrop')
   await page.locator('.media-hero .primary').click()
   // The server that worked last time is selected first
