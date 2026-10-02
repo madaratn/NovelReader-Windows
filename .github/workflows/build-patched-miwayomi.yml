@@ -231,6 +231,31 @@ jobs:
           s = s.replace('META-INF/miwayomi-jarfixed-v3', 'META-INF/miwayomi-jarfixed-v5')
           p.write_text(s)
 
+      - name: Accept long request URLs (Movies Mod episode JSON)
+        shell: python
+        run: |
+          from pathlib import Path
+          # Some extensions (Movies Mod) store a JSON list of download links as the
+          # episode URL. URL-encoded in ?url=..., the request line exceeds Netty's
+          # 4096-byte default and Netty answers a bare "400 Bad Request" before any
+          # route runs. Raise the limits for this local-only server.
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/Main.kt")
+          s = p.read_text()
+          old = "    val srv = embeddedServer(Netty, port = config.port, host = config.host) {"
+          if old not in s:
+              raise SystemExit("embeddedServer anchor not found")
+          new = chr(10).join([
+              "    val srv = embeddedServer(Netty, configure = {",
+              "        connector {",
+              "            port = config.port",
+              "            host = config.host",
+              "        }",
+              "        maxInitialLineLength = 1024 * 1024",
+              "        maxHeaderSize = 64 * 1024",
+              "    }) {",
+          ])
+          p.write_text(s.replace(old, new, 1))
+
       - name: Patch Android Log shim for extension compatibility
         shell: python
         run: |
