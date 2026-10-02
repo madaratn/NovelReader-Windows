@@ -563,3 +563,11 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 /* Media detail pages reuse the Books hero (.novelhead); facts panel has no cover. */
 .media-hero .media-kicker{margin-bottom:-4px}
 .media-info.no-cover{grid-template-columns:minmax(0,1fr)}
+
+/* Video player: skip intro/credits and next-episode countdown overlays. */
+.player-stage{position:relative}
+.player-skip{position:absolute;right:18px;bottom:64px;z-index:3;padding:10px 16px;border:1px solid rgba(255,255,255,.35);border-radius:10px;background:rgba(15,18,24,.82);color:#fff;font:inherit;font-weight:600;cursor:pointer;backdrop-filter:blur(4px)}
+.player-skip:hover{background:#6a55e6;border-color:#6a55e6}
+.player-next{position:absolute;right:18px;bottom:64px;z-index:3;display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid #33394a;border-radius:12px;background:rgba(15,18,24,.92);color:#e6e8ef;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.player-next button{padding:8px 12px;border:1px solid #343a50;border-radius:9px;background:#1d2130;color:#e6e8ef;font:inherit;cursor:pointer}
+.player-next button.primary{background:#6a55e6;border-color:#6a55e6;color:#fff}
