@@ -288,6 +288,141 @@ jobs:
           s = s.replace(marker, compat + marker, 1)
           p.write_text(s)
 
+      - name: Add Android LruCache compatibility shim
+        shell: python
+        run: |
+          from pathlib import Path
+          # ReAnime (and other extensions) build an android.util.LruCache; the
+          # android.jar stub throws "Stub!". Provide a real JVM implementation.
+          Path("miwayomi/android-compat/src/main/kotlin/android/util/LruCache.kt").write_text("""
+          package android.util
+
+          /**
+           * JVM implementation of android.util.LruCache (the android.jar class is a
+           * "Stub!" that throws). Mirrors the AOSP semantics: access-ordered map,
+           * sizeOf/create/entryRemoved hooks, thread-safe.
+           */
+          open class LruCache<K : Any, V : Any>(maxSize: Int) {
+              private val map = LinkedHashMap<K, V>(0, 0.75f, true)
+              private var curSize = 0
+              private var limit = maxSize
+              private var putCount = 0
+              private var createCount = 0
+              private var evictionCount = 0
+              private var hitCount = 0
+              private var missCount = 0
+
+              init {
+                  require(maxSize > 0) { "maxSize <= 0" }
+              }
+
+              fun get(key: K): V? {
+                  synchronized(this) {
+                      val hit = map[key]
+                      if (hit != null) {
+                          hitCount++
+                          return hit
+                      }
+                      missCount++
+                  }
+                  val created = create(key) ?: return null
+                  var previous: V?
+                  synchronized(this) {
+                      createCount++
+                      previous = map.put(key, created)
+                      if (previous != null) {
+                          map[key] = previous!!
+                      } else {
+                          curSize += safeSizeOf(key, created)
+                      }
+                  }
+                  val prev = previous
+                  return if (prev != null) {
+                      entryRemoved(false, key, created, prev)
+                      prev
+                  } else {
+                      trimToSize(limit)
+                      created
+                  }
+              }
+
+              fun put(key: K, value: V): V? {
+                  var previous: V?
+                  synchronized(this) {
+                      putCount++
+                      curSize += safeSizeOf(key, value)
+                      previous = map.put(key, value)
+                      previous?.let { curSize -= safeSizeOf(key, it) }
+                  }
+                  previous?.let { entryRemoved(false, key, it, value) }
+                  trimToSize(limit)
+                  return previous
+              }
+
+              open fun trimToSize(maxSize: Int) {
+                  while (true) {
+                      var key: K
+                      var value: V
+                      synchronized(this) {
+                          if (curSize <= maxSize || map.isEmpty()) return
+                          val eldest = map.entries.iterator().next()
+                          key = eldest.key
+                          value = eldest.value
+                          map.remove(key)
+                          curSize -= safeSizeOf(key, value)
+                          evictionCount++
+                      }
+                      entryRemoved(true, key, value, null)
+                  }
+              }
+
+              fun remove(key: K): V? {
+                  var previous: V?
+                  synchronized(this) {
+                      previous = map.remove(key)
+                      previous?.let { curSize -= safeSizeOf(key, it) }
+                  }
+                  previous?.let { entryRemoved(false, key, it, null) }
+                  return previous
+              }
+
+              open fun resize(maxSize: Int) {
+                  require(maxSize > 0) { "maxSize <= 0" }
+                  synchronized(this) { limit = maxSize }
+                  trimToSize(maxSize)
+              }
+
+              protected open fun entryRemoved(evicted: Boolean, key: K, oldValue: V, newValue: V?) {}
+
+              protected open fun create(key: K): V? = null
+
+              private fun safeSizeOf(key: K, value: V): Int {
+                  val result = sizeOf(key, value)
+                  check(result >= 0) { "Negative size: $key=$value" }
+                  return result
+              }
+
+              protected open fun sizeOf(key: K, value: V): Int = 1
+
+              fun evictAll() = trimToSize(-1)
+
+              @Synchronized fun size(): Int = curSize
+              @Synchronized fun maxSize(): Int = limit
+              @Synchronized fun hitCount(): Int = hitCount
+              @Synchronized fun missCount(): Int = missCount
+              @Synchronized fun createCount(): Int = createCount
+              @Synchronized fun putCount(): Int = putCount
+              @Synchronized fun evictionCount(): Int = evictionCount
+              @Synchronized fun snapshot(): MutableMap<K, V> = LinkedHashMap(map)
+
+              @Synchronized override fun toString(): String {
+                  val accesses = hitCount + missCount
+                  val hitPercent = if (accesses != 0) 100 * hitCount / accesses else 0
+                  return "LruCache[maxSize=$limit,hits=$hitCount,misses=$missCount,hitRate=$hitPercent%]"
+              }
+          }
+          """.lstrip("\n"))
+
       - name: Add Android URLUtil compatibility shim
         shell: python
         run: |
