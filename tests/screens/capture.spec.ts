@@ -34,8 +34,10 @@ async function boot(page: Page) {
         if (path.includes('/details')) return { title: 'Lanterns', description: desc, genre: ['Drama', 'Mystery', 'Sci-Fi & Fantasy'], status: 2, author: 'DC Studios, HBO' }
         if (path.includes('/episodes')) return eps
         if (path.includes('/videos')) return [{ videoUrl: 'https://cdn.test/v.mp4', videoTitle: 'HD-1 - Sub - 1080p', headers: {}, subtitleTracks: [], audioTracks: [], timestamps: [{ start: 0, end: 85, name: 'Intro', type: 'Opening' }] }]
-        if (path.includes('/extensions/installed')) return [{ name: 'Mapple', pkg: 'mapple', anime: 1 }]
-        if (path.includes('/sources')) return [{ id: '42', name: 'Mapple', lang: 'en' }]
+        if (path.includes('/extensions/installed')) return [{ name: 'Mapple', pkg: 'mapple', anime: 1 }, { name: 'Aniyomi: LaMovie', pkg: 'lamovie', anime: 1 }, { name: 'Anichi', pkg: 'anichi', anime: 1 }]
+        if (path.includes('/sources')) return [{ id: '42', name: 'Mapple', lang: 'en', pkg: 'mapple' }, { id: '43', name: 'LaMovie', lang: 'es', pkg: 'lamovie' }, { id: '44', name: 'Anichi', lang: 'en', pkg: 'anichi' }]
+        if (path.includes('/43/popular')) throw new Error("Error invoking remote method 'anime:miwayomiFetch': Error: Miwayomi HTTP 500 — {\"error\":\"Hôte inconnu (la.movie)\"}")
+        if (path.includes('/popular')) return { animes: [] }
         return []
       }
     }
@@ -64,6 +66,8 @@ test('capture all sections', async ({ page }) => {
   await page.waitForTimeout(800); await shot(page, '11-anime-fiche')
   await navTo(page, 'Recherche globale'); await shot(page, '12-anime-recherche')
   await navTo(page, 'Sources'); await shot(page, '13-anime-sources')
+  await page.getByRole('button', { name: 'Tester mes sources' }).click().catch(() => {})
+  await page.waitForTimeout(800); await shot(page, '13b-anime-sources-test')
   await navTo(page, 'Vidéos locales'); await shot(page, '14-anime-videos-locales')
   await navTo(page, 'Internet Archive'); await shot(page, '15-anime-archive')
   // Series

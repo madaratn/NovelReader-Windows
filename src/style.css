@@ -571,3 +571,13 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .player-next{position:absolute;right:18px;bottom:64px;z-index:3;display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid #33394a;border-radius:12px;background:rgba(15,18,24,.92);color:#e6e8ef;box-shadow:0 10px 30px rgba(0,0,0,.4)}
 .player-next button{padding:8px 12px;border:1px solid #343a50;border-radius:9px;background:#1d2130;color:#e6e8ef;font:inherit;cursor:pointer}
 .player-next button.primary{background:#6a55e6;border-color:#6a55e6;color:#fff}
+
+/* Video sources: installed source health list. */
+.health-list{display:flex;flex-direction:column;gap:6px;margin-top:14px;max-height:420px;overflow:auto}
+.health-row{display:grid;grid-template-columns:10px minmax(0,1fr) auto auto;align-items:center;gap:12px;padding:9px 12px;border:1px solid #232838;border-radius:10px;background:#11141b}
+.health-row b{display:block;font-size:14px}.health-row small{display:block;margin-top:2px;color:#d28e98;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.health-dot{width:10px;height:10px;border-radius:50%;background:#4a5068}
+.health-row.ok .health-dot{background:#3fb37f}.health-row.dead .health-dot{background:#d9545f}.health-row.testing .health-dot{background:#c9a43a}
+.health-state{color:#9aa0b4;font-size:13px}
+.health-row .removebtn{min-height:32px;padding:0 12px}
+.health-actions{margin-top:12px;align-items:center}.health-actions span{color:#d5d8e2}
