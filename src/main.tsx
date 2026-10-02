@@ -297,11 +297,14 @@ const playAnimeEpisode=async(ep:any,mediaOverride?:any)=>{const media=mediaOverr
   const blockedFallback=playbackConfig.blocked;
   const sources=(Array.isArray(rawSources)?rawSources:[]).filter((x:any)=>!blockedFallback.some(b=>String(x.name||'').toLowerCase().includes(b)));
   const seen=new Set(candidates.map((x:any)=>String(x.sourceId||'')));
+  // Search every fallback source in parallel (8 at a time) instead of one by one,
+  // so dead sites that time out no longer add 8 s each.
+  const searchJobs=new Map<string,Promise<any>>();{const limit=8;let active=0;const waiting:(()=>void)[]=[];const run=(sid:string)=>new Promise<any>((res,rej)=>{const go=()=>{active++;window.novelReader.miwayomiFetch('/api/v1/anime/'+encodeURIComponent(sid)+'/search?query='+query+'&page=1').then(res,rej).finally(()=>{active--;waiting.shift()?.()})};if(active<limit)go();else waiting.push(go)});for(const src of sources){const sid=String(src.id||src.sourceId||'');if(!sid||seen.has(sid)||searchJobs.has(sid))continue;const job=run(sid);job.catch(()=>{});searchJobs.set(sid,job)}}
   for(const src of sources){
    const sid=String(src.id||src.sourceId||'');if(!sid||seen.has(sid))continue;
    seen.add(sid);
    try{
-    const foundData=await window.novelReader.miwayomiFetch('/api/v1/anime/'+encodeURIComponent(sid)+'/search?query='+query+'&page=1');
+    const foundData=await searchJobs.get(sid);
     const found=Array.isArray(foundData)?foundData:(foundData.animes||foundData.items||foundData.results||[]);console.log('[novelreader] fallback-source-search',{source:src.name||sid,count:found.length,query:cleanMediaTitle});
     const title=cleanMediaTitle.trim().toLowerCase();
     const normTitle=(v:any)=>String(v||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
