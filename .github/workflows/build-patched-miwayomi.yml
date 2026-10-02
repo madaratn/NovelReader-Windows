@@ -244,6 +244,21 @@ jobs:
           grep -q 'name.startsWith("android.")' miwayomi/server/src/main/kotlin/miwayomi/extension/ChildFirstURLClassLoader.kt
           grep -q 'ChildFirstURLClassLoader::class.java.classLoader' miwayomi/server/src/main/kotlin/miwayomi/extension/ChildFirstURLClassLoader.kt
           echo "Android compatibility packages are forced through Miwayomi app loader"
+      - name: Fix modern hoster API dispatch before legacy video fallback
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/api/AnimeRoutes.kt")
+          s = p.read_text()
+          start = s.index("            } else {\n                val legacy = try {")
+          end_marker = "                videos.addAll(legacy.map { it.toDtoNormalized() })\n            }"
+          end = s.index(end_marker, start) + len(end_marker)
+          replacement = """            } else {
+                #NOVELREADER_MODERN_HOSTER_EMPTY#
+                println("[novelreader] modern hoster API returned 0 hosters for " + source.name + "; legacy episode fallback skipped")
+            }""".replace("#NOVELREADER_MODERN_HOSTER_EMPTY#", "// Empty modern hoster result: do not invoke deprecated getVideoList(SEpisode).")
+          p.write_text(s[:start] + replacement + s[end:])
+
       - name: Harden hoster discovery against extension Rx errors
         shell: python
         run: |
