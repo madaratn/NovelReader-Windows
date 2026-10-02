@@ -1,5 +1,8 @@
 name: Build patched Miwayomi engine
 
+permissions:
+  contents: write
+
 "on":
   workflow_dispatch: {}
   push:
@@ -29,13 +32,45 @@ jobs:
           from pathlib import Path
           p = Path("miwayomi/server/src/main/kotlin/miwayomi/extension/JarFixer.kt")
           s = p.read_text()
+          # Force extensions processed by older NovelReader/Miwayomi JarFixer builds
+          # through the new stack-frame repair once.
+          s = s.replace('private const val FIX_MARKER = "META-INF/miwayomi-jarfixed"', 'private const val FIX_MARKER = "META-INF/miwayomi-jarfixed-v2"')
           start = s.index("                    classes.forEach { (name, cn) ->")
           end = s.index("                    others.forEach { (name, data) ->", start)
           replacement = """                    classes.forEach { (name, cn) ->
                         val bytes = try {
-                            ClassWriter(ClassWriter.COMPUTE_FRAMES or ClassWriter.COMPUTE_MAXS).apply {
-                                cn.accept(this)
-                            }.toByteArray()
+                            // dex2jar may leave invalid StackMapTable entries. Re-read
+                            // the original class while discarding every old frame, then
+                            // let ASM rebuild frames/maxs from bytecode control flow.
+                            val clean = ClassNode()
+                            ClassReader(originalBytes[name]).accept(clean, ClassReader.SKIP_FRAMES)
+                            // Re-apply Miwayomi's safe bytecode repair to the clean node.
+                            fixWrongInitOwner(clean, needInit, classes)
+                            val writer = object : ClassWriter(ClassWriter.COMPUTE_FRAMES or ClassWriter.COMPUTE_MAXS) {
+                                override fun getCommonSuperClass(type1: String, type2: String): String {
+                                    if (type1 == type2) return type1
+                                    return try {
+                                        val c1 = Class.forName(type1.replace('/', '.'), false, loader)
+                                        val c2 = Class.forName(type2.replace('/', '.'), false, loader)
+                                        when {
+                                            c1.isAssignableFrom(c2) -> type1
+                                            c2.isAssignableFrom(c1) -> type2
+                                            c1.isInterface || c2.isInterface -> "java/lang/Object"
+                                            else -> {
+                                                var c = c1
+                                                while (!c.isAssignableFrom(c2)) c = c.superclass
+                                                c.name.replace('.', '/')
+                                            }
+                                        }
+                                    } catch (_: Throwable) {
+                                        // Extension dependencies are not always resolvable
+                                        // while converting. Object is verifier-safe fallback.
+                                        "java/lang/Object"
+                                    }
+                                }
+                            }
+                            clean.accept(writer)
+                            writer.toByteArray()
                         } catch (e: Throwable) {
                             System.err.println("[miwayomi] frame rebuild failed for $name: $e")
                             originalBytes[name]
@@ -46,12 +81,338 @@ jobs:
                             jos.closeEntry()
                         }
                     }
-"""
-          p.write_text(s[:start] + replacement + s[end:])
+          """
+          s = s[:start] + replacement + s[end:]
+          # Windows keeps the extension JAR locked while URLClassLoader is open.
+          # JarFixer creates this loader before rewriting the JAR, so close it
+          # after frame computation and before Files.move replaces the original.
+          move_marker = "                // Replace the original jar only after the fixed copy was written"
+          if move_marker not in s:
+              raise SystemExit("JarFixer move marker not found")
+          s = s.replace(move_marker, "                loader.close()\n\n" + move_marker, 1)
+          # dex2jar can encode calls to desugared/default-interface methods with
+          # the wrong invocation kind. The JVM then throws
+          # IncompatibleClassChangeError ("must be InterfaceMethodref"). Normalize
+          # method instructions from owners that are known interfaces in the
+          # extension/dependency classpath before ASM recomputes frames.
+          old_fix = "fixWrongInitOwner(clean, needInit, classes)"
+          new_fix = """fixWrongInitOwner(clean, needInit, classes)
+                            clean.methods.forEach { method ->
+                                method.instructions?.iterator()?.forEachRemaining { insn ->
+                                    if (insn is org.objectweb.asm.tree.MethodInsnNode) {
+                                        val ownerNode = classes[insn.owner + ".class"]
+                                        if (ownerNode != null && (ownerNode.access and org.objectweb.asm.Opcodes.ACC_INTERFACE) != 0) {
+                                            if (insn.opcode == org.objectweb.asm.Opcodes.INVOKEVIRTUAL) {
+                                                insn.opcode = org.objectweb.asm.Opcodes.INVOKEINTERFACE
+                                                insn.itf = true
+                                            }
+                                        }
+                                    }
+                                }
+                            }"""
+          if old_fix not in s:
+              raise SystemExit("JarFixer clean repair marker not found")
+          s = s.replace(old_fix, new_fix, 1)
+          # The extension JARs already repaired by older NovelReader builds carry
+          # the v2 marker. Bump it so the new interface-call normalization is
+          # actually applied to those cached JARs on the next launch.
+          s = s.replace('META-INF/miwayomi-jarfixed-v2', 'META-INF/miwayomi-jarfixed-v3')
+          p.write_text(s)
+
+      - name: Patch Android Log shim for extension compatibility
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/android-compat/src/main/kotlin/android/util/Log.kt")
+          s = p.read_text()
+          marker = '    @JvmStatic\n    fun isLoggable(tag: String, level: Int): Boolean = level >= Log.INFO\n'
+          if marker not in s:
+              raise SystemExit("android.util.Log marker not found")
+          # Some current Aniyomi extensions call Log.println(priority, tag, msg).
+          # Android exposes this as a public static API; Miwayomi v0.2.9 only had
+          # a private PrintStream helper with the same name, causing Stub!/linkage
+          # failures when extractors execute on the JVM.
+          compat = '''    @JvmStatic
+          fun println(priority: Int, tag: String, msg: String): Int {
+              val level = when (priority) {
+                  VERBOSE -> "V"
+                  DEBUG -> "D"
+                  INFO -> "I"
+                  WARN -> "W"
+                  ERROR -> "E"
+                  ASSERT -> "A"
+                  else -> priority.toString()
+              }
+              val ps = if (priority >= WARN) PrintStream(System.err) else PrintStream(System.out)
+              return println(ps, level, tag, msg)
+          }
+
+          '''
+          s = s.replace(marker, compat + marker, 1)
+          p.write_text(s)
+
+      - name: Add Android URLUtil compatibility shim
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/android-compat/src/main/kotlin/android/webkit/URLUtil.kt")
+          p.write_text("""package android.webkit
+          
+          import java.net.URI
+          
+          class URLUtil private constructor() {
+              companion object {
+                  @JvmStatic
+                  fun isValidUrl(url: String?): Boolean {
+                      if (url.isNullOrBlank()) return false
+                      return try {
+                          val uri = URI(url.trim())
+                          when (uri.scheme?.lowercase()) {
+                              "http", "https", "ftp", "file" -> true
+                              else -> false
+                          }
+                      } catch (_: Throwable) {
+                          false
+                      }
+                  }
+              }
+          }
+          """)
+
+      - name: Instrument runtime URLUtil class origin
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/Main.kt")
+          s = p.read_text()
+          marker = "fun buildServer(config: ServerConfig): EmbeddedServer<*, *> {\n"
+          if marker not in s:
+              raise SystemExit("buildServer marker not found")
+          probe = """fun logNovelReaderAndroidCompatOrigin() {
+              try {
+                  val cls = Class.forName("android.webkit.URLUtil")
+                  val resource = cls.getResource("/android/webkit/URLUtil.class")
+                  val loader = cls.classLoader
+                  val method = cls.getMethod("isValidUrl", String::class.java)
+                  val probe = runCatching { method.invoke(null, "https://example.com") }
+                  println("[novelreader] URLUtil origin=" + resource)
+                  println("[novelreader] URLUtil loader=" + loader)
+                  println("[novelreader] URLUtil isValidUrl probe=" + probe)
+              } catch (t: Throwable) {
+                  println("[novelreader] URLUtil runtime probe failed: " + t)
+                  t.printStackTrace()
+              }
+          }
+
+          """
+          s = s.replace(marker, probe + marker + "    logNovelReaderAndroidCompatOrigin()\n", 1)
+          p.write_text(s)
+
+      - name: Verify URLUtil shim wins over Android stub
+        working-directory: miwayomi
+        shell: bash
+        run: |
+          ./gradlew :android-compat:classes --no-daemon
+          test -f android-compat/build/classes/kotlin/main/android/webkit/URLUtil.class
+          javap -classpath android-compat/build/classes/kotlin/main -c android.webkit.URLUtil | grep -q "isValidUrl"
+          echo "NovelReader URLUtil shim compiled successfully"
+
+      - name: Force Android compatibility classes to parent loader
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/extension/ChildFirstURLClassLoader.kt")
+          s = p.read_text()
+          marker = "        var c = findLoadedClass(name)"
+          lines = [
+              '        if (name != null && name.startsWith("android.")) {',
+              '            val compatLoader = ChildFirstURLClassLoader::class.java.classLoader',
+              '            val c = compatLoader.loadClass(name)',
+              '            if (resolve) resolveClass(c)',
+              '            return c',
+              '        }',
+              '',
+          ]
+          guard = chr(10).join(lines) + chr(10)
+          if marker not in s:
+              raise SystemExit("ChildFirstURLClassLoader marker not found")
+          p.write_text(s.replace(marker, guard + marker, 1))
+
+      - name: Verify Android classes are parent-first
+        shell: bash
+        run: |
+          grep -q 'name.startsWith("android.")' miwayomi/server/src/main/kotlin/miwayomi/extension/ChildFirstURLClassLoader.kt
+          grep -q 'ChildFirstURLClassLoader::class.java.classLoader' miwayomi/server/src/main/kotlin/miwayomi/extension/ChildFirstURLClassLoader.kt
+          echo "Android compatibility packages are forced through Miwayomi app loader"
+      - name: Fix modern hoster API dispatch before legacy video fallback
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/api/AnimeRoutes.kt")
+          s = p.read_text()
+          # Only legacy extensions (no getHosterList override) may fall back to the
+          # deprecated getVideoList(SEpisode). Modern hoster-API sources such as
+          # Anichi/AnikotoTheme store opaque episode URLs ("<ids>&epurl=/watch/...")
+          # and the default legacy path turns them into baseUrl + url, which fails
+          # with "Invalid URL host" and hides the real hoster error.
+          old_else = "            } else {\n                val legacy = try {"
+          if old_else not in s:
+              raise SystemExit("legacy fallback anchor not found")
+          s = s.replace(old_else, "            } else if (!novelReaderUsesHosterApi(source)) {\n                val legacy = try {", 1)
+          end_marker = "                videos.addAll(legacy.map { it.toDtoNormalized() })\n            }"
+          if end_marker not in s:
+              raise SystemExit("legacy fallback end anchor not found")
+          tail = chr(10).join([
+              "                videos.addAll(legacy.map { it.toDtoNormalized() })",
+              "            } else {",
+              "                // Modern hoster source returned 0 hosters: never use deprecated getVideoList(SEpisode).",
+              '                println("[novelreader] modern hoster API returned 0 hosters for " + source.name + "; legacy episode fallback skipped")',
+              "            }",
+          ])
+          s = s.replace(end_marker, tail, 1)
+          helper = chr(10).join([
+              "",
+              "private fun novelReaderUsesHosterApi(source: Any): Boolean {",
+              "    var c: Class<*>? = source.javaClass",
+              '    while (c != null && c != Any::class.java && c.name != "eu.kanade.tachiyomi.animesource.online.AnimeHttpSource") {',
+              '        if (c.declaredMethods.any { it.name == "getHosterList" || it.name == "hosterListParse" }) return true',
+              "        c = c.superclass",
+              "    }",
+              "    return false",
+              "}",
+              "",
+          ])
+          p.write_text(s.rstrip() + chr(10) + helper)
+
+      - name: Harden hoster discovery against extension Rx errors
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/api/AnimeRoutes.kt")
+          s = p.read_text()
+          marker = "            val hosters = source.getHosterList(episode)"
+          replacement = "            val hosters = runCatching { source.getHosterList(episode) }.getOrElse { e ->" + chr(10) + "                val root = generateSequence(e) { it.cause }.lastOrNull() ?: e" + chr(10) + '                println("[miwayomi] hosters " + source.name + ": " + root.javaClass.simpleName + ": " + root.message)' + chr(10) + "                emptyList()" + chr(10) + "            }"
+          if marker not in s:
+              raise SystemExit("hosters route call anchor not found")
+          p.write_text(s.replace(marker, replacement, 1))
+
+      - name: Log why modern hoster discovery failed in the videos route
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/api/AnimeRoutes.kt")
+          s = p.read_text()
+          # Upstream swallows getHosterList() failures with runCatching and then
+          # falls back to the legacy getVideoList(SEpisode), which for modern
+          # sources such as Anichi (AnikotoTheme) builds baseUrl + episode.url
+          # and fails with a misleading "Invalid URL host". Surface the real
+          # hoster error instead of hiding it.
+          marker = "            val hosters = runCatching { source.getHosterList(episode) }.getOrNull().orEmpty()"
+          lines = [
+              "            val hosters = runCatching { source.getHosterList(episode) }.getOrElse { e ->",
+              "                val root = generateSequence(e) { it.cause }.lastOrNull() ?: e",
+              '                println("[miwayomi] videos/hosters " + source.name + ": " + root.javaClass.name + ": " + root.message)',
+              "                emptyList()",
+              "            }",
+          ]
+          if marker not in s:
+              raise SystemExit("videos route hoster anchor not found")
+          p.write_text(s.replace(marker, chr(10).join(lines), 1))
+
+      - name: Harden anime video routes against extension Rx errors
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/api/AnimeRoutes.kt")
+          s = p.read_text()
+          marker = "            val videos = source.getVideoList(hoster)"
+          lines = [
+              "            val videos = try {",
+              "                source.getVideoList(hoster)",
+              "            } catch (e: Throwable) {",
+              "                val root = generateSequence(e) { it.cause }.lastOrNull() ?: e",
+              '                println("[miwayomi] hosterVideos " + source.name + ": " + root.javaClass.simpleName + ": " + root.message)',
+              "                emptyList()",
+              "            }",
+          ]
+          replacement = chr(10).join(lines)
+          if marker not in s:
+              raise SystemExit("hosterVideos call anchor not found")
+          p.write_text(s.replace(marker, replacement, 1))
+
+      - name: Isolate each hoster during video extraction
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/api/AnimeRoutes.kt")
+          s = p.read_text()
+          old = "                    val list = hoster.videoList" + chr(10) + "                        ?: runCatching { source.getVideoList(hoster) }.getOrNull().orEmpty()" + chr(10) + "                    videos.addAll(list.map { it.toDtoNormalized() })"
+          new = "                    try {" + chr(10) + "                        val list = hoster.videoList" + chr(10) + "                            ?: runCatching { source.getVideoList(hoster) }.getOrNull().orEmpty()" + chr(10) + "                        videos.addAll(list.map { it.toDtoNormalized() })" + chr(10) + "                    } catch (e: Throwable) {" + chr(10) + "                        val root = generateSequence(e) { it.cause }.lastOrNull() ?: e" + chr(10) + '                        println("[miwayomi] video hoster " + source.name + ": " + root.javaClass.simpleName + ": " + root.message)' + chr(10) + "                    }"
+          if old not in s:
+              raise SystemExit("video hoster loop anchor not found")
+          p.write_text(s.replace(old, new, 1))
+
+      - name: Install global RxJava error handler
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/Main.kt")
+          s = p.read_text()
+          marker = "fun buildServer(config: ServerConfig): EmbeddedServer<*, *> {"
+          lines = [
+              "fun installNovelReaderRxErrorHandler() {",
+              "    rx.plugins.RxJavaHooks.setOnError { e ->",
+              "        val root = generateSequence(e) { it.cause }.lastOrNull() ?: e",
+              '        println("[miwayomi] RxJava extension error: " + root.javaClass.simpleName + ": " + root.message)',
+              "    }",
+              "}",
+              "",
+          ]
+          helper = chr(10).join(lines)
+          if marker not in s:
+              raise SystemExit("buildServer anchor not found")
+          s = s.replace(marker, helper + marker, 1)
+          setup = "    logNovelReaderAndroidCompatOrigin()"
+          if setup not in s:
+              raise SystemExit("runtime probe anchor not found")
+          s = s.replace(setup, setup + chr(10) + "    installNovelReaderRxErrorHandler()", 1)
+          p.write_text(s)
+
+      - name: Log per-source video extraction results
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/api/AnimeRoutes.kt")
+          s = p.read_text()
+          marker = "            call.respond(VideosDto(videos))"
+          lines = [
+              '            val schemes = videos.map { v -> v.videoUrl.substringBefore(":", "none") }.distinct().joinToString(",")',
+              '            println("[novelreader] video-probe source=" + source.name + " hosters=" + hosters.size + " videos=" + videos.size + " schemes=" + schemes)',
+              "            call.respond(VideosDto(videos))",
+          ]
+          replacement = chr(10).join(lines)
+          if marker not in s:
+              raise SystemExit("videos response anchor not found")
+          p.write_text(s.replace(marker, replacement, 1))
 
       - name: Build patched fat JAR
         working-directory: miwayomi
         run: ./gradlew :server:shadowJar --no-daemon
+
+      - name: Verify packaged URLUtil is not android.jar Stub
+        working-directory: miwayomi
+        shell: bash
+        run: |
+          JAR="server/build/libs/miwayomi-all.jar"
+          javap -classpath "$JAR" -c android.webkit.URLUtil > /tmp/urlutil.txt
+          cat /tmp/urlutil.txt
+          javap -classpath "$JAR" -c android.webkit.URLUtil\$Companion > /tmp/urlutil-companion.txt
+          cat /tmp/urlutil-companion.txt
+          grep -q "java/net/URI" /tmp/urlutil-companion.txt
+          if grep -q "RuntimeException" /tmp/urlutil.txt; then
+            echo "Packaged URLUtil still contains Android Stub bytecode" >&2
+            exit 1
+          fi
 
       - name: Upload patched engine
         uses: actions/upload-artifact@v4
@@ -59,3 +420,13 @@ jobs:
           name: novelreader-miwayomi-v0.2.9-stackframes
           path: miwayomi/server/build/libs/miwayomi-all.jar
           if-no-files-found: error
+
+      - name: Publish stable patched engine release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="miwayomi-v0.2.9-novelreader"
+          JAR="miwayomi/server/build/libs/miwayomi-all.jar"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "NovelReader Miwayomi v0.2.9 patched" --notes "Miwayomi v0.2.9 compatibility build with StackMap frame regeneration for Aniyomi extensions."
+          gh release upload "$TAG" "$JAR#miwayomi-all.jar" --repo "$GITHUB_REPOSITORY" --clobber

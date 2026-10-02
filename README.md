@@ -1,4 +1,4 @@
-# Novel Reader Windows — v0.2 alpha
+# Novel Reader Windows — v0.3
 
 Windows desktop novel reader with an extensible source engine.
 
@@ -15,6 +15,37 @@ The included remote provider is deliberately a demo provider. Real providers mus
 
     npm install
     npm run start
+
+## Local videos
+Anime mode → **Local Videos**: add a folder from your PC, then play MP4/WebM/MKV files in the app. Seeking works, playback position is remembered per file, and the next file plays automatically. Files are served through a private `nrlocal://` scheme, only from folders you added.
+
+Note: the built-in (Chromium) player decodes H.264/VP9/AV1 video with AAC/Opus audio. MKV files using HEVC (H.265) or AC3/DTS audio will show a codec message.
+
+## Windows build (GitHub Actions)
+The **Build Windows EXE** workflow runs on pushes to `main`, on `v*` tags, or manually (Actions → Build Windows EXE → Run workflow). The installer is attached to the run as the `NovelReader-Windows` artifact.
+
+## Publishing a release
+1. Set `version` in `package.json` (e.g. `0.3.0`) and update `build/release-notes.md` (shown on the GitHub Release page).
+2. Merge, then push a matching tag from that commit: `git tag v0.3.0 && git push origin v0.3.0`.
+3. The workflow checks that the tag matches `package.json`, builds the installer and publishes the GitHub Release with `latest.yml`; installed copies update themselves from it.
+
+## Code layout
+- `src/main.tsx` — the `App` component (state, routing between pages) and the anime/series/movie pages
+- `src/ui/` — app shell: sidebar and navigation model (`shell.tsx`), shared pieces such as icons, covers, error notices and the crash screen (`common.tsx`)
+- `src/features/` — one file per area: `library.tsx` (library, shelves, novel page), `reader.tsx` (reading settings, read aloud, find in chapter), `search.tsx` (global search, sources), `settings.tsx` (settings, backups, updates), `videos.tsx` (Local Videos, Internet Archive), `stats.tsx` (reading statistics), `annotations.tsx` (bookmarks and notes), `sync.tsx` (sync between PCs)
+- `src/lib/` — small helpers and shared types; `src/i18n.ts` — English/French strings
+- `electron/` — main process: window and updates (`app-shell.cjs`), backups, folder sync, offline chapters, LNReader import, local videos, torrent streaming
+
+Checks: `npm run typecheck`, `npm run test:unit`, `npm run check:i18n`, `npm run build && npm run test:ui` (all run on every push).
+
+## UI tests
+The interface is covered by Playwright tests (`tests/ui/`) that run the built renderer in Chromium with a stubbed Electron bridge: navigation, library and shelves, novel page, reader (settings, resume, read aloud), global search, sources, settings and backups, welcome guide, crash screen, French UI and Local Videos.
+
+    npm run build
+    npx playwright install chromium   # first time only
+    npm run test:ui
+
+They run automatically on every push and pull request (workflow **UI tests**).
 
 ## Architecture
 src/sources/registry.ts defines the provider contract. Community plugins should not execute with unrestricted Electron/Node privileges. Next: isolated adapter, manifest validation, global-search UI and update checks.

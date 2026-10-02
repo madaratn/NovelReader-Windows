@@ -1,0 +1,38 @@
+name: UI tests
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1' # the UI tests run the renderer in Chromium, not Electron
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Type check (TypeScript)
+        run: npm run typecheck
+      - name: Every UI string has a French translation
+        run: npm run check:i18n
+      - name: Unit tests (main-process modules)
+        run: npm run test:unit
+      - name: Build renderer
+        run: npm run build
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Run UI tests
+        run: npm run test:ui
+      - name: Upload report and traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-test-results
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
