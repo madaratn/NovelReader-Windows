@@ -254,6 +254,12 @@ const FR: Record<string, string> = {
   'This subtitle file is not next to the video.': 'Ce fichier de sous-titres n’est pas à côté de la vidéo.', 'The subtitle file is too large.': 'Le fichier de sous-titres est trop volumineux.',
   'Not a Matroska/WebM file.': 'Ce n’est pas un fichier Matroska/WebM.',
   // Media libraries, search and sources
+  'Last watched: episode {n} of {total}': 'Dernier vu : épisode {n} sur {total}',
+  'Not started': 'Pas commencé',
+  'Continue · Ep. {n}': 'Continuer · Ép. {n}',
+  'Start · Ep. {n}': 'Commencer · Ép. {n}',
+  'Press “Play movie” above to start.': 'Clique sur « Lire le film » ci-dessus pour commencer.',
+  'Select an episode below to start watching.': 'Choisis un épisode ci-dessous pour commencer.',
   'Finished': 'Terminé',
   'Source pack ready: {n} source installed or already available.': 'Pack prêt : {n} source installée ou déjà présente.',
   'Source pack ready: {n} sources installed or already available.': 'Pack prêt : {n} sources installées ou déjà présentes.',

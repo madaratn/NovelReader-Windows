@@ -559,3 +559,8 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .media-page .libtitle:disabled{cursor:default}
 .settings-seg button{white-space:nowrap}
 .media-search-page>.panel{margin-top:4px}
+
+/* Media detail pages reuse the Books hero (.novelhead); facts panel has no cover. */
+.media-hero .media-kicker{margin-bottom:-4px}
+.media-info.no-cover{grid-template-columns:minmax(0,1fr)}
+.media-detail-page .series-detail-head{border-bottom:0;padding-bottom:0}
