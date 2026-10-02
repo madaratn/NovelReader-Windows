@@ -119,6 +119,113 @@ jobs:
           s = s.replace('META-INF/miwayomi-jarfixed-v2', 'META-INF/miwayomi-jarfixed-v3')
           p.write_text(s)
 
+      - name: Repair constructor owners on uninitialized objects stored in locals
+        shell: python
+        run: |
+          from pathlib import Path
+          # dex2jar can emit `new T; astore n; aload n; <args>; invokespecial X.<init>`
+          # with X != T (seen in AnimeSogo/AnikotoTheme getHosterList:
+          # "VerifyError: Call to wrong <init> method ... 'x' is not assignable to
+          # java/util/ArrayList"). fixWrongInitOwner only understands `new T; dup`.
+          # Trace the receiver of every invokespecial <init> back to its NEW with
+          # ASM's SourceInterpreter and make T the owner, as the verifier requires.
+          root = Path("miwayomi")
+          toml = root / "gradle/libs.versions.toml"
+          t = toml.read_text()
+          anchor = 'asm-tree = { module = "org.ow2.asm:asm-tree", version.ref = "asm" }'
+          if anchor not in t:
+              raise SystemExit("asm-tree catalog anchor not found")
+          t = t.replace(anchor, anchor + "\nasm-analysis = { module = \"org.ow2.asm:asm-analysis\", version.ref = \"asm\" }", 1)
+          toml.write_text(t)
+          gb = root / "server/build.gradle.kts"
+          g = gb.read_text()
+          if "implementation(libs.asm.tree)" not in g:
+              raise SystemExit("asm.tree dependency anchor not found")
+          g = g.replace("implementation(libs.asm.tree)", "implementation(libs.asm.tree)\n    implementation(libs.asm.analysis)", 1)
+          gb.write_text(g)
+
+          p = root / "server/src/main/kotlin/miwayomi/extension/JarFixer.kt"
+          s = p.read_text()
+          # Run the new repair in the first pass (so missing <init>s get synthesized)
+          # and in the clean frame-rebuild pass that actually writes the class.
+          first = "                fixWrongInitOwner(cn, needInit, classes)\n"
+          if first not in s:
+              raise SystemExit("first-pass fixWrongInitOwner anchor not found")
+          s = s.replace(first, first + "                fixUninitializedInitOwner(cn, needInit)\n", 1)
+          clean = "fixWrongInitOwner(clean, needInit, classes)\n"
+          if clean not in s:
+              raise SystemExit("clean-pass fixWrongInitOwner anchor not found")
+          s = s.replace(clean, clean + "                            fixUninitializedInitOwner(clean, needInit)\n", 1)
+          helper = """
+              private fun fixUninitializedInitOwner(cn: ClassNode, needInit: MutableSet<Pair<String, String>>) {
+                  for (m in cn.methods) {
+                      val insns = m.instructions ?: continue
+                      if (insns.size() == 0) continue
+                      val inits = insns.toArray().filterIsInstance<MethodInsnNode>()
+                          .filter { it.opcode == Opcodes.INVOKESPECIAL && it.name == "<init>" }
+                      if (inits.isEmpty()) continue
+                      val frames = try {
+                          org.objectweb.asm.tree.analysis.Analyzer(org.objectweb.asm.tree.analysis.SourceInterpreter()).analyze(cn.name, m)
+                      } catch (_: Throwable) {
+                          continue
+                      }
+                      for (call in inits) {
+                          val f = frames[insns.indexOf(call)] ?: continue
+                          val idx = f.stackSize - Type.getArgumentTypes(call.desc).size - 1
+                          if (idx < 0) continue
+                          val t = novelReaderNewTypeOf(f.getStack(idx), insns, frames, 0) ?: continue
+                          if (t != call.owner) {
+                              System.err.println("[miwayomi] <init> owner " + call.owner + " -> " + t + " in " + cn.name + "." + m.name)
+                              call.owner = t
+                              call.itf = false
+                              needInit.add(t to call.desc)
+                          }
+                      }
+                  }
+              }
+
+              private fun novelReaderNewTypeOf(
+                  v: org.objectweb.asm.tree.analysis.SourceValue?,
+                  insns: InsnList,
+                  frames: Array<org.objectweb.asm.tree.analysis.Frame<org.objectweb.asm.tree.analysis.SourceValue>?>,
+                  depth: Int,
+              ): String? {
+                  if (v == null || depth > 8 || v.insns.isEmpty()) return null
+                  var found: String? = null
+                  for (p in v.insns) {
+                      val t: String = when {
+                          p is TypeInsnNode && p.opcode == Opcodes.NEW -> p.desc
+                          p is InsnNode && p.opcode == Opcodes.DUP -> {
+                              val fr = frames[insns.indexOf(p)] ?: return null
+                              novelReaderNewTypeOf(fr.getStack(fr.stackSize - 1), insns, frames, depth + 1)
+                          }
+                          p is VarInsnNode && p.opcode == Opcodes.ALOAD -> {
+                              val fr = frames[insns.indexOf(p)] ?: return null
+                              novelReaderNewTypeOf(fr.getLocal(p.`var`), insns, frames, depth + 1)
+                          }
+                          p is VarInsnNode && p.opcode == Opcodes.ASTORE -> {
+                              val fr = frames[insns.indexOf(p)] ?: return null
+                              novelReaderNewTypeOf(fr.getStack(fr.stackSize - 1), insns, frames, depth + 1)
+                          }
+                          else -> null
+                      } ?: return null
+                      if (found != null && found != t) return null
+                      found = t
+                  }
+                  return found
+              }
+          """
+          anchor = "    private fun fixConstructorSuperCall("
+          if anchor not in s:
+              raise SystemExit("JarFixer helper anchor not found")
+          import textwrap
+          s = s.replace(anchor, textwrap.indent(textwrap.dedent(helper).strip("\n"), "    ") + "\n\n" + anchor, 1)
+          # Re-process extension JARs cached by previous engine builds.
+          if 'META-INF/miwayomi-jarfixed-v3' not in s:
+              raise SystemExit("v3 marker not found")
+          s = s.replace('META-INF/miwayomi-jarfixed-v3', 'META-INF/miwayomi-jarfixed-v4')
+          p.write_text(s)
+
       - name: Patch Android Log shim for extension compatibility
         shell: python
         run: |
@@ -422,6 +529,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish stable patched engine release
+        if: github.ref == 'refs/heads/v0.2-sources'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
