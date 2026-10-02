@@ -11,8 +11,8 @@ export type NavItem={page:string,label:string,icon:string}
 export const NAV:Record<Mode,{label:string,icon:string,items:NavItem[]}>={
  books:{label:'Books',icon:'book',items:[{page:'library',label:'Library',icon:'grid'},{page:'search',label:'Global Search',icon:'search'},{page:'notes',label:'Bookmarks & notes',icon:'bookmark'},{page:'sources',label:'Sources',icon:'plug'}]},
  anime:{label:'Anime',icon:'play',items:[{page:'anime',label:'Anime Library',icon:'grid'},{page:'animeSearch',label:'Global Search',icon:'search'},{page:'animeSources',label:'Sources',icon:'plug'},{page:'localVideos',label:'Local Videos',icon:'folder'},{page:'archive',label:'Internet Archive',icon:'archive'}]},
- series:{label:'Series',icon:'tv',items:[{page:'series',label:'Series Library',icon:'grid'},{page:'seriesSearch',label:'Global Search',icon:'search'}]},
- movies:{label:'Movies',icon:'film',items:[{page:'movies',label:'Movie Library',icon:'grid'},{page:'movieSearch',label:'Global Search',icon:'search'}]}
+ series:{label:'Series',icon:'tv',items:[{page:'series',label:'Series Library',icon:'grid'},{page:'seriesSearch',label:'Global Search',icon:'search'},{page:'seriesSources',label:'Sources',icon:'plug'}]},
+ movies:{label:'Movies',icon:'film',items:[{page:'movies',label:'Movie Library',icon:'grid'},{page:'movieSearch',label:'Global Search',icon:'search'},{page:'movieSources',label:'Sources',icon:'plug'}]}
 }
 export const MODES=Object.keys(NAV) as Mode[]
 // Detail pages highlight their parent entry in the sidebar.
