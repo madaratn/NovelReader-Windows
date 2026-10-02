@@ -258,7 +258,7 @@ const playAnimeEpisode=async(ep:any,mediaOverride?:any)=>{const media=mediaOverr
  // Saved alternates can become stale as extensions/sites change. Refresh the
  // global search once and try matching sources that were not in the saved set.
  try{
-  const rawMediaTitle=String(media.name||media.title||'');const cleanMediaTitle=rawMediaTitle.replace(/\s*(?:\(\d{4}\)|\{[^}]*\}|\[[^\]]*\]|\b(?:dual audio|multi audio|bluray|web-?dl|webrip|hdrip|brrip|dvdrip|x26[45]|hevc|10bit|480p|720p|1080p|2160p)\b|\b\d+(?:\.\d+)?\s*(?:mb|gb)\b|\|\|).*$/i,'').replace(/\s+/g,' ').trim()||rawMediaTitle;const query=encodeURIComponent(cleanMediaTitle);console.log('[novelreader] fallback-search',{rawTitle:rawMediaTitle,query:cleanMediaTitle});
+  const rawMediaTitle=String(media.name||media.title||'');const cleanMediaTitle=(rawMediaTitle.replace(/\s*\(\d{4}\)/g,' ').replace(/\{[^}]*\}|\[[^\]]*\]/g,' ').replace(/\b(?:dual audio|multi audio|bluray|web-?dl|webrip|hdrip|brrip|dvdrip|x26[45]|hevc|10bit|480p|720p|1080p|2160p)\b/gi,' ').replace(/\b\d+(?:\.\d+)?\s*(?:mb|gb)\b/gi,' ').split('||')[0].replace(/\s+/g,' ').trim()||rawMediaTitle);const query=encodeURIComponent(cleanMediaTitle);console.log('[novelreader] fallback-search',{rawTitle:rawMediaTitle,query:cleanMediaTitle});
   const sourcesData=await window.novelReader.miwayomiFetch('/api/v1/sources');
   const rawSources=Array.isArray(sourcesData)?sourcesData:(sourcesData.sources||sourcesData.items||sourcesData.anime||[]);
   const blockedFallback=mode==='anime'?[]:['streamingunity','streamingcommunity'];
