@@ -254,6 +254,8 @@ const FR: Record<string, string> = {
   'This subtitle file is not next to the video.': 'Ce fichier de sous-titres n’est pas à côté de la vidéo.', 'The subtitle file is too large.': 'Le fichier de sous-titres est trop volumineux.',
   'Not a Matroska/WebM file.': 'Ce n’est pas un fichier Matroska/WebM.',
   // Media libraries, search and sources
+  'This server stopped sending the video. Switching to another server at the same position…': 'Ce serveur n’envoie plus la vidéo. Passage à un autre serveur au même moment…',
+  'The video is stuck. Pick another quality or server.': 'La vidéo est bloquée. Choisis une autre qualité ou un autre serveur.',
   'Watching': 'En cours',
   'Plan to watch': 'À voir',
   'Installed sources': 'Sources installées',
