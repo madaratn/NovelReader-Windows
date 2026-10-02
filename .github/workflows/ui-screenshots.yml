@@ -27,8 +27,8 @@ jobs:
         shell: bash
         run: |
           npx playwright test -c playwright.screens.config.ts 2>&1 | tee cap.log || true
-          grep -E "Error|error|✘|Timeout|expect" cap.log | head -15 | while IFS= read -r l; do echo "::warning::$l"; done
-          ls screens 2>/dev/null | head -40 | while IFS= read -r l; do echo "::notice::shot $l"; done
+          grep -E "Error|error|✘|Timeout|expect" cap.log | head -15 | while IFS= read -r l; do echo "::warning::$l"; done || true
+          ls screens 2>/dev/null | head -40 | while IFS= read -r l; do echo "::notice::shot $l"; done || true
       - name: Publish screenshots to a branch
         shell: bash
         run: |
