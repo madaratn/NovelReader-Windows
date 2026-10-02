@@ -258,7 +258,7 @@ const playAnimeEpisode=async(ep:any,mediaOverride?:any)=>{const media=mediaOverr
  // Saved alternates can become stale as extensions/sites change. Refresh the
  // global search once and try matching sources that were not in the saved set.
  try{
-  const query=encodeURIComponent(String(media.name||media.title||''));
+  const rawMediaTitle=String(media.name||media.title||'');const cleanMediaTitle=rawMediaTitle.replace(/\s*(?:\(\d{4}\)|\{[^}]*\}|\[[^\]]*\]|\b(?:dual audio|multi audio|bluray|web-?dl|webrip|hdrip|brrip|dvdrip|x26[45]|hevc|10bit|480p|720p|1080p|2160p)\b|\b\d+(?:\.\d+)?\s*(?:mb|gb)\b|\|\|).*$/i,'').replace(/\s+/g,' ').trim()||rawMediaTitle;const query=encodeURIComponent(cleanMediaTitle);console.log('[novelreader] fallback-search',{rawTitle:rawMediaTitle,query:cleanMediaTitle});
   const sourcesData=await window.novelReader.miwayomiFetch('/api/v1/sources');
   const rawSources=Array.isArray(sourcesData)?sourcesData:(sourcesData.sources||sourcesData.items||sourcesData.anime||[]);
   const blockedFallback=mode==='anime'?[]:['streamingunity','streamingcommunity'];
@@ -270,7 +270,7 @@ const playAnimeEpisode=async(ep:any,mediaOverride?:any)=>{const media=mediaOverr
    try{
     const foundData=await window.novelReader.miwayomiFetch('/api/v1/anime/'+encodeURIComponent(sid)+'/search?query='+query+'&page=1');
     const found=Array.isArray(foundData)?foundData:(foundData.animes||foundData.items||foundData.results||[]);
-    const title=String(media.name||media.title||'').trim().toLowerCase();
+    const title=cleanMediaTitle.trim().toLowerCase();
     const normTitle=(v:any)=>String(v||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
     const wanted=normTitle(title);
     const ranked=found.map((x:any)=>{const got=normTitle(x.title||x.name||'');let score=0;if(got===wanted)score=100;else if(got.startsWith(wanted+' ')||wanted.startsWith(got+' '))score=80;else if(got.includes(wanted)||wanted.includes(got))score=60;return{x,score}}).filter((r:any)=>r.score>0).sort((a:any,b:any)=>b.score-a.score);
