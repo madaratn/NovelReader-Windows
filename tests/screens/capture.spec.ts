@@ -6,7 +6,7 @@ import { setup, novel } from '../ui/helpers'
 
 const media = (kind: string, n: number) => Array.from({ length: n }, (_, i) => ({
   id: kind + i, name: [`Solo Leveling`, `Frieren`, `Lanterns`, `Iron Man 3`, `Dune`, `The Bear`][i % 6] + (i > 5 ? ' ' + i : ''),
-  sourceId: '42', sourceName: 'Mapple', url: '/' + kind + '/' + i, thumbnail: '', episodes: kind === 'movie' ? 1 : 12, addedAt: Date.now() - i * 3600_000
+  sourceId: '42', sourceName: 'Mapple', url: '/' + kind + '/' + i, thumbnail: '', episodes: kind === 'movie' ? 1 : 12, addedAt: Date.now() - i * 3600_000, ...(kind === 'anime' && i === 1 ? { newEpisodes: 2 } : {})
 }))
 
 async function boot(page: Page) {
