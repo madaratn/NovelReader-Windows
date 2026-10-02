@@ -46,8 +46,9 @@ test('capture all sections', async ({ page }) => {
   await boot(page)
   // Books
   await shot(page, '01-livres-bibliotheque')
-  await page.locator('main').getByText('Shadow Slave').first().click().catch(() => {})
-  await shot(page, '02-livres-fiche')
+  await page.locator('.libcard-cover').nth(1).click().catch(() => {})
+  await page.waitForTimeout(500); await shot(page, '02-livres-fiche')
+  await navTo(page, 'Bibliothèque')
   await navTo(page, 'Recherche globale'); await shot(page, '03-livres-recherche')
   await navTo(page, 'Sources'); await shot(page, '04-livres-sources')
   // Anime
@@ -73,4 +74,10 @@ test('capture all sections', async ({ page }) => {
   // Settings
   await page.locator('.sidebar').getByText('Paramètres').first().click().catch(() => {})
   await shot(page, '40-parametres')
+  // Dark theme: same key pages
+  await page.locator('.settings-seg button', { hasText: 'Sombre' }).click().catch(() => {})
+  await mode(page, 1); await navTo(page, 'Bibliothèque'); await shot(page, '50-sombre-livres')
+  await mode(page, 2); await navTo(page, 'Bibliothèque anime'); await shot(page, '51-sombre-anime')
+  await page.locator('main').getByText('Solo Leveling').first().click().catch(() => {})
+  await page.waitForTimeout(800); await shot(page, '52-sombre-anime-fiche')
 })

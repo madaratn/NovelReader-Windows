@@ -254,6 +254,7 @@ const FR: Record<string, string> = {
   'This subtitle file is not next to the video.': 'Ce fichier de sous-titres n’est pas à côté de la vidéo.', 'The subtitle file is too large.': 'Le fichier de sous-titres est trop volumineux.',
   'Not a Matroska/WebM file.': 'Ce n’est pas un fichier Matroska/WebM.',
   // Media libraries, search and sources
+  'Finished': 'Terminé',
   'Source pack ready: {n} source installed or already available.': 'Pack prêt : {n} source installée ou déjà présente.',
   'Source pack ready: {n} sources installed or already available.': 'Pack prêt : {n} sources installées ou déjà présentes.',
   'No source from the recommended pack could be installed.': 'Aucune source du pack recommandé n’a pu être installée.',
