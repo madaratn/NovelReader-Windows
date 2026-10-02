@@ -59,8 +59,19 @@ function startMiwayomi(){
  miwayomiProcess.on('error',e=>pushMiwayomiLog('stderr','Process error: '+String(e.message||e)));
  miwayomiProcess.on('exit',(code,signal)=>{pushMiwayomiLog('stderr','Process exited code='+code+' signal='+signal);miwayomiProcess=null}); return true;
 }
+// Video extraction walks several hoster servers and can take far longer than a
+// catalogue call; a short timeout made slow sources (e.g. Mapple) look broken.
+function miwayomiTimeout(pathname){
+  const p=String(pathname).split('?')[0];
+  if(/\/(videos|hosters|hosterVideos)$/.test(p)) return 60000;
+  if(/\/(episodes|seasons|details)$/.test(p)) return 30000;
+  if(/\/search$/.test(p)) return 15000;
+  if(/\/extensions\/(install|repo)/.test(p)) return 60000;
+  return 8000;
+}
 async function miwayomiRequest(pathname, init={}) {
-  const controller=new AbortController(); const timer=setTimeout(()=>controller.abort(),8000);
+  const timeoutMs=miwayomiTimeout(pathname);
+  const controller=new AbortController(); const timer=setTimeout(()=>controller.abort(),timeoutMs);
   try {
     const r=await fetch(MIWAYOMI_BASE+pathname,{...init,signal:controller.signal,headers:{'Content-Type':'application/json',...(init.headers||{})}});
     const ct=r.headers.get('content-type')||'';
@@ -72,6 +83,9 @@ async function miwayomiRequest(pathname, init={}) {
       throw new Error('Miwayomi HTTP '+r.status+(detail?' — '+detail:''));
     }
     return ct.includes('json')?await r.json():await r.text();
+  } catch(e) {
+    if(e&&e.name==='AbortError') throw new Error('Miwayomi request timed out after '+Math.round(timeoutMs/1000)+' s ('+String(pathname).split('?')[0]+')');
+    throw e;
   } finally { clearTimeout(timer) }
 }
 ipcMain.handle('anime:miwayomiStatus', async()=>{try{const health=await miwayomiRequest('/api/v1/health');return {online:true,baseUrl:MIWAYOMI_BASE,health}}catch(e){if(!miwayomiProcess)startMiwayomi();return {online:false,starting:!!miwayomiProcess,baseUrl:MIWAYOMI_BASE,error:String(e.message||e)}}});
