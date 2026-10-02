@@ -105,6 +105,11 @@ jobs:
                                             if (insn.opcode == org.objectweb.asm.Opcodes.INVOKEVIRTUAL) {
                                                 insn.opcode = org.objectweb.asm.Opcodes.INVOKEINTERFACE
                                                 insn.itf = true
+                                            } else if (insn.opcode == org.objectweb.asm.Opcodes.INVOKESTATIC ||
+                                                insn.opcode == org.objectweb.asm.Opcodes.INVOKESPECIAL) {
+                                                // Static/private/default interface methods must use an
+                                                // InterfaceMethodref ("must be InterfaceMethodref constant").
+                                                insn.itf = true
                                             }
                                         }
                                     }
@@ -223,7 +228,7 @@ jobs:
           # Re-process extension JARs cached by previous engine builds.
           if 'META-INF/miwayomi-jarfixed-v3' not in s:
               raise SystemExit("v3 marker not found")
-          s = s.replace('META-INF/miwayomi-jarfixed-v3', 'META-INF/miwayomi-jarfixed-v4')
+          s = s.replace('META-INF/miwayomi-jarfixed-v3', 'META-INF/miwayomi-jarfixed-v5')
           p.write_text(s)
 
       - name: Patch Android Log shim for extension compatibility
