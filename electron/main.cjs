@@ -15,6 +15,7 @@ const {createLNReaderImporter}=require('./lnreader-import.cjs')
 const {createFolderSync}=require('./sync.cjs')
 const folderSync=createFolderSync({app,dialog})
 const {createLocalTracks}=require('./local-tracks.cjs')
+const {createFlareSolverr}=require('./flaresolverr.cjs')
 const localTracks=createLocalTracks()
 // Lets the Local Videos player list and switch audio tracks (video.audioTracks).
 app.commandLine.appendSwitch('enable-blink-features','AudioVideoTracks')
@@ -65,7 +66,7 @@ function miwayomiTimeout(pathname){
   const p=String(pathname).split('?')[0];
   if(/\/(videos|hosters|hosterVideos)$/.test(p)) return 60000;
   if(/\/(episodes|seasons|details)$/.test(p)) return 30000;
-  if(/\/search$/.test(p)) return 15000;
+  if(/\/(search|popular|latest)$/.test(p)) return 15000;
   if(/\/extensions\/(install|repo)/.test(p)) return 60000;
   return 8000;
 }
@@ -90,6 +91,12 @@ async function miwayomiRequest(pathname, init={}) {
 }
 ipcMain.handle('anime:miwayomiStatus', async()=>{try{const health=await miwayomiRequest('/api/v1/health');return {online:true,baseUrl:MIWAYOMI_BASE,health}}catch(e){if(!miwayomiProcess)startMiwayomi();return {online:false,starting:!!miwayomiProcess,baseUrl:MIWAYOMI_BASE,error:String(e.message||e)}}});
 ipcMain.handle('anime:miwayomiDebug',async()=>{const [health,sources,installed]=await Promise.all([miwayomiRequest('/api/v1/health'),miwayomiRequest('/api/v1/sources'),miwayomiRequest('/api/v1/extensions/installed')]);return {health,sources,installed,dataDir:path.join(app.getPath('userData'),'miwayomi'),engineJar:path.join(engineRoot(),'miwayomi-all.jar'),logs:miwayomiLogs.slice(-250)}});
+// Cloudflare solver used by the video engine (see electron/flaresolverr.cjs).
+let flare=null
+const flareApi=()=>flare||(flare=createFlareSolverr({app}))
+ipcMain.handle('flare:status',()=>flareApi().status())
+ipcMain.handle('flare:install',()=>flareApi().install())
+ipcMain.handle('flare:start',async()=>{flareApi().start();await new Promise(r=>setTimeout(r,2500));return flareApi().status()})
 ipcMain.handle('anime:miwayomiFetch', async(_e,{path,method='GET',body})=>{
  if(typeof path!=='string'||!path.startsWith('/')) throw new Error('Invalid Miwayomi path');
  return miwayomiRequest(path,{method,body:body==null?undefined:JSON.stringify(body)});
@@ -222,6 +229,6 @@ async function runSmokeTest(win){
  app.exit(result.ok?0:1)
 }
 
-app.whenReady().then(()=>{registerLocalProtocol();if(SMOKE_TEST){runSmokeTest(createWindow());return}startMiwayomi();createWindow();updater.start()})
-app.on('before-quit',()=>{if(miwayomiProcess){miwayomiProcess.kill();miwayomiProcess=null}})
+app.whenReady().then(()=>{registerLocalProtocol();if(SMOKE_TEST){runSmokeTest(createWindow());return}try{flareApi().start()}catch{}startMiwayomi();createWindow();updater.start()})
+app.on('before-quit',()=>{if(miwayomiProcess){miwayomiProcess.kill();miwayomiProcess=null}try{flare&&flare.stop()}catch{}})
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()})

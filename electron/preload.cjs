@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('novelReader',{
  parseChapter:(plugin,path)=>ipcRenderer.invoke('plugin:parseChapter',{plugin,path}),
  miwayomiStatus:()=>ipcRenderer.invoke('anime:miwayomiStatus'),miwayomiDebug:()=>ipcRenderer.invoke('anime:miwayomiDebug'),
  miwayomiFetch:(path,method='GET',body)=>ipcRenderer.invoke('anime:miwayomiFetch',{path,method,body}),
+ flareStatus:()=>ipcRenderer.invoke('flare:status'),flareInstall:()=>ipcRenderer.invoke('flare:install'),flareStart:()=>ipcRenderer.invoke('flare:start'),
  localFolders:()=>ipcRenderer.invoke('local:folders'),
  localAddFolder:()=>ipcRenderer.invoke('local:addFolder'),
  localRemoveFolder:(folder)=>ipcRenderer.invoke('local:removeFolder',folder),
