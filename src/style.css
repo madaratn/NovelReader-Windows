@@ -40,7 +40,7 @@
 
 .anime-source-list .anime-source-chip{padding:7px 10px;border:1px solid #2a3040;border-radius:999px;background:#0d1017;color:#aab5cf;font-size:12px;cursor:pointer}.anime-source-list .anime-source-chip:hover{border-color:#7664f5;color:#fff}.anime-source-list .anime-source-chip.selected{background:#7664f5;border-color:#7664f5;color:#fff}.selected-source{margin-top:18px;padding:14px;border:1px solid #343a50;border-radius:12px;background:#0c0f16;display:flex;align-items:center;justify-content:space-between;gap:16px}.selected-source small{display:block;color:#8994b2;margin-top:5px}
 
-.engine-row{display:flex;align-items:center;justify-content:space-between;gap:18px}.engine-row h2{margin-bottom:6px}.engine-row p{margin:0;color:#98a5c3}.engine-row button{padding:9px 13px;border:1px solid #343a50;border-radius:9px;background:#171b27;color:#dfe5f5;cursor:pointer}
+.engine-row{display:flex;align-items:center;justify-content:space-between;gap:18px}.engine-row h2{margin-bottom:6px}.engine-row p{margin:0;color:#9aa0b4}.engine-row button{padding:9px 13px;border:1px solid #343a50;border-radius:9px;background:#171b27;color:#dfe5f5;cursor:pointer}
 
 .engine-offline{border-color:#63363e}.engine-online{border-color:#315c48}.engine-row small{display:block;margin-top:7px;color:#d28e98}
 
@@ -434,7 +434,7 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .media-heading p{margin:0;color:#9aa0b4;max-width:700px}
 .media-kicker{color:#9b8fff;font-size:11px;font-weight:800;letter-spacing:1.4px}
 .media-add{min-height:42px;padding:0 16px;white-space:nowrap}
-.media-page .lib-toolbar{margin-bottom:18px;padding:10px;border:1px solid #232838;border-radius:13px;background:#0f1218}
+.media-page .lib-toolbar{margin-bottom:12px}
 .media-page .libgrid{grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:16px}
 .media-page .libcard{grid-template-columns:112px minmax(0,1fr);min-height:190px;padding:12px;border-radius:16px;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
 .media-page .libcard:hover{transform:translateY(-2px);border-color:#4a4380;box-shadow:0 12px 28px rgba(0,0,0,.2)}
@@ -444,7 +444,7 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .media-page .libcard-meta h2{font-size:18px;margin-top:2px}
 .media-page .libcard-meta p{color:#a7adc0}
 .media-page .lib-empty{min-height:220px;justify-content:center;padding:28px;background:radial-gradient(circle at 15% 10%,rgba(117,98,239,.13),transparent 38%),#0f1218}
-.media-search-page .search-main{margin:0 0 12px;padding:10px;border:1px solid #2a3040;border-radius:14px;background:#0f1218}
+.media-search-page .search-main{margin:0 0 12px}
 .media-search-page .search-main input{min-height:48px;font-size:15px}
 .media-search-page .search-main button{min-width:112px;min-height:48px}
 .media-search-page .recent-searches{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 0 16px}
@@ -484,7 +484,7 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 @media(max-width:700px){.media-player-title{align-items:flex-start;flex-direction:column}.media-player-title>small{white-space:normal}}
 
 /* Series detail compact identity + season-aware episode badges */
-.series-detail-head{margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #232838}
+.series-detail-head{margin-bottom:14px}
 .series-detail-head .backbtn{margin-bottom:9px}
 .series-title-row{display:flex;align-items:flex-end;justify-content:space-between;gap:18px}
 .series-title-row h1{margin:2px 0 0;font-size:24px;line-height:1.15;letter-spacing:-.35px}
@@ -552,3 +552,14 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .media-page.books-ui .libcard-meta h2{font-size:15px;margin-top:0}
 .media-page.books-ui .libcard-meta p{color:inherit}
 @media(max-width:760px){.media-page.books-ui .libgrid{grid-template-columns:1fr}.media-page.books-ui .libcard{grid-template-columns:76px minmax(0,1fr)}}
+
+/* UI harmonization with Books: media cards keep "Remove" compact on the right,
+   settings toggles never wrap, media search tips spacing. */
+.media-page .libcard .libraryactions .removebtn{grid-column:2}
+.media-page .libtitle:disabled{cursor:default}
+.settings-seg button{white-space:nowrap}
+.media-search-page>.panel{margin-top:4px}
+
+/* Media detail pages reuse the Books hero (.novelhead); facts panel has no cover. */
+.media-hero .media-kicker{margin-bottom:-4px}
+.media-info.no-cover{grid-template-columns:minmax(0,1fr)}
