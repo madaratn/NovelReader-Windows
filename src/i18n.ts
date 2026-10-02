@@ -258,7 +258,6 @@ const FR: Record<string, string> = {
   'Not started': 'Pas commencé',
   'Continue · Ep. {n}': 'Continuer · Ép. {n}',
   'Start · Ep. {n}': 'Commencer · Ép. {n}',
-  'Press “Play movie” above to start.': 'Clique sur « Lire le film » ci-dessus pour commencer.',
   'Select an episode below to start watching.': 'Choisis un épisode ci-dessous pour commencer.',
   'Finished': 'Terminé',
   'Source pack ready: {n} source installed or already available.': 'Pack prêt : {n} source installée ou déjà présente.',

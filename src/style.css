@@ -484,7 +484,7 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 @media(max-width:700px){.media-player-title{align-items:flex-start;flex-direction:column}.media-player-title>small{white-space:normal}}
 
 /* Series detail compact identity + season-aware episode badges */
-.series-detail-head{margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #232838}
+.series-detail-head{margin-bottom:14px}
 .series-detail-head .backbtn{margin-bottom:9px}
 .series-title-row{display:flex;align-items:flex-end;justify-content:space-between;gap:18px}
 .series-title-row h1{margin:2px 0 0;font-size:24px;line-height:1.15;letter-spacing:-.35px}
@@ -563,4 +563,3 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 /* Media detail pages reuse the Books hero (.novelhead); facts panel has no cover. */
 .media-hero .media-kicker{margin-bottom:-4px}
 .media-info.no-cover{grid-template-columns:minmax(0,1fr)}
-.media-detail-page .series-detail-head{border-bottom:0;padding-bottom:0}
