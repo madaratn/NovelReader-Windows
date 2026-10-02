@@ -14,7 +14,13 @@ async function boot(page: Page) {
     lang: 'fr',
     library: [novel('n1', 'Shadow Slave', 2400, { author: 'Guiltythree' }), novel('n2', 'Lord of the Mysteries', 1430), novel('n3', 'Omniscient Reader', 551), novel('n4', 'Reverend Insanity', 2334)],
     reading: { n1: { index: 1200 }, n2: { index: 40 } },
-    storage: { animeLibrary: JSON.stringify(media('anime', 6)), seriesLibrary: JSON.stringify(media('series', 4)), movieLibrary: JSON.stringify(media('movie', 5)) }
+    storage: {
+      animeLibrary: JSON.stringify(media('anime', 6)), seriesLibrary: JSON.stringify(media('series', 4)), movieLibrary: JSON.stringify(media('movie', 5)),
+      'lastEpInfo:series2': JSON.stringify({ url: '/ep/3', name: 'S1 E3 - OutKast', n: 3, at: Date.now() - 3600_000 }),
+      'mediapos:series:series2:/ep/3': JSON.stringify({ t: 1325, d: 2700, at: Date.now() - 3600_000 }),
+      'lastEpInfo:movie3': JSON.stringify({ url: '/ep/1', name: '', n: 1, at: Date.now() - 7200_000 }),
+      'mediapos:movie:movie3': JSON.stringify({ t: 3100, d: 7800, at: Date.now() - 7200_000 })
+    }
   })
   await page.addInitScript(() => {
     const w = window as any
@@ -27,6 +33,7 @@ async function boot(page: Page) {
       miwayomiFetch: async (path: string) => {
         if (path.includes('/details')) return { title: 'Lanterns', description: desc, genre: ['Drama', 'Mystery', 'Sci-Fi & Fantasy'], status: 2, author: 'DC Studios, HBO' }
         if (path.includes('/episodes')) return eps
+        if (path.includes('/videos')) return [{ videoUrl: 'https://cdn.test/v.mp4', videoTitle: 'HD-1 - Sub - 1080p', headers: {}, subtitleTracks: [], audioTracks: [], timestamps: [{ start: 0, end: 85, name: 'Intro', type: 'Opening' }] }]
         if (path.includes('/extensions/installed')) return [{ name: 'Mapple', pkg: 'mapple', anime: 1 }]
         if (path.includes('/sources')) return [{ id: '42', name: 'Mapple', lang: 'en' }]
         return []
@@ -63,6 +70,9 @@ test('capture all sections', async ({ page }) => {
   await mode(page, 3); await navTo(page, 'Bibliothèque séries'); await shot(page, '20-series-bibliotheque')
   await page.locator('main').getByText('Lanterns').first().click().catch(() => {})
   await page.waitForTimeout(800); await shot(page, '21-series-fiche')
+  await page.locator('.media-hero .primary').click().catch(() => {})
+  await page.waitForTimeout(1500); await shot(page, '21b-series-lecteur')
+  await navTo(page, 'Bibliothèque séries'); await shot(page, '20b-series-reprendre')
   await navTo(page, 'Recherche globale'); await shot(page, '22-series-recherche')
   await navTo(page, 'Sources'); await shot(page, '23-series-sources')
   // Movies
