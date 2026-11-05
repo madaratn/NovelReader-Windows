@@ -608,3 +608,12 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .player-stage.cue-bg-none video::cue{background:transparent;text-shadow:none}
 .player-stage.cue-bg-shadow video::cue{background:transparent;text-shadow:0 0 4px #000,0 0 2px #000,1px 1px 2px #000}
 .player-stage.cue-bg-box video::cue{background:rgba(0,0,0,.78);text-shadow:none}
+/* Discover (Popular / Latest per source) */
+.discover-bar{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 18px;margin:0 0 16px;border-bottom:1px solid #232838}
+.discover-bar .shelftabs{margin:0;border-bottom:0}
+.discover-bar label{display:inline-flex;align-items:center;gap:8px;margin:0 0 8px;color:#9aa0b4;font-size:13px}
+.discover-bar select{min-height:34px;max-width:280px;padding:0 10px;border:1px solid #30364a;border-radius:8px;background:#161a24;color:#e6e8ef;font:inherit;font-size:13.5px}
+.media-discover .resultgrid{margin-top:4px}
+.discover-more{display:flex;justify-content:center;margin:18px 0 8px}
+.linkbtn{padding:0;border:0;background:none;cursor:pointer;font:inherit;text-align:left}
+.linkbtn:hover{text-decoration:underline}

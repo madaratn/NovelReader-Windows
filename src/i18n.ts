@@ -443,6 +443,15 @@ const FR: Record<string, string> = {
   'Why each source failed:': 'Pourquoi chaque source a échoué :',
   'Searching your other sources… {done}/{total}': 'Recherche dans vos autres sources… {done}/{total}',
   'Looking for a stream on {source}…': 'Recherche d’un flux sur {source}…',
+  // Discover
+  'Discover': 'Découvrir', 'Lists': 'Listes', 'Popular': 'Populaires', 'Latest': 'Nouveautés', 'Source': 'Source', 'Load more': 'Charger plus', 'Nothing here': 'Rien ici',
+  'This source has no list of latest releases. Try Popular.': 'Cette source n’a pas de liste de nouveautés. Essaie Populaires.',
+  'Browse what is popular or new on one of your anime sources.': 'Parcours ce qui est populaire ou nouveau sur une de tes sources anime.',
+  'Browse what is popular or new on one of your series sources.': 'Parcours ce qui est populaire ou nouveau sur une de tes sources séries.',
+  'Browse what is popular or new on one of your movie sources.': 'Parcours ce qui est populaire ou nouveau sur une de tes sources films.',
+  'No video source installed': 'Aucune source vidéo installée',
+  'Install a source in Sources first, then come back here.': 'Installe d’abord une source dans Sources, puis reviens ici.',
+  'This source returned an empty list. Try another source.': 'Cette source a renvoyé une liste vide. Essaie une autre source.',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

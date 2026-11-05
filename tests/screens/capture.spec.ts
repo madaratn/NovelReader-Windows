@@ -37,6 +37,7 @@ async function boot(page: Page) {
         if (path.includes('/extensions/installed')) return [{ name: 'Mapple', pkg: 'mapple', anime: 1 }, { name: 'Aniyomi: LaMovie', pkg: 'lamovie', anime: 1 }, { name: 'Anichi', pkg: 'anichi', anime: 1 }]
         if (path.includes('/sources')) return [{ id: '42', name: 'Mapple', lang: 'en', pkg: 'mapple' }, { id: '43', name: 'LaMovie', lang: 'es', pkg: 'lamovie' }, { id: '44', name: 'Anichi', lang: 'en', pkg: 'anichi' }]
         if (path.includes('/43/popular')) throw new Error("Error invoking remote method 'anime:miwayomiFetch': Error: Miwayomi HTTP 500 — {\"error\":\"Hôte inconnu (la.movie)\"}")
+        if (path.includes('/42/popular')) return { animes: ['Lanterns', 'Severance', 'Andor', 'The Bear', 'Shogun', 'Dune Prophecy'].map((title, i) => ({ title, url: '/s/' + i })), hasNextPage: true }
         if (path.includes('/popular')) return { animes: [] }
         return []
       }
@@ -77,6 +78,7 @@ test('capture all sections', async ({ page }) => {
   await page.locator('.media-hero .primary').click().catch(() => {})
   await page.waitForTimeout(1500); await shot(page, '21b-series-lecteur')
   await navTo(page, 'Bibliothèque séries'); await shot(page, '20b-series-reprendre')
+  await navTo(page, 'Découvrir'); await page.waitForTimeout(600); await shot(page, '22b-series-decouvrir')
   await navTo(page, 'Recherche globale'); await shot(page, '22-series-recherche')
   await navTo(page, 'Sources'); await shot(page, '23-series-sources')
   // Movies

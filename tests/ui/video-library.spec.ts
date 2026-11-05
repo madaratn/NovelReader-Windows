@@ -29,6 +29,8 @@ async function openVideo(page: Page, storage: Record<string, string>) {
         if (path.includes('/extensions/uninstall')) return { ok: true, pkg: body?.pkg }
         if (path.includes('/sources')) return { anime: [{ id: '42', name: 'Mapple', lang: 'en', pkg: 'mapple' }, { id: '43', name: 'LaMovie', lang: 'es', pkg: 'lamovie' }] }
         if (path.includes('/43/popular')) throw new Error("Error invoking remote method 'anime:miwayomiFetch': Error: Miwayomi HTTP 500 — {\"error\":\"Hôte inconnu (la.movie)\"}")
+        if (path.includes('/42/popular')) return path.endsWith('page=1') ? { animes: [{ title: 'Lanterns', url: '/series/1', thumbnail_url: 'https://img.test/l.jpg' }, { title: 'Severance', url: '/s/sev', thumbnail_url: 'https://img.test/s.jpg' }], hasNextPage: true } : { animes: [{ title: 'Andor', url: '/s/andor', thumbnail_url: 'https://img.test/a.jpg' }], hasNextPage: false }
+        if (path.includes('/latest')) throw new Error('Miwayomi HTTP 500 — {"error":"Latest is not supported by this source"}')
         if (path.includes('/popular')) return { animes: [] }
         return []
       }
@@ -113,4 +115,24 @@ test('episodes: watched marks, Shift marks the previous ones, counts on the card
   await expect(page.locator('.episode-tools small')).toHaveText('8 / 8 watched')
   await page.locator('.sidebar .nav-item', { hasText: 'Series Library' }).click()
   await expect(page.locator('.libcard', { hasText: 'Lanterns' }).locator('small')).toContainText('8 watched')
+})
+
+test('discover: popular list of a source, add to library, load more, latest unsupported', async ({ page }) => {
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'seriesDiscover', seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns')]) })
+  await expect(page.locator('h1')).toHaveText('Discover')
+  await expect(page.locator('.media-discover .resultcard h3')).toHaveText(['Lanterns', 'Severance'])
+  // Already saved titles link to the library instead of offering to add them again
+  await expect(page.locator('.resultcard', { hasText: 'Lanterns' })).toContainText('In your library')
+  await page.locator('.resultcard', { hasText: 'Severance' }).getByRole('button', { name: /Add to library/ }).click()
+  await expect(page.locator('.resultcard', { hasText: 'Severance' })).toContainText('In your library')
+  const lib = await page.evaluate(() => JSON.parse(localStorage.getItem('seriesLibrary') || '[]').map((x: any) => x.name))
+  expect(lib).toEqual(['Severance', 'Lanterns'])
+  await page.getByRole('button', { name: 'Load more' }).click()
+  await expect(page.locator('.media-discover .resultcard h3')).toHaveText(['Lanterns', 'Severance', 'Andor'])
+  await expect(page.getByRole('button', { name: 'Load more' })).toHaveCount(0)
+  await page.getByRole('tab', { name: 'Latest' }).click()
+  await expect(page.locator('.anime-toast.error')).toContainText('no list of latest releases')
+  // The choice of source is kept per mode
+  await page.locator('.discover-bar select').selectOption('43')
+  expect(await page.evaluate(() => localStorage.getItem('discoverSource:Series'))).toBe('43')
 })
