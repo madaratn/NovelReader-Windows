@@ -1,24 +1,24 @@
-## NovelReader 0.3.0
+## NovelReader 0.4.0
 
-Première version publiée avec mises à jour automatiques : les prochaines versions s'installeront toutes seules (une bannière propose de redémarrer).
+Grosse mise à jour des volets **Anime, Séries et Films**. Si vous avez la 0.3.0, elle s'installe toute seule (une bannière propose de redémarrer).
 
-### Lecture
-- Lecteur repensé : réglages de lecture (police, taille, interligne, largeur, thèmes), barre d'outils fixe, raccourcis clavier, reprise exacte à la ligne près.
-- **Signets, surlignages et notes** : sélectionnez un passage pour le surligner (3 couleurs) ou y ajouter une note ; la page « Signets et notes » les regroupe par roman.
-- Rechercher dans le chapitre (Ctrl+F), lecture à voix haute, lecture hors ligne des chapitres téléchargés.
-- Statistiques de lecture.
+### Lecture vidéo
+- Moteur vidéo corrigé et plus rapide : Anichi, AnimeSogo, YFantasy, ReAnime, Movies Mod… fonctionnent de nouveau ; extraction des serveurs en parallèle, délais adaptés, Cloudflare contourné automatiquement (FlareSolverr).
+- **Choix de l'audio et des sous-titres** (VF / VO, Sub / Dub), qualité, vitesse.
+- Passage automatique à un autre flux quand un serveur ne répond plus, reprise si la lecture se bloque, serveur qui a marché mémorisé par titre.
+- Bouton « Passer l'intro / l'outro », épisode suivant automatique (compte à rebours 5 s), préchargement de l'épisode suivant.
+- **Style des sous-titres** : taille, couleur, fond, décalage ±0,5 s.
+- **Mini-lecteur** (image dans l'image) pour continuer à regarder en travaillant.
 
-### Bibliothèque et recherche
-- Bibliothèque avec étagères (En cours, À lire, Terminés, Abandonnés), tri, recherche, progression et suppression annulable.
-- Page roman avec progression, chapitre en cours et filtres ; vérification des nouveaux chapitres en arrière-plan, avec notification Windows.
-- Recherche globale (romans et BD réunis) avec progression en direct, filtre de langue et ajout direct à la bibliothèque.
-- Import d'une sauvegarde LNReader.
+### Nouveau
+- **Téléchargements hors ligne** : bouton ⤓ sur chaque épisode (ou sur la page d'un film). L'épisode se lit ensuite depuis le PC, sans internet, avec ses sous-titres. Page « Téléchargements » pour lire, supprimer et voir la place utilisée.
+- **Découvrir** : les listes Populaires / Nouveautés de chaque source, pour trouver quoi regarder sans connaître le titre.
+- **Nouveaux épisodes** vérifiés en arrière-plan toutes les 6 heures, avec notification Windows (désactivable dans Paramètres).
+- **Épisodes vus** : coche ✓ par épisode (Maj+clic coche aussi les précédents), « Tout marquer comme vu », progression par épisode.
+- **Statistiques de visionnage** et synchronisation des vidéos entre PC (bibliothèques, positions, épisodes vus, serveurs préférés).
 
-### Windows
-- **Synchronisation entre PC** via un dossier OneDrive, Google Drive ou Dropbox : bibliothèque, positions, signets, notes et statistiques fusionnés automatiquement.
-- **Thème clair** qui suit Windows (ou au choix : clair / sombre), dans Paramètres › Apparence.
-- Interface en français, guide de bienvenue, sauvegarde et restauration, fenêtre et page mémorisées, une seule instance.
-- Sécurité renforcée (politique de sécurité du contenu, fenêtres externes bloquées).
+### Interface
+- Volets Anime, Séries et Films harmonisés avec celui des livres : bibliothèques avec étagères (En cours, À voir, Terminés, Abandonnés), bandeau « Reprendre », fiches avec couverture et informations propres, santé des sources installées.
 
 ### Installation
-Téléchargez `NovelReader-Setup-0.3.0.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».
+Téléchargez `NovelReader-Setup-0.4.0.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».
