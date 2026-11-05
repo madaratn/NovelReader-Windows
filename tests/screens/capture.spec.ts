@@ -30,6 +30,12 @@ async function boot(page: Page) {
     w.novelReader = {
       ...orig,
       miwayomiStatus: async () => ({ online: true, baseUrl: 'http://127.0.0.1:4567' }),
+      dlList: async () => [
+        { id: 'd1', kind: 'series', mediaId: 'series2', mediaName: 'Lanterns', episodeUrl: '/ep/1', episodeName: 'S1 E1 - Episode title 1', episodeNo: 1, mediaKey: '', state: 'done', progress: 1, size: 412e6, file: 'video.mp4', subtitles: [{ label: 'English', lang: 'en', file: 'sub0.vtt' }] },
+        { id: 'd2', kind: 'series', mediaId: 'series2', mediaName: 'Lanterns', episodeUrl: '/ep/2', episodeName: 'S1 E2 - Episode title 2', episodeNo: 2, mediaKey: '', state: 'done', progress: 1, size: 398e6, file: 'video.mp4', subtitles: [] },
+        { id: 'd3', kind: 'series', mediaId: 'series2', mediaName: 'Lanterns', episodeUrl: '/ep/3', episodeName: 'S1 E3 - Episode title 3', episodeNo: 3, mediaKey: '', state: 'downloading', progress: 0.37, bytes: 151e6 }
+      ],
+      dlBase: async () => 'http://127.0.0.1:9', dlUsage: async () => ({ bytes: 810e6, count: 2, folder: '' }), dlStart: async () => ({ id: 'x' }), onDownloadsChanged: () => () => {},
       miwayomiFetch: async (path: string) => {
         if (path.includes('/details')) return { title: 'Lanterns', description: desc, genre: ['Drama', 'Mystery', 'Sci-Fi & Fantasy'], status: 2, author: 'DC Studios, HBO' }
         if (path.includes('/episodes')) return eps
@@ -81,6 +87,7 @@ test('capture all sections', async ({ page }) => {
   await navTo(page, 'Découvrir'); await page.waitForTimeout(600); await shot(page, '22b-series-decouvrir')
   await navTo(page, 'Recherche globale'); await shot(page, '22-series-recherche')
   await navTo(page, 'Sources'); await shot(page, '23-series-sources')
+  await navTo(page, 'Téléchargements'); await page.waitForTimeout(500); await shot(page, '24-series-telechargements')
   // Movies
   await mode(page, 4); await navTo(page, 'Bibliothèque films'); await shot(page, '30-films-bibliotheque')
   await page.locator('main').getByText('Iron Man 3').first().click().catch(() => {})

@@ -160,3 +160,52 @@ test('background check can be turned off in Settings', async ({ page }) => {
   await page.waitForTimeout(1200)
   expect(await page.evaluate(() => (window as any).__engine.calls.filter((c: string) => c.includes('/episodes')).length)).toBe(0)
 })
+
+test('offline downloads: download an episode, play it from this PC, manage it in Downloads', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as any
+    w.__dl = { items: [] as any[], started: [] as any[], cb: null as any }
+    const fire = () => w.__dl.cb && w.__dl.cb()
+    w.__dlPatch = {
+      dlStart: async (p: any) => { w.__dl.started.push(p); const id = 'series_' + w.__dl.started.length; w.__dl.items.push({ ...p, candidates: undefined, id, state: 'downloading', progress: 0.42, bytes: 5e6 }); setTimeout(fire, 0); return { id } },
+      dlList: async () => w.__dl.items.map((x: any) => ({ ...x })),
+      dlBase: async () => 'http://127.0.0.1:9',
+      dlUsage: async () => ({ bytes: w.__dl.items.reduce((n: number, x: any) => n + (x.size || 0), 0), count: w.__dl.items.filter((x: any) => x.state === 'done').length, folder: 'C:/dl' }),
+      dlCancel: async (id: string) => { w.__dl.items = w.__dl.items.filter((x: any) => x.id !== id); fire(); return true },
+      dlRemove: async (id: string) => { w.__dl.items = w.__dl.items.filter((x: any) => x.id !== id); fire(); return true },
+      dlClear: async () => { w.__dl.items = []; fire(); return true },
+      dlOpenFolder: async () => true,
+      onDownloadsChanged: (cb: any) => { w.__dl.cb = cb; return () => {} }
+    }
+    w.__dlFinish = () => { for (const x of w.__dl.items) Object.assign(x, { state: 'done', progress: 1, type: 'file', file: 'video.mp4', size: 3.2e8, title: 'Hermes - 1080p', subtitles: [{ label: 'English', lang: 'en', file: 'sub0.vtt' }] }); fire() }
+  })
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns')]) })
+  await page.evaluate(() => Object.assign((window as any).novelReader, (window as any).__dlPatch))
+  await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
+  const cell = page.locator('.episodecell').nth(1)
+  await cell.hover()
+  await cell.getByRole('button', { name: 'Download for offline viewing' }).click()
+  await expect(cell.locator('.ep-dl')).toHaveText('42%')
+  const started = await page.evaluate(() => (window as any).__dl.started[0])
+  expect(started.kind).toBe('series')
+  expect(started.episodeUrl).toBe('/ep/2')
+  expect(started.mediaKey).toBe('series:series1:/ep/2')
+  expect(started.candidates.map((c: any) => c.type)).toEqual(['file', 'file'])
+  expect(started.candidates[0].url).toContain('/api/v1/proxy?')
+  await page.evaluate(() => (window as any).__dlFinish())
+  await expect(cell.locator('.ep-dl.done')).toBeVisible()
+  // The downloaded episode plays from this PC, without asking the source
+  const before = await page.evaluate(() => (window as any).__engine.calls.filter((c: string) => c.includes('/videos')).length)
+  await cell.locator('.episodecard').click()
+  await expect(page.locator('.remote-player video')).toHaveAttribute('src', 'http://127.0.0.1:9/series_1/video.mp4')
+  expect(await page.evaluate(() => (window as any).__engine.calls.filter((c: string) => c.includes('/videos')).length)).toBe(before)
+  // Downloads page: grouped by title, size, play and delete
+  await page.locator('.sidebar .nav-item', { hasText: 'Downloads' }).click()
+  await expect(page.locator('.dl-group h2')).toHaveText('Lanterns')
+  await expect(page.locator('.dl-group')).toContainText('1 video · 320 MB')
+  await expect(page.locator('.dl-group .dl-row')).toContainText('1 subtitle')
+  await page.locator('.dl-group').getByRole('button', { name: /Play/ }).click()
+  await expect(page.locator('.downloads-page .remote-player video')).toHaveAttribute('src', 'http://127.0.0.1:9/series_1/video.mp4')
+  await page.locator('.dl-group').getByRole('button', { name: 'Delete' }).click()
+  await expect(page.locator('.lib-empty')).toContainText('No downloads yet')
+})

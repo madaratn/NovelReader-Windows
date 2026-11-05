@@ -82,7 +82,7 @@ export function WatchStats(){
 }
 
 // ---- Episode list with watched marks ------------------------------------------
-export function EpisodeGrid({eps,prefix,mediaId,selected,disabled,onPlay,renderExtra}:{eps:any[],prefix:string,mediaId:string,selected:any,disabled?:boolean,onPlay:(ep:any)=>void,renderExtra?:(ep:any)=>any}){
+export function EpisodeGrid({eps,prefix,mediaId,selected,disabled,onPlay,renderExtra}:{eps:any[],prefix:string,mediaId:string,selected:any,disabled?:boolean,onPlay:(ep:any)=>void,renderExtra?:(ep:any,i:number)=>any}){
  const[,bump]=useState(0)
  useEffect(()=>{const f=()=>bump(x=>x+1);window.addEventListener('nr-watched',f);window.addEventListener('nr-media-synced',f);return()=>{window.removeEventListener('nr-watched',f);window.removeEventListener('nr-media-synced',f)}},[])
  const keyOf=(ep:any,i:number)=>prefix+mediaId+':'+String(ep.url||ep.path||ep.number||ep.name||i)
@@ -94,7 +94,7 @@ export function EpisodeGrid({eps,prefix,mediaId,selected,disabled,onPlay,renderE
   <div className="episode-tools"><small>{t('{n} / {total} watched',{n:watched,total:eps.length})}</small>{eps.length>0&&<button onClick={()=>setWatched(all,watched<eps.length)}>{watched<eps.length?t('Mark all as watched'):t('Mark all as unwatched')}</button>}</div>
   <div className="episodegrid">{eps.map((ep:any,i:number)=>{const label=ep.name||ep.title||t('Episode {n}',{n:episodeNo(ep,i+1)}),active=selected===ep,pos=posOf(ep,i),done=!!pos?.done,pct=!done&&pos&&pos.d>0?Math.min(100,pos.t/pos.d*100):0
    return <div className="episodecell" key={(ep.url||ep.path||ep.name||'ep')+i}><button className={'episodecard'+(active?' active':'')+(done?' watched':'')} disabled={disabled} onClick={()=>onPlay(ep)}><span className="episodebadge">S{seasonNo(ep)}<b>E{episodeNo(ep,i+1)}</b></span><span className="episodetitle">{label}</span><span className="episodeplay">{active?'▶':'▷'}</span>{pct>0&&<span className="episodeprog" style={{width:pct+'%'}}/>}</button>
-    <button className={'ep-watch'+(done?' on':'')} aria-pressed={done} title={done?t('Mark as unwatched'):t('Mark as watched (and the previous ones with Shift)')} aria-label={done?t('Mark as unwatched'):t('Mark as watched')} onClick={e=>setWatched(e.shiftKey&&!done?all.slice(0,i+1):[{ep,i}],!done)}>{done?'✓':''}</button>{renderExtra?.(ep)}</div>})}</div>
+    <button className={'ep-watch'+(done?' on':'')} aria-pressed={done} title={done?t('Mark as unwatched'):t('Mark as watched (and the previous ones with Shift)')} aria-label={done?t('Mark as unwatched'):t('Mark as watched')} onClick={e=>setWatched(e.shiftKey&&!done?all.slice(0,i+1):[{ep,i}],!done)}>{done?'✓':''}</button>{renderExtra?.(ep,i)}</div>})}</div>
  </>
 }
 

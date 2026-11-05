@@ -13,6 +13,7 @@ export const ICONS:Record<string,string>={
  tv:'M3 7h18v12H3zM8 3l4 4 4-4',
  film:'M4 4h16v16H4zM8 4v16M16 4v16M4 9h4M4 15h4M16 9h4M16 15h4',
  compass:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM15.5 8.5l-2 5-5 2 2-5z',
+ download:'M12 4v11M7 10l5 5 5-5M5 20h14',
  grid:'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
  comics:'M4 4h16v16H4zM4 12h16M12 4v8',
  search:'M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM20 20l-4.8-4.8',
