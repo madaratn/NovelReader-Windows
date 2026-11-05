@@ -6,6 +6,16 @@ import{lsGet,lsSet,timeAgo}from'../lib/util'
 import{Cover,NoticeText}from'../ui/common'
 import{mediaPosKey,readMediaPos,mediaNorm,mediaCover,enrichMediaCover,episodeNo,seasonNo,orderedEpisodes,cleanEngineError,readWatchStats,watchDayKey,watchedCount,type MediaKind}from'../lib/media'
 // ---- Media libraries: mirror the polished Books library UX -----------------
+// ---- New episodes: ask each title's source how many episodes it has now.
+// Used by the library button and by the background check in App (every 6 h).
+export const mediaEpCount=(a:any)=>Array.isArray(a?.episodes)?a.episodes.length:Number(a?.episodeCount||a?.episodes||0)
+const mediaItemKey=(a:any)=>String(a?.id||a?.url||a?.path||a?.name||'')
+export async function scanNewEpisodes(list:any[],onProgress?:(done:number,found:number,failed:number)=>void){
+ let done=0,found=0,failed=0;const counts=new Map<string,number>(),names:string[]=[],queue=list.filter((a:any)=>a&&a.sourceId&&(a.url||a.path))
+ await Promise.all(Array.from({length:4},async()=>{while(queue.length){const a=queue.shift();try{const d=await window.novelReader.miwayomiFetch('/api/v1/anime/'+encodeURIComponent(String(a.sourceId))+'/episodes?url='+encodeURIComponent(a.url||a.path));const n=(Array.isArray(d)?d:(d?.episodes||d?.items||[])).length;counts.set(mediaItemKey(a),n);if(n>mediaEpCount(a)&&mediaEpCount(a)>0){found++;names.push(String(a.name||a.title||''))}}catch{failed++}done++;onProgress?.(done,found,failed)}}))
+ return{counts,found,failed,done,names}
+}
+export function applyEpisodeCounts(items:any[],counts:Map<string,number>){return items.map((a:any)=>{const n=counts.get(mediaItemKey(a));if(n==null||!n)return a;const prev=mediaEpCount(a);return n>prev&&prev>0?{...a,episodes:n,newEpisodes:(a.newEpisodes||0)+(n-prev)}:{...a,episodes:Math.max(n,prev)}})}
 export function MediaLibrary({kind,items,onChange,onOpen,onSearch,loading,onResumeIntent}:{kind:'Anime'|'Series'|'Movie',items:any[],onChange:(x:any[])=>void,onOpen?:(x:any)=>void,onSearch:()=>void,loading?:boolean,onResumeIntent?:(a:any,epUrl:string)=>void}){
  const[filter,setFilter]=useState(''),[sort,setSort]=useState<'recent'|'title'>(()=>(lsGet('mediaSort:'+kind) as any)||'recent'),[undo,setUndo]=useState<{item:any,index:number}|null>(null)
  useEffect(()=>{if(!undo)return;const t=setTimeout(()=>setUndo(null),7000);return()=>clearTimeout(t)},[undo])
@@ -20,7 +30,7 @@ export function MediaLibrary({kind,items,onChange,onOpen,onSearch,loading,onResu
  const resume=(r:any)=>{onResumeIntent?.(r.a,r.info.url);open(r.a)}
  // "Check for new episodes": compare each title's episode count with its source.
  const[upd,setUpd]=useState<{running:boolean,done:number,total:number,found:number,failed:number,at:number}>({running:false,done:0,total:0,found:0,failed:0,at:0})
- const checkNew=async()=>{const list=items.filter((a:any)=>a.sourceId&&(a.url||a.path));if(!list.length)return;let done=0,found=0,failed=0;const counts=new Map<any,number>();setUpd({running:true,done:0,total:list.length,found:0,failed:0,at:0});const queue=[...list];await Promise.all(Array.from({length:4},async()=>{while(queue.length){const a=queue.shift();try{const d=await window.novelReader.miwayomiFetch('/api/v1/anime/'+encodeURIComponent(String(a.sourceId))+'/episodes?url='+encodeURIComponent(a.url||a.path));const n=(Array.isArray(d)?d:(d?.episodes||d?.items||[])).length;counts.set(a,n);if(n>epCount(a)&&epCount(a)>0)found++}catch{failed++}done++;setUpd(u=>({...u,done,found,failed}))}}));const next=items.map((a:any)=>{const n=counts.get(a);if(n==null)return a;const prev=epCount(a);return n>prev&&prev>0?{...a,episodes:n,newEpisodes:(a.newEpisodes||0)+(n-prev)}:{...a,episodes:Math.max(n,prev)}});save(next);setUpd({running:false,done,total:list.length,found,failed,at:Date.now()})}
+ const checkNew=async()=>{const list=items.filter((a:any)=>a.sourceId&&(a.url||a.path));if(!list.length)return;setUpd({running:true,done:0,total:list.length,found:0,failed:0,at:0});const r=await scanNewEpisodes(list,(done,found,failed)=>setUpd(u=>({...u,done,found,failed})));save(applyEpisodeCounts(items,r.counts));lsSet('lastEpisodeCheck',String(Date.now()));setUpd({running:false,done:r.done,total:list.length,found:r.found,failed:r.failed,at:Date.now()})}
  // Watch status shelves (same tabs as the Books library).
  const VSHELVES=[{id:'watching',label:t('Watching')},{id:'plan',label:t('Plan to watch')},{id:'completed',label:t('Completed')},{id:'dropped',label:t('Dropped')}]
  const shelfOf=(a:any)=>VSHELVES.some(x=>x.id===a.shelf)?a.shelf:(lsGet('lastEpInfo:'+String(a.id||a.url||a.name))?'watching':'plan')

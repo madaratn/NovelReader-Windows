@@ -452,6 +452,9 @@ const FR: Record<string, string> = {
   'No video source installed': 'Aucune source vidéo installée',
   'Install a source in Sources first, then come back here.': 'Installe d’abord une source dans Sources, puis reviens ici.',
   'This source returned an empty list. Try another source.': 'Cette source a renvoyé une liste vide. Essaie une autre source.',
+  'New episodes': 'Nouveaux épisodes',
+  'Check my anime and series for new episodes in the background (every 6 hours)': 'Vérifier en arrière-plan si mes anime et séries ont de nouveaux épisodes (toutes les 6 heures)',
+  'Show a Windows notification when new episodes are found': 'Afficher une notification Windows quand de nouveaux épisodes sont trouvés',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

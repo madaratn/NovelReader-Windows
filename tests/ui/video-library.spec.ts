@@ -136,3 +136,27 @@ test('discover: popular list of a source, add to library, load more, latest unsu
   await page.locator('.discover-bar select').selectOption('43')
   expect(await page.evaluate(() => localStorage.getItem('discoverSource:Series'))).toBe('43')
 })
+
+test('background check: new episodes found while away raise a Windows notification', async ({ page }) => {
+  await page.addInitScript(() => sessionStorage.setItem('__background', '1'))
+  await openVideo(page, {
+    episodeCheckDelay: '1500', mode: 'books',
+    seriesLibrary: JSON.stringify([item('series', 0, 'The Bear'), item('series', 1, 'Lanterns', { shelf: 'dropped' })])
+  })
+  await page.evaluate(() => { (window as any).__engine.episodes = 10 })
+  await expect.poll(() => page.evaluate(() => (window as any).__notes)).toEqual([{ title: '1 title has new episodes.', body: 'The Bear' }])
+  const lib = await page.evaluate(() => JSON.parse(localStorage.getItem('seriesLibrary') || '[]'))
+  expect(lib.find((x: any) => x.name === 'The Bear').newEpisodes).toBe(2)
+  // Dropped titles are not checked
+  expect(await page.evaluate(() => (window as any).__engine.calls.filter((c: string) => c.includes('/series/1')).length)).toBe(0)
+  await page.evaluate(() => (window as any).__lastNote.onclick())
+  await expect(page.locator('.libcard', { hasText: 'The Bear' })).toBeVisible()
+  // Done for the next 6 hours
+  expect(Number(await page.evaluate(() => localStorage.getItem('lastEpisodeCheck')))).toBeGreaterThan(0)
+})
+
+test('background check can be turned off in Settings', async ({ page }) => {
+  await openVideo(page, { episodeCheckDelay: '300', autoCheckEpisodes: '0', seriesLibrary: JSON.stringify([item('series', 0, 'The Bear')]) })
+  await page.waitForTimeout(1200)
+  expect(await page.evaluate(() => (window as any).__engine.calls.filter((c: string) => c.includes('/episodes')).length)).toBe(0)
+})
