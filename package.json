@@ -93,6 +93,14 @@
         "repo": "NovelReader-Windows",
         "releaseType": "release"
       }
+    ],
+    "protocols": [
+      {
+        "name": "NovelReader",
+        "schemes": [
+          "novelreader"
+        ]
+      }
     ]
   }
 }

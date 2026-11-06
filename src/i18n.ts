@@ -671,6 +671,9 @@ const FR: Record<string, string> = {
   'partly works': 'marche en partie',
   'not responding': 'ne répond pas',
   'Weekly check ({date}): {state}': 'Test hebdomadaire ({date}) : {state}',
+  'Invitation copied: paste it in Discord, WhatsApp…': 'Invitation copiée : colle-la dans Discord, WhatsApp…',
+  'Copy an invitation link': 'Copier un lien d’invitation',
+  'Join my NovelReader watch party: {link} (code {code})': 'Rejoins mon watch party NovelReader : {link} (code {code})',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

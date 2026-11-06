@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Watch party NovelReader</title>
+<meta name="robots" content="noindex">
+<style>
+:root{--bg:#0f1218;--card:#161a24;--line:#2a3042;--text:#e6e8ef;--muted:#9aa0b4;--accent:#8b7cff}
+@media (prefers-color-scheme:light){:root{--bg:#f3f4f8;--card:#fff;--line:#dde0ea;--text:#1b1e27;--muted:#5d6273}}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{width:min(460px,100%);padding:28px;border:1px solid var(--line);border-radius:16px;background:var(--card);text-align:center}
+h1{margin:0 0 6px;font-size:22px}p{margin:8px 0;color:var(--muted)}
+.code{margin:18px 0;font:800 34px/1 ui-monospace,Consolas,monospace;letter-spacing:.25em;color:var(--accent)}
+a.btn{display:block;margin:10px 0;padding:12px 16px;border-radius:10px;background:var(--accent);color:#fff;font-weight:700;text-decoration:none}
+a.alt{display:inline-block;margin-top:6px;color:var(--accent)}
+small{display:block;margin-top:16px;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<main>
+ <h1>👥 Watch party NovelReader</h1>
+ <p>On t’invite à regarder ensemble.</p>
+ <div class="code" id="code">······</div>
+ <a class="btn" id="open" href="#">Ouvrir NovelReader et rejoindre</a>
+ <p>Pas encore NovelReader ?</p>
+ <a class="alt" href="https://github.com/madaratn/NovelReader-Windows/releases/latest">Télécharger pour Windows</a>
+ <small>Si rien ne s’ouvre : lance NovelReader, clique sur « Regarder ensemble » et tape le code ci-dessus.</small>
+</main>
+<script>
+// The code comes after # (or ?c=). Only letters and digits are kept.
+const raw=(location.hash.slice(1)||new URLSearchParams(location.search).get('c')||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6)
+const link='novelreader://party/'+raw
+document.getElementById('code').textContent=raw||'······'
+const btn=document.getElementById('open');btn.href=link
+if(raw.length===6)setTimeout(()=>{location.href=link},400)
+</script>
+</body>
+</html>
