@@ -12,7 +12,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https: http:",
   "media-src 'self' blob: nrlocal: http://127.0.0.1:* http://localhost:*",
-  "connect-src 'self' https: http://127.0.0.1:* http://localhost:*",
+  "connect-src 'self' https: wss://0.peerjs.com http://127.0.0.1:* http://localhost:*",
   "font-src 'self' data:",
   "worker-src 'self' blob:",
   "object-src 'none'",

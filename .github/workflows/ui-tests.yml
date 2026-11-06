@@ -29,6 +29,13 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Run UI tests
         run: npm run test:ui
+      # Watch party over the real public PeerJS server: depends on an outside
+      # service, so it reports but does not block.
+      - name: Live watch party (PeerJS)
+        continue-on-error: true
+        env:
+          LIVE_PEER: '1'
+        run: npx playwright test tests/ui/watch-party-live.spec.ts
       - name: Upload report and traces on failure
         if: failure()
         uses: actions/upload-artifact@v4

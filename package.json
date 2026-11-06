@@ -1,6 +1,6 @@
 {
   "name": "novel-reader-windows",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "description": "NovelReader for Windows",
   "main": "electron/main.cjs",
@@ -26,6 +26,7 @@
     "electron-updater": "^6.8.10",
     "htmlparser2": "^10.0.0",
     "jszip": "^3.10.1",
+    "peerjs": "^1.5.5",
     "urlencode": "^2.0.0",
     "webtorrent": "~2.8.5"
   },
