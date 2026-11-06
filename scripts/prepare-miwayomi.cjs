@@ -6,8 +6,8 @@ const PATCHED_ENGINE_URL='https://github.com/madaratn/NovelReader-Windows/releas
 const MIWAYOMI_ASSET_URL=process.env.MIWAYOMI_ASSET_URL||PATCHED_ENGINE_URL;
 fs.mkdirSync(engine,{recursive:true});
 function apiHeaders(url){const h={'User-Agent':'NovelReader-Build','Accept':'application/vnd.github+json'};const t=process.env.GITHUB_TOKEN;if(t&&new URL(url).hostname==='api.github.com')h.Authorization='Bearer '+t;return h}
-function getJson(url){return new Promise((resolve,reject)=>https.get(url,{headers:apiHeaders(url)},r=>{if(r.statusCode>=300&&r.statusCode<400&&r.headers.location)return getJson(r.headers.location).then(resolve,reject);let b='';r.on('data',d=>b+=d);r.on('end',()=>{try{resolve(JSON.parse(b))}catch(e){reject(e)}})}).on('error',reject))}
-function download(url,dest){return new Promise((resolve,reject)=>{const go=u=>https.get(u,{headers:{'User-Agent':'NovelReader-Build'}},r=>{if(r.statusCode>=300&&r.statusCode<400&&r.headers.location)return go(r.headers.location);if(r.statusCode!==200)return reject(Error('Download HTTP '+r.statusCode));const f=fs.createWriteStream(dest);r.pipe(f);f.on('finish',()=>f.close(resolve));f.on('error',reject)}).on('error',reject);go(url)})}
+function getJson(url){return new Promise((resolve,reject)=>https.get(url,{headers:apiHeaders(url)},r=>{if(r.statusCode>=300&&r.statusCode<400&&r.headers.location){r.resume();return getJson(r.headers.location).then(resolve,reject)}let b='';r.on('data',d=>b+=d);r.on('end',()=>{try{resolve(JSON.parse(b))}catch(e){reject(e)}})}).on('error',reject))}
+function download(url,dest){return new Promise((resolve,reject)=>{const go=u=>https.get(u,{headers:{'User-Agent':'NovelReader-Build'}},r=>{if(r.statusCode>=300&&r.statusCode<400&&r.headers.location){r.resume();return go(r.headers.location)}if(r.statusCode!==200){r.resume();return reject(Error('Download HTTP '+r.statusCode))}const f=fs.createWriteStream(dest);r.pipe(f);f.on('finish',()=>f.close(resolve));f.on('error',reject)}).on('error',reject);go(url)})}
 (async()=>{console.log('Preparing bundled Anime engine…');
  let engineMeta;
  if(MIWAYOMI_ASSET_URL){
@@ -32,4 +32,6 @@ function download(url,dest){return new Promise((resolve,reject)=>{const go=u=>ht
   console.log('Bundled Java 21 runtime downloaded.');
  }
  console.log('Anime engine ready.');
+ // Exit explicitly: idle keep-alive sockets must not keep the build waiting.
+ process.exit(0);
 })().catch(e=>{console.error(e);process.exit(1)});
