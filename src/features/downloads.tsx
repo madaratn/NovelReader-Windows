@@ -42,10 +42,15 @@ export async function startEpisodeDownload(kind:DlKind,media:any,ep:any,index=0)
  const videos=Array.isArray(data)?data:(data?.videos||data?.items||data?.list||[])
  const ordered=preferRemembered(normalizeRemoteVideos(videos,sourceId,media.sourceName||''),media)
  const candidates=ordered.filter((v:any)=>/\/api\/v1\/(hls|proxy)\?/.test(String(v.streamUrl||''))).slice(0,6).map((v:any)=>({url:String(v.streamUrl),type:/\/api\/v1\/hls\?/.test(String(v.streamUrl))?'hls' as const:'file' as const,title:String(v.videoTitle||v.title||v.quality||''),subtitles:(v.subtitleTracks||[]).filter((s:any)=>s?.streamUrl).map((s:any)=>({url:String(s.streamUrl),label:String(s.label||s.lang||s.language||''),lang:String(s.lang||s.language||'')}))}))
+ // Preferred quality (Downloads page): servers whose label fits under the cap come first.
+ const cap=Number(localStorage.getItem('dlMaxHeight'))||0,hOf=(c:any)=>Number((/(\d{3,4})p/i.exec(c.title)||[])[1])||0
+ if(cap)candidates.sort((a:any,b:any)=>{const ha=hOf(a),hb=hOf(b),fa=!ha||ha<=cap,fb=!hb||hb<=cap;return(fb?1:0)-(fa?1:0)||(fa?hb-ha:ha-hb)})
  if(!candidates.length)throw new Error(t('This episode has no stream that can be downloaded.'))
  const r=await api().dlStart({kind,mediaId:mediaIdOf(media),mediaName:String(media.name||media.title||''),cover:mediaCover(media)||'',episodeUrl:url,episodeName:String(ep?.name||ep?.title||''),episodeNo:episodeNo(ep,index+1),mediaKey:playerKey(kind,media,ep,index),candidates})
  refreshDownloads();return r
 }
+// Quality cap and bandwidth limit, kept in the main process.
+export function applyDownloadSettings(){if(!downloadsSupported())return;api().dlConfigure?.({maxHeight:Number(localStorage.getItem('dlMaxHeight'))||0,limit:(Number(localStorage.getItem('dlLimitMB'))||0)*1e6}).catch(()=>{})}
 // ---- Several episodes at once, and automatic clean-up of watched downloads --------
 export async function startBatchDownload(kind:DlKind,media:any,eps:any[],from:number,count:number,list:VideoDownload[],onProgress?:(done:number,total:number)=>void){
  const todo=eps.map((ep,i)=>({ep,i})).slice(Math.max(0,from)).filter(x=>!findDownload(list,mediaIdOf(media),x.ep)).slice(0,count)
@@ -97,7 +102,7 @@ export function EpisodeDownload({kind,media,ep,index,list,onError,wide}:{kind:Dl
 
 // ---- Downloads page ---------------------------------------------------------------
 export function DownloadsPage(){
- const[auto,setAuto]=useState(autoDeleteOn())
+ const[auto,setAuto]=useState(autoDeleteOn()),[maxH,setMaxH]=useState(()=>localStorage.getItem('dlMaxHeight')||'0'),[limit,setLimit]=useState(()=>localStorage.getItem('dlLimitMB')||'0')
  useEffect(()=>{flushAutoDeletes()},[])
  const list=useDownloads(),[playing,setPlaying]=useState<VideoDownload|null>(null),[usage,setUsage]=useState<{bytes:number,count:number}|null>(null),[confirmAll,setConfirmAll]=useState(false)
  useEffect(()=>{if(downloadsSupported())api().dlUsage().then(setUsage).catch(()=>{})},[list])
@@ -106,6 +111,7 @@ export function DownloadsPage(){
  const groups=new Map<string,VideoDownload[]>();for(const d of done){const k=d.kind+':'+d.mediaId;if(!groups.has(k))groups.set(k,[]);groups.get(k)!.push(d)}
  const kindLabel=(k:string)=>k==='movie'?t('MOVIE'):k==='series'?t('SERIES'):t('ANIME')
  return <div className="media-search-page downloads-page"><header><div><h1>{t('Downloads')}</h1><p>{t('Episodes and movies saved on this PC. They play without internet, with their subtitles.')}</p></div></header>
+  <div className="dl-settings"><label>{t('Quality')}<select value={maxH} onChange={e=>{setMaxH(e.target.value);localStorage.setItem('dlMaxHeight',e.target.value);applyDownloadSettings()}}><option value="0">{t('Best (up to 1080p)')}</option><option value="720">720p</option><option value="480">480p</option><option value="360">{t('360p (smallest)')}</option></select></label><label>{t('Speed limit')}<select value={limit} onChange={e=>{setLimit(e.target.value);localStorage.setItem('dlLimitMB',e.target.value);applyDownloadSettings()}}><option value="0">{t('No limit')}</option>{['1','2','5','10'].map(v=><option key={v} value={v}>{v+' MB/s'}</option>)}</select></label></div>
   <label className="settings-check dl-auto"><input type="checkbox" checked={auto} onChange={e=>{setAuto(e.target.checked);localStorage.setItem('dlAutoDelete',e.target.checked?'1':'0')}}/> {t('Delete a downloaded episode automatically once I have watched it')}</label>
   <div className="downloads-bar"><span>{usage?plural(usage.count,'{n} video','{n} videos')+' · '+fmtBytes(usage.bytes):''}</span><div className="libraryactions"><button onClick={()=>api().dlOpenFolder()}>{t('Open folder')}</button>{done.length>0&&(confirmAll?<button className="danger" onClick={()=>{api().dlClear().then(refreshDownloads);setConfirmAll(false);setPlaying(null)}}>{t('Delete all downloads')}</button>:<button onClick={()=>setConfirmAll(true)}>{t('Free up space…')}</button>)}</div></div>
   {playing&&<section className="panel media-player-top"><div className="media-player-title"><div><span className="media-kicker">{t('OFFLINE')}</span><h2>{playing.mediaName}{playing.kind!=='movie'&&playing.episodeName?' · '+playing.episodeName:''}</h2></div><button onClick={()=>setPlaying(null)}>{t('Close')}</button></div><AnimeVideo key={playing.id} video={offlineVideo(playing)} mediaKey={playing.mediaKey}/></section>}

@@ -1,11 +1,13 @@
 const {contextBridge,ipcRenderer}=require('electron')
 contextBridge.exposeInMainWorld('novelReader',{
  searchPlugin:(plugin,query)=>ipcRenderer.invoke('plugin:search',{plugin,query}),
+ translate:(o)=>ipcRenderer.invoke('translate:batch',o),
+ popularPlugin:(plugin,page,latest)=>ipcRenderer.invoke('plugin:popular',{plugin,page,latest}),
  parseNovel:(plugin,path)=>ipcRenderer.invoke('plugin:parseNovel',{plugin,path}),
  parseChapter:(plugin,path)=>ipcRenderer.invoke('plugin:parseChapter',{plugin,path}),
  miwayomiStatus:()=>ipcRenderer.invoke('anime:miwayomiStatus'),miwayomiDebug:()=>ipcRenderer.invoke('anime:miwayomiDebug'),
  miwayomiFetch:(path,method='GET',body)=>ipcRenderer.invoke('anime:miwayomiFetch',{path,method,body}),
- dlStart:(p)=>ipcRenderer.invoke('dl:start',p),dlList:()=>ipcRenderer.invoke('dl:list'),dlCancel:(id)=>ipcRenderer.invoke('dl:cancel',id),dlRemove:(id)=>ipcRenderer.invoke('dl:remove',id),dlClear:()=>ipcRenderer.invoke('dl:clear'),dlUsage:()=>ipcRenderer.invoke('dl:usage'),dlBase:()=>ipcRenderer.invoke('dl:base'),dlOpenFolder:()=>ipcRenderer.invoke('dl:openFolder'),
+ dlStart:(p)=>ipcRenderer.invoke('dl:start',p),dlList:()=>ipcRenderer.invoke('dl:list'),dlCancel:(id)=>ipcRenderer.invoke('dl:cancel',id),dlRemove:(id)=>ipcRenderer.invoke('dl:remove',id),dlClear:()=>ipcRenderer.invoke('dl:clear'),dlUsage:()=>ipcRenderer.invoke('dl:usage'),dlConfigure:(o)=>ipcRenderer.invoke('dl:configure',o),dlBase:()=>ipcRenderer.invoke('dl:base'),dlOpenFolder:()=>ipcRenderer.invoke('dl:openFolder'),
  onDownloadsChanged:(cb)=>{const h=()=>{try{cb()}catch{}};ipcRenderer.on('dl:changed',h);return()=>ipcRenderer.removeListener('dl:changed',h)},
  flareStatus:()=>ipcRenderer.invoke('flare:status'),flareInstall:()=>ipcRenderer.invoke('flare:install'),flareStart:()=>ipcRenderer.invoke('flare:start'),
  localFolders:()=>ipcRenderer.invoke('local:folders'),
@@ -27,6 +29,8 @@ contextBridge.exposeInMainWorld('novelReader',{
  backupReadAuto:(name)=>ipcRenderer.invoke('backup:readAuto',name),
  backupOpenFolder:()=>ipcRenderer.invoke('backup:openFolder'),
  appVersion:()=>ipcRenderer.invoke('app:version'),
+ profileList:()=>ipcRenderer.invoke('profile:list'),profileCreate:(n)=>ipcRenderer.invoke('profile:create',n),profileRename:(id,name)=>ipcRenderer.invoke('profile:rename',{id,name}),profileColor:(id,color)=>ipcRenderer.invoke('profile:color',{id,color}),profileRemove:(id)=>ipcRenderer.invoke('profile:remove',id),profileSwitch:(id)=>ipcRenderer.invoke('profile:switch',id),
+ anilistStatus:()=>ipcRenderer.invoke('anilist:status'),anilistLogin:(id)=>ipcRenderer.invoke('anilist:login',id),anilistToken:(token)=>ipcRenderer.invoke('anilist:token',{token}),anilistLogout:()=>ipcRenderer.invoke('anilist:logout'),anilistCall:(name,vars)=>ipcRenderer.invoke('anilist:call',{name,vars}),
  reportCollect:()=>ipcRenderer.invoke('report:collect'),reportRedact:(t)=>ipcRenderer.invoke('report:redact',t),reportCopy:(t)=>ipcRenderer.invoke('report:copy',t),reportSave:(t)=>ipcRenderer.invoke('report:save',t),
  focusWindow:()=>ipcRenderer.invoke('app:focus'),
  updateStatus:()=>ipcRenderer.invoke('update:status'),
