@@ -20,6 +20,17 @@ function createVideoDownloads({root,log=()=>{},notify=()=>{},fetchImpl=globalThi
  const jobs=new Map() // id -> {meta, state, progress, error, abort}
  const queue=[]
  let running=null,server=null,port=0
+ // Settings: max height of the HLS variant kept (0 = best up to 1080p) and a
+ // bandwidth cap in bytes per second shared by all downloads (0 = no limit).
+ const settings={maxHeight:0,limit:0}
+ let budgetAt=Date.now(),budget=0
+ async function throttle(bytes,signal){
+  if(!settings.limit)return
+  const now=Date.now();budget=Math.max(0,budget-(now-budgetAt)*settings.limit/1000);budgetAt=now;budget+=bytes
+  const wait=budget/settings.limit*1000-200
+  if(wait>0)await new Promise((res,rej)=>{const tm=setTimeout(res,Math.min(wait,30000));signal&&signal.addEventListener('abort',()=>{clearTimeout(tm);rej(new Error('aborted'))},{once:true})})
+ }
+ function configure(o){const p=o||{};if(p.maxHeight!=null)settings.maxHeight=Math.max(0,Number(p.maxHeight)||0);if(p.limit!=null)settings.limit=Math.max(0,Number(p.limit)||0);return{...settings}}
 
  const metaFile=id=>path.join(root,id,'meta.json')
  const readMeta=id=>{try{return JSON.parse(fs.readFileSync(metaFile(id),'utf8'))}catch{return null}}
@@ -38,7 +49,7 @@ function createVideoDownloads({root,log=()=>{},notify=()=>{},fetchImpl=globalThi
  async function saveStream(url,file,signal,onBytes){
   const r=await fetchImpl(url,{signal});if(!r.ok)throw new Error('HTTP '+r.status)
   const total=Number(r.headers.get('content-length'))||0,out=fs.createWriteStream(file);let got=0
-  try{for await(const chunk of r.body){got+=chunk.length;if(!out.write(chunk))await new Promise(res=>out.once('drain',res));onBytes(got,total)}}
+  try{for await(const chunk of r.body){got+=chunk.length;if(!out.write(chunk))await new Promise(res=>out.once('drain',res));onBytes(got,total);await throttle(chunk.length,signal)}}
   finally{await new Promise(res=>out.end(res))}
   if(!got)throw new Error('Empty file')
   return got
@@ -58,7 +69,7 @@ function createVideoDownloads({root,log=()=>{},notify=()=>{},fetchImpl=globalThi
   }
   if(!tasks.length)throw new Error('Empty playlist')
   let done=0;const q=[...tasks]
-  await Promise.all(Array.from({length:4},async()=>{while(q.length){const t=q.shift();const buf=await get(t.abs,job.abort.signal,false);fs.writeFileSync(path.join(dir,t.name),buf);job.bytes+=buf.length;done++;job.progress=Math.min(0.99,job.base+weight*done/tasks.length);job.tick()}}))
+  await Promise.all(Array.from({length:4},async()=>{while(q.length){const t=q.shift();const buf=await get(t.abs,job.abort.signal,false);fs.writeFileSync(path.join(dir,t.name),buf);job.bytes+=buf.length;await throttle(buf.length,job.abort.signal);done++;job.progress=Math.min(0.99,job.base+weight*done/tasks.length);job.tick()}}))
   job.base+=weight
   const name=prefix+'index.m3u8';fs.writeFileSync(path.join(dir,name),out.join('\n'));return name
  }
@@ -69,7 +80,10 @@ function createVideoDownloads({root,log=()=>{},notify=()=>{},fetchImpl=globalThi
   // Master playlist: keep the best variant (or the one under ~1080p) and its audio group.
   const lines=text.split(/\r?\n/),variants=[]
   for(let i=0;i<lines.length;i++)if(lines[i].startsWith('#EXT-X-STREAM-INF')){const uri=(lines.slice(i+1).find(l=>l&&!l.startsWith('#'))||'').trim();if(uri)variants.push({inf:lines[i],uri,bw:Number(attr(lines[i],'BANDWIDTH'))||0,h:Number((attr(lines[i],'RESOLUTION').split('x')[1]))||0,audio:attr(lines[i],'AUDIO')})}
-  variants.sort((a,b)=>((b.h&&b.h<=1080)?1:0)-((a.h&&a.h<=1080)?1:0)||b.bw-a.bw)
+  const cap=settings.maxHeight||1080
+  // Best variant within the cap; if none fits, the smallest one above it.
+  const fits=v=>!v.h||v.h<=cap
+  variants.sort((a,b)=>(fits(b)?1:0)-(fits(a)?1:0)||(fits(a)?b.bw-a.bw:a.bw-b.bw))
   const v=variants[0];if(!v)throw new Error('No variant in playlist')
   const audios=v.audio?lines.filter(l=>l.startsWith('#EXT-X-MEDIA')&&/TYPE=AUDIO/.test(l)&&attr(l,'GROUP-ID')===v.audio&&/URI="/.test(l)).slice(0,4):[]
   const weight=1/(1+audios.length*0.25),out=['#EXTM3U','#EXT-X-VERSION:6'];job.base=0
@@ -145,6 +159,6 @@ function createVideoDownloads({root,log=()=>{},notify=()=>{},fetchImpl=globalThi
  }
  async function base(){return 'http://127.0.0.1:'+(await serve())}
  function close(){for(const j of jobs.values())j.abort.abort();try{server&&server.close()}catch{}}
- return{start,list,cancel,remove,clear,usage,base,close,root}
+ return{start,list,cancel,remove,clear,usage,base,close,root,configure}
 }
 module.exports={createVideoDownloads}

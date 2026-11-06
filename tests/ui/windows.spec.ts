@@ -57,3 +57,41 @@ test('library cards keep their actions tidy (no stray wrapped button)', async ({
   expect(Math.abs(select!.y - remove!.y)).toBeLessThan(2)       // shelf + remove on one row
   expect(select!.y).toBeGreaterThan(primary!.y + primary!.height - 1) // under the main action
 })
+
+test('profiles: switcher in the sidebar, create, rename, switch and remove in Settings', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as any
+    w.__pf = { list: [{ id: 'default', name: '', color: '#8b7cff' }], current: 'default', switched: '' }
+    const patch = () => Object.assign(w.novelReader, {
+      profileList: async () => ({ list: w.__pf.list.map((p: any) => ({ ...p })), current: w.__pf.current }),
+      profileCreate: async (name: string) => { const p = { id: 'p' + w.__pf.list.length, name, color: '#3fb37f' }; w.__pf.list.push(p); return p },
+      profileRename: async (id: string, name: string) => { w.__pf.list.find((p: any) => p.id === id).name = name; return {} },
+      profileColor: async () => ({}),
+      profileRemove: async (id: string) => { w.__pf.list = w.__pf.list.filter((p: any) => p.id !== id); return true },
+      profileSwitch: async (id: string) => { w.__pf.switched = id; return true }
+    })
+    const iv = setInterval(() => { if (w.novelReader) { patch(); clearInterval(iv) } }, 0)
+  })
+  await open(page)
+  await expect(page.locator('.pf-current')).toContainText('Profiles')
+  await page.locator('.pf-current').click()
+  await page.getByRole('menuitem', { name: /Add or manage profiles/ }).click()
+  const panel = page.locator('.profiles-panel')
+  await expect(panel.locator('.pf-row')).toHaveCount(1)
+  await panel.locator('.pf-add input').fill('Sara')
+  await panel.getByRole('button', { name: 'Add a profile' }).click()
+  await expect(panel.locator('.pf-row')).toHaveCount(2)
+  await expect(panel).toContainText('Profile “Sara” created')
+  // Name the main profile
+  await panel.locator('.pf-row').first().locator('input').fill('Ali')
+  await panel.locator('.pf-add input').click()
+  await expect(page.locator('.pf-current')).toContainText('Ali')
+  // Switch from the sidebar menu
+  await page.locator('.pf-current').click()
+  await page.getByRole('menuitemradio', { name: /Sara/ }).click()
+  expect(await page.evaluate(() => (window as any).__pf.switched)).toBe('p1')
+  // Remove (two clicks)
+  await panel.locator('.pf-row', { hasText: '' }).nth(1).getByRole('button', { name: 'Remove' }).click()
+  await panel.getByRole('button', { name: 'Delete with its data' }).click()
+  await expect(panel.locator('.pf-row')).toHaveCount(1)
+})

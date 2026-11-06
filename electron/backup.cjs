@@ -37,7 +37,8 @@ function stamp(d = new Date()) {
 }
 
 function createBackupManager({ app, dialog, shell }) {
-  const dir = () => path.join(app.getPath('userData'), 'backups')
+  // Each profile has its own backups (electron/profiles.cjs).
+  const dir = () => require('./profiles.cjs').forApp(app).dataPath('backups')
   const hashOf = payload => crypto.createHash('sha1').update(JSON.stringify(payload.data)).digest('hex')
 
   async function exportBackup(win, payload) {

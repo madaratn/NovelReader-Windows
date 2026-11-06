@@ -79,6 +79,49 @@ test('read aloud: highlight, pause, click to jump, continues to next chapter', a
   await expect(page.locator('.tts-current')).toHaveCount(0)
 })
 
+test('read aloud: word highlight, natural voices first, sleep timer', async ({ page }) => {
+  await fakeSpeech(page)
+  await page.addInitScript(() => { (window as any).__ttsHold = true })
+  await open(page, { library: [novel('n1', 'The Lantern Road', 3)] })
+  await page.locator('.libcard .primary').click()
+  await page.locator('.tts-toggle').click()
+  await expect(page.locator('.tts-opts select').nth(1).locator('option').nth(1)).toHaveText('Microsoft Denise Online (Natural) (fr-FR)')
+  await page.locator('.tts-play').click()
+  // The engine reports the 2nd word: it gets highlighted, without changing the page
+  const word = await page.evaluate(() => { const w = window as any; const text = w.__cur.text as string; const i = text.indexOf(' ') + 1; const len = text.slice(i).split(' ')[0].length; w.__cur.onboundary({ name: 'word', charIndex: i, charLength: len }); const r = (CSS as any).highlights.get('tts-word'); return { hl: r ? [...r][0].toString() : '', expected: text.slice(i, i + len) } })
+  expect(word.hl).toBe(word.expected)
+  // Sleep timer at the end of the chapter: stops after the last paragraph
+  await page.locator('.tts-opts select').nth(2).selectOption('chapter-end')
+  const total = Number((await page.locator('.tts-pos').innerText()).match(/of (\d+)/)![1])
+  await page.locator('.readercontent p').nth(total - 2).click()
+  await page.evaluate(() => { const w = window as any; w.__ttsHold = false; w.__cur.onend() })
+  await expect(page.locator('.tts-err')).toHaveText('Sleep timer: reading stopped.')
+  await expect(page.locator('.tts-play')).toHaveText('▶')
+  await expect(page.locator('.readerbar-title small')).toHaveText('Chapter 1: The Road')
+})
+
+test('translate a chapter, back to the original, always translate this novel', async ({ page }) => {
+  await open(page, { library: [novel('n1', 'The Lantern Road', 3)] })
+  await page.locator('.libcard .primary').click()
+  const first = (await page.locator('.readercontent p').first().innerText()).trim()
+  await page.locator('.translate-toggle').click()
+  await expect(page.locator('.readercontent p').first()).toHaveText('[en] ' + first.toUpperCase())
+  await expect(page.locator('.readercontent.translated')).toHaveCount(1)
+  await page.locator('.translate-toggle').click()
+  await expect(page.locator('.readercontent p').first()).toHaveText(first)
+  // Always translate, into French: applies now and to the next chapter
+  await page.locator('.translate-more').click()
+  await page.locator('.translate-menu select').selectOption('fr')
+  await page.locator('.translate-menu input[type=checkbox]').check()
+  await expect(page.locator('.readercontent p').first()).toHaveText('[fr] ' + first.toUpperCase())
+  await page.locator('.translate-more').click()
+  await page.locator('.readercontent h1').click()
+  await page.keyboard.press('ArrowRight')
+  await expect(page.locator('.readerbar-title small')).toHaveText('Chapter 2: The Road')
+  await expect(page.locator('.readercontent p').first()).toHaveText(/^\[fr\] /)
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('translateNovels') || '{}'))).toEqual({ n1: 'fr' })
+})
+
 test('scripts hidden in chapter HTML never run (content security policy)', async ({ page }) => {
   await page.addInitScript(() => { (window as any).__chapterOverride = '<p>Safe text</p><img src="data:x" onerror="window.__xss=1"><p onclick="window.__xss=2">Click me</p><script>window.__xss=3</script>' })
   await open(page, { library: [novel('n1', 'The Lantern Road', 3)] })

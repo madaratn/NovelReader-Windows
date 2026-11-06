@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test'
-import { open, nav } from './helpers'
+import { open, nav, novel } from './helpers'
 
 test('sidebar: modes, active page, remembered page per mode and after restart', async ({ page }) => {
   await open(page)
-  await expect(page.locator('.nav-list .nav-item')).toHaveText(['Library', 'Global Search', 'Bookmarks & notes', 'Sources'])
+  await expect(page.locator('.nav-list .nav-item')).toHaveText(['Library', 'Discover', 'Global Search', 'Bookmarks & notes', 'Sources'])
   await nav(page, 'Global Search')
   await expect(page.locator('.nav-item[aria-current=page]')).toHaveText('Global Search')
   await expect(page).toHaveTitle('Global Search · NovelReader')
@@ -33,12 +33,43 @@ test('back navigation, shortcuts dialog, collapsible sidebar', async ({ page }) 
   await expect(page.locator('aside.sidebar')).toHaveCSS('width', '236px')
 })
 
-test('Ctrl+K focuses the search field of the page', async ({ page }) => {
+test('/ focuses the search field of the page', async ({ page }) => {
   await open(page)
   await nav(page, 'Global Search')
   await page.locator('main h1').click()
-  await page.keyboard.press('Control+k')
+  await page.keyboard.press('/')
   await expect(page.locator('main .searchbar input')).toBeFocused()
+})
+
+test('search everywhere (Ctrl+K): titles from every library, and a source search in one step', async ({ page }) => {
+  await open(page, {
+    library: [novel('n1', 'Lord of Mysteries', 5), novel('n2', 'Shadow Slave', 5)],
+    storage: {
+      animeLibrary: JSON.stringify([{ id: 'a1', name: 'Shadow Hunter', sourceId: '42', url: '/a/1', episodes: 3 }]),
+      seriesLibrary: JSON.stringify([{ id: 's1', name: 'Mystery Road', sourceId: '42', url: '/s/1', episodes: 3 }])
+    }
+  })
+  await page.keyboard.press('Control+k')
+  const input = page.locator('.qs-input')
+  await expect(input).toBeFocused()
+  await input.fill('shadow')
+  await expect(page.locator('.qs-row:not(.action) b')).toHaveText(['Shadow Hunter', 'Shadow Slave'])
+  await expect(page.locator('.qs-row:not(.action) .qs-kind')).toHaveText(['Anime', 'Books'])
+  // Enter opens the selected title (↓ = second row: the novel)
+  await page.keyboard.press('ArrowDown')
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.qs')).toHaveCount(0)
+  await expect(page.locator('main h1')).toHaveText('Shadow Slave')
+  // Source search: switches to that section and runs it right away
+  await page.locator('.qs-open').click()
+  await input.fill('frieren')
+  await page.locator('.qs-row.action', { hasText: 'in Books' }).click()
+  await expect(page.locator('main .searchbar input')).toHaveValue('frieren')
+  await expect.poll(() => page.evaluate(() => (window as any).__calls.search.length)).toBeGreaterThan(0)
+  // Escape closes
+  await page.keyboard.press('Control+k')
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.qs')).toHaveCount(0)
 })
 
 test('narrow window: compact sidebar and no horizontal scroll', async ({ page }) => {
@@ -46,4 +77,49 @@ test('narrow window: compact sidebar and no horizontal scroll', async ({ page })
   await open(page)
   await expect(page.locator('aside.sidebar')).toHaveCSS('width', '68px')
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
+})
+
+test('books Discover: popular list of a source, add, open, load more', async ({ page }) => {
+  await open(page)
+  await nav(page, 'Discover')
+  await expect(page.locator('main h1')).toHaveText('Discover')
+  await expect(page.locator('.resultcard h3')).toHaveText(['Popular 1', 'Popular 2', 'Popular 3'])
+  await page.locator('.resultcard', { hasText: 'Popular 2' }).getByRole('button', { name: /Add to library/ }).click()
+  await expect(page.locator('.resultcard', { hasText: 'Popular 2' }).getByRole('button', { name: /Open/ })).toBeVisible()
+  await page.getByRole('button', { name: 'Load more' }).click()
+  await expect(page.locator('.resultcard h3')).toHaveCount(6)
+  await page.getByRole('tab', { name: 'Latest' }).click()
+  await expect(page.locator('.anime-toast.error')).toContainText('no list to browse')
+  await page.getByRole('tab', { name: 'Popular' }).click()
+  await page.locator('.resultcard', { hasText: 'Popular 2' }).getByRole('button', { name: /Open/ }).click()
+  await expect(page.locator('main h1')).toHaveText('Shadow Slave') // the fake parseNovel always answers this title
+})
+
+test('TV mode: arrows move between buttons; a game controller moves, opens and goes back', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as any
+    w.__pad = { buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })), axes: [0, 0, 0, 0] }
+    Object.defineProperty(navigator, 'getGamepads', { value: () => [{ id: 'Xbox Wireless Controller (STANDARD GAMEPAD)', ...w.__pad }] })
+    w.__tap = async (i: number) => { w.__pad.buttons[i].pressed = true; await new Promise(r => setTimeout(r, 80)); w.__pad.buttons[i].pressed = false; await new Promise(r => setTimeout(r, 80)) }
+  })
+  await open(page, { library: [novel('n1', 'Lord of Mysteries', 5), novel('n2', 'Shadow Slave', 5)], storage: { tvMode: '1' } })
+  await expect(page.locator('html.tv-mode')).toHaveCount(1)
+  // Keyboard (TV remote): focus moves between buttons, Enter opens
+  await page.locator('.libcard').first().locator('.primary').focus()
+  const before = await page.evaluate(() => document.activeElement?.closest('.libcard')?.querySelector('h3, h2, b')?.textContent)
+  await page.keyboard.press('ArrowRight')
+  const after = await page.evaluate(() => document.activeElement?.closest('.libcard')?.querySelector('h3, h2, b')?.textContent)
+  expect(after).not.toBe(before)
+  await expect(page.locator('html.kbd-nav')).toHaveCount(1)
+  // Controller: A opens the focused title, B goes back
+  await page.evaluate(() => window.dispatchEvent(new Event('gamepadconnected')))
+  await page.evaluate(() => (window as any).__tap(0))
+  await expect(page.locator('main h1')).toHaveText(after!.trim())
+  await page.evaluate(() => (window as any).__tap(1))
+  await expect(page.locator('.libcard')).toHaveCount(2)
+  // Y opens Search everywhere, B closes it
+  await page.evaluate(() => (window as any).__tap(3))
+  await expect(page.locator('.qs')).toBeVisible()
+  await page.evaluate(() => (window as any).__tap(1))
+  await expect(page.locator('.qs')).toHaveCount(0)
 })

@@ -62,6 +62,12 @@ export async function setup(page: Page, s: Setup = {}) {
         if (n % 2 === 0) return [{ name: 'Shadow Slave', path: '/novel/ss-' + n }, { name: 'Shadow Slave Side Stories', path: '/novel/sss-' + n }]
         return [{ name: 'Unrelated', path: '/u' }]
       },
+      translate: async (o: any) => { w.__translated = (w.__translated || 0) + 1; return o.texts.map((x: string) => '[' + o.to + '] ' + x.toUpperCase()) },
+      popularPlugin: async (pl: any, page: number, latest: boolean) => {
+        w.__calls.popular = (w.__calls.popular || []).concat(pl.id + ':' + page + ':' + (latest ? 'latest' : 'popular'))
+        if (latest) throw new Error("Error invoking remote method 'plugin:popular': Error: popularNovels unavailable")
+        return page > 2 ? [] : [1, 2, 3].map(i => ({ name: 'Popular ' + ((page - 1) * 3 + i), path: '/novel/pop-' + ((page - 1) * 3 + i), cover: '' }))
+      },
       parseNovel: async (_pl: any, path: string) => {
         await new Promise(r => setTimeout(r, 80))
         const count = (newChapters || {})[path] ?? 12
@@ -130,10 +136,10 @@ export async function fakeSpeech(page: Page) {
     class U { text: string; rate = 1; voice: any = null; lang = ''; onend: any; onerror: any; _x = false; constructor(t: string) { this.text = t } }
     w.SpeechSynthesisUtterance = U
     let cur: any = null
-    const voices = [{ name: 'Microsoft Hortense', lang: 'fr-FR', voiceURI: 'hortense' }, { name: 'Microsoft Zira', lang: 'en-US', voiceURI: 'zira' }]
+    const voices = [{ name: 'Microsoft Hortense', lang: 'fr-FR', voiceURI: 'hortense', localService: true }, { name: 'Microsoft Zira', lang: 'en-US', voiceURI: 'zira', localService: true }, { name: 'Microsoft Denise Online (Natural)', lang: 'fr-FR', voiceURI: 'denise', localService: false }]
     const ss = {
       getVoices: () => voices, addEventListener() {}, removeEventListener() {},
-      speak(u: any) { cur = u; w.__spoken.push({ text: u.text.slice(0, 40), voice: u.voice && u.voice.name, rate: u.rate }); setTimeout(() => { if (cur === u && !u._x) { cur = null; u.onend && u.onend() } }, 30) },
+      speak(u: any) { cur = u; w.__cur = u; w.__spoken.push({ text: u.text.slice(0, 40), voice: u.voice && u.voice.name, rate: u.rate }); if (w.__ttsHold) return; setTimeout(() => { if (cur === u && !u._x) { cur = null; u.onend && u.onend() } }, 30) },
       cancel() { if (cur) { const u = cur; u._x = true; cur = null; u.onerror && u.onerror({ error: 'interrupted' }) } }
     }
     Object.defineProperty(window, 'speechSynthesis', { value: ss, configurable: true })
