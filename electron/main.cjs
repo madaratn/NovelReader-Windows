@@ -37,7 +37,7 @@ const mediaCorsDone=new WeakSet();
 function installMediaCors(ses=session.defaultSession){if(mediaCorsDone.has(ses))return;mediaCorsDone.add(ses);ses.webRequest.onHeadersReceived({urls:['http://127.0.0.1:4567/*']},(details,callback)=>{const h={...(details.responseHeaders||{})};h['Access-Control-Allow-Origin']=['*'];h['Access-Control-Allow-Headers']=['*'];h['Access-Control-Allow-Methods']=['GET, HEAD, OPTIONS'];callback({responseHeaders:h})})}
 // Each profile window uses its own session (storage); give it the same rules as the default one.
 const preparedSessions=new WeakSet()
-function sessionFor(partition){const ses=partition?session.fromPartition(partition):session.defaultSession;if(!preparedSessions.has(ses)){preparedSessions.add(ses);installMediaCors(ses);if(ses!==session.defaultSession){ses.setPermissionRequestHandler((_wc,permission,cb)=>cb(ALLOWED_PERMISSIONS.has(permission)));ses.setPermissionCheckHandler((_wc,permission)=>ALLOWED_PERMISSIONS.has(permission));try{registerLocalProtocol(ses.protocol)}catch(e){console.warn('[profiles] nrlocal',e)}}}return ses}
+function sessionFor(partition){const ses=partition?session.fromPartition(partition):session.defaultSession;if(!preparedSessions.has(ses)){preparedSessions.add(ses);installMediaCors(ses);if(ses!==session.defaultSession){ses.setPermissionRequestHandler(permissionRequest);ses.setPermissionCheckHandler(permissionCheck);try{registerLocalProtocol(ses.protocol)}catch(e){console.warn('[profiles] nrlocal',e)}}}return ses}
 function createWindow(){const partition=profiles.partition();sessionFor(partition);const ws=createWindowState({app,screen});const state=ws.load();const win=new BrowserWindow({...state,minWidth:900,minHeight:600,show:false,icon:path.join(__dirname,'icon.png'),backgroundColor:'#0b0c10',title:'NovelReader',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,...(partition?{partition}:{})}});if(!app.isPackaged&&!SMOKE_TEST)win.loadURL('http://127.0.0.1:5173');else win.loadFile(path.join(app.getAppPath(),'dist','index.html'));win.webContents.on('did-fail-load',(_e,code,desc,url)=>console.error('Load failed',code,desc,url));ws.track(win);win.once('ready-to-show',()=>{if(state.maximized)win.maximize();win.show()});setTimeout(()=>{if(!win.isDestroyed()&&!win.isVisible())win.show()},3000);mainWindow=win;win.on('closed',()=>{if(mainWindow===win)mainWindow=null});return win}
 ipcMain.handle('plugin:search',async(_e,{plugin,query})=>runner.search(plugin,query))
 const translator=require('./translate.cjs')
@@ -235,9 +235,13 @@ app.on('web-contents-created',(_e,contents)=>{
  contents.on('will-attach-webview',e=>e.preventDefault())
 })
 const ALLOWED_PERMISSIONS=new Set(['notifications','fullscreen','clipboard-sanitized-write'])
+// The microphone (never the camera) for the watch party voice channel.
+const permissionAllowed=(permission,details)=>ALLOWED_PERMISSIONS.has(permission)||(permission==='media'&&(!details||!Array.isArray(details.mediaTypes)||details.mediaTypes.length===0||details.mediaTypes.every(t=>t==='audio'))&&(!details||details.mediaType==null||details.mediaType==='audio'||details.mediaType==='unknown'))
+const permissionRequest=(_wc,permission,cb,details)=>cb(permissionAllowed(permission,details))
+const permissionCheck=(_wc,permission,_origin,details)=>permissionAllowed(permission,details)
 app.whenReady().then(()=>{
- session.defaultSession.setPermissionRequestHandler((_wc,permission,cb)=>cb(ALLOWED_PERMISSIONS.has(permission)))
- session.defaultSession.setPermissionCheckHandler((_wc,permission)=>ALLOWED_PERMISSIONS.has(permission))
+ session.defaultSession.setPermissionRequestHandler(permissionRequest)
+ session.defaultSession.setPermissionCheckHandler(permissionCheck)
 })
 let torrentsShutDown=false
 app.on('before-quit',e=>{if(torrents&&!torrentsShutDown){e.preventDefault();torrentsShutDown=true;torrents.shutdown().catch(()=>{}).finally(()=>app.quit())}})

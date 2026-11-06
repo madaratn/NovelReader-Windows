@@ -774,3 +774,12 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
 .sec-reset{padding:0 4px;border:0;background:none;color:#8f94a3;cursor:pointer;font-size:13px}
 .health-row{grid-template-columns:10px minmax(0,1fr) auto auto auto}
 @media (max-width:760px){.health-row{grid-template-columns:10px minmax(0,1fr) auto}.health-row .sec-chips{grid-column:2/-1}}
+/* Watch party voice channel */
+.wp-members{display:flex;flex-wrap:wrap;gap:6px}
+.wp-member{padding:3px 9px;border:1px solid #2a3042;border-radius:999px;background:#161a24;color:#d5d8e2;font-size:12.5px;transition:box-shadow .12s,border-color .12s}
+.wp-member.in-voice{border-color:#3a4f7a}
+.wp-member.speaking{border-color:#3fb37f;box-shadow:0 0 0 2px rgba(63,179,127,.35)}
+.wp-voice{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.wp-vol{display:inline-flex;align-items:center;gap:6px;color:#9aa0b4}
+.wp-vol input{width:90px}
+.wp-hint{margin:0;color:#8f94a3;font-size:12px}
