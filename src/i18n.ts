@@ -551,6 +551,13 @@ const FR: Record<string, string> = {
   '360p (smallest)': '360p (plus léger)',
   'Speed limit': 'Limite de débit',
   'No limit': 'Aucune limite',
+  'Search everywhere': 'Rechercher partout',
+  'Search your books, anime, series and movies…': 'Cherche dans tes livres, anime, séries et films…',
+  'Type a title. ↑ ↓ to choose, Enter to open, Esc to close.': 'Tape un titre. ↑ ↓ pour choisir, Entrée pour ouvrir, Échap pour fermer.',
+  'In your libraries': 'Dans tes bibliothèques',
+  'Nothing in your libraries. Search your sources:': 'Rien dans tes bibliothèques. Cherche dans tes sources :',
+  'Search the sources': 'Chercher dans les sources',
+  '“{q}” in {section}': '« {q} » dans {section}',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { open, nav } from './helpers'
+import { open, nav, novel } from './helpers'
 
 test('sidebar: modes, active page, remembered page per mode and after restart', async ({ page }) => {
   await open(page)
@@ -33,12 +33,43 @@ test('back navigation, shortcuts dialog, collapsible sidebar', async ({ page }) 
   await expect(page.locator('aside.sidebar')).toHaveCSS('width', '236px')
 })
 
-test('Ctrl+K focuses the search field of the page', async ({ page }) => {
+test('/ focuses the search field of the page', async ({ page }) => {
   await open(page)
   await nav(page, 'Global Search')
   await page.locator('main h1').click()
-  await page.keyboard.press('Control+k')
+  await page.keyboard.press('/')
   await expect(page.locator('main .searchbar input')).toBeFocused()
+})
+
+test('search everywhere (Ctrl+K): titles from every library, and a source search in one step', async ({ page }) => {
+  await open(page, {
+    library: [novel('n1', 'Lord of Mysteries', 5), novel('n2', 'Shadow Slave', 5)],
+    storage: {
+      animeLibrary: JSON.stringify([{ id: 'a1', name: 'Shadow Hunter', sourceId: '42', url: '/a/1', episodes: 3 }]),
+      seriesLibrary: JSON.stringify([{ id: 's1', name: 'Mystery Road', sourceId: '42', url: '/s/1', episodes: 3 }])
+    }
+  })
+  await page.keyboard.press('Control+k')
+  const input = page.locator('.qs-input')
+  await expect(input).toBeFocused()
+  await input.fill('shadow')
+  await expect(page.locator('.qs-row:not(.action) b')).toHaveText(['Shadow Hunter', 'Shadow Slave'])
+  await expect(page.locator('.qs-row:not(.action) .qs-kind')).toHaveText(['Anime', 'Books'])
+  // Enter opens the selected title (↓ = second row: the novel)
+  await page.keyboard.press('ArrowDown')
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.qs')).toHaveCount(0)
+  await expect(page.locator('main h1')).toHaveText('Shadow Slave')
+  // Source search: switches to that section and runs it right away
+  await page.locator('.qs-open').click()
+  await input.fill('frieren')
+  await page.locator('.qs-row.action', { hasText: 'in Books' }).click()
+  await expect(page.locator('main .searchbar input')).toHaveValue('frieren')
+  await expect.poll(() => page.evaluate(() => (window as any).__calls.search.length)).toBeGreaterThan(0)
+  // Escape closes
+  await page.keyboard.press('Control+k')
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.qs')).toHaveCount(0)
 })
 
 test('narrow window: compact sidebar and no horizontal scroll', async ({ page }) => {

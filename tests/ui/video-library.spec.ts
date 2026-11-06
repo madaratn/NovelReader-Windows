@@ -100,7 +100,7 @@ test('video sources: test installed sources and remove the dead one', async ({ p
   await expect(page.locator('.health-row.warn')).toContainText('List ✓ · Episodes ✗ · Streams ✗')
   await expect(page.locator('.health-row.warn')).toContainText('No episode')
   // Remembered, and dead sources are skipped by the fallback search
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('sourceHealth') || '{}'))
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('videoSourceHealth') || '{}'))
   expect(saved.lamovie.state).toBe('dead'); expect(saved.lamovie.sourceIds).toEqual(['43']); expect(saved.mapple.state).toBe('ok')
   const dead = page.locator('.health-row.dead')
   await expect(dead).toContainText('LaMovie')
@@ -108,7 +108,7 @@ test('video sources: test installed sources and remove the dead one', async ({ p
   await page.getByRole('button', { name: 'Remove 1 dead source' }).click()
   await page.getByRole('button', { name: 'Yes, uninstall' }).click()
   await expect(page.locator('.health-row')).toHaveCount(2)
-  expect(await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('sourceHealth') || '{}')).sort())).toEqual(['mapple', 'partial'])
+  expect(await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('videoSourceHealth') || '{}')).sort())).toEqual(['mapple', 'partial'])
   await expect.poll(() => page.evaluate(() => (window as any).__engine.calls.some((c: string) => c === 'POST /api/v1/extensions/uninstall'))).toBe(true)
 })
 

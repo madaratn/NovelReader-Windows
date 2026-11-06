@@ -24,7 +24,7 @@ export async function buildReport(context=''){
  let sources:string[]=[]
  try{const inst:any=await nr.miwayomiFetch('/api/v1/extensions/installed');const list=Array.isArray(inst)?inst:(inst?.extensions||inst?.items||[]);sources=list.map((e:any)=>String(e.name||e.pkg).replace(/^Aniyomi:\s*/i,'')+(e.versionName?' '+e.versionName:''))}catch(e:any){sources=['(engine unavailable: '+String(e?.message||e).slice(0,120)+')']}
  const counts=LIB_KEYS.map(k=>{try{return k+'='+(JSON.parse(localStorage.getItem(k)||'[]')||[]).length}catch{return k+'=?'}}).join(', ')
- const health=(()=>{try{const h=JSON.parse(localStorage.getItem('sourceHealth')||'{}');return Object.entries(h).map(([k,v]:any)=>k+': '+v.state+(v.detail?' ('+v.detail+')':'')).slice(0,40)}catch{return[]}})()
+ const health=(()=>{try{const h=JSON.parse(localStorage.getItem('videoSourceHealth')||'{}');return Object.entries(h).map(([k,v]:any)=>k+': '+v.state+(v.detail?' ('+v.detail+')':'')).slice(0,40)}catch{return[]}})()
  const out=[
   '=== NovelReader problem report ===',
   'Date: '+new Date().toISOString(),

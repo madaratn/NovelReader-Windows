@@ -30,7 +30,9 @@ export function NovelSearch({query,setQuery,plugins,ensurePlugins,library,onAdd,
   const token=++runToken.current
   setErr('');setHits([]);setAdded(null)
   let list=plugins;if(!list.length){setStatus({running:true,checked:0,total:0,errors:0,query:q});try{list=await ensurePlugins()}catch(e:any){setErr(t('Could not load the source list:')+' '+String(e?.message||e));setStatus(null);return}}
-  const targets=list.filter(pl=>selected.includes(String(pl.lang||'?')))
+  // The source list may have just been loaded: work out the default languages from it.
+  const sel=langs??[...new Set(list.map(pl=>String(pl.lang||'?')))].filter(preferredLang)
+  const targets=list.filter(pl=>sel.includes(String(pl.lang||'?')))
   if(!targets.length){setErr(t('Choose at least one language.'));return}
   const nextRecent=[q,...recent.filter(r=>r.toLowerCase()!==q.toLowerCase())].slice(0,6);setRecent(nextRecent);lsSet('recentSearches',JSON.stringify(nextRecent))
   let checked=0,errors=0;const found:SearchHit[]=[],queue=[...targets],words=normTitle(q).split(' ').filter(Boolean)
@@ -46,6 +48,8 @@ export function NovelSearch({query,setQuery,plugins,ensurePlugins,library,onAdd,
   await Promise.all(Array.from({length:8},worker))
   if(token===runToken.current)setStatus(st=>st&&{...st,running:false})
  }
+ // Started from Search everywhere: run right away.
+ useEffect(()=>{if(sessionStorage.getItem('autoSearch')==='books'&&query.trim()){sessionStorage.removeItem('autoSearch');run()}},[])
  const stop=()=>{runToken.current++;setStatus(st=>st&&{...st,running:false,stopped:true})}
  // Group the same title found on several sources.
  const groups:SearchGroup[]=[];const byKey=new Map<string,SearchGroup>();const qn=normTitle(status?.query||query)
