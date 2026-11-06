@@ -1,12 +1,14 @@
-## NovelReader 0.9.1
+## NovelReader 0.9.2
 
-### Mises à jour automatiques et silencieuses
-- Les mises à jour se téléchargent en arrière-plan et s'installent **sans fenêtre d'installation** : rien à désinstaller ni à réinstaller, votre bibliothèque et vos réglages restent.
-- Elles s'installent toutes seules **quand vous fermez NovelReader**, et au prochain lancement un petit message confirme « NovelReader a été mis à jour en … ».
-- Si NovelReader reste ouvert, la mise à jour s'installe aussi quand le PC est **inactif depuis 15 minutes**, jamais pendant une vidéo ; l'app se rouvre toute seule. Option désactivable dans Paramètres › Mises à jour.
-- Le bouton **Redémarrer maintenant** reste disponible pour l'installer tout de suite.
+Cette version s'installe toute seule en arrière-plan (fermez NovelReader et rouvrez-le).
 
-Pour passer de la 0.9.0 à celle-ci : fermez simplement NovelReader et rouvrez-le (évitez le bouton de la bannière de la 0.9.0, qui affiche encore l'installeur). Ensuite, tout se fait tout seul.
+### Correction : le watch party ne repart plus à 0
+- Pendant une séance, la vidéo pouvait revenir au début pour tout le monde après un moment. Cela arrivait quand le lecteur d'une personne rechargeait la vidéo tout seul (changement de serveur après un blocage, reprise du flux, changement de qualité) : il repartait à 0 et l'envoyait à tout le groupe.
+- Maintenant, un lecteur qui revient au début tout seul est simplement remis à la position du groupe, et les autres ne bougent pas.
+- Revenir au début volontairement (clic sur la barre, touche du clavier ou de la manette) est toujours partagé avec le groupe.
+
+### Aussi
+- Pour les vidéos dont la durée n'est pas connue (certains serveurs), la position est maintenant retenue : la reprise et le changement de serveur « à la même position » fonctionnent aussi pour elles.
 
 ### Installation
-Téléchargez `NovelReader-Setup-0.9.1.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».
+Téléchargez `NovelReader-Setup-0.9.2.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».
