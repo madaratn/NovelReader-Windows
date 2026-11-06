@@ -1,0 +1,40 @@
+name: UI screenshots
+
+permissions:
+  contents: write
+
+"on":
+  workflow_dispatch: {}
+  push:
+    branches:
+      - "claude/ui-**"
+
+jobs:
+  screens:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Capture every section
+        shell: bash
+        run: |
+          npx playwright test -c playwright.screens.config.ts 2>&1 | tee cap.log || true
+          grep -E "Error|error|✘|Timeout|expect" cap.log | head -15 | while IFS= read -r l; do echo "::warning::$l"; done || true
+          ls screens 2>/dev/null | head -40 | while IFS= read -r l; do echo "::notice::shot $l"; done || true
+      - name: Publish screenshots to a branch
+        shell: bash
+        run: |
+          [ -d screens ] || { echo '::error::no screens directory'; exit 1; }
+          BR="screens/${GITHUB_REF_NAME//\//-}"
+          cd screens
+          git init -q && git checkout -q -b "$BR"
+          git add . && git -c user.name=ci -c user.email=ci@local commit -qm "screenshots for $GITHUB_SHA"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" "$BR"

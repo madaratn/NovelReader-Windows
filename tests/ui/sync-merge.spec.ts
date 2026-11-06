@@ -64,3 +64,33 @@ test('only synced keys are shared (preferences stay on each PC)', () => {
   expect(Object.keys(pickSynced({ library: '[]', 'reading:a': '{}', readerPrefs: '{}', lang: 'fr', appTheme: 'light', annotations: '[]' })).sort())
     .toEqual(['annotations', 'library', 'reading:a'])
 })
+
+test('video libraries: union, removals, statuses, positions and watch stats', () => {
+  const local = {
+    seriesLibrary: lib({ id: 's1', name: 'Lanterns', addedAt: 10, episodes: 8, shelf: 'watching', shelfAt: 5 }),
+    animeLibrary: lib({ id: 'a1', addedAt: 10 }),
+    mediaRemoved: JSON.stringify({ 'animeLibrary:a2': 100 }),
+    'mediapos:series:s1:/ep/3': JSON.stringify({ t: 100, d: 2700, at: 50 }),
+    'lastEpInfo:s1': JSON.stringify({ url: '/ep/3', n: 3, at: 50 }), 'lastEp:s1': '/ep/3',
+    watchStats: JSON.stringify({ '2026-10-01': { s: 600, e: 1 } })
+  }
+  const remote = {
+    seriesLibrary: lib({ id: 's2', name: 'The Bear', addedAt: 30 }, { id: 's1', addedAt: 10, episodes: 10, shelf: 'completed', shelfAt: 9 }),
+    animeLibrary: lib({ id: 'a1', addedAt: 10 }, { id: 'a2', addedAt: 20 }),
+    'mediapos:series:s1:/ep/3': JSON.stringify({ t: 900, d: 2700, at: 80 }),
+    'lastEpInfo:s1': JSON.stringify({ url: '/ep/4', n: 4, at: 90 }),
+    'prefServer:s1': 'Hermes - 1080p',
+    watchStats: JSON.stringify({ '2026-10-01': { s: 300, e: 2 }, '2026-10-02': { s: 120, e: 0 } })
+  }
+  const m = mergeSync(local, remote)
+  const series = JSON.parse(m.seriesLibrary)
+  expect(series.map((x: any) => x.id)).toEqual(['s2', 's1'])
+  expect(series[1].episodes).toBe(10)
+  expect(series[1].shelf).toBe('completed')
+  expect(JSON.parse(m.animeLibrary).map((x: any) => x.id)).toEqual(['a1']) // a2 was removed here
+  expect(JSON.parse(m['mediapos:series:s1:/ep/3']).t).toBe(900)
+  expect(m['lastEp:s1']).toBe('/ep/4')
+  expect(m['prefServer:s1']).toBe('Hermes - 1080p')
+  expect(JSON.parse(m.watchStats)).toEqual({ '2026-10-01': { s: 600, e: 2 }, '2026-10-02': { s: 120, e: 0 } })
+  expect(Object.keys(pickSynced({ seriesLibrary: '[]', 'mediapos:x': '{}', theme: 'dark' }))).toEqual(['seriesLibrary', 'mediapos:x'])
+})

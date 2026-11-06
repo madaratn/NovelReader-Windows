@@ -15,6 +15,8 @@ const {createLNReaderImporter}=require('./lnreader-import.cjs')
 const {createFolderSync}=require('./sync.cjs')
 const folderSync=createFolderSync({app,dialog})
 const {createLocalTracks}=require('./local-tracks.cjs')
+const {createFlareSolverr}=require('./flaresolverr.cjs')
+const {createVideoDownloads}=require('./video-downloads.cjs')
 const localTracks=createLocalTracks()
 // Lets the Local Videos player list and switch audio tracks (video.audioTracks).
 app.commandLine.appendSwitch('enable-blink-features','AudioVideoTracks')
@@ -59,8 +61,19 @@ function startMiwayomi(){
  miwayomiProcess.on('error',e=>pushMiwayomiLog('stderr','Process error: '+String(e.message||e)));
  miwayomiProcess.on('exit',(code,signal)=>{pushMiwayomiLog('stderr','Process exited code='+code+' signal='+signal);miwayomiProcess=null}); return true;
 }
+// Video extraction walks several hoster servers and can take far longer than a
+// catalogue call; a short timeout made slow sources (e.g. Mapple) look broken.
+function miwayomiTimeout(pathname){
+  const p=String(pathname).split('?')[0];
+  if(/\/(videos|hosters|hosterVideos)$/.test(p)) return 60000;
+  if(/\/(episodes|seasons|details)$/.test(p)) return 30000;
+  if(/\/(search|popular|latest)$/.test(p)) return 15000;
+  if(/\/extensions\/(install|repo)/.test(p)) return 60000;
+  return 8000;
+}
 async function miwayomiRequest(pathname, init={}) {
-  const controller=new AbortController(); const timer=setTimeout(()=>controller.abort(),8000);
+  const timeoutMs=miwayomiTimeout(pathname);
+  const controller=new AbortController(); const timer=setTimeout(()=>controller.abort(),timeoutMs);
   try {
     const r=await fetch(MIWAYOMI_BASE+pathname,{...init,signal:controller.signal,headers:{'Content-Type':'application/json',...(init.headers||{})}});
     const ct=r.headers.get('content-type')||'';
@@ -72,10 +85,31 @@ async function miwayomiRequest(pathname, init={}) {
       throw new Error('Miwayomi HTTP '+r.status+(detail?' — '+detail:''));
     }
     return ct.includes('json')?await r.json():await r.text();
+  } catch(e) {
+    if(e&&e.name==='AbortError') throw new Error('Miwayomi request timed out after '+Math.round(timeoutMs/1000)+' s ('+String(pathname).split('?')[0]+')');
+    throw e;
   } finally { clearTimeout(timer) }
 }
 ipcMain.handle('anime:miwayomiStatus', async()=>{try{const health=await miwayomiRequest('/api/v1/health');return {online:true,baseUrl:MIWAYOMI_BASE,health}}catch(e){if(!miwayomiProcess)startMiwayomi();return {online:false,starting:!!miwayomiProcess,baseUrl:MIWAYOMI_BASE,error:String(e.message||e)}}});
 ipcMain.handle('anime:miwayomiDebug',async()=>{const [health,sources,installed]=await Promise.all([miwayomiRequest('/api/v1/health'),miwayomiRequest('/api/v1/sources'),miwayomiRequest('/api/v1/extensions/installed')]);return {health,sources,installed,dataDir:path.join(app.getPath('userData'),'miwayomi'),engineJar:path.join(engineRoot(),'miwayomi-all.jar'),logs:miwayomiLogs.slice(-250)}});
+// Cloudflare solver used by the video engine (see electron/flaresolverr.cjs).
+let flare=null
+const flareApi=()=>flare||(flare=createFlareSolverr({app}))
+ipcMain.handle('flare:status',()=>flareApi().status())
+// ---- Offline video downloads (electron/video-downloads.cjs) ----------------
+let videoDl=null
+const dlApi=()=>videoDl||(videoDl=createVideoDownloads({root:path.join(app.getPath('userData'),'video-downloads'),log:(...a)=>console.warn('[downloads]',...a),notify:()=>{for(const w of BrowserWindow.getAllWindows())try{w.webContents.send('dl:changed')}catch{}}}))
+const dlIpc=fn=>async(_e,arg)=>{try{return await fn(arg)}catch(e){console.warn('[downloads]',e);throw new Error(e&&e.message||String(e))}}
+ipcMain.handle('dl:start',dlIpc(p=>dlApi().start(p)))
+ipcMain.handle('dl:list',dlIpc(()=>dlApi().list()))
+ipcMain.handle('dl:cancel',dlIpc(id=>dlApi().cancel(String(id||''))))
+ipcMain.handle('dl:remove',dlIpc(id=>dlApi().remove(String(id||''))))
+ipcMain.handle('dl:clear',dlIpc(()=>dlApi().clear()))
+ipcMain.handle('dl:usage',dlIpc(()=>dlApi().usage()))
+ipcMain.handle('dl:base',dlIpc(()=>dlApi().base()))
+ipcMain.handle('dl:openFolder',dlIpc(async()=>{const r=dlApi().root;fs.mkdirSync(r,{recursive:true});await shell.openPath(r);return true}))
+ipcMain.handle('flare:install',()=>flareApi().install())
+ipcMain.handle('flare:start',async()=>{flareApi().start();await new Promise(r=>setTimeout(r,2500));return flareApi().status()})
 ipcMain.handle('anime:miwayomiFetch', async(_e,{path,method='GET',body})=>{
  if(typeof path!=='string'||!path.startsWith('/')) throw new Error('Invalid Miwayomi path');
  return miwayomiRequest(path,{method,body:body==null?undefined:JSON.stringify(body)});
@@ -208,6 +242,6 @@ async function runSmokeTest(win){
  app.exit(result.ok?0:1)
 }
 
-app.whenReady().then(()=>{registerLocalProtocol();if(SMOKE_TEST){runSmokeTest(createWindow());return}startMiwayomi();createWindow();updater.start()})
-app.on('before-quit',()=>{if(miwayomiProcess){miwayomiProcess.kill();miwayomiProcess=null}})
+app.whenReady().then(()=>{registerLocalProtocol();if(SMOKE_TEST){runSmokeTest(createWindow());return}try{flareApi().start()}catch{}startMiwayomi();createWindow();updater.start()})
+app.on('before-quit',()=>{if(miwayomiProcess){miwayomiProcess.kill();miwayomiProcess=null}try{flare&&flare.stop()}catch{}try{videoDl&&videoDl.close()}catch{}})
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()})

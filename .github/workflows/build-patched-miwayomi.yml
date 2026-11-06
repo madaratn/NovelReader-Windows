@@ -105,6 +105,11 @@ jobs:
                                             if (insn.opcode == org.objectweb.asm.Opcodes.INVOKEVIRTUAL) {
                                                 insn.opcode = org.objectweb.asm.Opcodes.INVOKEINTERFACE
                                                 insn.itf = true
+                                            } else if (insn.opcode == org.objectweb.asm.Opcodes.INVOKESTATIC ||
+                                                insn.opcode == org.objectweb.asm.Opcodes.INVOKESPECIAL) {
+                                                // Static/private/default interface methods must use an
+                                                // InterfaceMethodref ("must be InterfaceMethodref constant").
+                                                insn.itf = true
                                             }
                                         }
                                     }
@@ -118,6 +123,138 @@ jobs:
           # actually applied to those cached JARs on the next launch.
           s = s.replace('META-INF/miwayomi-jarfixed-v2', 'META-INF/miwayomi-jarfixed-v3')
           p.write_text(s)
+
+      - name: Repair constructor owners on uninitialized objects stored in locals
+        shell: python
+        run: |
+          from pathlib import Path
+          # dex2jar can emit `new T; astore n; aload n; <args>; invokespecial X.<init>`
+          # with X != T (seen in AnimeSogo/AnikotoTheme getHosterList:
+          # "VerifyError: Call to wrong <init> method ... 'x' is not assignable to
+          # java/util/ArrayList"). fixWrongInitOwner only understands `new T; dup`.
+          # Trace the receiver of every invokespecial <init> back to its NEW with
+          # ASM's SourceInterpreter and make T the owner, as the verifier requires.
+          root = Path("miwayomi")
+          toml = root / "gradle/libs.versions.toml"
+          t = toml.read_text()
+          anchor = 'asm-tree = { module = "org.ow2.asm:asm-tree", version.ref = "asm" }'
+          if anchor not in t:
+              raise SystemExit("asm-tree catalog anchor not found")
+          t = t.replace(anchor, anchor + "\nasm-analysis = { module = \"org.ow2.asm:asm-analysis\", version.ref = \"asm\" }", 1)
+          toml.write_text(t)
+          gb = root / "server/build.gradle.kts"
+          g = gb.read_text()
+          if "implementation(libs.asm.tree)" not in g:
+              raise SystemExit("asm.tree dependency anchor not found")
+          g = g.replace("implementation(libs.asm.tree)", "implementation(libs.asm.tree)\n    implementation(libs.asm.analysis)", 1)
+          gb.write_text(g)
+
+          p = root / "server/src/main/kotlin/miwayomi/extension/JarFixer.kt"
+          s = p.read_text()
+          # Run the new repair in the first pass (so missing <init>s get synthesized)
+          # and in the clean frame-rebuild pass that actually writes the class.
+          first = "                fixWrongInitOwner(cn, needInit, classes)\n"
+          if first not in s:
+              raise SystemExit("first-pass fixWrongInitOwner anchor not found")
+          s = s.replace(first, first + "                fixUninitializedInitOwner(cn, needInit)\n", 1)
+          clean = "fixWrongInitOwner(clean, needInit, classes)\n"
+          if clean not in s:
+              raise SystemExit("clean-pass fixWrongInitOwner anchor not found")
+          s = s.replace(clean, clean + "                            fixUninitializedInitOwner(clean, needInit)\n", 1)
+          helper = """
+              private fun fixUninitializedInitOwner(cn: ClassNode, needInit: MutableSet<Pair<String, String>>) {
+                  for (m in cn.methods) {
+                      val insns = m.instructions ?: continue
+                      if (insns.size() == 0) continue
+                      val inits = insns.toArray().filterIsInstance<MethodInsnNode>()
+                          .filter { it.opcode == Opcodes.INVOKESPECIAL && it.name == "<init>" }
+                      if (inits.isEmpty()) continue
+                      val frames = try {
+                          org.objectweb.asm.tree.analysis.Analyzer(org.objectweb.asm.tree.analysis.SourceInterpreter()).analyze(cn.name, m)
+                      } catch (_: Throwable) {
+                          continue
+                      }
+                      for (call in inits) {
+                          val f = frames[insns.indexOf(call)] ?: continue
+                          val idx = f.stackSize - Type.getArgumentTypes(call.desc).size - 1
+                          if (idx < 0) continue
+                          val t = novelReaderNewTypeOf(f.getStack(idx), insns, frames, 0) ?: continue
+                          if (t != call.owner) {
+                              System.err.println("[miwayomi] <init> owner " + call.owner + " -> " + t + " in " + cn.name + "." + m.name)
+                              call.owner = t
+                              call.itf = false
+                              needInit.add(t to call.desc)
+                          }
+                      }
+                  }
+              }
+
+              private fun novelReaderNewTypeOf(
+                  v: org.objectweb.asm.tree.analysis.SourceValue?,
+                  insns: InsnList,
+                  frames: Array<org.objectweb.asm.tree.analysis.Frame<org.objectweb.asm.tree.analysis.SourceValue>?>,
+                  depth: Int,
+              ): String? {
+                  if (v == null || depth > 8 || v.insns.isEmpty()) return null
+                  var found: String? = null
+                  for (p in v.insns) {
+                      val t: String = when {
+                          p is TypeInsnNode && p.opcode == Opcodes.NEW -> p.desc
+                          p is InsnNode && p.opcode == Opcodes.DUP -> {
+                              val fr = frames[insns.indexOf(p)] ?: return null
+                              novelReaderNewTypeOf(fr.getStack(fr.stackSize - 1), insns, frames, depth + 1)
+                          }
+                          p is VarInsnNode && p.opcode == Opcodes.ALOAD -> {
+                              val fr = frames[insns.indexOf(p)] ?: return null
+                              novelReaderNewTypeOf(fr.getLocal(p.`var`), insns, frames, depth + 1)
+                          }
+                          p is VarInsnNode && p.opcode == Opcodes.ASTORE -> {
+                              val fr = frames[insns.indexOf(p)] ?: return null
+                              novelReaderNewTypeOf(fr.getStack(fr.stackSize - 1), insns, frames, depth + 1)
+                          }
+                          else -> null
+                      } ?: return null
+                      if (found != null && found != t) return null
+                      found = t
+                  }
+                  return found
+              }
+          """
+          anchor = "    private fun fixConstructorSuperCall("
+          if anchor not in s:
+              raise SystemExit("JarFixer helper anchor not found")
+          import textwrap
+          s = s.replace(anchor, textwrap.indent(textwrap.dedent(helper).strip("\n"), "    ") + "\n\n" + anchor, 1)
+          # Re-process extension JARs cached by previous engine builds.
+          if 'META-INF/miwayomi-jarfixed-v3' not in s:
+              raise SystemExit("v3 marker not found")
+          s = s.replace('META-INF/miwayomi-jarfixed-v3', 'META-INF/miwayomi-jarfixed-v5')
+          p.write_text(s)
+
+      - name: Accept long request URLs (Movies Mod episode JSON)
+        shell: python
+        run: |
+          from pathlib import Path
+          # Some extensions (Movies Mod) store a JSON list of download links as the
+          # episode URL. URL-encoded in ?url=..., the request line exceeds Netty's
+          # 4096-byte default and Netty answers a bare "400 Bad Request" before any
+          # route runs. Raise the limits for this local-only server.
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/Main.kt")
+          s = p.read_text()
+          old = "    val srv = embeddedServer(Netty, port = config.port, host = config.host) {"
+          if old not in s:
+              raise SystemExit("embeddedServer anchor not found")
+          new = chr(10).join([
+              "    val srv = embeddedServer(Netty, configure = {",
+              "        connectors.add(io.ktor.server.engine.EngineConnectorBuilder().apply {",
+              "            port = config.port",
+              "            host = config.host",
+              "        })",
+              "        maxInitialLineLength = 1024 * 1024",
+              "        maxHeaderSize = 64 * 1024",
+              "    }) {",
+          ])
+          p.write_text(s.replace(old, new, 1))
 
       - name: Patch Android Log shim for extension compatibility
         shell: python
@@ -150,6 +287,141 @@ jobs:
           '''
           s = s.replace(marker, compat + marker, 1)
           p.write_text(s)
+
+      - name: Add Android LruCache compatibility shim
+        shell: python
+        run: |
+          from pathlib import Path
+          # ReAnime (and other extensions) build an android.util.LruCache; the
+          # android.jar stub throws "Stub!". Provide a real JVM implementation.
+          Path("miwayomi/android-compat/src/main/kotlin/android/util/LruCache.kt").write_text("""
+          package android.util
+
+          /**
+           * JVM implementation of android.util.LruCache (the android.jar class is a
+           * "Stub!" that throws). Mirrors the AOSP semantics: access-ordered map,
+           * sizeOf/create/entryRemoved hooks, thread-safe.
+           */
+          open class LruCache<K : Any, V : Any>(maxSize: Int) {
+              private val map = LinkedHashMap<K, V>(0, 0.75f, true)
+              private var curSize = 0
+              private var limit = maxSize
+              private var putCount = 0
+              private var createCount = 0
+              private var evictionCount = 0
+              private var hitCount = 0
+              private var missCount = 0
+
+              init {
+                  require(maxSize > 0) { "maxSize <= 0" }
+              }
+
+              fun get(key: K): V? {
+                  synchronized(this) {
+                      val hit = map[key]
+                      if (hit != null) {
+                          hitCount++
+                          return hit
+                      }
+                      missCount++
+                  }
+                  val created = create(key) ?: return null
+                  var previous: V?
+                  synchronized(this) {
+                      createCount++
+                      previous = map.put(key, created)
+                      if (previous != null) {
+                          map[key] = previous!!
+                      } else {
+                          curSize += safeSizeOf(key, created)
+                      }
+                  }
+                  val prev = previous
+                  return if (prev != null) {
+                      entryRemoved(false, key, created, prev)
+                      prev
+                  } else {
+                      trimToSize(limit)
+                      created
+                  }
+              }
+
+              fun put(key: K, value: V): V? {
+                  var previous: V?
+                  synchronized(this) {
+                      putCount++
+                      curSize += safeSizeOf(key, value)
+                      previous = map.put(key, value)
+                      previous?.let { curSize -= safeSizeOf(key, it) }
+                  }
+                  previous?.let { entryRemoved(false, key, it, value) }
+                  trimToSize(limit)
+                  return previous
+              }
+
+              open fun trimToSize(maxSize: Int) {
+                  while (true) {
+                      var key: K
+                      var value: V
+                      synchronized(this) {
+                          if (curSize <= maxSize || map.isEmpty()) return
+                          val eldest = map.entries.iterator().next()
+                          key = eldest.key
+                          value = eldest.value
+                          map.remove(key)
+                          curSize -= safeSizeOf(key, value)
+                          evictionCount++
+                      }
+                      entryRemoved(true, key, value, null)
+                  }
+              }
+
+              fun remove(key: K): V? {
+                  var previous: V?
+                  synchronized(this) {
+                      previous = map.remove(key)
+                      previous?.let { curSize -= safeSizeOf(key, it) }
+                  }
+                  previous?.let { entryRemoved(false, key, it, null) }
+                  return previous
+              }
+
+              open fun resize(maxSize: Int) {
+                  require(maxSize > 0) { "maxSize <= 0" }
+                  synchronized(this) { limit = maxSize }
+                  trimToSize(maxSize)
+              }
+
+              protected open fun entryRemoved(evicted: Boolean, key: K, oldValue: V, newValue: V?) {}
+
+              protected open fun create(key: K): V? = null
+
+              private fun safeSizeOf(key: K, value: V): Int {
+                  val result = sizeOf(key, value)
+                  check(result >= 0) { "Negative size: $key=$value" }
+                  return result
+              }
+
+              protected open fun sizeOf(key: K, value: V): Int = 1
+
+              fun evictAll() = trimToSize(-1)
+
+              @Synchronized fun size(): Int = curSize
+              @Synchronized fun maxSize(): Int = limit
+              @Synchronized fun hitCount(): Int = hitCount
+              @Synchronized fun missCount(): Int = missCount
+              @Synchronized fun createCount(): Int = createCount
+              @Synchronized fun putCount(): Int = putCount
+              @Synchronized fun evictionCount(): Int = evictionCount
+              @Synchronized fun snapshot(): MutableMap<K, V> = LinkedHashMap(map)
+
+              @Synchronized override fun toString(): String {
+                  val accesses = hitCount + missCount
+                  val hitPercent = if (accesses != 0) 100 * hitCount / accesses else 0
+                  return "LruCache[maxSize=$limit,hits=$hitCount,misses=$missCount,hitRate=$hitPercent%]"
+              }
+          }
+          """.lstrip("\n"))
 
       - name: Add Android URLUtil compatibility shim
         shell: python
@@ -352,6 +624,62 @@ jobs:
               raise SystemExit("video hoster loop anchor not found")
           p.write_text(s.replace(old, new, 1))
 
+      - name: Extract hoster videos in parallel
+        shell: python
+        run: |
+          from pathlib import Path
+          # /videos used to resolve every hoster one after the other (Mapple: 18
+          # hosters, 20-30 s per episode). Resolve up to 6 at once, keep the
+          # original order, and give each hoster 25 s.
+          p = Path("miwayomi/server/src/main/kotlin/miwayomi/api/AnimeRoutes.kt")
+          s = p.read_text()
+          old = chr(10).join([
+              "                for (hoster in hosters) {",
+              "                    try {",
+              "                        val list = hoster.videoList",
+              "                            ?: runCatching { source.getVideoList(hoster) }.getOrNull().orEmpty()",
+              "                        videos.addAll(list.map { it.toDtoNormalized() })",
+              "                    } catch (e: Throwable) {",
+              "                        val root = generateSequence(e) { it.cause }.lastOrNull() ?: e",
+              '                        println("[miwayomi] video hoster " + source.name + ": " + root.javaClass.simpleName + ": " + root.message)',
+              "                    }",
+              "                }",
+          ])
+          if old not in s:
+              raise SystemExit("hoster loop anchor not found")
+          new = chr(10).join([
+              "                val perHoster = kotlinx.coroutines.coroutineScope {",
+              "                    val gate = kotlinx.coroutines.sync.Semaphore(6)",
+              "                    hosters.map { hoster ->",
+              "                        async(kotlinx.coroutines.Dispatchers.IO) {",
+              "                            gate.withPermit {",
+              "                                try {",
+              "                                    kotlinx.coroutines.withTimeoutOrNull(25_000L) {",
+              "                                        val list = hoster.videoList",
+              "                                            ?: runCatching { source.getVideoList(hoster) }.getOrNull().orEmpty()",
+              "                                        list.map { it.toDtoNormalized() }",
+              "                                    } ?: run {",
+              '                                        println("[miwayomi] video hoster " + source.name + ": timed out (" + hoster.hosterName + ")")',
+              "                                        emptyList()",
+              "                                    }",
+              "                                } catch (e: Throwable) {",
+              "                                    val root = generateSequence(e) { it.cause }.lastOrNull() ?: e",
+              '                                    println("[miwayomi] video hoster " + source.name + ": " + root.javaClass.simpleName + ": " + root.message)',
+              "                                    emptyList()",
+              "                                }",
+              "                            }",
+              "                        }",
+              "                    }.awaitAll()",
+              "                }",
+              "                perHoster.forEach { videos.addAll(it) }",
+          ])
+          s = s.replace(old, new, 1)
+          imp = "import uy.kohesive.injekt.api.get"
+          if imp not in s:
+              raise SystemExit("import anchor not found")
+          s = s.replace(imp, imp + chr(10) + "import kotlinx.coroutines.async" + chr(10) + "import kotlinx.coroutines.awaitAll" + chr(10) + "import kotlinx.coroutines.sync.withPermit", 1)
+          p.write_text(s)
+
       - name: Install global RxJava error handler
         shell: python
         run: |
@@ -397,7 +725,14 @@ jobs:
 
       - name: Build patched fat JAR
         working-directory: miwayomi
-        run: ./gradlew :server:shadowJar --no-daemon
+        shell: bash
+        run: |
+          set -o pipefail
+          if ! ./gradlew :server:shadowJar --no-daemon 2>&1 | tee build.log; then
+            # Surface compiler errors as annotations (readable without log access).
+            grep -E "^e: |error:|FAILURE|What went wrong" -A2 build.log | head -40 | while IFS= read -r line; do echo "::error::$line"; done
+            exit 1
+          fi
 
       - name: Verify packaged URLUtil is not android.jar Stub
         working-directory: miwayomi
@@ -422,6 +757,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish stable patched engine release
+        if: github.ref == 'refs/heads/v0.2-sources'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

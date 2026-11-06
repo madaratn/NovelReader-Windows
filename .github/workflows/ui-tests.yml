@@ -1,6 +1,8 @@
 name: UI tests
 on:
   push:
+    branches-ignore:
+      - 'screens/**'
   pull_request:
   workflow_dispatch:
 jobs:

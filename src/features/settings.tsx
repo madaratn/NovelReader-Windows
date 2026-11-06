@@ -25,7 +25,7 @@ export type ImportResult={added:number,exists:number,skipped:number,unknown:stri
 export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onShowLibrary,sync}:{lang:Lang,onLang:(l:Lang)=>void,onWelcome:()=>void,update:UpdateStatus|null,onImportLNReader:()=>Promise<ImportResult|null>,onShowLibrary:()=>void,sync?:FolderSync}){
  const[imp,setImp]=useState<ImportResult|null>(null),[impBusy,setImpBusy]=useState(false),[usage,setUsage]=useState<{bytes:number,chapters:number,novels:number}|null>(null),[clearConfirm,setClearConfirm]=useState(false)
  useEffect(()=>{window.novelReader.offlineUsage?.().then(setUsage).catch(()=>{})},[])
- const[theme,setTheme]=useState<ThemePref>(getThemePref),version=useAppVersion(),[notify,setNotify]=useState(()=>lsGet('notifyNewChapters')!=='0')
+ const[theme,setTheme]=useState<ThemePref>(getThemePref),version=useAppVersion(),[notify,setNotify]=useState(()=>lsGet('notifyNewChapters')!=='0'),[autoEp,setAutoEp]=useState(()=>lsGet('autoCheckEpisodes')!=='0'),[notifyEp,setNotifyEp]=useState(()=>lsGet('notifyNewEpisodes')!=='0')
  const[autos,setAutos]=useState<{name:string,novels:number,exportedAt:number}[]>([]),[msg,setMsg]=useState<{ok:boolean,text:string}|null>(null),[confirm,setConfirm]=useState<string|null>(null),[busy,setBusy]=useState(false)
  const[autoCheck,setAutoCheck]=useState(()=>lsGet('autoCheckUpdates')!=='0')
  const refresh=async()=>{try{setAutos(await window.novelReader.backupListAuto())}catch{}}
@@ -57,6 +57,10 @@ export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onSh
   <section className="panel settings-block"><h2>{t('New chapters')}</h2>
    <label className="settings-check"><input type="checkbox" checked={autoCheck} onChange={e=>{setAutoCheck(e.target.checked);lsSet('autoCheckUpdates',e.target.checked?'1':'0')}}/> {t('Check my library for new chapters when NovelReader starts (at most every 12 hours)')}</label>
    <label className="settings-check"><input type="checkbox" checked={notify} onChange={e=>{setNotify(e.target.checked);lsSet('notifyNewChapters',e.target.checked?'1':'0')}}/> {t('Show a Windows notification when new chapters are found')}</label>
+  </section>
+  <section className="panel settings-block"><h2>{t('New episodes')}</h2>
+   <label className="settings-check"><input type="checkbox" checked={autoEp} onChange={e=>{setAutoEp(e.target.checked);lsSet('autoCheckEpisodes',e.target.checked?'1':'0')}}/> {t('Check my anime and series for new episodes in the background (every 6 hours)')}</label>
+   <label className="settings-check"><input type="checkbox" checked={notifyEp} onChange={e=>{setNotifyEp(e.target.checked);lsSet('notifyNewEpisodes',e.target.checked?'1':'0')}}/> {t('Show a Windows notification when new episodes are found')}</label>
   </section>
   <section className="panel settings-block"><h2>{t('Import from LNReader (Android)')}</h2>
    <p className="settings-help">{t('In the LNReader app, open More > Backup and restore > Create backup, copy the .zip file to this PC, then import it here. Your novels and where you stopped reading are added to your library.')}</p>
@@ -91,6 +95,11 @@ export function UpdateSettings({status,version}:{status:UpdateStatus|null,versio
  </section>
 }
 // Windows notification for new chapters (only when the window is not in front).
+export function notifyNewEpisodes(found:number,names:string[],onClick:()=>void){
+ if(lsGet('notifyNewEpisodes')==='0'||typeof Notification==='undefined')return
+ if(document.hasFocus())return
+ try{const n=new Notification(plural(found,'{n} title has new episodes.','{n} titles have new episodes.'),{body:names.filter(Boolean).slice(0,3).join(', ')+(names.length>3?'…':''),silent:false});n.onclick=()=>{window.novelReader.focusWindow?.();onClick()}}catch{}
+}
 export function notifyNewChapters(found:number,names:string[],onClick:()=>void){
  if(lsGet('notifyNewChapters')==='0'||typeof Notification==='undefined')return
  if(document.hasFocus())return
