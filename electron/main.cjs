@@ -240,11 +240,21 @@ ipcMain.handle('anilist:login',async(e,clientId)=>anilist.login(BrowserWindow.fr
 ipcMain.handle('anilist:token',async(_e,{token})=>anilist.setToken(String(token||'').trim()))
 ipcMain.handle('anilist:logout',()=>anilist.logout())
 ipcMain.handle('anilist:call',async(_e,{name,vars})=>anilist.call(String(name),vars||{}))
+// MyAnimeList sign-in window: handled by electron/mal.cjs.
+const {createMAL}=require('./mal.cjs')
+const mal=createMAL({BrowserWindow,session,profiles})
+ipcMain.handle('mal:status',()=>mal.status())
+ipcMain.handle('mal:login',async(e,{clientId,clientSecret}={})=>mal.login(BrowserWindow.fromWebContents(e.sender),clientId,clientSecret))
+ipcMain.handle('mal:logout',()=>mal.logout())
+ipcMain.handle('mal:call',async(_e,{name,vars})=>mal.call(String(name),vars||{}))
+// Sign-in windows are recognised when the event happens (they are registered just
+// after their contents are created).
+const isAuth=c=>anilist.isAuthWindow(c)||mal.isAuthWindow(c)
 app.on('web-contents-created',(_e,contents)=>{
- if(anilist.isAuthWindow(contents))return
- contents.setWindowOpenHandler(({url})=>{openOutside(url);return{action:'deny'}})
- contents.on('will-navigate',(e,url)=>{if(!isAppUrl(url)){e.preventDefault();openOutside(url)}})
- contents.on('will-redirect',(e,url)=>{if(!isAppUrl(url))e.preventDefault()})
+ if(isAuth(contents))return
+ contents.setWindowOpenHandler(({url})=>{if(isAuth(contents))return{action:'deny'};openOutside(url);return{action:'deny'}})
+ contents.on('will-navigate',(e,url)=>{if(isAuth(contents))return;if(!isAppUrl(url)){e.preventDefault();openOutside(url)}})
+ contents.on('will-redirect',(e,url)=>{if(isAuth(contents))return;if(!isAppUrl(url))e.preventDefault()})
  contents.on('will-attach-webview',e=>e.preventDefault())
 })
 const ALLOWED_PERMISSIONS=new Set(['notifications','fullscreen','clipboard-sanitized-write'])

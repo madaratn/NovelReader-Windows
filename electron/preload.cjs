@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('novelReader',{
  appVersion:()=>ipcRenderer.invoke('app:version'),
  profileList:()=>ipcRenderer.invoke('profile:list'),profileCreate:(n)=>ipcRenderer.invoke('profile:create',n),profileRename:(id,name)=>ipcRenderer.invoke('profile:rename',{id,name}),profileColor:(id,color)=>ipcRenderer.invoke('profile:color',{id,color}),profileRemove:(id)=>ipcRenderer.invoke('profile:remove',id),profileSwitch:(id)=>ipcRenderer.invoke('profile:switch',id),
  anilistStatus:()=>ipcRenderer.invoke('anilist:status'),anilistLogin:(id)=>ipcRenderer.invoke('anilist:login',id),anilistToken:(token)=>ipcRenderer.invoke('anilist:token',{token}),anilistLogout:()=>ipcRenderer.invoke('anilist:logout'),anilistCall:(name,vars)=>ipcRenderer.invoke('anilist:call',{name,vars}),
+ malStatus:()=>ipcRenderer.invoke('mal:status'),malLogin:(clientId,clientSecret)=>ipcRenderer.invoke('mal:login',{clientId,clientSecret}),malLogout:()=>ipcRenderer.invoke('mal:logout'),malCall:(name,vars)=>ipcRenderer.invoke('mal:call',{name,vars}),
  sourceStatus:()=>ipcRenderer.invoke('sources:status'),
  takeDeepLink:()=>ipcRenderer.invoke('deeplink:take'),inviteBase:()=>ipcRenderer.invoke('invite:base'),onDeepLink:(cb)=>{const h=(_e,u)=>{try{cb(u)}catch{}};ipcRenderer.on('deep-link',h);return()=>ipcRenderer.removeListener('deep-link',h)},
  reportCollect:()=>ipcRenderer.invoke('report:collect'),reportRedact:(t)=>ipcRenderer.invoke('report:redact',t),reportCopy:(t)=>ipcRenderer.invoke('report:copy',t),reportSave:(t)=>ipcRenderer.invoke('report:save',t),

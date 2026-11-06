@@ -18,6 +18,7 @@ import{loadScan,scanFor,sourceFits,sourceSections}from'./lib/source-kinds'
 import{ProfileSwitcher}from'./features/profiles'
 import{WatchPartyBridge,WatchPartyButton,WatchPartyPanel,type PartyMedia}from'./features/watch-party'
 import{anilistOnWatched}from'./features/anilist'
+import{malOnWatched}from'./features/mal'
 import{useTvAndGamepad}from'./features/tv'
 import{TranslateControl,autoTranslateFor,translateChapterHtml,translateTarget}from'./features/translate'
 import{QuickSearch,type QuickKind}from'./features/quick-search'
@@ -247,7 +248,7 @@ useEffect(()=>{let stopped=false,timer:any
   if(!stopped)timer=setTimeout(run,delay)}
  timer=setTimeout(run,Number(lsGet('episodeCheckDelay'))||20000);return()=>{stopped=true;clearTimeout(timer)}},[])
 useEffect(()=>{applyDownloadSettings()},[])
-useEffect(()=>{const on=(e:any)=>{const key=String(e?.detail?.key||'');noteWatched(key);anilistOnWatched(key,videoLibsRef.current.anime,(next:any[])=>{setAnimeLibrary(next);localStorage.setItem('animeLibrary',JSON.stringify(next))}).catch(()=>{})};window.addEventListener('nr-watched',on);const tm=setTimeout(()=>{flushAutoDeletes()},10000);return()=>{window.removeEventListener('nr-watched',on);clearTimeout(tm)}},[])
+useEffect(()=>{const on=(e:any)=>{const key=String(e?.detail?.key||'');noteWatched(key);anilistOnWatched(key,videoLibsRef.current.anime,(next:any[])=>{videoLibsRef.current.anime=next;setAnimeLibrary(next);localStorage.setItem('animeLibrary',JSON.stringify(next))}).catch(()=>{}).then(()=>malOnWatched(key,videoLibsRef.current.anime,(next:any[])=>{videoLibsRef.current.anime=next;setAnimeLibrary(next);localStorage.setItem('animeLibrary',JSON.stringify(next))})).catch(()=>{})};window.addEventListener('nr-watched',on);const tm=setTimeout(()=>{flushAutoDeletes()},10000);return()=>{window.removeEventListener('nr-watched',on);clearTimeout(tm)}},[])
 useEffect(()=>{const tm=setTimeout(()=>{backgroundExtensionCheck().catch(()=>{})},60000);return()=>clearTimeout(tm)},[])
 const downloads=useDownloads(),dlError=(msg:string)=>setAnimeNotice({ok:false,scope:'detail',text:t('Could not download:')+' '+msg})
 // Chapter translation: re-done for each chapter when "Always translate this novel" is on.
