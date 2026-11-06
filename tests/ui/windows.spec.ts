@@ -41,7 +41,7 @@ test('no notification when it is turned off in Settings', async ({ page }) => {
   await page.addInitScript(() => sessionStorage.setItem('__background', '1'))
   await open(page, { library: [novel('mol', 'Mother of Learning', 108)], newChapters: { mol: 110 } })
   await nav(page, 'Settings')
-  await page.locator('.settings-check', { hasText: 'Windows notification' }).locator('input').uncheck()
+  await page.locator('.settings-check', { hasText: 'new chapters are found' }).locator('input').uncheck()
   await nav(page, 'Library')
   await page.locator('.lib-update').click()
   await expect(page.locator('.lib-update-status')).toContainText('1 novel has new chapters.')

@@ -6,6 +6,16 @@ import{lsGet,lsSet,timeAgo}from'../lib/util'
 import{Cover,NoticeText}from'../ui/common'
 import{mediaPosKey,readMediaPos,mediaNorm,mediaCover,enrichMediaCover,episodeNo,seasonNo,orderedEpisodes,cleanEngineError,readWatchStats,watchDayKey,watchedCount,type MediaKind}from'../lib/media'
 // ---- Media libraries: mirror the polished Books library UX -----------------
+// ---- New episodes: ask each title's source how many episodes it has now.
+// Used by the library button and by the background check in App (every 6 h).
+export const mediaEpCount=(a:any)=>Array.isArray(a?.episodes)?a.episodes.length:Number(a?.episodeCount||a?.episodes||0)
+const mediaItemKey=(a:any)=>String(a?.id||a?.url||a?.path||a?.name||'')
+export async function scanNewEpisodes(list:any[],onProgress?:(done:number,found:number,failed:number)=>void){
+ let done=0,found=0,failed=0;const counts=new Map<string,number>(),names:string[]=[],queue=list.filter((a:any)=>a&&a.sourceId&&(a.url||a.path))
+ await Promise.all(Array.from({length:4},async()=>{while(queue.length){const a=queue.shift();try{const d=await window.novelReader.miwayomiFetch('/api/v1/anime/'+encodeURIComponent(String(a.sourceId))+'/episodes?url='+encodeURIComponent(a.url||a.path));const n=(Array.isArray(d)?d:(d?.episodes||d?.items||[])).length;counts.set(mediaItemKey(a),n);if(n>mediaEpCount(a)&&mediaEpCount(a)>0){found++;names.push(String(a.name||a.title||''))}}catch{failed++}done++;onProgress?.(done,found,failed)}}))
+ return{counts,found,failed,done,names}
+}
+export function applyEpisodeCounts(items:any[],counts:Map<string,number>){return items.map((a:any)=>{const n=counts.get(mediaItemKey(a));if(n==null||!n)return a;const prev=mediaEpCount(a);return n>prev&&prev>0?{...a,episodes:n,newEpisodes:(a.newEpisodes||0)+(n-prev)}:{...a,episodes:Math.max(n,prev)}})}
 export function MediaLibrary({kind,items,onChange,onOpen,onSearch,loading,onResumeIntent}:{kind:'Anime'|'Series'|'Movie',items:any[],onChange:(x:any[])=>void,onOpen?:(x:any)=>void,onSearch:()=>void,loading?:boolean,onResumeIntent?:(a:any,epUrl:string)=>void}){
  const[filter,setFilter]=useState(''),[sort,setSort]=useState<'recent'|'title'>(()=>(lsGet('mediaSort:'+kind) as any)||'recent'),[undo,setUndo]=useState<{item:any,index:number}|null>(null)
  useEffect(()=>{if(!undo)return;const t=setTimeout(()=>setUndo(null),7000);return()=>clearTimeout(t)},[undo])
@@ -20,7 +30,7 @@ export function MediaLibrary({kind,items,onChange,onOpen,onSearch,loading,onResu
  const resume=(r:any)=>{onResumeIntent?.(r.a,r.info.url);open(r.a)}
  // "Check for new episodes": compare each title's episode count with its source.
  const[upd,setUpd]=useState<{running:boolean,done:number,total:number,found:number,failed:number,at:number}>({running:false,done:0,total:0,found:0,failed:0,at:0})
- const checkNew=async()=>{const list=items.filter((a:any)=>a.sourceId&&(a.url||a.path));if(!list.length)return;let done=0,found=0,failed=0;const counts=new Map<any,number>();setUpd({running:true,done:0,total:list.length,found:0,failed:0,at:0});const queue=[...list];await Promise.all(Array.from({length:4},async()=>{while(queue.length){const a=queue.shift();try{const d=await window.novelReader.miwayomiFetch('/api/v1/anime/'+encodeURIComponent(String(a.sourceId))+'/episodes?url='+encodeURIComponent(a.url||a.path));const n=(Array.isArray(d)?d:(d?.episodes||d?.items||[])).length;counts.set(a,n);if(n>epCount(a)&&epCount(a)>0)found++}catch{failed++}done++;setUpd(u=>({...u,done,found,failed}))}}));const next=items.map((a:any)=>{const n=counts.get(a);if(n==null)return a;const prev=epCount(a);return n>prev&&prev>0?{...a,episodes:n,newEpisodes:(a.newEpisodes||0)+(n-prev)}:{...a,episodes:Math.max(n,prev)}});save(next);setUpd({running:false,done,total:list.length,found,failed,at:Date.now()})}
+ const checkNew=async()=>{const list=items.filter((a:any)=>a.sourceId&&(a.url||a.path));if(!list.length)return;setUpd({running:true,done:0,total:list.length,found:0,failed:0,at:0});const r=await scanNewEpisodes(list,(done,found,failed)=>setUpd(u=>({...u,done,found,failed})));save(applyEpisodeCounts(items,r.counts));lsSet('lastEpisodeCheck',String(Date.now()));setUpd({running:false,done:r.done,total:list.length,found:r.found,failed:r.failed,at:Date.now()})}
  // Watch status shelves (same tabs as the Books library).
  const VSHELVES=[{id:'watching',label:t('Watching')},{id:'plan',label:t('Plan to watch')},{id:'completed',label:t('Completed')},{id:'dropped',label:t('Dropped')}]
  const shelfOf=(a:any)=>VSHELVES.some(x=>x.id===a.shelf)?a.shelf:(lsGet('lastEpInfo:'+String(a.id||a.url||a.name))?'watching':'plan')
@@ -72,7 +82,7 @@ export function WatchStats(){
 }
 
 // ---- Episode list with watched marks ------------------------------------------
-export function EpisodeGrid({eps,prefix,mediaId,selected,disabled,onPlay,renderExtra}:{eps:any[],prefix:string,mediaId:string,selected:any,disabled?:boolean,onPlay:(ep:any)=>void,renderExtra?:(ep:any)=>any}){
+export function EpisodeGrid({eps,prefix,mediaId,selected,disabled,onPlay,renderExtra}:{eps:any[],prefix:string,mediaId:string,selected:any,disabled?:boolean,onPlay:(ep:any)=>void,renderExtra?:(ep:any,i:number)=>any}){
  const[,bump]=useState(0)
  useEffect(()=>{const f=()=>bump(x=>x+1);window.addEventListener('nr-watched',f);window.addEventListener('nr-media-synced',f);return()=>{window.removeEventListener('nr-watched',f);window.removeEventListener('nr-media-synced',f)}},[])
  const keyOf=(ep:any,i:number)=>prefix+mediaId+':'+String(ep.url||ep.path||ep.number||ep.name||i)
@@ -84,7 +94,7 @@ export function EpisodeGrid({eps,prefix,mediaId,selected,disabled,onPlay,renderE
   <div className="episode-tools"><small>{t('{n} / {total} watched',{n:watched,total:eps.length})}</small>{eps.length>0&&<button onClick={()=>setWatched(all,watched<eps.length)}>{watched<eps.length?t('Mark all as watched'):t('Mark all as unwatched')}</button>}</div>
   <div className="episodegrid">{eps.map((ep:any,i:number)=>{const label=ep.name||ep.title||t('Episode {n}',{n:episodeNo(ep,i+1)}),active=selected===ep,pos=posOf(ep,i),done=!!pos?.done,pct=!done&&pos&&pos.d>0?Math.min(100,pos.t/pos.d*100):0
    return <div className="episodecell" key={(ep.url||ep.path||ep.name||'ep')+i}><button className={'episodecard'+(active?' active':'')+(done?' watched':'')} disabled={disabled} onClick={()=>onPlay(ep)}><span className="episodebadge">S{seasonNo(ep)}<b>E{episodeNo(ep,i+1)}</b></span><span className="episodetitle">{label}</span><span className="episodeplay">{active?'▶':'▷'}</span>{pct>0&&<span className="episodeprog" style={{width:pct+'%'}}/>}</button>
-    <button className={'ep-watch'+(done?' on':'')} aria-pressed={done} title={done?t('Mark as unwatched'):t('Mark as watched (and the previous ones with Shift)')} aria-label={done?t('Mark as unwatched'):t('Mark as watched')} onClick={e=>setWatched(e.shiftKey&&!done?all.slice(0,i+1):[{ep,i}],!done)}>{done?'✓':''}</button>{renderExtra?.(ep)}</div>})}</div>
+    <button className={'ep-watch'+(done?' on':'')} aria-pressed={done} title={done?t('Mark as unwatched'):t('Mark as watched (and the previous ones with Shift)')} aria-label={done?t('Mark as unwatched'):t('Mark as watched')} onClick={e=>setWatched(e.shiftKey&&!done?all.slice(0,i+1):[{ep,i}],!done)}>{done?'✓':''}</button>{renderExtra?.(ep,i)}</div>})}</div>
  </>
 }
 
@@ -111,6 +121,33 @@ export function CloudflarePanel(){
  return <section className={'panel anime-status '+(st.running?'engine-online':'')}><div className="engine-row"><div><h2>{t('Cloudflare protection')}</h2><p>{st.running?'✓ '+t('FlareSolverr is running: sites protected by Cloudflare (AniDB…) can be used.'):st.installing?t('Installing FlareSolverr… {n}%',{n:st.progress}):st.installed?t('FlareSolverr is installed but not running.'):t('Some sites (AniDB…) are protected by Cloudflare. Install FlareSolverr once (about 150 MB) to use them.')}</p>{(err||st.error)&&<small>{err||st.error}</small>}</div>{!st.running&&(st.installed?<button disabled={busy} onClick={()=>act(api.flareStart)}>{t('Start')}</button>:st.supported?<button className="primary" disabled={busy||st.installing} onClick={()=>act(api.flareInstall)}>{st.installing||busy?t('Installing…'):t('Install FlareSolverr')}</button>:null)}</div></section>
 }
 
+// ---- Discover: Popular / Latest lists of one source, to browse without a title in mind
+const discoverCache=new Map<string,{rows:any[],page:number,more:boolean}>()
+export function MediaDiscover({kind,library,onAdd,onLibrary}:{kind:MediaKind,library:any[],onAdd:(a:any)=>Promise<void>|void,onLibrary:()=>void}){
+ const[sources,setSources]=useState<any[]|null>(null),[source,setSource]=useState(()=>lsGet('discoverSource:'+kind)||''),[tab,setTab]=useState<'popular'|'latest'>(()=>lsGet('discoverTab:'+kind)==='latest'?'latest':'popular')
+ const[rows,setRows]=useState<any[]>([]),[page,setPage]=useState(1),[more,setMore]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[adding,setAdding]=useState<string[]>([])
+ const token=useRef(0)
+ useEffect(()=>{let alive=true;window.novelReader.miwayomiFetch('/api/v1/sources').then((sr:any)=>{if(!alive)return;const blocked=kind==='Anime'?[]:['streamingunity','streamingcommunity'];const list=(Array.isArray(sr)?sr:(sr?.anime||sr?.sources||sr?.items||[])).filter((x:any)=>x&&x.id!=null&&!blocked.some(b=>String(x.name||'').toLowerCase().includes(b)));setSources(list);if(list.length&&!list.some((x:any)=>String(x.id)===source))setSource(String(list[0].id))}).catch((e:any)=>{if(alive){setSources([]);setError(cleanEngineError(e))}});return()=>{alive=false;token.current++}},[kind])
+ const load=async(pg:number)=>{if(!source)return;const my=++token.current,key=source+':'+tab;if(pg===1){const c=discoverCache.get(key);if(c){setRows(c.rows);setPage(c.page);setMore(c.more);setError('');return}setRows([])}setLoading(true);setError('')
+  try{const d=await window.novelReader.miwayomiFetch('/api/v1/anime/'+encodeURIComponent(source)+'/'+tab+'?page='+pg);if(my!==token.current)return;const name=(sources||[]).find((x:any)=>String(x.id)===source)?.name||t('Video source');const list=(Array.isArray(d)?d:(d?.animes||d?.results||d?.items||d?.list||[])).map((a:any)=>({...a,sourceId:source,sourceName:name,thumbnail:mediaCover(a)}));const hasNext=Array.isArray(d)?list.length>0:Boolean(d?.hasNextPage??list.length>0)
+   let all:any[]=[];setRows(prev=>{const seen=new Set((pg===1?[]:prev).map((x:any)=>x.url||x.path));all=[...(pg===1?[]:prev),...list.filter((x:any)=>!seen.has(x.url||x.path))];return all});setPage(pg);setMore(hasNext&&list.length>0);discoverCache.set(key,{rows:all,page:pg,more:hasNext&&list.length>0})
+   const missing=list.filter((a:any)=>!mediaCover(a)&&a.url).slice(0,12);if(missing.length){const enriched=await Promise.all(missing.map(enrichMediaCover));if(my!==token.current)return;setRows(prev=>{const next=prev.map((x:any)=>{const e=enriched.find((y:any)=>(y.url||y.path)===(x.url||x.path));return e&&mediaCover(e)?{...x,...e,thumbnail:mediaCover(e)}:x});discoverCache.set(key,{rows:next,page:pg,more:hasNext&&list.length>0});return next})}
+  }catch(e:any){if(my===token.current){const msg=cleanEngineError(e);setError(tab==='latest'&&/latest|not supported|unsupported|404/i.test(msg)?t('This source has no list of latest releases. Try Popular.'):msg)}}finally{if(my===token.current)setLoading(false)}}
+ useEffect(()=>{if(source){lsSet('discoverSource:'+kind,source);lsSet('discoverTab:'+kind,tab);load(1)}},[source,tab])
+ const idOf=(a:any)=>kind==='Anime'?(a.id||a.url):kind.toLowerCase()+':'+(a.sourceId||'')+':'+(a.url||a.path)
+ const inLib=(a:any)=>{const id=idOf(a),n=mediaNorm(a.title||a.name||'');return library.some(x=>x.id===id||(n&&mediaNorm(x.name||x.title||'')===n))}
+ const add=async(a:any)=>{const k=a.url||a.path;setAdding(x=>[...x,k]);try{await onAdd(a)}finally{setAdding(x=>x.filter(y=>y!==k))}}
+ const intro=kind==='Anime'?t('Browse what is popular or new on one of your anime sources.'):kind==='Series'?t('Browse what is popular or new on one of your series sources.'):t('Browse what is popular or new on one of your movie sources.')
+ return <div className="media-search-page media-discover books-search-ui"><header><div><h1>{t('Discover')}</h1><p>{intro}</p></div></header>
+  {sources&&sources.length===0&&!error&&<section className="panel lib-empty"><h2>{t('No video source installed')}</h2><p>{t('Install a source in Sources first, then come back here.')}</p></section>}
+  {sources&&sources.length>0&&<div className="discover-bar"><div className="shelftabs" role="tablist" aria-label={t('Lists')}>{(['popular','latest'] as const).map(x=><button key={x} role="tab" aria-selected={tab===x} className={'shelftab'+(tab===x?' on':'')} onClick={()=>setTab(x)}>{x==='popular'?t('Popular'):t('Latest')}</button>)}</div><label>{t('Source')}<select value={source} onChange={e=>setSource(e.target.value)}>{sources.map((x:any)=><option key={x.id} value={String(x.id)}>{x.name||x.id}{x.lang?' ('+String(x.lang).toUpperCase()+')':''}</option>)}</select></label></div>}
+  {!sources&&<div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading sources…')}</div></div>}
+  {error&&<div className="anime-toast error"><NoticeText text={error}/></div>}
+  {rows.length>0&&<div className="resultgrid">{rows.map((a:any,i:number)=>{const k=a.url||a.path||String(i),saved=inLib(a),busy=adding.includes(k);return <article className="resultcard" key={k}><Cover src={mediaCover(a)} name={a.title||a.name||kind}/><div className="resultmeta"><h3>{a.title||a.name||t('Untitled')}</h3><small>{a.sourceName}</small><div className="resultactions">{saved?<button className="inlib linkbtn" onClick={onLibrary}>{'✓ '+t('In your library')}</button>:<button className="primary" disabled={busy} onClick={()=>add(a)}>{busy?t('Adding…'):'＋ '+t('Add to library')}</button>}</div></div></article>})}</div>}
+  {loading&&<div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading…')}</div></div>}
+  {!loading&&!error&&sources&&sources.length>0&&rows.length===0&&<section className="panel lib-empty"><h2>{t('Nothing here')}</h2><p>{t('This source returned an empty list. Try another source.')}</p></section>}
+  {!loading&&more&&rows.length>0&&<div className="discover-more"><button onClick={()=>load(page+1)}>{t('Load more')}</button></div>}
+ </div>}
 export function MediaSearch({kind,query,setQuery,library,onAdd}:{kind:MediaKind,query:string,setQuery:(q:string)=>void,library:any[],onAdd:(a:any)=>void}){
  const[rows,setRows]=useState<any[]>([]),[status,setStatus]=useState<{running:boolean,checked:number,total:number,errors:number,stopped?:boolean}|null>(null),[error,setError]=useState(''),[recent,setRecent]=useState<string[]>(()=>{try{return JSON.parse(lsGet('mediaRecent:'+kind)||'[]')}catch{return[]}})
  const token=useRef(0)

@@ -16,6 +16,7 @@ const {createFolderSync}=require('./sync.cjs')
 const folderSync=createFolderSync({app,dialog})
 const {createLocalTracks}=require('./local-tracks.cjs')
 const {createFlareSolverr}=require('./flaresolverr.cjs')
+const {createVideoDownloads}=require('./video-downloads.cjs')
 const localTracks=createLocalTracks()
 // Lets the Local Videos player list and switch audio tracks (video.audioTracks).
 app.commandLine.appendSwitch('enable-blink-features','AudioVideoTracks')
@@ -95,6 +96,18 @@ ipcMain.handle('anime:miwayomiDebug',async()=>{const [health,sources,installed]=
 let flare=null
 const flareApi=()=>flare||(flare=createFlareSolverr({app}))
 ipcMain.handle('flare:status',()=>flareApi().status())
+// ---- Offline video downloads (electron/video-downloads.cjs) ----------------
+let videoDl=null
+const dlApi=()=>videoDl||(videoDl=createVideoDownloads({root:path.join(app.getPath('userData'),'video-downloads'),log:(...a)=>console.warn('[downloads]',...a),notify:()=>{for(const w of BrowserWindow.getAllWindows())try{w.webContents.send('dl:changed')}catch{}}}))
+const dlIpc=fn=>async(_e,arg)=>{try{return await fn(arg)}catch(e){console.warn('[downloads]',e);throw new Error(e&&e.message||String(e))}}
+ipcMain.handle('dl:start',dlIpc(p=>dlApi().start(p)))
+ipcMain.handle('dl:list',dlIpc(()=>dlApi().list()))
+ipcMain.handle('dl:cancel',dlIpc(id=>dlApi().cancel(String(id||''))))
+ipcMain.handle('dl:remove',dlIpc(id=>dlApi().remove(String(id||''))))
+ipcMain.handle('dl:clear',dlIpc(()=>dlApi().clear()))
+ipcMain.handle('dl:usage',dlIpc(()=>dlApi().usage()))
+ipcMain.handle('dl:base',dlIpc(()=>dlApi().base()))
+ipcMain.handle('dl:openFolder',dlIpc(async()=>{const r=dlApi().root;fs.mkdirSync(r,{recursive:true});await shell.openPath(r);return true}))
 ipcMain.handle('flare:install',()=>flareApi().install())
 ipcMain.handle('flare:start',async()=>{flareApi().start();await new Promise(r=>setTimeout(r,2500));return flareApi().status()})
 ipcMain.handle('anime:miwayomiFetch', async(_e,{path,method='GET',body})=>{
@@ -230,5 +243,5 @@ async function runSmokeTest(win){
 }
 
 app.whenReady().then(()=>{registerLocalProtocol();if(SMOKE_TEST){runSmokeTest(createWindow());return}try{flareApi().start()}catch{}startMiwayomi();createWindow();updater.start()})
-app.on('before-quit',()=>{if(miwayomiProcess){miwayomiProcess.kill();miwayomiProcess=null}try{flare&&flare.stop()}catch{}})
+app.on('before-quit',()=>{if(miwayomiProcess){miwayomiProcess.kill();miwayomiProcess=null}try{flare&&flare.stop()}catch{}try{videoDl&&videoDl.close()}catch{}})
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()})
