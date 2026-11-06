@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld('novelReader',{
  updateStatus:()=>ipcRenderer.invoke('update:status'),
  updateCheck:()=>ipcRenderer.invoke('update:check'),
  updateInstall:()=>ipcRenderer.invoke('update:install'),
+ updateBusy:(o)=>ipcRenderer.invoke('update:busy',o),
  offlineSave:(novelId,path,html,name)=>ipcRenderer.invoke('offline:save',{novelId,path,html,name}),
  offlineGet:(novelId,path)=>ipcRenderer.invoke('offline:get',{novelId,path}),
  offlineList:(novelId)=>ipcRenderer.invoke('offline:list',{novelId}),

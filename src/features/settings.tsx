@@ -90,18 +90,29 @@ export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onSh
 // ---- App version, updates and notifications --------------------------------------
 export function useAppVersion(){const[v,setV]=useState('');useEffect(()=>{window.novelReader.appVersion?.().then(setV).catch(()=>{})},[]);return v}
 export function useUpdateStatus(){const[s,setS]=useState<UpdateStatus|null>(null);useEffect(()=>{let off:any;window.novelReader.updateStatus?.().then(setS).catch(()=>{});off=window.novelReader.onUpdateStatus?.(setS);return()=>{off&&off()}},[]);return s}
+const autoIdleOn=()=>lsGet('updateAutoIdle')!=='0'
+// Tells the app when something is playing (no idle install then), every minute.
+export function useUpdateBusyReport(){useEffect(()=>{const send=()=>{const busy=[...document.querySelectorAll('video,audio')].some((v:any)=>!v.paused&&!v.ended);window.novelReader?.updateBusy?.({busy,auto:autoIdleOn()}).catch(()=>{})};send();const id=setInterval(send,60_000);return()=>clearInterval(id)},[])}
 export function UpdateBanner({status}:{status:UpdateStatus|null}){
  const[dismissed,setDismissed]=useState('')
+ // "Updated to x.y.z" once, after an update installed itself.
+ const[updated,setUpdated]=useState('')
+ useEffect(()=>{window.novelReader?.appVersion?.().then((v:string)=>{const prev=lsGet('lastRunVersion');lsSet('lastRunVersion',v);if(prev&&v&&prev!==v)setUpdated(v)}).catch(()=>{})},[])
+ useUpdateBusyReport()
+ if(updated)return <div className="update-banner done" role="status"><span>{t('NovelReader has been updated to {v}.',{v:updated})}</span><div><button onClick={()=>setUpdated('')}>{t('OK')}</button></div></div>
+ if(status?.state==='installing')return <div className="update-banner" role="status"><span>{t('Installing the update… NovelReader will reopen by itself.')}</span></div>
  if(!status||status.state!=='ready'||dismissed===status.next)return null
- return <div className="update-banner" role="status"><span>{t('NovelReader {v} is ready to install.',{v:status.next||''})}</span><div><button className="primary" onClick={()=>window.novelReader.updateInstall()}>{t('Restart and update')}</button><button onClick={()=>setDismissed(status.next||'x')}>{t('Later')}</button></div></div>
+ return <div className="update-banner" role="status"><span>{t('NovelReader {v} is ready. It installs by itself when you close the app.',{v:status.next||''})}</span><div><button className="primary" onClick={()=>window.novelReader.updateInstall()}>{t('Restart now')}</button><button onClick={()=>setDismissed(status.next||'x')}>{t('Later')}</button></div></div>
 }
 export function UpdateSettings({status,version}:{status:UpdateStatus|null,version:string}){
- const[busy,setBusy]=useState(false)
+ const[busy,setBusy]=useState(false),[autoIdle,setAutoIdle]=useState(autoIdleOn)
  const st=status?.state
- const text=st==='checking'?t('Checking for updates…'):st==='downloading'?t('Downloading version {v}… {p}%',{v:status?.next||'',p:status?.percent??0}):st==='ready'?t('Version {v} is ready to install.',{v:status?.next||''}):st==='up-to-date'?t('NovelReader is up to date.'):st==='error'?t('Could not check for updates:')+' '+(status?.error||''):st==='unsupported'?t('Automatic updates work in the installed app (not in development mode).'):t('Updates are checked automatically when NovelReader starts.')
+ const text=st==='checking'?t('Checking for updates…'):st==='downloading'?t('Downloading version {v}… {p}%',{v:status?.next||'',p:status?.percent??0}):st==='ready'?t('Version {v} is ready: it installs when you close NovelReader.',{v:status?.next||''}):st==='installing'?t('Installing the update…'):st==='up-to-date'?t('NovelReader is up to date.'):st==='error'?t('Could not check for updates:')+' '+(status?.error||''):st==='unsupported'?t('Automatic updates work in the installed app (not in development mode).'):t('Updates are checked automatically when NovelReader starts.')
  return <section className="panel settings-block"><h2>{t('Updates')}</h2>
   <p className="settings-help">{t('Installed version: {v}',{v:version||'—'})} · {text}</p>
-  <div className="libraryactions">{st==='ready'?<button className="primary" onClick={()=>window.novelReader.updateInstall()}>{t('Restart and update')}</button>:<button disabled={busy||st==='checking'||st==='downloading'} onClick={async()=>{setBusy(true);try{await window.novelReader.updateCheck?.()}finally{setBusy(false)}}}>{t('Check for updates')}</button>}</div>
+  <p className="settings-help">{t('Updates download in the background and install silently: no installer to run, nothing to uninstall, your library and settings stay.')}</p>
+  <label className="settings-check"><input type="checkbox" checked={autoIdle} onChange={e=>{setAutoIdle(e.target.checked);lsSet('updateAutoIdle',e.target.checked?'1':'0');window.novelReader?.updateBusy?.({busy:false,auto:e.target.checked}).catch(()=>{})}}/> {t('Also install when the PC has been idle for 15 minutes (never during a video); NovelReader reopens by itself')}</label>
+  <div className="libraryactions">{st==='ready'?<button className="primary" onClick={()=>window.novelReader.updateInstall()}>{t('Restart now')}</button>:<button disabled={busy||st==='checking'||st==='downloading'} onClick={async()=>{setBusy(true);try{await window.novelReader.updateCheck?.()}finally{setBusy(false)}}}>{t('Check for updates')}</button>}</div>
  </section>
 }
 // Windows notification for new chapters (only when the window is not in front).

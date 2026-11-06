@@ -111,6 +111,7 @@ export async function setup(page: Page, s: Setup = {}) {
       appVersion: async () => '0.2.0', focusWindow: async () => { w.__focused = (w.__focused || 0) + 1; return true },
       updateStatus: async () => w.__update, updateCheck: async () => { w.__update = { state: 'up-to-date', version: '0.2.0', checkedAt: Date.now() }; w.__updateCb && w.__updateCb(w.__update); return w.__update },
       updateInstall: async () => { w.__installed = true; return true },
+      updateBusy: async (o: any) => { w.__busy = o; return true },
       onUpdateStatus: (cb: any) => { w.__updateCb = cb; return () => { w.__updateCb = null } }
     }
     w.__update = { state: 'idle', version: '0.2.0' }
