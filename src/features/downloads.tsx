@@ -46,6 +46,40 @@ export async function startEpisodeDownload(kind:DlKind,media:any,ep:any,index=0)
  const r=await api().dlStart({kind,mediaId:mediaIdOf(media),mediaName:String(media.name||media.title||''),cover:mediaCover(media)||'',episodeUrl:url,episodeName:String(ep?.name||ep?.title||''),episodeNo:episodeNo(ep,index+1),mediaKey:playerKey(kind,media,ep,index),candidates})
  refreshDownloads();return r
 }
+// ---- Several episodes at once, and automatic clean-up of watched downloads --------
+export async function startBatchDownload(kind:DlKind,media:any,eps:any[],from:number,count:number,list:VideoDownload[],onProgress?:(done:number,total:number)=>void){
+ const todo=eps.map((ep,i)=>({ep,i})).slice(Math.max(0,from)).filter(x=>!findDownload(list,mediaIdOf(media),x.ep)).slice(0,count)
+ let done=0,failed=0,lastError=''
+ for(const x of todo){onProgress?.(done,todo.length);try{await startEpisodeDownload(kind,media,x.ep,x.i)}catch(e:any){failed++;lastError=cleanEngineError(e)}done++}
+ onProgress?.(done,todo.length);return{queued:todo.length-failed,failed,lastError}
+}
+const PENDING='dlAutoDeletePending'
+export const autoDeleteOn=()=>localStorage.getItem('dlAutoDelete')==='1'
+const readPending=():string[]=>{try{return JSON.parse(localStorage.getItem(PENDING)||'[]')}catch{return[]}}
+// A finished episode is deleted once something else plays (or at the next start),
+// never while it is still on screen.
+export function noteWatched(key:string){if(!autoDeleteOn()||!key)return;const p=readPending();if(!p.includes(key)){p.push(key);localStorage.setItem(PENDING,JSON.stringify(p.slice(-200)))}}
+export async function flushAutoDeletes(keep=''){
+ if(!downloadsSupported())return 0
+ const p=readPending();if(!p.length)return 0
+ const list=await refreshDownloads();let n=0;const left:string[]=[]
+ for(const key of p){if(key===keep){left.push(key);continue}const d=list.find(x=>x.state==='done'&&x.mediaKey===key);if(d&&autoDeleteOn()){try{await api().dlRemove(d.id);n++}catch{left.push(key)}}}
+ localStorage.setItem(PENDING,JSON.stringify(left));if(n)refreshDownloads();return n
+}
+export function BatchDownload({kind,media,eps,list,onError}:{kind:DlKind,media:any,eps:any[],list:VideoDownload[],onError?:(m:string)=>void}){
+ const[count,setCount]=useState(()=>Number(localStorage.getItem('dlBatchCount'))||5),[busy,setBusy]=useState<{done:number,total:number}|null>(null),[msg,setMsg]=useState('')
+ if(!downloadsSupported()||eps.length<2)return null
+ // Start after the last episode watched (or at the one in progress).
+ const id=mediaIdOf(media);let from=0
+ try{const info=JSON.parse(localStorage.getItem('lastEpInfo:'+id)||'null');if(info?.url){const i=eps.findIndex((e:any)=>episodeKey(e)===info.url);if(i>=0){const pos=JSON.parse(localStorage.getItem('mediapos:'+playerKey(kind,media,eps[i],i))||'null');from=pos?.done?i+1:i}}}catch{}
+ const left=eps.slice(from).filter(e=>!findDownload(list,id,e)).length
+ const all=eps.filter(e=>findDownload(list,id,e)?.state==='done').length
+ const go=async()=>{setBusy({done:0,total:Math.min(count,left)});setMsg('');try{const r=await startBatchDownload(kind,media,eps,from,count,list,(done,total)=>setBusy({done,total}));setMsg(r.failed?t('{ok} queued, {failed} could not start: {error}',{ok:r.queued,failed:r.failed,error:r.lastError}):plural(r.queued,'{n} episode queued.','{n} episodes queued.'));if(r.failed&&!r.queued)onError?.(r.lastError)}finally{setBusy(null)}}
+ return <div className="batch-dl"><span className="batch-dl-info">{all?plural(all,'{n} episode on this PC','{n} episodes on this PC'):t('Watch offline')}</span>
+  {left>0?<><select aria-label={t('How many episodes')} value={count} disabled={!!busy} onChange={e=>{const n=Number(e.target.value);setCount(n);localStorage.setItem('dlBatchCount',String(n))}}>{[3,5,10,25].map(n=><option key={n} value={n}>{n}</option>)}</select><button disabled={!!busy} onClick={go}>{busy?t('Preparing {done} / {total}…',{done:busy.done+1>busy.total?busy.total:busy.done+1,total:busy.total}):'⤓ '+t('Download the next episodes')}</button></>:<span className="batch-dl-info">{t('All the next episodes are downloaded.')}</span>}
+  {msg&&<small className="batch-dl-msg" role="status">{msg}</small>}
+ </div>
+}
 export const fmtBytes=(n:number)=>!n?'0 MB':n>=1e9?(n/1e9).toFixed(1)+' GB':Math.max(0.1,n/1e6).toFixed(n>=1e8?0:1)+' MB'
 
 // ---- Per-episode button (EpisodeGrid renderExtra) -----------------------------
@@ -63,6 +97,8 @@ export function EpisodeDownload({kind,media,ep,index,list,onError,wide}:{kind:Dl
 
 // ---- Downloads page ---------------------------------------------------------------
 export function DownloadsPage(){
+ const[auto,setAuto]=useState(autoDeleteOn())
+ useEffect(()=>{flushAutoDeletes()},[])
  const list=useDownloads(),[playing,setPlaying]=useState<VideoDownload|null>(null),[usage,setUsage]=useState<{bytes:number,count:number}|null>(null),[confirmAll,setConfirmAll]=useState(false)
  useEffect(()=>{if(downloadsSupported())api().dlUsage().then(setUsage).catch(()=>{})},[list])
  if(!downloadsSupported())return <div className="media-search-page"><header><div><h1>{t('Downloads')}</h1></div></header><section className="panel"><p>{t('Downloads are available in the Windows app.')}</p></section></div>
@@ -70,6 +106,7 @@ export function DownloadsPage(){
  const groups=new Map<string,VideoDownload[]>();for(const d of done){const k=d.kind+':'+d.mediaId;if(!groups.has(k))groups.set(k,[]);groups.get(k)!.push(d)}
  const kindLabel=(k:string)=>k==='movie'?t('MOVIE'):k==='series'?t('SERIES'):t('ANIME')
  return <div className="media-search-page downloads-page"><header><div><h1>{t('Downloads')}</h1><p>{t('Episodes and movies saved on this PC. They play without internet, with their subtitles.')}</p></div></header>
+  <label className="settings-check dl-auto"><input type="checkbox" checked={auto} onChange={e=>{setAuto(e.target.checked);localStorage.setItem('dlAutoDelete',e.target.checked?'1':'0')}}/> {t('Delete a downloaded episode automatically once I have watched it')}</label>
   <div className="downloads-bar"><span>{usage?plural(usage.count,'{n} video','{n} videos')+' · '+fmtBytes(usage.bytes):''}</span><div className="libraryactions"><button onClick={()=>api().dlOpenFolder()}>{t('Open folder')}</button>{done.length>0&&(confirmAll?<button className="danger" onClick={()=>{api().dlClear().then(refreshDownloads);setConfirmAll(false);setPlaying(null)}}>{t('Delete all downloads')}</button>:<button onClick={()=>setConfirmAll(true)}>{t('Free up space…')}</button>)}</div></div>
   {playing&&<section className="panel media-player-top"><div className="media-player-title"><div><span className="media-kicker">{t('OFFLINE')}</span><h2>{playing.mediaName}{playing.kind!=='movie'&&playing.episodeName?' · '+playing.episodeName:''}</h2></div><button onClick={()=>setPlaying(null)}>{t('Close')}</button></div><AnimeVideo key={playing.id} video={offlineVideo(playing)} mediaKey={playing.mediaKey}/></section>}
   {active.length>0&&<section className="panel"><h2>{t('In progress')}</h2><ul className="downloads-list">{active.map(d=><li key={d.id} className={'dl-row '+d.state}><div><b>{d.mediaName}</b><small>{d.kind==='movie'?kindLabel(d.kind):d.episodeName||t('Episode {n}',{n:d.episodeNo||''})}</small>{d.state==='error'?<NoticeText text={d.error||''}/>:<div className="libbar"><span style={{width:Math.round(d.progress*100)+'%'}}/></div>}</div><span className="dl-state">{d.state==='queued'?t('Waiting'):d.state==='error'?t('Failed'):Math.round(d.progress*100)+'%'+(d.bytes?' · '+fmtBytes(d.bytes):'')}</span><button onClick={()=>(d.state==='error'?api().dlRemove(d.id):api().dlCancel(d.id)).then(refreshDownloads)}>{d.state==='error'?t('Remove'):t('Cancel')}</button></li>)}</ul></section>}

@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('novelReader',{
  backupReadAuto:(name)=>ipcRenderer.invoke('backup:readAuto',name),
  backupOpenFolder:()=>ipcRenderer.invoke('backup:openFolder'),
  appVersion:()=>ipcRenderer.invoke('app:version'),
+ reportCollect:()=>ipcRenderer.invoke('report:collect'),reportRedact:(t)=>ipcRenderer.invoke('report:redact',t),reportCopy:(t)=>ipcRenderer.invoke('report:copy',t),reportSave:(t)=>ipcRenderer.invoke('report:save',t),
  focusWindow:()=>ipcRenderer.invoke('app:focus'),
  updateStatus:()=>ipcRenderer.invoke('update:status'),
  updateCheck:()=>ipcRenderer.invoke('update:check'),

@@ -16,7 +16,7 @@ export async function scanNewEpisodes(list:any[],onProgress?:(done:number,found:
  return{counts,found,failed,done,names}
 }
 export function applyEpisodeCounts(items:any[],counts:Map<string,number>){return items.map((a:any)=>{const n=counts.get(mediaItemKey(a));if(n==null||!n)return a;const prev=mediaEpCount(a);return n>prev&&prev>0?{...a,episodes:n,newEpisodes:(a.newEpisodes||0)+(n-prev)}:{...a,episodes:Math.max(n,prev)}})}
-export function MediaLibrary({kind,items,onChange,onOpen,onSearch,loading,onResumeIntent}:{kind:'Anime'|'Series'|'Movie',items:any[],onChange:(x:any[])=>void,onOpen?:(x:any)=>void,onSearch:()=>void,loading?:boolean,onResumeIntent?:(a:any,epUrl:string)=>void}){
+export function MediaLibrary({kind,items,onChange,onOpen,onSearch,loading,onResumeIntent}:{kind:'Anime'|'Series'|'Movie',items:any[],onChange:(x:any[])=>void,onOpen?:(x:any)=>void,onSearch:()=>void,loading?:boolean,onResumeIntent?:(a:any,epUrl:string,next?:boolean)=>void}){
  const[filter,setFilter]=useState(''),[sort,setSort]=useState<'recent'|'title'>(()=>(lsGet('mediaSort:'+kind) as any)||'recent'),[undo,setUndo]=useState<{item:any,index:number}|null>(null)
  useEffect(()=>{if(!undo)return;const t=setTimeout(()=>setUndo(null),7000);return()=>clearTimeout(t)},[undo])
  const storeKey=kind==='Anime'?'animeLibrary':kind==='Series'?'seriesLibrary':'movieLibrary'
@@ -24,10 +24,14 @@ export function MediaLibrary({kind,items,onChange,onOpen,onSearch,loading,onResu
  const epCount=(a:any)=>Array.isArray(a?.episodes)?a.episodes.length:Number(a?.episodeCount||a?.episodes||0)
  // "Continue watching": the title whose episode was played most recently.
  const keyPrefix=kind==='Anime'?'anime:':kind==='Series'?'series:':'movie:'
- const last=items.map((a:any)=>{let info:any=null;try{info=JSON.parse(lsGet('lastEpInfo:'+String(a.id||a.url||a.name))||'null')}catch{}if(!info?.url)return null;const pos=readMediaPos(keyPrefix+(a.id||a.url||a.name)+(kind==='Movie'?'':':'+info.url));return{a,info,pos}}).filter(Boolean).sort((x:any,y:any)=>(y.info.at||0)-(x.info.at||0))[0] as any
+ const last=items.map((a:any)=>{if(a.shelf==='dropped')return null;let info:any=null;try{info=JSON.parse(lsGet('lastEpInfo:'+String(a.id||a.url||a.name))||'null')}catch{}if(!info?.url)return null;const pos=readMediaPos(keyPrefix+(a.id||a.url||a.name)+(kind==='Movie'?'':':'+info.url));return{a,info,pos}}).filter(Boolean).sort((x:any,y:any)=>(y.info.at||0)-(x.info.at||0))[0] as any
  const fmt=(sec:number)=>{const s=Math.max(0,Math.floor(sec||0)),h=Math.floor(s/3600),m=Math.floor(s%3600/60),r=s%60;return (h?h+':'+String(m).padStart(2,'0'):String(m))+':'+String(r).padStart(2,'0')}
  const open=(a:any)=>{if(a.newEpisodes){save(items.map(x=>x===a?{...x,newEpisodes:0}:x))}onOpen?.(a)}
- const resume=(r:any)=>{onResumeIntent?.(r.a,r.info.url);open(r.a)}
+ const resume=(r:any)=>{const nx=kind!=='Movie'&&r.pos?.done&&(r.info.n||0)<epCount(r.a);onResumeIntent?.(r.a,r.info.url,nx);open(r.a)}
+ // "Up next": every title in progress with its next episode (or the one to finish).
+ const upNext=kind==='Movie'?[]:items.map((a:any)=>{if(a.shelf==='dropped'||a===last?.a)return null;let info:any=null;try{info=JSON.parse(lsGet('lastEpInfo:'+String(a.id||a.url||a.name))||'null')}catch{}if(!info?.url)return null;const pos=readMediaPos(keyPrefix+(a.id||a.url||a.name)+':'+info.url),n=Number(info.n)||1,total=epCount(a)
+  if(pos?.done&&total&&n>=total)return null
+  return{a,info,pos,next:Boolean(pos?.done),n:pos?.done?n+1:n,left:pos&&!pos.done&&pos.d>0?Math.max(1,Math.round((pos.d-pos.t)/60)):0}}).filter(Boolean).sort((x:any,y:any)=>(y.info.at||0)-(x.info.at||0)).slice(0,10) as any[]
  // "Check for new episodes": compare each title's episode count with its source.
  const[upd,setUpd]=useState<{running:boolean,done:number,total:number,found:number,failed:number,at:number}>({running:false,done:0,total:0,found:0,failed:0,at:0})
  const checkNew=async()=>{const list=items.filter((a:any)=>a.sourceId&&(a.url||a.path));if(!list.length)return;setUpd({running:true,done:0,total:list.length,found:0,failed:0,at:0});const r=await scanNewEpisodes(list,(done,found,failed)=>setUpd(u=>({...u,done,found,failed})));save(applyEpisodeCounts(items,r.counts));lsSet('lastEpisodeCheck',String(Date.now()));setUpd({running:false,done:r.done,total:list.length,found:r.found,failed:r.failed,at:Date.now()})}
@@ -48,7 +52,8 @@ export function MediaLibrary({kind,items,onChange,onOpen,onSearch,loading,onResu
  const restore=()=>{if(!undo)return;const next=[...items];next.splice(Math.min(undo.index,next.length),0,{...undo.item,addedAt:Date.now()});save(next);setUndo(null)}
  return <div className="media-page books-ui"><header><div><h1>{kind==='Anime'?t('Anime Library'):kind==='Series'?t('Series Library'):t('Movie Library')}</h1><p>{kind==='Anime'?plural(items.length,'{n} anime saved on this PC.','{n} anime saved on this PC.'):kind==='Series'?plural(items.length,'{n} series saved on this PC.','{n} series saved on this PC.'):plural(items.length,'{n} movie saved on this PC.','{n} movies saved on this PC.')}</p></div></header>
  {items.length===0?<section className="panel lib-empty"><h2>{t('Your library is empty')}</h2><p>{t('Use Global Search to find a title and add it to your library.')}</p><button className="primary" onClick={onSearch}>{t('Open Global Search')}</button></section>:<>
-  {last&&!q&&<section className="lib-resume" onClick={()=>resume(last)}><Cover src={mediaCover(last.a)} name={last.a.name||last.a.title||kind}/><div className="lib-resume-meta"><small>{t('Continue where you left off')} · {timeAgo(last.info.at)}</small><h2>{last.a.name||last.a.title}</h2><p>{[kind==='Movie'?'':(last.info.name||t('Episode {n}',{n:last.info.n})),last.pos&&!last.pos.done?t('stopped at {time}',{time:fmt(last.pos.t)}):last.pos?.done?t('finished'):''].filter(Boolean).join(' · ')}</p>{last.pos&&last.pos.d>0&&<div className="libbar"><span style={{width:Math.min(100,last.pos.t/last.pos.d*100)+'%'}}/></div>}</div><button className="primary" onClick={e=>{e.stopPropagation();resume(last)}}>{kind==='Movie'?t('Resume the movie'):t('Continue · Ep. {n}',{n:last.info.n||1})}</button></section>}
+  {last&&!q&&<section className="lib-resume" onClick={()=>resume(last)}><Cover src={mediaCover(last.a)} name={last.a.name||last.a.title||kind}/><div className="lib-resume-meta"><small>{t('Continue where you left off')} · {timeAgo(last.info.at)}</small><h2>{last.a.name||last.a.title}</h2><p>{[kind==='Movie'?'':(last.info.name||t('Episode {n}',{n:last.info.n})),last.pos&&!last.pos.done?t('stopped at {time}',{time:fmt(last.pos.t)}):last.pos?.done?t('finished'):''].filter(Boolean).join(' · ')}</p>{last.pos&&last.pos.d>0&&<div className="libbar"><span style={{width:Math.min(100,last.pos.t/last.pos.d*100)+'%'}}/></div>}</div><button className="primary" onClick={e=>{e.stopPropagation();resume(last)}}>{kind==='Movie'?t('Resume the movie'):last.pos?.done&&(last.info.n||0)<epCount(last.a)?t('Next · Ep. {n}',{n:(Number(last.info.n)||1)+1}):t('Continue · Ep. {n}',{n:last.info.n||1})}</button></section>}
+  {upNext.length>0&&!q&&<section className="upnext"><h2>{t('Up next')}</h2><div className="upnext-row">{upNext.map((r:any)=><button key={String(r.a.id||r.a.url||r.a.name)} className="upnext-card" onClick={()=>{onResumeIntent?.(r.a,r.info.url,r.next);open(r.a)}} title={r.a.name||r.a.title}><Cover src={mediaCover(r.a)} name={r.a.name||r.a.title||kind}/><span className="upnext-meta"><b>{r.a.name||r.a.title}</b><small>{r.next?t('Next · Ep. {n}',{n:r.n}):t('Continue · Ep. {n}',{n:r.n})}{r.left?' · '+t('{n} min left',{n:r.left}):''}</small>{r.pos&&!r.pos.done&&r.pos.d>0&&<span className="libbar"><span style={{width:Math.min(100,r.pos.t/r.pos.d*100)+'%'}}/></span>}</span></button>)}</div></section>}
   {!q&&<WatchStats/>}
   <div className="shelftabs" role="tablist" aria-label={t('Shelves')}>{[{id:'all',label:t('All'),n:items.length},...VSHELVES.map(x=>({...x,n:counts[x.id]||0}))].map(x=><button key={x.id} role="tab" aria-selected={shelf===x.id} className={'shelftab'+(shelf===x.id?' on':'')} onClick={()=>{setShelf(x.id);lsSet('mediaShelf:'+kind,x.id)}}>{x.label} <small>{x.n}</small></button>)}</div>
   <div className="lib-toolbar"><div className="searchbar"><input placeholder={t('Filter by title or source…')} value={filter} onChange={e=>setFilter(e.target.value)} aria-label={t('Filter by title or source…')}/></div>{kind!=='Movie'&&<button className="lib-update" disabled={upd.running} onClick={checkNew}>{upd.running?t('Checking {done}/{total}…',{done:upd.done,total:upd.total}):t('Check for new episodes')}</button>}<label className="lib-sort">{t('Sort')}<select value={sort} onChange={e=>{const v=e.target.value as 'recent'|'title';setSort(v);lsSet('mediaSort:'+kind,v)}}><option value="recent">{t('Recently added')}</option><option value="title">{t('Title A–Z')}</option></select></label></div>
@@ -99,14 +104,49 @@ export function EpisodeGrid({eps,prefix,mediaId,selected,disabled,onPlay,renderE
 }
 
 // ---- Video sources: test installed extensions and remove the dead ones ----------
+// ---- Source check: list → episodes → video streams, one title per extension ----
+type HealthRow={pkg:string,name:string,sources:any[],state:'idle'|'testing'|'ok'|'warn'|'dead',error?:string,detail?:string,step?:string}
+function readHealthRows():HealthRow[]{try{const h=JSON.parse(lsGet('sourceHealth')||'{}');return Object.entries(h).map(([pkg,v]:any)=>({pkg,name:v.name||pkg,sources:(v.sourceIds||[]).map((id:string)=>({id})),state:v.state,detail:v.detail,error:v.error}))}catch{return[]}}
+const asList=(d:any,...keys:string[])=>Array.isArray(d)?d:(keys.map(k=>d?.[k]).find(Array.isArray)||[])
+export async function checkExtension(r:{sources:any[]},onStep?:(s:string)=>void):Promise<{state:'ok'|'warn'|'dead',detail:string,error:string}>{
+ if(!r.sources.length)return{state:'dead',detail:'',error:t('No video source in this extension')}
+ let best:{state:'ok'|'warn'|'dead',detail:string,error:string}={state:'dead',detail:'',error:''}
+ for(const s of r.sources.slice(0,2)){
+  const sid=encodeURIComponent(String(s.id)),steps:string[]=[]
+  try{
+   onStep?.(t('Loading the list…'));const items=asList(await window.novelReader.miwayomiFetch('/api/v1/anime/'+sid+'/popular?page=1'),'animes','results','items','list')
+   // An empty list does not prove the source is down (search may still work): partly.
+   if(!items.length){if(best.state==='dead')best={state:'warn',detail:t('List')+' ✗',error:t('The list is empty')};continue}
+   steps.push(t('List')+' ✓')
+   let epOk=false,vidOk=0,err=''
+   for(const a of items.slice(0,2)){
+    try{onStep?.(t('Loading episodes…'));const eps=asList(await window.novelReader.miwayomiFetch('/api/v1/anime/'+sid+'/episodes?url='+encodeURIComponent(a.url||a.path)),'episodes','items')
+     if(!eps.length){err=t('No episode');continue}
+     epOk=true;const ep=orderedEpisodes(eps)[0]
+     onStep?.(t('Looking for streams…'));const vids=asList(await window.novelReader.miwayomiFetch('/api/v1/anime/'+sid+'/videos?url='+encodeURIComponent(ep.url||ep.path)),'videos','items','list')
+     if(vids.length){vidOk=vids.length;break}
+     err=t('No stream found')
+    }catch(e:any){err=cleanEngineError(e).slice(0,160)}
+   }
+   steps.push(t('Episodes')+(epOk?' ✓':' ✗'))
+   steps.push(vidOk?t('Streams')+' ✓ ('+vidOk+')':t('Streams')+' ✗')
+   const res={state:vidOk?'ok' as const:'warn' as const,detail:steps.join(' · '),error:vidOk?'':err}
+   if(res.state==='ok')return res
+   best=res
+  }catch(e:any){if(best.state==='dead')best={state:'dead',detail:'',error:cleanEngineError(e).slice(0,160)}}
+ }
+ return best
+}
 export function VideoSourceHealth(){
- const[rows,setRows]=useState<{pkg:string,name:string,sources:any[],state:'idle'|'testing'|'ok'|'dead',error?:string}[]>([]),[running,setRunning]=useState(false),[confirm,setConfirm]=useState(false),[msg,setMsg]=useState('')
+ const[rows,setRows]=useState<HealthRow[]>(()=>readHealthRows()),[running,setRunning]=useState(false),[confirm,setConfirm]=useState(false),[msg,setMsg]=useState('')
  const load=async()=>{const[inst,src]=await Promise.all([window.novelReader.miwayomiFetch('/api/v1/extensions/installed'),window.novelReader.miwayomiFetch('/api/v1/sources')]);const exts=Array.isArray(inst)?inst:(inst?.extensions||inst?.items||[]);const anime=Array.isArray(src)?src:(src?.anime||src?.sources||[]);return exts.filter((e:any)=>e&&e.pkg).map((e:any)=>({pkg:String(e.pkg),name:String(e.name||e.pkg).replace(/^Aniyomi:\s*/i,''),sources:anime.filter((s:any)=>String(s.pkg||'')===String(e.pkg)),state:'idle' as const}))}
- const test=async()=>{setRunning(true);setMsg('');setConfirm(false);try{const list=await load();setRows(list.map(r=>({...r,state:'testing'})));const queue=[...list];await Promise.all(Array.from({length:6},async()=>{while(queue.length){const r=queue.shift()!;let ok=false,error='';for(const s of r.sources.slice(0,3)){try{await window.novelReader.miwayomiFetch('/api/v1/anime/'+encodeURIComponent(String(s.id))+'/popular?page=1');ok=true;break}catch(e:any){error=cleanEngineError(e).slice(0,160)}}if(!r.sources.length)error=t('No video source in this extension');setRows(rs=>rs.map(x=>x.pkg===r.pkg?{...x,state:ok?'ok':'dead',error}:x))}}))}catch(e:any){setMsg(String(e?.message||e))}finally{setRunning(false)}}
- const uninstall=async(pkgs:string[])=>{let n=0;for(const pkg of pkgs){try{await window.novelReader.miwayomiFetch('/api/v1/extensions/uninstall','POST',{pkg});n++}catch{}}setRows(rs=>rs.filter(r=>!pkgs.includes(r.pkg)));setConfirm(false);setMsg(plural(n,'{n} source removed.','{n} sources removed.'))}
- const dead=rows.filter(r=>r.state==='dead'),okN=rows.filter(r=>r.state==='ok').length,done=rows.filter(r=>r.state==='ok'||r.state==='dead').length
- return <section className="panel source-health"><div className="engine-row"><div><h2>{t('Installed sources')}</h2><p>{rows.length?(running?t('Testing {done} / {total} sources…',{done,total:rows.length}):t('{ok} working, {dead} not responding.',{ok:okN,dead:dead.length})):t('Check which installed sources still work, and remove the ones that are down.')}</p></div><button className={rows.length?'':'primary'} disabled={running} onClick={test}>{running?t('Testing…'):rows.length?t('Test again'):t('Test my sources')}</button></div>
-  {rows.length>0&&<div className="health-list">{rows.map(r=><div key={r.pkg} className={'health-row '+r.state}><span className="health-dot" aria-hidden="true"/><div><b>{r.name}</b>{r.state==='dead'&&r.error&&<small>{r.error}</small>}</div><span className="health-state">{r.state==='testing'?t('Testing…'):r.state==='ok'?t('Working'):r.state==='dead'?t('Not responding'):''}</span>{r.state==='dead'&&<button className="removebtn" onClick={()=>uninstall([r.pkg])}>{t('Uninstall')}</button>}</div>)}</div>}
+ const test=async()=>{setRunning(true);setMsg('');setConfirm(false);try{const list=await load();setRows(list.map(r=>({...r,state:'testing',step:''})));const queue=[...list],saved:any={}
+   await Promise.all(Array.from({length:4},async()=>{while(queue.length){const r=queue.shift()!;const res=await checkExtension(r,step=>setRows(rs=>rs.map(x=>x.pkg===r.pkg?{...x,step}:x)));saved[r.pkg]={name:r.name,state:res.state,detail:res.detail,error:res.error,at:Date.now(),sourceIds:r.sources.map((x:any)=>String(x.id))};setRows(rs=>rs.map(x=>x.pkg===r.pkg?{...x,...res,step:''}:x))}}))
+   lsSet('sourceHealth',JSON.stringify(saved));lsSet('sourceHealthAt',String(Date.now()))}catch(e:any){setMsg(String(e?.message||e))}finally{setRunning(false)}}
+ const uninstall=async(pkgs:string[])=>{let n=0;for(const pkg of pkgs){try{await window.novelReader.miwayomiFetch('/api/v1/extensions/uninstall','POST',{pkg});n++}catch{}}setRows(rs=>rs.filter(r=>!pkgs.includes(r.pkg)));try{const h=JSON.parse(lsGet('sourceHealth')||'{}');for(const p of pkgs)delete h[p];lsSet('sourceHealth',JSON.stringify(h))}catch{}setConfirm(false);setMsg(plural(n,'{n} source removed.','{n} sources removed.'))}
+ const dead=rows.filter(r=>r.state==='dead'),okN=rows.filter(r=>r.state==='ok').length,warnN=rows.filter(r=>r.state==='warn').length,done=rows.filter(r=>r.state==='ok'||r.state==='dead'||r.state==='warn').length,at=Number(lsGet('sourceHealthAt'))||0
+ return <section className="panel source-health"><div className="engine-row"><div><h2>{t('Installed sources')}</h2><p>{rows.length?(running?t('Testing {done} / {total} sources…',{done,total:rows.length}):t('{ok} working, {warn} partly working, {dead} not responding.',{ok:okN,warn:warnN,dead:dead.length})+(at&&!running?' · '+t('Checked {when}',{when:timeAgo(at)}):'')):t('Check which installed sources still work, and remove the ones that are down.')}</p></div><button className={rows.length?'':'primary'} disabled={running} onClick={test}>{running?t('Testing…'):rows.length?t('Test again'):t('Test my sources')}</button></div>
+  {rows.length>0&&<div className="health-list">{rows.map(r=><div key={r.pkg} className={'health-row '+r.state}><span className="health-dot" aria-hidden="true"/><div><b>{r.name}</b>{r.state==='testing'&&r.step?<small>{r.step}</small>:r.detail?<small className="health-steps">{r.detail}</small>:null}{(r.state==='dead'||r.state==='warn')&&r.error&&<small>{r.error}</small>}</div><span className="health-state">{r.state==='testing'?t('Testing…'):r.state==='ok'?t('Plays'):r.state==='warn'?t('Partly'):r.state==='dead'?t('Not responding'):''}</span>{r.state==='dead'&&<button className="removebtn" onClick={()=>uninstall([r.pkg])}>{t('Uninstall')}</button>}</div>)}</div>}
   {!running&&dead.length>0&&<div className="libraryactions health-actions">{confirm?<><span>{plural(dead.length,'Uninstall {n} source that is not responding?','Uninstall {n} sources that are not responding?')}</span><button className="removebtn" onClick={()=>uninstall(dead.map(r=>r.pkg))}>{t('Yes, uninstall')}</button><button onClick={()=>setConfirm(false)}>{t('Cancel')}</button></>:<button className="removebtn" onClick={()=>setConfirm(true)}>{plural(dead.length,'Remove {n} dead source','Remove {n} dead sources')}</button>}</div>}
   {msg&&<p className="lib-update-status" role="status">{msg}</p>}
  </section>

@@ -17,6 +17,10 @@ async function boot(page: Page) {
     storage: {
       animeLibrary: JSON.stringify(media('anime', 6)), seriesLibrary: JSON.stringify(media('series', 4)), movieLibrary: JSON.stringify(media('movie', 5)),
       'lastEpInfo:series2': JSON.stringify({ url: '/ep/3', name: 'S1 E3 - OutKast', n: 3, at: Date.now() - 3600_000 }),
+      'lastEpInfo:series0': JSON.stringify({ url: '/ep/4', name: 'S1 E4', n: 4, at: Date.now() - 86400_000 }),
+      'mediapos:series:series0:/ep/4': JSON.stringify({ t: 0, d: 2700, done: true, at: Date.now() - 86400_000 }),
+      'lastEpInfo:series3': JSON.stringify({ url: '/ep/2', name: 'S1 E2', n: 2, at: Date.now() - 2 * 86400_000 }),
+      'mediapos:series:series3:/ep/2': JSON.stringify({ t: 1500, d: 2700, at: Date.now() - 2 * 86400_000 }),
       'mediapos:series:series2:/ep/3': JSON.stringify({ t: 1325, d: 2700, at: Date.now() - 3600_000 }),
       'lastEpInfo:movie3': JSON.stringify({ url: '/ep/1', name: '', n: 1, at: Date.now() - 7200_000 }),
       'mediapos:movie:movie3': JSON.stringify({ t: 3100, d: 7800, at: Date.now() - 7200_000 })
@@ -35,6 +39,7 @@ async function boot(page: Page) {
         { id: 'd2', kind: 'series', mediaId: 'series2', mediaName: 'Lanterns', episodeUrl: '/ep/2', episodeName: 'S1 E2 - Episode title 2', episodeNo: 2, mediaKey: '', state: 'done', progress: 1, size: 398e6, file: 'video.mp4', subtitles: [] },
         { id: 'd3', kind: 'series', mediaId: 'series2', mediaName: 'Lanterns', episodeUrl: '/ep/3', episodeName: 'S1 E3 - Episode title 3', episodeNo: 3, mediaKey: '', state: 'downloading', progress: 0.37, bytes: 151e6 }
       ],
+      reportCollect: async () => ({}), reportCopy: async () => true,
       dlBase: async () => 'http://127.0.0.1:9', dlUsage: async () => ({ bytes: 810e6, count: 2, folder: '' }), dlStart: async () => ({ id: 'x' }), onDownloadsChanged: () => () => {},
       miwayomiFetch: async (path: string) => {
         if (path.includes('/details')) return { title: 'Lanterns', description: desc, genre: ['Drama', 'Mystery', 'Sci-Fi & Fantasy'], status: 2, author: 'DC Studios, HBO' }
@@ -81,6 +86,7 @@ test('capture all sections', async ({ page }) => {
   await mode(page, 3); await navTo(page, 'Bibliothèque séries'); await shot(page, '20-series-bibliotheque')
   await page.locator('main').getByText('Lanterns').first().click().catch(() => {})
   await page.waitForTimeout(800); await shot(page, '21-series-fiche')
+  await page.locator('.batch-dl').scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {}); await shot(page, '21c-series-episodes')
   await page.locator('.media-hero .primary').click().catch(() => {})
   await page.waitForTimeout(1500); await shot(page, '21b-series-lecteur')
   await navTo(page, 'Bibliothèque séries'); await shot(page, '20b-series-reprendre')
@@ -97,6 +103,7 @@ test('capture all sections', async ({ page }) => {
   // Settings
   await page.locator('.sidebar').getByText('Paramètres').first().click().catch(() => {})
   await shot(page, '40-parametres')
+  await page.locator('.report-panel').scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {}); await shot(page, '41-parametres-rapport')
   // Dark theme: same key pages
   await page.locator('.settings-seg button', { hasText: 'Sombre' }).click().catch(() => {})
   await mode(page, 1); await navTo(page, 'Bibliothèque'); await shot(page, '50-sombre-livres')
