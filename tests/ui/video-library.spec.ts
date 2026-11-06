@@ -28,7 +28,7 @@ async function openVideo(page: Page, storage: Record<string, string>) {
         ]
         if (path.includes('/extensions/installed')) return [{ name: 'Mapple', pkg: 'mapple' }, { name: 'Aniyomi: LaMovie', pkg: 'lamovie' }, { name: 'Partial', pkg: 'partial' }]
         if (path.includes('/extensions/uninstall')) return { ok: true, pkg: body?.pkg }
-        if (path.includes('/sources')) return { anime: [{ id: '42', name: 'Mapple', lang: 'en', pkg: 'mapple' }, { id: '43', name: 'LaMovie', lang: 'es', pkg: 'lamovie' }, { id: '44', name: 'Partial', lang: 'en', pkg: 'partial' }] }
+        if (path.includes('/sources')) return { anime: [{ id: '42', name: 'Mapple', lang: 'en', pkg: 'mapple' }, { id: '43', name: 'LaMovie', lang: 'es', pkg: 'lamovie' }, { id: '44', name: 'Partial', lang: 'en', pkg: 'partial' }, { id: '45', name: 'Gogoanime', lang: 'en', pkg: 'gogo' }] }
         if (path.includes('/44/popular')) return { animes: [{ title: 'Empty show', url: '/p/1' }] }
         if (path.includes('/43/popular')) throw new Error("Error invoking remote method 'anime:miwayomiFetch': Error: Miwayomi HTTP 500 — {\"error\":\"Hôte inconnu (la.movie)\"}")
         if (path.includes('/42/popular')) return path.endsWith('page=1') ? { animes: [{ title: 'Lanterns', url: '/series/1', thumbnail_url: 'https://img.test/l.jpg' }, { title: 'Severance', url: '/s/sev', thumbnail_url: 'https://img.test/s.jpg' }], hasNextPage: true } : { animes: [{ title: 'Andor', url: '/s/andor', thumbnail_url: 'https://img.test/a.jpg' }], hasNextPage: false }
@@ -333,4 +333,23 @@ test('AniList: finished episode updates the AniList progress; the AniList list l
   await panel.getByRole('button', { name: 'Show my AniList list' }).click()
   await panel.locator('.anilist-row').getByRole('button', { name: 'Find in my sources' }).click()
   await expect(page.locator('main .searchbar input, main input').first()).toHaveValue('Sousou no Frieren')
+})
+
+test('sections: anime sources only in Anime, movie/series sources in Series and Movies, series titles not in Movies', async ({ page }) => {
+  await openVideo(page, { mode: 'movies', 'lastPage:movies': 'movieDiscover' })
+  const options = () => page.locator('.discover-bar select option').allInnerTexts()
+  await expect.poll(options).toEqual(['Mapple (EN)', 'LaMovie (ES)', 'Partial (EN)'])
+  // A title whose address says it is a series is not listed in Movies
+  await expect(page.locator('.media-discover .resultcard h3')).toHaveText(['Severance'])
+  await page.locator('.mode-switch').getByRole('tab', { name: /Anime/ }).click()
+  await page.locator('.sidebar .nav-item', { hasText: 'Discover' }).click()
+  await expect.poll(options).toEqual(['Partial (EN)', 'Gogoanime (EN)'])
+  // The Sources page shows each source's sections; adding Anime to Mapple
+  await page.locator('.sidebar .nav-item', { hasText: 'Sources' }).click()
+  const mapple = page.locator('.health-row', { hasText: 'Mapple' })
+  await expect(mapple.locator('.sec-chip.on')).toHaveText(['Series', 'Movies'])
+  await mapple.getByRole('button', { name: 'Anime' }).click()
+  await expect(mapple.locator('.sec-chip.on')).toHaveText(['Anime', 'Series', 'Movies'])
+  await page.locator('.sidebar .nav-item', { hasText: 'Discover' }).click()
+  await expect.poll(options).toContain('Mapple (EN)')
 })

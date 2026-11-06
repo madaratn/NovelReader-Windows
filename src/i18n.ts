@@ -649,6 +649,9 @@ const FR: Record<string, string> = {
   'Send': 'Envoyer',
   'End the watch party': 'Terminer le watch party',
   'Leave': 'Quitter',
+  'Sections for {name}': 'Sections de {name}',
+  'Sections where this source is used. Click to change.': 'Sections où cette source est utilisée. Clique pour changer.',
+  'Back to automatic': 'Revenir au réglage automatique',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
