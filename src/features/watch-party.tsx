@@ -183,9 +183,19 @@ export function WatchPartyBridge({current,open}:{current:()=>{media:PartyMedia,e
    if(Date.now()<quietUntil.current)return
    // A video that just loaded jumps to its own saved position and may start by itself: not a user action.
    if(e&&(!settled||Date.now()<settled)&&Date.now()-attachAt<4000)return
+   // The player went back to the start by itself (stream reloaded, server switched after
+   // a stall, HLS recovery): never send that to everyone. Put this player back on the
+   // group's position instead. A restart chosen by hand (click, key) is still shared.
+   const st=party.snap.state
+   if(st&&sameEp(st)&&Date.now()-lastInput>1500){const groupT=st.time+(st.playing?(Date.now()-(party.snap.stateAt||Date.now()))/1000:0)
+    if(groupT>10&&v.currentTime<Math.min(5,groupT-8)){if(!pending.current){pending.current=st;pendingAt.current=party.snap.stateAt||Date.now()}return}}
    party.share({media:c.media,episodeUrl:c.episodeUrl,episodeName:c.episodeName,playing:!v.paused,time:v.currentTime,rate:v.playbackRate})}
   const evs=['play','pause','seeked','ratechange']
   let attachAt=0,settled=0,lastInput=0;const onCanPlay=()=>{if(!settled)settled=Date.now()+250}
+  // The player reloads its stream in the same <video> (quality or server change, stall
+  // recovery): treat it like a new video, then put it back on the group's position.
+  const onReload=()=>{if(!attached)return;attachAt=Date.now();settled=0;const st=party.snap.state;if(st&&sameEp(st)&&!pending.current){pending.current=st;pendingAt.current=party.snap.stateAt||Date.now()}}
+  window.addEventListener('nr-player-reload',onReload)
 const onInput=()=>{lastInput=Date.now()};window.addEventListener('pointerdown',onInput,true);window.addEventListener('keydown',onInput,true);window.addEventListener('nr-user-input',onInput)
   const iv=setInterval(()=>{const v=video();if(v!==attached){for(const e of evs)attached?.removeEventListener(e,send);const replaced=!!attached;attached?.removeEventListener('canplay',onCanPlay);attached=v;attachAt=Date.now();settled=v&&v.readyState>=3?Date.now():0;v?.addEventListener('canplay',onCanPlay);if(v)for(const e of evs)v.addEventListener(e,send)
     // The player rebuilt its video (stream switch, reload): put it back on the group's state.
@@ -199,8 +209,8 @@ const onInput=()=>{lastInput=Date.now()};window.addEventListener('pointerdown',o
    else if(key!==lastEp.current&&!pending.current){lastEp.current=key;send()} // a new episode chosen here
   },400)
   // Host heartbeat: keeps everyone within ~1.5 s while playing.
-  if(snap.role==='host')hb=setInterval(()=>{if(attached&&!attached.paused&&Date.now()>=quietUntil.current)send()},5000)
-  return()=>{clearInterval(iv);clearInterval(hb);attached?.removeEventListener('canplay',onCanPlay);window.removeEventListener('pointerdown',onInput,true);window.removeEventListener('keydown',onInput,true);window.removeEventListener('nr-user-input',onInput);for(const e of evs)attached?.removeEventListener(e,send)}
+  if(snap.role==='host')hb=setInterval(()=>{if(attached&&!attached.paused&&!attached.seeking&&attached.readyState>=3&&!pending.current&&Date.now()>=quietUntil.current)send()},5000)
+  return()=>{clearInterval(iv);clearInterval(hb);attached?.removeEventListener('canplay',onCanPlay);window.removeEventListener('pointerdown',onInput,true);window.removeEventListener('keydown',onInput,true);window.removeEventListener('nr-user-input',onInput);window.removeEventListener('nr-player-reload',onReload);for(const e of evs)attached?.removeEventListener(e,send)}
  },[active,snap.role])
  return null
 }
