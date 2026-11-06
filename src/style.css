@@ -766,3 +766,11 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
 .wp-chat{display:flex;flex-direction:column;gap:5px;min-height:120px;max-height:220px;overflow:auto;padding:6px;border:1px solid #232838;border-radius:10px;background:#0f1218}
 .wp-msg{line-height:1.4;word-break:break-word}.wp-msg b{color:#8b7cff}.wp-msg.mine b{color:#3fb37f}.wp-msg.system{color:#8f94a3;font-size:12px;font-style:italic}
 .wp-leave{align-self:flex-start}
+/* Sections of a video source (Anime / Series / Movies) */
+.sec-chips{display:inline-flex;gap:4px;align-items:center;flex-wrap:wrap}
+.sec-chip{padding:2px 8px;border:1px solid #30364a;border-radius:999px;background:none;color:#6d7386;font:inherit;font-size:11.5px;cursor:pointer}
+.sec-chip.on{border-color:#8b7cff;background:rgba(139,124,255,.15);color:#cfc6ff}
+.sec-chips.custom .sec-chip.on{border-color:#3fb37f;background:rgba(63,179,127,.15);color:#a6e3c6}
+.sec-reset{padding:0 4px;border:0;background:none;color:#8f94a3;cursor:pointer;font-size:13px}
+.health-row{grid-template-columns:10px minmax(0,1fr) auto auto auto}
+@media (max-width:760px){.health-row{grid-template-columns:10px minmax(0,1fr) auto}.health-row .sec-chips{grid-column:2/-1}}

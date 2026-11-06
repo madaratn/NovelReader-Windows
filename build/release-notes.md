@@ -1,18 +1,14 @@
-## NovelReader 0.7.1
+## NovelReader 0.7.2
 
 Si vous avez une version précédente, celle-ci s'installe toute seule (une bannière propose de redémarrer).
 
-### Plus de sources de films et séries
-- **Nouveau dépôt de sources** ajouté automatiquement : salmanbappi (Castle TV, 4KHDHub, FboxTV, Movies2Watch, OneTouch TV, Watchroo, Moviebox, NetMirror…).
-- **Pack « films et séries » refait** (Sources vidéo › Installer le pack) avec les sources testées de bout en bout (liste → épisodes → vidéo) : MoviesMod, Castle TV, 4KHDHub, FboxTV, Movies2Watch, OneTouch TV, Watchroo, Gnula (espagnol), Moviebox…
-- Le dépôt Kohi-den, fermé depuis mai 2026, est désactivé.
+### Chaque section a ses sources
+- **Anime** n'utilise plus que les sources d'anime, **Séries** et **Films** que les sources de films et séries (dans Découvrir, la Recherche globale et la recherche automatique d'une autre source pendant la lecture).
+- Dans une source qui propose films et séries, les titres reconnus comme séries (adresse « /series/ », « Saison 2 »…) ne sont plus proposés dans Films, et inversement.
+- Les sources de dramas asiatiques (Dramanice, MyAsianTV, KissKH, OneTouch TV…) sont rangées dans Séries.
+- **Vous gardez la main** : dans Sources (Anime, Séries ou Films), chaque source affiche ses sections ; cliquez sur « Anime », « Séries » ou « Films » pour l'ajouter ou la retirer d'une section (↺ pour revenir au réglage automatique).
 
-### Moteur vidéo
-- Les extensions récentes qui refusaient de se charger fonctionnent : Moviebox, Flixer, Cinemaos, Lunar, 2Dhive, ReAnime, ANIMOTVSLASH…
-- Les sites dont le certificat HTTPS était refusé (EmpireStreaming, AnimeVostFr, UHD Movies…) sont maintenant acceptés comme dans un navigateur (racines Windows et certificats intermédiaires manquants récupérés).
-- AnimeSaga ne plante plus.
-
-Après la mise à jour, les sources déjà installées sont réparées automatiquement au premier démarrage.
+Vos bibliothèques ne changent pas.
 
 ### Installation
-Téléchargez `NovelReader-Setup-0.7.1.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».
+Téléchargez `NovelReader-Setup-0.7.2.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».
