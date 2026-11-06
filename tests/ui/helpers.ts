@@ -62,6 +62,11 @@ export async function setup(page: Page, s: Setup = {}) {
         if (n % 2 === 0) return [{ name: 'Shadow Slave', path: '/novel/ss-' + n }, { name: 'Shadow Slave Side Stories', path: '/novel/sss-' + n }]
         return [{ name: 'Unrelated', path: '/u' }]
       },
+      popularPlugin: async (pl: any, page: number, latest: boolean) => {
+        w.__calls.popular = (w.__calls.popular || []).concat(pl.id + ':' + page + ':' + (latest ? 'latest' : 'popular'))
+        if (latest) throw new Error("Error invoking remote method 'plugin:popular': Error: popularNovels unavailable")
+        return page > 2 ? [] : [1, 2, 3].map(i => ({ name: 'Popular ' + ((page - 1) * 3 + i), path: '/novel/pop-' + ((page - 1) * 3 + i), cover: '' }))
+      },
       parseNovel: async (_pl: any, path: string) => {
         await new Promise(r => setTimeout(r, 80))
         const count = (newChapters || {})[path] ?? 12

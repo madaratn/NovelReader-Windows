@@ -131,3 +131,30 @@ export function SourcesPage({plugins,ensurePlugins,onRefresh,refreshing,error}:{
   </article>})}{shown.length===0&&<p className="settings-help">{t('No source matches.')}</p>}</section>}
  </>
 }
+
+// ---- Discover (books): Popular / Latest lists of one LNReader source ------------
+const novelDiscoverCache=new Map<string,{rows:any[],page:number,more:boolean}>()
+export function NovelDiscover({plugins,ensurePlugins,library,onAdd,onOpen}:{plugins:Plugin[],ensurePlugins:()=>Promise<Plugin[]>,library:any[],onAdd:(h:SearchHit)=>Promise<any>,onOpen:(item:any)=>void}){
+ const[list,setList]=useState<Plugin[]>(plugins),[source,setSource]=useState(()=>lsGet('novelDiscoverSource')||''),[tab,setTab]=useState<'popular'|'latest'>(()=>lsGet('novelDiscoverTab')==='latest'?'latest':'popular')
+ const[rows,setRows]=useState<any[]>([]),[page,setPage]=useState(1),[more,setMore]=useState(false),[loading,setLoading]=useState(false),[err,setErr]=useState(''),[adding,setAdding]=useState('')
+ const token=useRef(0),rowsRef=useRef<any[]>([])
+ useEffect(()=>{if(plugins.length){setList(plugins);return}ensurePlugins().then(setList).catch(e=>setErr(t('Could not load the source list:')+' '+String(e?.message||e)))},[plugins])
+ const choices=list.filter(p=>preferredLang(String(p.lang||''))).sort((a,b)=>String(a.name).localeCompare(String(b.name)))
+ useEffect(()=>{if(choices.length&&!choices.some(p=>p.id===source))setSource(choices[0].id)},[list])
+ const plugin=list.find(p=>p.id===source)
+ const load=async(pg:number)=>{if(!plugin||!window.novelReader.popularPlugin)return;const my=++token.current,key=plugin.id+':'+tab;if(pg===1){const c=novelDiscoverCache.get(key);if(c){rowsRef.current=c.rows;setRows(c.rows);setPage(c.page);setMore(c.more);setErr('');return}rowsRef.current=[];setRows([])}setLoading(true);setErr('')
+  try{const res=await window.novelReader.popularPlugin(plugin,pg,tab==='latest');if(my!==token.current)return;const base=pg===1?[]:rowsRef.current,seen=new Set(base.map((x:any)=>x.path)),all=[...base,...(res||[]).filter((x:any)=>x&&x.path&&!seen.has(x.path))];rowsRef.current=all;setRows(all);const m=(res||[]).length>0;setPage(pg);setMore(m);novelDiscoverCache.set(key,{rows:all,page:pg,more:m})}
+  catch(e:any){if(my===token.current)setErr(/popularNovels unavailable/.test(String(e?.message))?t('This source has no list to browse. Try another one.'):String(e?.message||e).replace(/^Error invoking remote method '[^']+': (Error: )?/,''))}finally{if(my===token.current)setLoading(false)}}
+ useEffect(()=>{if(plugin){lsSet('novelDiscoverSource',plugin.id);lsSet('novelDiscoverTab',tab);load(1)}},[source,tab,list.length])
+ const saved=(n:any)=>plugin&&library.find(x=>x.id===plugin.id+':'+n.path)
+ const add=async(n:any)=>{if(!plugin)return;setAdding(n.path);setErr('');try{await onAdd({plugin,novel:n})}catch(e:any){setErr(t('Could not add novel:')+' '+String(e?.message||e))}finally{setAdding('')}}
+ return <div className="media-search-page media-discover books-search-ui"><header><div><h1>{t('Discover')}</h1><p>{t('Browse what is popular or new on one of your book sources.')}</p></div></header>
+  {choices.length>0&&<div className="discover-bar"><div className="shelftabs" role="tablist" aria-label={t('Lists')}>{(['popular','latest'] as const).map(x=><button key={x} role="tab" aria-selected={tab===x} className={'shelftab'+(tab===x?' on':'')} onClick={()=>setTab(x)}>{x==='popular'?t('Popular'):t('Latest')}</button>)}</div><label>{t('Source')}<select value={source} onChange={e=>setSource(e.target.value)}>{choices.map(p=><option key={p.id} value={p.id}>{p.name}{p.lang?' ('+p.lang+')':''}</option>)}</select></label></div>}
+  {!list.length&&!err&&<div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading sources…')}</div></div>}
+  {err&&<div className="anime-toast error"><NoticeText text={err}/></div>}
+  {rows.length>0&&<div className="resultgrid">{rows.map((n:any)=>{const item=saved(n);return <article className="resultcard" key={n.path}><Cover src={n.cover||''} name={n.name||'?'}/><div className="resultmeta"><h3>{n.name}</h3><small>{plugin?.name}</small><div className="resultactions">{item?<button className="inlib" onClick={()=>onOpen(item)}>{'✓ '+t('Open')}</button>:<button className="primary" disabled={adding===n.path} onClick={()=>add(n)}>{adding===n.path?t('Adding…'):'＋ '+t('Add to library')}</button>}</div></div></article>})}</div>}
+  {loading&&<div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading…')}</div></div>}
+  {!loading&&!err&&plugin&&rows.length===0&&<section className="panel lib-empty"><h2>{t('Nothing here')}</h2><p>{t('This source returned an empty list. Try another source.')}</p></section>}
+  {!loading&&more&&rows.length>0&&<div className="discover-more"><button onClick={()=>load(page+1)}>{t('Load more')}</button></div>}
+ </div>
+}

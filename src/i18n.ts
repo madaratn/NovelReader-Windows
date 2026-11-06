@@ -558,6 +558,8 @@ const FR: Record<string, string> = {
   'Nothing in your libraries. Search your sources:': 'Rien dans tes bibliothèques. Cherche dans tes sources :',
   'Search the sources': 'Chercher dans les sources',
   '“{q}” in {section}': '« {q} » dans {section}',
+  'This source has no list to browse. Try another one.': 'Cette source n’a pas de liste à parcourir. Essaie une autre.',
+  'Browse what is popular or new on one of your book sources.': 'Parcours ce qui est populaire ou nouveau sur une de tes sources de livres.',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

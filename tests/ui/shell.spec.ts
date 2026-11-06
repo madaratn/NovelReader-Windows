@@ -3,7 +3,7 @@ import { open, nav, novel } from './helpers'
 
 test('sidebar: modes, active page, remembered page per mode and after restart', async ({ page }) => {
   await open(page)
-  await expect(page.locator('.nav-list .nav-item')).toHaveText(['Library', 'Global Search', 'Bookmarks & notes', 'Sources'])
+  await expect(page.locator('.nav-list .nav-item')).toHaveText(['Library', 'Discover', 'Global Search', 'Bookmarks & notes', 'Sources'])
   await nav(page, 'Global Search')
   await expect(page.locator('.nav-item[aria-current=page]')).toHaveText('Global Search')
   await expect(page).toHaveTitle('Global Search · NovelReader')
@@ -77,4 +77,20 @@ test('narrow window: compact sidebar and no horizontal scroll', async ({ page })
   await open(page)
   await expect(page.locator('aside.sidebar')).toHaveCSS('width', '68px')
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
+})
+
+test('books Discover: popular list of a source, add, open, load more', async ({ page }) => {
+  await open(page)
+  await nav(page, 'Discover')
+  await expect(page.locator('main h1')).toHaveText('Discover')
+  await expect(page.locator('.resultcard h3')).toHaveText(['Popular 1', 'Popular 2', 'Popular 3'])
+  await page.locator('.resultcard', { hasText: 'Popular 2' }).getByRole('button', { name: /Add to library/ }).click()
+  await expect(page.locator('.resultcard', { hasText: 'Popular 2' }).getByRole('button', { name: /Open/ })).toBeVisible()
+  await page.getByRole('button', { name: 'Load more' }).click()
+  await expect(page.locator('.resultcard h3')).toHaveCount(6)
+  await page.getByRole('tab', { name: 'Latest' }).click()
+  await expect(page.locator('.anime-toast.error')).toContainText('no list to browse')
+  await page.getByRole('tab', { name: 'Popular' }).click()
+  await page.locator('.resultcard', { hasText: 'Popular 2' }).getByRole('button', { name: /Open/ }).click()
+  await expect(page.locator('main h1')).toHaveText('Shadow Slave') // the fake parseNovel always answers this title
 })
