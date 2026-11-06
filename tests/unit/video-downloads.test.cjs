@@ -13,6 +13,7 @@ function engine(){
  const routes={
   '/master.m3u8':'#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aud",NAME="Japanese",LANGUAGE="ja",DEFAULT=YES,URI="audio/ja.m3u8"\n#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="EN",URI="subs.m3u8"\n#EXT-X-STREAM-INF:BANDWIDTH=900000,RESOLUTION=1280x720,AUDIO="aud",SUBTITLES="subs"\nv720.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=4000000,RESOLUTION=3840x2160,AUDIO="aud"\nv2160.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=300000,RESOLUTION=640x360,AUDIO="aud"\nv360.m3u8\n',
   '/v720.m3u8':'#EXTM3U\n#EXT-X-TARGETDURATION:4\n#EXT-X-KEY:METHOD=AES-128,URI="/key?id=1"\n#EXTINF:4,\nseg?n=1\n#EXTINF:4,\nseg?n=2\n#EXTINF:4,\nhttp://127.0.0.1:PORT/seg?n=3\n#EXT-X-ENDLIST\n',
+  '/v360.m3u8':'#EXTM3U\n#EXTINF:4,\nseg?n=9\n#EXT-X-ENDLIST\n',
   '/audio/ja.m3u8':'#EXTM3U\n#EXTINF:4,\na1.aac\n#EXTINF:4,\na2.aac\n#EXT-X-ENDLIST\n',
   '/key':'0123456789abcdef','/seg':'SEGMENT','/audio/a1.aac':'AAC1','/audio/a2.aac':'AAC2',
   '/movie.mp4':'MP4DATA-'.repeat(100),'/sub.vtt':'WEBVTT\n\n00:00.000 --> 00:01.000\nHi\n'
@@ -59,5 +60,20 @@ test('direct file download, and an error when no stream works',async()=>{
   const bad=await waitDone(dl,b.id);assert.equal(bad.state,'error');assert.match(bad.error,/HTTP 500/)
   assert.throws(()=>dl.start({kind:'movie',mediaId:'m3',episodeUrl:'/x',candidates:[{url:'https://evil.test/x.mp4',type:'file'}]}),/no stream/)
   dl.clear();assert.equal(dl.list().length,0)
+ }finally{dl.close();server.close()}
+})
+
+test('quality cap picks the variant under it, and the bandwidth limit slows the download',async()=>{
+ const {server,base}=await engine(),root=fs.mkdtempSync(path.join(os.tmpdir(),'nr-dl-'))
+ const dl=createVideoDownloads({root})
+ try{
+  assert.deepEqual(dl.configure({maxHeight:360}),{maxHeight:360,limit:0})
+  const a=dl.start({kind:'anime',mediaId:'q',episodeUrl:'/1',candidates:[{url:base+'/master.m3u8',type:'hls'}]})
+  const job=await waitDone(dl,a.id);assert.equal(job.state,'done',job.error)
+  assert.match(fs.readFileSync(path.join(root,a.id,'index.m3u8'),'utf8'),/RESOLUTION=640x360/)
+  dl.configure({maxHeight:0,limit:1000})
+  const t0=Date.now(),b=dl.start({kind:'movie',mediaId:'slow',episodeUrl:'/m',candidates:[{url:base+'/movie.mp4',type:'file'}]})
+  assert.equal((await waitDone(dl,b.id)).state,'done')
+  assert.ok(Date.now()-t0>=400,'limit should slow down an 800-byte file at 1000 B/s')
  }finally{dl.close();server.close()}
 })

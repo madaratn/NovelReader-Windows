@@ -665,3 +665,11 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .batch-dl button{min-height:32px}
 .batch-dl-msg{flex-basis:100%;color:#9aa0b4}
 .dl-auto{display:flex;align-items:center;gap:8px;margin:0 0 12px;color:#aab0c2;font-size:13.5px}
+/* Source updates */
+.health-row.update .health-dot{background:#8b7cff}
+.ext-updates .settings-check{display:flex;align-items:center;gap:8px;margin-top:12px;color:#aab0c2;font-size:13.5px}
+.lib-update-status.error{color:#ff9b8f}
+.ext-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;padding:10px 14px;border:1px solid #3a3470;border-radius:10px;background:#1a1733;color:#cfc6ff;font-size:13.5px}
+.dl-settings{display:flex;flex-wrap:wrap;gap:10px 20px;margin:0 0 10px}
+.dl-settings label{display:inline-flex;align-items:center;gap:8px;color:#aab0c2;font-size:13.5px}
+.dl-settings select{min-height:32px;padding:0 8px;border:1px solid #30364a;border-radius:8px;background:#161a24;color:#e6e8ef;font:inherit;font-size:13px}
