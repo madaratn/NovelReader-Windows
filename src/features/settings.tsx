@@ -10,6 +10,7 @@ import{NoticeText}from'../ui/common'
 import{ReportPanel}from'./report'
 import{ProfilesPanel}from'./profiles'
 import{AniListPanel}from'./anilist'
+import{MALPanel}from'./mal'
 import{TvSettings}from'./tv'
 
 // ---- Backup helpers (renderer side) ------------------------------------------
@@ -78,6 +79,7 @@ export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onSh
   </section>
   <UpdateSettings status={update} version={version}/>
   <AniListPanel onSearch={q=>window.dispatchEvent(new CustomEvent('nr-search-anime',{detail:q}))}/>
+  <MALPanel onSearch={q=>window.dispatchEvent(new CustomEvent('nr-search-anime',{detail:q}))}/>
   <ProfilesPanel/>
   <TvSettings/>
   <ReportPanel/>

@@ -29,7 +29,14 @@ const APP_ID='com.novelreader.windows'
 let mainWindow=null
 // One NovelReader at a time: a second launch focuses the existing window.
 if(!SMOKE_TEST&&!app.requestSingleInstanceLock()){app.quit()}
-app.on('second-instance',()=>{if(mainWindow){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.show();mainWindow.focus()}})
+// Links novelreader://party/CODE (watch party invitations) open the app and join.
+let pendingDeepLink=''
+const findDeepLink=argv=>(argv||[]).find(a=>/^novelreader:\/\//i.test(String(a)))||''
+function deliverDeepLink(url){if(!url)return;pendingDeepLink=url;if(mainWindow&&!mainWindow.isDestroyed()){try{mainWindow.webContents.send('deep-link',url)}catch{}}}
+pendingDeepLink=findDeepLink(process.argv)
+try{if(process.defaultApp&&process.argv.length>=2)app.setAsDefaultProtocolClient('novelreader',process.execPath,[path.resolve(process.argv[1])]);else app.setAsDefaultProtocolClient('novelreader')}catch{}
+app.on('second-instance',(_e,argv)=>{if(mainWindow){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.show();mainWindow.focus()}deliverDeepLink(findDeepLink(argv))})
+app.on('open-url',(e,url)=>{e.preventDefault();deliverDeepLink(url)})
 if(process.platform==='win32')app.setAppUserModelId(APP_ID) // required for Windows notifications
 const updater=createUpdater({app,ipcMain,getWindow:()=>mainWindow})
 ipcMain.handle('app:focus',()=>{if(mainWindow){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.show();mainWindow.focus()}return true})
@@ -109,6 +116,12 @@ ipcMain.handle('profile:color',(_e,{id,color})=>profiles.setColor(String(id),Str
 ipcMain.handle('profile:remove',async(_e,id)=>{const part=profiles.partition(String(id));profiles.remove(String(id));if(part){try{await session.fromPartition(part).clearStorageData()}catch{}}return true})
 // Switching opens a new window on the other profile's storage and closes this one.
 ipcMain.handle('profile:switch',(_e,id)=>{profiles.select(String(id));const old=mainWindow;setTimeout(()=>{createWindow();if(old&&!old.isDestroyed())old.close()},50);return true})
+// Weekly source check published by .github/workflows/source-scan.yml.
+ipcMain.handle('sources:status',async()=>{const r=await fetch('https://github.com/madaratn/NovelReader-Windows/releases/download/source-status/source-status.json',{redirect:'follow'});if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
+ipcMain.handle('deeplink:take',()=>{const u=pendingDeepLink;pendingDeepLink='';return u})
+// The web invitation page (docs/party, GitHub Pages) when it is online, so links are clickable everywhere.
+let inviteBase=null
+ipcMain.handle('invite:base',async()=>{if(inviteBase!==null)return inviteBase;try{const r=await fetch('https://madaratn.github.io/NovelReader-Windows/party/',{method:'HEAD'});inviteBase=r.ok?'https://madaratn.github.io/NovelReader-Windows/party/#':''}catch{inviteBase=''}return inviteBase})
 ipcMain.handle('report:collect',()=>diagnostics.collect({app,engineRoot:engineRoot(),engineLogs:miwayomiLogs,engineRunning:Boolean(miwayomiProcess)}))
 ipcMain.handle('report:redact',(_e,text)=>diagnostics.redact(String(text||'')))
 ipcMain.handle('report:copy',(_e,text)=>{clipboard.writeText(String(text||''));return true})
@@ -227,11 +240,21 @@ ipcMain.handle('anilist:login',async(e,clientId)=>anilist.login(BrowserWindow.fr
 ipcMain.handle('anilist:token',async(_e,{token})=>anilist.setToken(String(token||'').trim()))
 ipcMain.handle('anilist:logout',()=>anilist.logout())
 ipcMain.handle('anilist:call',async(_e,{name,vars})=>anilist.call(String(name),vars||{}))
+// MyAnimeList sign-in window: handled by electron/mal.cjs.
+const {createMAL}=require('./mal.cjs')
+const mal=createMAL({BrowserWindow,session,profiles})
+ipcMain.handle('mal:status',()=>mal.status())
+ipcMain.handle('mal:login',async(e,{clientId,clientSecret}={})=>mal.login(BrowserWindow.fromWebContents(e.sender),clientId,clientSecret))
+ipcMain.handle('mal:logout',()=>mal.logout())
+ipcMain.handle('mal:call',async(_e,{name,vars})=>mal.call(String(name),vars||{}))
+// Sign-in windows are recognised when the event happens (they are registered just
+// after their contents are created).
+const isAuth=c=>anilist.isAuthWindow(c)||mal.isAuthWindow(c)
 app.on('web-contents-created',(_e,contents)=>{
- if(anilist.isAuthWindow(contents))return
- contents.setWindowOpenHandler(({url})=>{openOutside(url);return{action:'deny'}})
- contents.on('will-navigate',(e,url)=>{if(!isAppUrl(url)){e.preventDefault();openOutside(url)}})
- contents.on('will-redirect',(e,url)=>{if(!isAppUrl(url))e.preventDefault()})
+ if(isAuth(contents))return
+ contents.setWindowOpenHandler(({url})=>{if(isAuth(contents))return{action:'deny'};openOutside(url);return{action:'deny'}})
+ contents.on('will-navigate',(e,url)=>{if(isAuth(contents))return;if(!isAppUrl(url)){e.preventDefault();openOutside(url)}})
+ contents.on('will-redirect',(e,url)=>{if(isAuth(contents))return;if(!isAppUrl(url))e.preventDefault()})
  contents.on('will-attach-webview',e=>e.preventDefault())
 })
 const ALLOWED_PERMISSIONS=new Set(['notifications','fullscreen','clipboard-sanitized-write'])

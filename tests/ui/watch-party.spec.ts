@@ -22,6 +22,8 @@ async function pc(context: BrowserContext, library: any[]) {
     const base = w.novelReader
     w.novelReader = {
       ...base,
+      takeDeepLink: async () => sessionStorage.getItem('__deep') || '',
+      inviteBase: async () => 'https://madaratn.github.io/NovelReader-Windows/party/#',
       miwayomiStatus: async () => ({ online: true, baseUrl: 'http://127.0.0.1:4567' }),
       miwayomiFetch: async (path: string) => {
         if (path.includes('/details')) return { title: 'Lanterns', description: 'A mystery.' }
@@ -116,4 +118,31 @@ test('watch party voice channel: join, hear each other, mute, leave', async ({ c
   await expect(a.locator('.wp-member', { hasText: 'Sara' })).toHaveText('Sara')
   await expect.poll(() => a.evaluate(() => document.querySelectorAll('audio[data-wp-voice]').length)).toBe(0)
   await expect(b.locator('.wp-chat')).toContainText('You left the voice channel.')
+})
+
+test('watch party invitation link: copy it, and opening it joins directly', async ({ context }) => {
+  const a = await pc(context, [])
+  await a.locator('.wp-open').click(); await a.locator('.wp-field input').fill('Ali')
+  await a.getByRole('button', { name: 'Start a watch party' }).click()
+  const code = (await a.locator('.wp-code b').innerText()).trim()
+  await a.getByRole('button', { name: /Copy an invitation link/ }).click()
+  await expect(a.locator('.wp-invite')).toContainText('Invitation copied')
+  expect(await a.evaluate(() => (window as any).__lastInvite)).toBe(`Join my NovelReader watch party: https://madaratn.github.io/NovelReader-Windows/party/#${code} (code ${code})`)
+  // The friend clicks the link: NovelReader opens with novelreader://party/CODE
+  const b = await context.newPage()
+  await setup(b, { storage: { mode: 'series', 'lastPage:series': 'series' } })
+  await b.addInitScript(([c]) => { sessionStorage.setItem('__deep', 'novelreader://party/' + c); localStorage.setItem('partyName', 'Sara') }, [code])
+  await b.addInitScript(() => { const w = window as any; w.__partyFake = true; const base = w.novelReader; w.novelReader = { ...base, takeDeepLink: async () => sessionStorage.getItem('__deep') || '' } })
+  await b.goto('/')
+  await expect(b.locator('.wp-panel')).toBeVisible()
+  await expect(b.locator('.wp-member')).toHaveText(['Ali', 'Sara (you)'])
+})
+
+test('invitation link without a name yet: code filled in, name asked', async ({ context }) => {
+  const b = await context.newPage()
+  await setup(b, { storage: { mode: 'series', 'lastPage:series': 'series' } })
+  await b.addInitScript(() => { sessionStorage.setItem('__deep', 'novelreader://party/ABC234'); localStorage.removeItem('partyName'); const w = window as any; w.__partyFake = true; const base = w.novelReader; w.novelReader = { ...base, takeDeepLink: async () => sessionStorage.getItem('__deep') || '' } })
+  await b.goto('/')
+  await expect(b.locator('.wp-join input')).toHaveValue('ABC234')
+  await expect(b.locator('.wp-field input')).toBeFocused()
 })

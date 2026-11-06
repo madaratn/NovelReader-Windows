@@ -783,3 +783,11 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
 .wp-vol{display:inline-flex;align-items:center;gap:6px;color:#9aa0b4}
 .wp-vol input{width:90px}
 .wp-hint{margin:0;color:#8f94a3;font-size:12px}
+/* Weekly source check */
+.scan-badge{display:inline-grid;place-items:center;width:16px;height:16px;margin-right:6px;border-radius:50%;font-size:10px;font-weight:800;vertical-align:1px}
+.scan-badge.ok{background:#1f5c43;color:#a6e3c6}.scan-badge.partial{background:#5c451f;color:#f0c98a}.scan-badge.dead{background:#5c1f26;color:#ff9b8f}
+.scan-line{display:block;font-size:12px}.scan-line.ok{color:#7fcfaa}.scan-line.partial{color:#e0a060}.scan-line.dead{color:#ff9b8f}
+.wp-invite{width:100%}
+.sub-translate{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.sub-auto{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#aab0c2}
+.sub-err{color:#ff9b8f}
