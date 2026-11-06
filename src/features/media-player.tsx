@@ -6,6 +6,8 @@ import{t,plural}from'../i18n'
 import{lsGet,lsSet}from'../lib/util'
 import{NoticeText}from'../ui/common'
 import{playerKeys,rememberVolume,restoreVolume,useVideoShortcuts}from'./videos'
+import{translateVtt}from'../lib/subtitles'
+import{TRANSLATE_LANGS,translateTarget}from'./translate'
 import{mediaPosKey,readMediaPos,orderedEpisodes,bumpWatch}from'../lib/media'
 export type RemoteMediaMode='anime'|'series'|'movies'
 export const REMOTE_PLAYER_CONFIG:Record<RemoteMediaMode,{positionPrefix:string;fallback:boolean;blocked:string[]}>= {
@@ -51,10 +53,20 @@ export function AnimeVideo({video,mediaKey,onNext,onPrev,onUnsupported,variants,
  // External subtitle files provided by the extension (e.g. MegaPlay VTT tracks).
  // Fetched through the Miwayomi proxy (source headers) and served as blob URLs.
  useEffect(()=>{setExtSubs([]);const list=sourceSubs.filter((x:any)=>x?.streamUrl);if(!list.length)return;let alive=true;const urls:string[]=[]
-  Promise.all(list.map(async(t:any,i:number)=>{try{const r=await fetch(String(t.streamUrl));if(!r.ok)throw Error('HTTP '+r.status);let text=(await r.text()).replace(/^\uFEFF/,'').replace(/\r/g,'');if(/^\s*\[Script Info\]/i.test(text))return null;if(!/^\s*WEBVTT/.test(text))text='WEBVTT\n\n'+text.replace(/(\d\d:\d\d:\d\d),(\d\d\d)/g,'$1.$2');const src=URL.createObjectURL(new Blob([text],{type:'text/vtt'}));urls.push(src);const name=String(t?.lang||t?.label||t?.language||('Subtitle '+(i+1)));return {src,name,label:name+' #'+(i+1),lang:name.slice(0,2).toLowerCase()}}catch(e:any){console.warn('[novelreader] subtitle load failed',t?.lang,e?.message||String(e));return null}}))
+  Promise.all(list.map(async(t:any,i:number)=>{try{const r=await fetch(String(t.streamUrl));if(!r.ok)throw Error('HTTP '+r.status);let text=(await r.text()).replace(/^\uFEFF/,'').replace(/\r/g,'');if(/^\s*\[Script Info\]/i.test(text))return null;if(!/^\s*WEBVTT/.test(text))text='WEBVTT\n\n'+text.replace(/(\d\d:\d\d:\d\d),(\d\d\d)/g,'$1.$2');const src=URL.createObjectURL(new Blob([text],{type:'text/vtt'}));urls.push(src);const name=String(t?.lang||t?.label||t?.language||('Subtitle '+(i+1)));return {src,name,label:name+' #'+(i+1),lang:name.slice(0,2).toLowerCase(),text}}catch(e:any){console.warn('[novelreader] subtitle load failed',t?.lang,e?.message||String(e));return null}}))
    .then(res=>{if(!alive)return;const ok=res.filter(Boolean) as any[];setExtSubs(ok);console.log('[novelreader] external-subtitles',ok.map(x=>x.name));const saved=String(localStorage.getItem('novelreader:player:subtitle')||'');if(saved==='off'||!ok.length){setSubIndex(-1);return}const want=(saved||'english').toLowerCase();const pick=Math.max(0,ok.findIndex(x=>x.name.toLowerCase().includes(want)));setSubIndex(pick)})
   return()=>{alive=false;urls.forEach(u=>URL.revokeObjectURL(u))}
  },[video?.streamUrl,sourceSubs.map((x:any)=>String(x?.streamUrl||'')).join('|')])
+ // Subtitle translation (into the reader's translation language).
+ const[subTr,setSubTr]=useState<{busy:boolean,auto:boolean,error:string}>(()=>({busy:false,auto:localStorage.getItem('subAutoTranslate')==='1',error:''}))
+ const trLang=()=>translateTarget(),trLangName=()=>(TRANSLATE_LANGS.find(([c])=>c===trLang())||['',trLang()])[1]
+ const translateSubs=async(i:number)=>{const src=extSubs[i];if(!src||subTr.busy)return;setSubTr(x=>({...x,busy:true,error:''}))
+  try{const vtt=String(src.text||'');if(!vtt)throw new Error(t('No subtitle text'));const out=await translateVtt(vtt,trLang(),window.novelReader.translate!);const url=URL.createObjectURL(new Blob([out],{type:'text/vtt'}));const name=trLangName()+' ('+t('translated')+')';const entry={src:url,name,label:name+' #auto',lang:trLang().slice(0,2),auto:true}
+   setExtSubs(list=>{const next=[...list.filter((x:any)=>!x.auto),entry];setTimeout(()=>setSubIndex(next.length-1),0);return next})}
+  catch(e:any){setSubTr(x=>({...x,error:t('Translation failed:')+' '+String(e?.message||e).replace(/^Error invoking remote method '[^']+': (Error: )?/,'')}))}
+  finally{setSubTr(x=>({...x,busy:false}))}}
+ // Automatic: when the episode has subtitles but none in the chosen language.
+ useEffect(()=>{if(!subTr.auto||!extSubs.length||extSubs.some((x:any)=>x.auto)||!window.novelReader.translate)return;const want=trLang().slice(0,2),names:Record<string,RegExp>={fr:/fr|fran/i,en:/^en|engl/i,es:/^es|spa|espa/i,de:/^de|germ|deut/i,it:/^it|ital/i,pt:/^pt|portu/i,ar:/^ar|arab/i};const re=names[want]||new RegExp('^'+want,'i');if(extSubs.some((x:any)=>re.test(String(x.name||x.lang))))return;const base=Math.max(0,extSubs.findIndex((x:any)=>/^en|engl/i.test(String(x.name))));translateSubs(base)},[extSubs.length,subTr.auto])
  const showExtSub=(list:any[],i:number)=>{const el=ref.current;if(!el)return;const want=i>=0?list[i]?.label:null;for(let n=0;n<el.textTracks.length;n++){const t=el.textTracks[n];if(list.some(x=>x.label===t.label))t.mode=t.label===want?'showing':'disabled'}}
  useEffect(()=>{if(extSubs.length&&!hlsSubs.length)showExtSub(extSubs,subIndex)},[extSubs,subIndex,hlsSubs.length])
  // Intro/outro markers from the source (Video.timestamps: Opening / Ending).
@@ -111,6 +123,7 @@ export function AnimeVideo({video,mediaKey,onNext,onPrev,onUnsupported,variants,
    <span>{t('Size')}</span><div className="rs-seg">{[['s','S'],['m','M'],['l','L'],['xl','XL']].map(([v,l])=><button key={v} className={subStyle.size===v?'on':''} onClick={()=>updSub({size:v})}>{l}</button>)}</div>
    <span>{t('Colour')}</span><div className="rs-seg">{[['white',t('White')],['yellow',t('Yellow')]].map(([v,l])=><button key={v} className={subStyle.color===v?'on':''} onClick={()=>updSub({color:v})}>{l}</button>)}</div>
    <span>{t('Background')}</span><div className="rs-seg">{[['none',t('None')],['shadow',t('Shadow')],['box',t('Box')]].map(([v,l])=><button key={v} className={subStyle.bg===v?'on':''} onClick={()=>updSub({bg:v})}>{l}</button>)}</div>
+   {extSubs.length>0&&window.novelReader.translate&&<><span>{t('Translate')}</span><div className="sub-translate">{subTr.busy?<span>{t('Translating the subtitles…')}</span>:extSubs[subIndex]?.auto?<span>{'✓ '+t('Translated subtitles shown')}</span>:<button disabled={subIndex<0} onClick={()=>translateSubs(subIndex)}>{t('Translate into {lang}',{lang:trLangName()})}</button>}<label className="sub-auto"><input type="checkbox" checked={subTr.auto} onChange={e=>{localStorage.setItem('subAutoTranslate',e.target.checked?'1':'0');setSubTr(x=>({...x,auto:e.target.checked}))}}/> {t('Always, when there is no subtitle in this language')}</label>{subTr.error&&<small className="sub-err">{subTr.error}</small>}</div></>}
    <span>{t('Timing')}</span><div className="sub-offset"><button onClick={()=>updSub({offset:Math.round((subStyle.offset-0.5)*10)/10})}>−0,5 s</button><b>{(subStyle.offset>0?'+':'')+subStyle.offset.toFixed(1).replace('.',',')+' s'}</b><button onClick={()=>updSub({offset:Math.round((subStyle.offset+0.5)*10)/10})}>+0,5 s</button>{subStyle.offset!==0&&<button onClick={()=>updSub({offset:0})}>{t('Reset')}</button>}</div>
   </div>}<audio ref={audioRef} style={{display:'none'}}/><div className={'player-stage cue-'+subStyle.size+' cue-'+subStyle.color+' cue-bg-'+subStyle.bg}><video ref={ref} controls autoPlay playsInline style={{width:'100%',maxHeight:'70vh',background:'#000'}}
   onLoadedMetadata={e=>{e.currentTarget.playbackRate=rate;if(audioRef.current)audioRef.current.playbackRate=rate}} onVolumeChange={e=>{rememberVolume(e.currentTarget);if(audioRef.current)audioRef.current.volume=e.currentTarget.volume}}

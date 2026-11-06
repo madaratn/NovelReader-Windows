@@ -674,6 +674,13 @@ const FR: Record<string, string> = {
   'Invitation copied: paste it in Discord, WhatsApp…': 'Invitation copiée : colle-la dans Discord, WhatsApp…',
   'Copy an invitation link': 'Copier un lien d’invitation',
   'Join my NovelReader watch party: {link} (code {code})': 'Rejoins mon watch party NovelReader : {link} (code {code})',
+  'Translate': 'Traduire',
+  'Translating the subtitles…': 'Traduction des sous-titres…',
+  'Translated subtitles shown': 'Sous-titres traduits affichés',
+  'Translate into {lang}': 'Traduire en {lang}',
+  'Always, when there is no subtitle in this language': 'Toujours, quand il n’y a pas de sous-titres dans cette langue',
+  'translated': 'traduits',
+  'No subtitle text': 'Sous-titres vides',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
