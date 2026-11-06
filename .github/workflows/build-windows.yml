@@ -44,6 +44,20 @@ jobs:
         run: npm run dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Create the release (with its notes) before electron-builder uploads the
+      # files: otherwise it creates it twice in parallel and one upload fails.
+      - name: Create the GitHub Release with its notes
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.publish }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          v=$(node -p "require('./package.json').version")
+          if gh release view "v$v" >/dev/null 2>&1; then
+            gh release edit "v$v" --title "NovelReader $v" --notes-file build/release-notes.md
+          else
+            gh release create "v$v" --target "$GITHUB_SHA" --title "NovelReader $v" --notes-file build/release-notes.md
+          fi
       - name: Build and publish release
         if: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.publish }}
         run: npm run release
