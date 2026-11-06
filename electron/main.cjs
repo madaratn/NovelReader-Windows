@@ -1,5 +1,6 @@
 const {app,BrowserWindow,ipcMain,dialog,protocol,shell,screen,session,clipboard}=require('electron')
 const diagnostics=require('./diagnostics.cjs')
+const profiles=require('./profiles.cjs').init(app)
 diagnostics.capture()
 const {Readable}=require('stream')
 const {spawn}=require('child_process')
@@ -32,9 +33,12 @@ app.on('second-instance',()=>{if(mainWindow){if(mainWindow.isMinimized())mainWin
 if(process.platform==='win32')app.setAppUserModelId(APP_ID) // required for Windows notifications
 const updater=createUpdater({app,ipcMain,getWindow:()=>mainWindow})
 ipcMain.handle('app:focus',()=>{if(mainWindow){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.show();mainWindow.focus()}return true})
-let mediaCorsInstalled=false;
-function installMediaCors(){if(mediaCorsInstalled)return;mediaCorsInstalled=true;session.defaultSession.webRequest.onHeadersReceived({urls:['http://127.0.0.1:4567/*']},(details,callback)=>{const h={...(details.responseHeaders||{})};h['Access-Control-Allow-Origin']=['*'];h['Access-Control-Allow-Headers']=['*'];h['Access-Control-Allow-Methods']=['GET, HEAD, OPTIONS'];callback({responseHeaders:h})})}
-function createWindow(){installMediaCors();const ws=createWindowState({app,screen});const state=ws.load();const win=new BrowserWindow({...state,minWidth:900,minHeight:600,show:false,icon:path.join(__dirname,'icon.png'),backgroundColor:'#0b0c10',title:'NovelReader',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});if(!app.isPackaged&&!SMOKE_TEST)win.loadURL('http://127.0.0.1:5173');else win.loadFile(path.join(app.getAppPath(),'dist','index.html'));win.webContents.on('did-fail-load',(_e,code,desc,url)=>console.error('Load failed',code,desc,url));ws.track(win);win.once('ready-to-show',()=>{if(state.maximized)win.maximize();win.show()});setTimeout(()=>{if(!win.isDestroyed()&&!win.isVisible())win.show()},3000);mainWindow=win;win.on('closed',()=>{if(mainWindow===win)mainWindow=null});return win}
+const mediaCorsDone=new WeakSet();
+function installMediaCors(ses=session.defaultSession){if(mediaCorsDone.has(ses))return;mediaCorsDone.add(ses);ses.webRequest.onHeadersReceived({urls:['http://127.0.0.1:4567/*']},(details,callback)=>{const h={...(details.responseHeaders||{})};h['Access-Control-Allow-Origin']=['*'];h['Access-Control-Allow-Headers']=['*'];h['Access-Control-Allow-Methods']=['GET, HEAD, OPTIONS'];callback({responseHeaders:h})})}
+// Each profile window uses its own session (storage); give it the same rules as the default one.
+const preparedSessions=new WeakSet()
+function sessionFor(partition){const ses=partition?session.fromPartition(partition):session.defaultSession;if(!preparedSessions.has(ses)){preparedSessions.add(ses);installMediaCors(ses);if(ses!==session.defaultSession){ses.setPermissionRequestHandler((_wc,permission,cb)=>cb(ALLOWED_PERMISSIONS.has(permission)));ses.setPermissionCheckHandler((_wc,permission)=>ALLOWED_PERMISSIONS.has(permission));try{registerLocalProtocol(ses.protocol)}catch(e){console.warn('[profiles] nrlocal',e)}}}return ses}
+function createWindow(){const partition=profiles.partition();sessionFor(partition);const ws=createWindowState({app,screen});const state=ws.load();const win=new BrowserWindow({...state,minWidth:900,minHeight:600,show:false,icon:path.join(__dirname,'icon.png'),backgroundColor:'#0b0c10',title:'NovelReader',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,...(partition?{partition}:{})}});if(!app.isPackaged&&!SMOKE_TEST)win.loadURL('http://127.0.0.1:5173');else win.loadFile(path.join(app.getAppPath(),'dist','index.html'));win.webContents.on('did-fail-load',(_e,code,desc,url)=>console.error('Load failed',code,desc,url));ws.track(win);win.once('ready-to-show',()=>{if(state.maximized)win.maximize();win.show()});setTimeout(()=>{if(!win.isDestroyed()&&!win.isVisible())win.show()},3000);mainWindow=win;win.on('closed',()=>{if(mainWindow===win)mainWindow=null});return win}
 ipcMain.handle('plugin:search',async(_e,{plugin,query})=>runner.search(plugin,query))
 const translator=require('./translate.cjs')
 ipcMain.handle('translate:batch',async(_e,o)=>translator.translate(o||{}))
@@ -97,6 +101,14 @@ async function miwayomiRequest(pathname, init={}) {
 }
 ipcMain.handle('anime:miwayomiStatus', async()=>{try{const health=await miwayomiRequest('/api/v1/health');return {online:true,baseUrl:MIWAYOMI_BASE,health}}catch(e){if(!miwayomiProcess)startMiwayomi();return {online:false,starting:!!miwayomiProcess,baseUrl:MIWAYOMI_BASE,error:String(e.message||e)}}});
 // ---- Problem report (electron/diagnostics.cjs) -------------------------------
+// ---- Profiles (electron/profiles.cjs) -----------------------------------------
+ipcMain.handle('profile:list',()=>({list:profiles.list(),current:profiles.current()}))
+ipcMain.handle('profile:create',(_e,name)=>profiles.create(name))
+ipcMain.handle('profile:rename',(_e,{id,name})=>profiles.rename(String(id),name))
+ipcMain.handle('profile:color',(_e,{id,color})=>profiles.setColor(String(id),String(color)))
+ipcMain.handle('profile:remove',async(_e,id)=>{const part=profiles.partition(String(id));profiles.remove(String(id));if(part){try{await session.fromPartition(part).clearStorageData()}catch{}}return true})
+// Switching opens a new window on the other profile's storage and closes this one.
+ipcMain.handle('profile:switch',(_e,id)=>{profiles.select(String(id));const old=mainWindow;setTimeout(()=>{createWindow();if(old&&!old.isDestroyed())old.close()},50);return true})
 ipcMain.handle('report:collect',()=>diagnostics.collect({app,engineRoot:engineRoot(),engineLogs:miwayomiLogs,engineRunning:Boolean(miwayomiProcess)}))
 ipcMain.handle('report:redact',(_e,text)=>diagnostics.redact(String(text||'')))
 ipcMain.handle('report:copy',(_e,text)=>{clipboard.writeText(String(text||''));return true})
@@ -150,8 +162,8 @@ const cleanLocal=fn=>async(_e,o)=>{try{return await fn(o||{})}catch(err){console
 ipcMain.handle('local:tracks',cleanLocal(o=>localTracks.list(localFileOf(o.url))))
 ipcMain.handle('local:subtitle',cleanLocal(o=>localTracks.subtitle(localFileOf(o.url),String(o.id||''))))
 ipcMain.handle('local:listVideos',async()=>loadFolders().flatMap(f=>fs.existsSync(f)?scanVideos(f):[]))
-function registerLocalProtocol(){
- protocol.handle('nrlocal',async req=>{
+function registerLocalProtocol(proto=protocol){
+ proto.handle('nrlocal',async req=>{
   try{
    const file=new URL(req.url).searchParams.get('p')||'';
    if(!file||!isInsideAllowed(file))return new Response('Forbidden',{status:403});

@@ -572,6 +572,19 @@ const FR: Record<string, string> = {
   'Translate into': 'Traduire en',
   'Always translate this novel': 'Toujours traduire ce roman',
   'Machine translation by Google Translate. Bookmarks and highlights stay on the original text.': 'Traduction automatique par Google Traduction. Les signets et surlignages restent sur le texte original.',
+  'Main profile': 'Profil principal',
+  'Profile: {name}': 'Profil : {name}',
+  'Profiles': 'Profils',
+  'Add or manage profiles': 'Ajouter ou gérer les profils',
+  'Profile “{name}” created. Switch to it from the bottom of the sidebar.': 'Profil « {name} » créé. Passe dessus depuis le bas de la barre latérale.',
+  'Each person gets their own libraries, progress, bookmarks, settings, backups and sync folder. Downloads, offline chapters and sources are shared.': 'Chaque personne a ses propres bibliothèques, progression, signets, réglages, sauvegardes et dossier de synchronisation. Les téléchargements, chapitres hors ligne et sources sont partagés.',
+  'Profile name': 'Nom du profil',
+  'Color': 'Couleur',
+  'In use': 'Utilisé',
+  'Switch': 'Changer',
+  'Delete with its data': 'Supprimer avec ses données',
+  'New profile name': 'Nom du nouveau profil',
+  'Add a profile': 'Ajouter un profil',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
