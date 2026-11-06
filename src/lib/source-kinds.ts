@@ -59,3 +59,22 @@ export function resultFits(a:any,section:VideoSection){
  const k=titleKind(a)
  return section==='movies'?k!=='series':k!=='movie'
 }
+
+// ---- Weekly source check (published by the "Video source scan" workflow) -------
+export type ScanRow={name:string,pkg:string,lang:string,repo:string,version?:string,state:'ok'|'partial'|'dead',detail:string}
+export type ScanStatus={at:string,results:ScanRow[]}
+let scanCache:ScanStatus|null=null
+export function cachedScan():ScanStatus|null{if(scanCache)return scanCache;try{return scanCache=JSON.parse(localStorage.getItem('sourceScan')||'null')}catch{return null}}
+// Fetched at most every 12 h; an old copy is kept when offline.
+export async function loadScan(force=false):Promise<ScanStatus|null>{
+ const cur=cachedScan(),fetchedAt=Number(localStorage.getItem('sourceScanFetched'))||0
+ if(!force&&cur&&Date.now()-fetchedAt<12*3600e3)return cur
+ const nr:any=(window as any).novelReader;if(!nr?.sourceStatus)return cur
+ try{const s=await nr.sourceStatus();if(s&&Array.isArray(s.results)){scanCache=s;localStorage.setItem('sourceScan',JSON.stringify(s));localStorage.setItem('sourceScanFetched',String(Date.now()));window.dispatchEvent(new Event('nr-source-scan'))}return scanCache}catch{return cur}
+}
+// Best result for a package or a name (an extension can be in several repositories).
+export function scanFor(pkgOrName:string):ScanRow|null{
+ const s=cachedScan();if(!s)return null
+ const k=key(pkgOrName),rows=s.results.filter(r=>r.pkg===pkgOrName||key(r.name)===k)
+ return rows.find(r=>r.state==='ok')||rows.find(r=>r.state==='partial')||rows[0]||null
+}

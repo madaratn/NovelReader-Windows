@@ -335,6 +335,59 @@ test('AniList: finished episode updates the AniList progress; the AniList list l
   await expect(page.locator('main .searchbar input, main input').first()).toHaveValue('Sousou no Frieren')
 })
 
+test('MyAnimeList: finished episode updates the MAL progress; the MAL list leads to a source search', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as any
+    w.__mal = []
+    w.__malPatch = {
+      malStatus: async () => ({ clientId: 'abcdef0123456789abcdef0123456789', hasSecret: false, connected: true, user: { id: 7, name: 'ali' }, expiresAt: 0 }),
+      malCall: async (name: string, vars: any) => {
+        w.__mal.push({ name, vars })
+        if (name === 'search') return { data: [{ node: { id: 52991, title: 'Sousou no Frieren', alternative_titles: { en: 'Frieren' } } }, { node: { id: 5, title: 'Lanterns', alternative_titles: { synonyms: [] } } }] }
+        if (name === 'entry') return { id: vars.id, num_episodes: 3, my_list_status: { status: 'watching', num_episodes_watched: 2 } }
+        if (name === 'save') return { status: vars.status, num_episodes_watched: vars.episodes }
+        if (name === 'list') return [{ node: { id: 52991, title: 'Sousou no Frieren', num_episodes: 28 }, list_status: { status: 'watching', num_episodes_watched: 4 } }]
+      }
+    }
+  })
+  await openVideo(page, {
+    mode: 'anime', 'lastPage:anime': 'anime', animeLibrary: JSON.stringify([item('anime', 1, 'Lanterns')]),
+    'lastEpInfo:anime1': JSON.stringify({ url: '/ep/3', name: 'E3', n: 3, at: Date.now() })
+  })
+  await page.evaluate(() => Object.assign((window as any).novelReader, (window as any).__malPatch))
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('nr-watched', { detail: { key: 'anime:anime1:/ep/3' } })))
+  await expect.poll(() => page.evaluate(() => (window as any).__mal.map((c: any) => c.name))).toEqual(['search', 'entry', 'save'])
+  expect(await page.evaluate(() => (window as any).__mal[2].vars)).toEqual({ id: 5, episodes: 3, status: 'completed' }) // last episode: completed
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('animeLibrary') || '[]')[0].malId)).toBe(5)
+  // A second time: the stored id is used, no new search
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('nr-watched', { detail: { key: 'anime:anime1:/ep/3' } })))
+  await expect.poll(() => page.evaluate(() => (window as any).__mal.length)).toBe(5)
+  expect(await page.evaluate(() => (window as any).__mal[3].name)).toBe('entry')
+  await page.locator('.sidebar').getByText('Settings').click()
+  const panel = page.locator('.mal-panel')
+  await expect(panel).toContainText('Connected to MyAnimeList')
+  await expect(panel).toContainText('MyAnimeList: Lanterns → episode 3')
+  await panel.getByRole('button', { name: 'Show my MyAnimeList list' }).click()
+  await expect(panel.locator('.anilist-row')).toContainText('Episode 4 / 28')
+  await panel.locator('.anilist-row').getByRole('button', { name: 'Find in my sources' }).click()
+  await expect(page.locator('main .searchbar input, main input').first()).toHaveValue('Sousou no Frieren')
+})
+
+test('MyAnimeList: sign-in steps shown when not connected', async ({ page }) => {
+  await page.addInitScript(() => { (window as any).__malPatch = { malStatus: async () => ({ clientId: '', hasSecret: false, connected: false, user: null, expiresAt: 0 }), malLogin: async (id: string) => { (window as any).__login = id; return { clientId: id, hasSecret: false, connected: true, user: { id: 1, name: 'ali' }, expiresAt: 0 } } } })
+  await openVideo(page, { mode: 'anime', 'lastPage:anime': 'anime' })
+  await page.evaluate(() => Object.assign((window as any).novelReader, (window as any).__malPatch))
+  await page.locator('.sidebar').getByText('Settings').click()
+  const panel = page.locator('.mal-panel')
+  await expect(panel).toContainText('http://localhost/novelreader-mal')
+  const btn = panel.getByRole('button', { name: 'Sign in with MyAnimeList' })
+  await expect(btn).toBeDisabled()
+  await panel.getByLabel('MyAnimeList client ID').fill('abcdef0123456789abcdef0123456789')
+  await btn.click()
+  await expect(panel).toContainText('Connected to MyAnimeList')
+  expect(await page.evaluate(() => (window as any).__login)).toBe('abcdef0123456789abcdef0123456789')
+})
+
 test('sections: anime sources only in Anime, movie/series sources in Series and Movies, series titles not in Movies', async ({ page }) => {
   await openVideo(page, { mode: 'movies', 'lastPage:movies': 'movieDiscover' })
   const options = () => page.locator('.discover-bar select option').allInnerTexts()
@@ -352,4 +405,14 @@ test('sections: anime sources only in Anime, movie/series sources in Series and 
   await expect(mapple.locator('.sec-chip.on')).toHaveText(['Anime', 'Series', 'Movies'])
   await page.locator('.sidebar .nav-item', { hasText: 'Discover' }).click()
   await expect.poll(options).toContain('Mapple (EN)')
+})
+
+test('weekly source check: shown for sources not tested on this PC', async ({ page }) => {
+  await page.addInitScript(() => { (window as any).__scan = { at: '2026-11-02T03:20:00Z', results: [{ name: 'Mapple', pkg: 'mapple', lang: 'en', repo: 'r', state: 'ok', detail: '2 streams' }, { name: 'LaMovie', pkg: 'lamovie', lang: 'es', repo: 'r', state: 'dead', detail: 'host unknown' }] } })
+  await openVideo(page, { mode: 'anime', 'lastPage:anime': 'anime' })
+  await page.evaluate(() => { (window as any).novelReader.sourceStatus = async () => (window as any).__scan })
+  await page.locator('.sidebar .nav-item', { hasText: 'Sources' }).click()
+  await expect(page.locator('.health-row', { hasText: 'Mapple' }).locator('.scan-line')).toContainText('✓ Weekly check')
+  await expect(page.locator('.health-row', { hasText: 'Mapple' }).locator('.scan-line')).toContainText('plays videos')
+  await expect(page.locator('.health-row', { hasText: 'LaMovie' }).locator('.scan-line.dead')).toContainText('not responding')
 })
