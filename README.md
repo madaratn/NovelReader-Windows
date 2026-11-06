@@ -26,7 +26,7 @@ The **Build Windows EXE** workflow runs on pushes to `main`, on `v*` tags, or ma
 
 ## Publishing a release
 1. Set `version` in `package.json` (e.g. `0.3.0`) and update `build/release-notes.md` (shown on the GitHub Release page).
-2. Merge, then push a matching tag from that commit: `git tag v0.3.0 && git push origin v0.3.0`.
+2. Merge into `main`, then either push a matching tag from that commit (`git tag v0.3.0 && git push origin v0.3.0`) or run **Build Windows EXE** manually on `main` with **publish** ticked.
 3. The workflow checks that the tag matches `package.json`, builds the installer and publishes the GitHub Release with `latest.yml`; installed copies update themselves from it.
 
 ## Code layout

@@ -3,8 +3,15 @@ name: Build Windows EXE
 # - push of a tag vX.Y.Z: also publishes a GitHub Release (installer +
 #   latest.yml) that installed copies of NovelReader update from automatically.
 #   The tag must match "version" in package.json.
+# - manual run on main with "publish" ticked: same release, tagged
+#   v<package.json version> by electron-builder (no tag push needed).
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the GitHub Release for the version in package.json (main only)
+        type: boolean
+        default: false
   push:
     branches: [main]
     tags: ['v*']
@@ -28,13 +35,17 @@ jobs:
         run: |
           v=$(node -p "require('./package.json').version")
           if [ "v$v" != "${GITHUB_REF_NAME}" ]; then echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version $v"; exit 1; fi
+      - name: Refuse to publish from another branch than main
+        if: ${{ inputs.publish && github.ref != 'refs/heads/main' }}
+        shell: bash
+        run: echo "::error::Releases are published from main only"; exit 1
       - name: Build installer
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') && !inputs.publish }}
         run: npm run dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and publish release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.publish }}
         run: npm run release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
