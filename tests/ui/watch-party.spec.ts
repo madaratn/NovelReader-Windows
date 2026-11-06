@@ -28,7 +28,7 @@ async function pc(context: BrowserContext, library: any[]) {
       miwayomiFetch: async (path: string) => {
         if (path.includes('/details')) return { title: 'Lanterns', description: 'A mystery.' }
         if (path.includes('/episodes')) return eps
-        if (path.includes('/videos')) return [{ videoUrl: 'https://cdn.test/a.webm', videoTitle: 'Zeus - 720p', headers: {}, subtitleTracks: [], audioTracks: [], timestamps: [] }]
+        if (path.includes('/videos')) return [{ videoUrl: 'https://cdn.test/a.webm', videoTitle: 'Zeus - 720p', headers: {}, subtitleTracks: [], audioTracks: [], timestamps: [] }, { videoUrl: 'https://cdn.test/b.webm', videoTitle: 'Hera - 480p', headers: {}, subtitleTracks: [], audioTracks: [], timestamps: [] }]
         if (path.includes('/sources')) return { anime: [{ id: '42', name: 'Mapple', lang: 'en' }] }
         return []
       }
@@ -83,6 +83,52 @@ test('watch party: create, join with the code, same episode, pause and position 
   // The host ends it
   await a.getByRole('button', { name: 'End the watch party' }).click()
   await expect(b.locator('.wp-error')).toHaveText('The host closed the watch party.')
+})
+
+test('watch party: a stream reload (server or quality change, stall recovery) does not send everyone back to 0', async ({ context }) => {
+  const a = await pc(context, [series(1, 'Lanterns')])
+  const b = await pc(context, [])
+  await a.locator('.wp-open').click()
+  await a.locator('.wp-field input').fill('Ali')
+  await a.getByRole('button', { name: 'Start a watch party' }).click()
+  const code = (await a.locator('.wp-code b').innerText()).trim()
+  await b.locator('.wp-open').click()
+  await b.locator('.wp-field input').fill('Sara')
+  await b.locator('.wp-join input').fill(code)
+  await b.getByRole('button', { name: 'Join' }).click()
+  await expect(a.locator('.wp-member')).toHaveCount(2)
+  await a.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
+  await a.locator('.episodecell').nth(0).locator('.episodecard').click()
+  await expect(b.locator('.media-player-top h2')).toContainText('S1 E1', { timeout: 15_000 })
+  for (const p of [a, b]) await expect.poll(() => video(p).evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThan(2)
+  await a.waitForTimeout(2600)
+  // Everyone at 12 s, playing
+  await video(a).evaluate((v: HTMLVideoElement) => { v.currentTime = 12; v.play() })
+  await expect.poll(() => video(b).evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(11)
+  await a.waitForTimeout(500)
+  // The host's player reloads its stream (another quality here)
+  const before = await video(b).evaluate((v: HTMLVideoElement) => v.currentTime)
+  // The host's player reloads its stream (another quality here)
+  await a.locator('.player-trackbar label', { hasText: 'Quality' }).locator('select').selectOption({ index: 1 })
+  const low: number[] = []
+  for (let i = 0; i < 12; i++) { low.push(await video(b).evaluate((v: HTMLVideoElement) => v.currentTime)); await b.waitForTimeout(250) }
+  expect(Math.min(...low)).toBeGreaterThan(before - 2)
+  await expect.poll(() => video(a).evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(before - 1)
+  // The player jumps back to the start by itself (HLS recovery, stream without a saved
+  // position): the guest stays, and the host is put back on the group's position
+  await video(a).evaluate((v: HTMLVideoElement) => { v.pause(); v.currentTime = 11; v.play() })
+  await expect.poll(() => video(b).evaluate((v: HTMLVideoElement) => Math.round(v.currentTime))).toBeGreaterThanOrEqual(11) // a normal jump is still shared
+  await a.waitForTimeout(1600)
+  const group = await video(b).evaluate((v: HTMLVideoElement) => v.currentTime)
+  await video(a).evaluate((v: HTMLVideoElement) => { v.currentTime = 0 })
+  const low2: number[] = []
+  for (let i = 0; i < 10; i++) { low2.push(await video(b).evaluate((v: HTMLVideoElement) => v.currentTime)); await b.waitForTimeout(250) }
+  expect(Math.min(...low2)).toBeGreaterThan(group - 1)
+  await expect.poll(() => video(a).evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(group)
+  // Going back to the start by hand is still shared
+  await a.evaluate(() => window.dispatchEvent(new Event('nr-user-input')))
+  await video(a).evaluate((v: HTMLVideoElement) => { v.currentTime = 0 })
+  await expect.poll(() => video(b).evaluate((v: HTMLVideoElement) => v.currentTime)).toBeLessThan(3)
 })
 
 test('watch party: wrong code', async ({ context }) => {
