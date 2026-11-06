@@ -7,6 +7,7 @@ import{t,plural,LANGS}from'../i18n'
 import type{Lang}from'../i18n'
 import{fmtDateTime,lsGet,lsSet}from'../lib/util'
 import{NoticeText}from'../ui/common'
+import{ReportPanel}from'./report'
 
 // ---- Backup helpers (renderer side) ------------------------------------------
 // Everything the app keeps in localStorage is user data (library, progress,
@@ -73,6 +74,7 @@ export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onSh
    {usage&&usage.chapters>0&&<div className="libraryactions"><button className={clearConfirm?'danger':undefined} onClick={async()=>{if(!clearConfirm){setClearConfirm(true);setTimeout(()=>setClearConfirm(false),6000);return}await window.novelReader.offlineClear?.();setClearConfirm(false);setUsage({bytes:0,chapters:0,novels:0})}}>{clearConfirm?t('Confirm: delete all downloads'):t('Delete all downloaded chapters')}</button></div>}
   </section>
   <UpdateSettings status={update} version={version}/>
+  <ReportPanel/>
   <section className="panel settings-block"><h2>{t('About')}</h2><p className="settings-help">NovelReader · Windows · {version?'v'+version:''}</p><button onClick={onWelcome}>{t('Show the welcome guide again')}</button></section>
  </>
 }

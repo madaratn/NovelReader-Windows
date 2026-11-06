@@ -578,6 +578,8 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .health-row b{display:block;font-size:14px}.health-row small{display:block;margin-top:2px;color:#d28e98;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .health-dot{width:10px;height:10px;border-radius:50%;background:#4a5068}
 .health-row.ok .health-dot{background:#3fb37f}.health-row.dead .health-dot{background:#d9545f}.health-row.testing .health-dot{background:#c9a43a}
+.health-row.warn .health-dot{background:#e08a2e}.health-row.warn .health-state{color:#e0a060}
+.health-row small.health-steps{color:#8f94a3}
 .health-state{color:#9aa0b4;font-size:13px}
 .health-row .removebtn{min-height:32px;padding:0 12px}
 .health-actions{margin-top:12px;align-items:center}.health-actions span{color:#d5d8e2}
@@ -639,3 +641,27 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .dl-head .libcover{width:56px;height:80px;flex:none;border-radius:8px;font-size:18px}
 .dl-head h2{margin:2px 0}
 .danger{border-color:#c0392b!important;color:#ff9b8f!important}
+/* Problem report */
+.reportbtn{flex:none;min-height:30px;padding:0 10px;border:1px solid currentColor;border-radius:8px;background:transparent;color:inherit;font:inherit;font-size:12.5px;cursor:pointer;opacity:.85;white-space:nowrap}
+.reportbtn:hover{opacity:1}
+.anime-toast .reportbtn{margin-left:auto}
+.report-what{width:100%;min-height:36px;margin:4px 0 10px;padding:0 10px;border:1px solid #30364a;border-radius:8px;background:#161a24;color:#e6e8ef;font:inherit;font-size:14px;box-sizing:border-box}
+.report-preview{width:100%;height:260px;margin-top:10px;padding:10px;border:1px solid #30364a;border-radius:8px;background:#0e1117;color:#c9cdd8;font:12px/1.45 ui-monospace,Consolas,monospace;box-sizing:border-box;resize:vertical}
+/* Up next: the next episode of every title in progress */
+.upnext{margin:0 0 18px}
+.upnext h2{margin:0 0 10px;font-size:16px}
+.upnext-row{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(230px,260px);gap:10px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin}
+.upnext-card{display:flex;align-items:center;gap:10px;min-width:0;padding:8px;border:1px solid #232838;border-radius:12px;background:#11141b;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:border-color .15s,transform .15s}
+.upnext-card:hover,.upnext-card:focus-visible{border-color:#8b7cff;transform:translateY(-1px)}
+.upnext-card .libcover{width:46px;height:66px;flex:none;border-radius:7px;font-size:16px}
+.upnext-meta{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.upnext-meta b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+.upnext-meta small{color:#9aa0b4;font-size:12.5px}
+.upnext-meta .libbar{margin-top:4px}
+/* Batch downloads above the episode grid */
+.batch-dl{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:0 0 12px;padding:8px 10px;border:1px dashed #30364a;border-radius:10px;color:#aab0c2;font-size:13px}
+.batch-dl-info{margin-right:auto}
+.batch-dl select{min-height:32px;padding:0 8px;border:1px solid #30364a;border-radius:8px;background:#161a24;color:#e6e8ef;font:inherit;font-size:13px}
+.batch-dl button{min-height:32px}
+.batch-dl-msg{flex-basis:100%;color:#9aa0b4}
+.dl-auto{display:flex;align-items:center;gap:8px;margin:0 0 12px;color:#aab0c2;font-size:13.5px}
