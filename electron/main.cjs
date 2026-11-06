@@ -1,4 +1,6 @@
-const {app,BrowserWindow,ipcMain,dialog,protocol,shell,screen,session}=require('electron')
+const {app,BrowserWindow,ipcMain,dialog,protocol,shell,screen,session,clipboard}=require('electron')
+const diagnostics=require('./diagnostics.cjs')
+diagnostics.capture()
 const {Readable}=require('stream')
 const {spawn}=require('child_process')
 const fs=require('fs')
@@ -91,6 +93,11 @@ async function miwayomiRequest(pathname, init={}) {
   } finally { clearTimeout(timer) }
 }
 ipcMain.handle('anime:miwayomiStatus', async()=>{try{const health=await miwayomiRequest('/api/v1/health');return {online:true,baseUrl:MIWAYOMI_BASE,health}}catch(e){if(!miwayomiProcess)startMiwayomi();return {online:false,starting:!!miwayomiProcess,baseUrl:MIWAYOMI_BASE,error:String(e.message||e)}}});
+// ---- Problem report (electron/diagnostics.cjs) -------------------------------
+ipcMain.handle('report:collect',()=>diagnostics.collect({app,engineRoot:engineRoot(),engineLogs:miwayomiLogs,engineRunning:Boolean(miwayomiProcess)}))
+ipcMain.handle('report:redact',(_e,text)=>diagnostics.redact(String(text||'')))
+ipcMain.handle('report:copy',(_e,text)=>{clipboard.writeText(String(text||''));return true})
+ipcMain.handle('report:save',async(e,text)=>{const win=BrowserWindow.fromWebContents(e.sender);const r=await dialog.showSaveDialog(win,{title:'NovelReader',defaultPath:path.join(app.getPath('desktop'),'novelreader-report-'+new Date().toISOString().slice(0,10)+'.txt'),filters:[{name:'Text',extensions:['txt']}]});if(r.canceled||!r.filePath)return '';fs.writeFileSync(r.filePath,String(text||''),'utf8');return r.filePath})
 ipcMain.handle('anime:miwayomiDebug',async()=>{const [health,sources,installed]=await Promise.all([miwayomiRequest('/api/v1/health'),miwayomiRequest('/api/v1/sources'),miwayomiRequest('/api/v1/extensions/installed')]);return {health,sources,installed,dataDir:path.join(app.getPath('userData'),'miwayomi'),engineJar:path.join(engineRoot(),'miwayomi-all.jar'),logs:miwayomiLogs.slice(-250)}});
 // Cloudflare solver used by the video engine (see electron/flaresolverr.cjs).
 let flare=null

@@ -1,4 +1,5 @@
 import React,{useEffect,useRef,useState}from'react'
+import{ReportButton}from'../features/report'
 import{t}from'../i18n'
 import{hueOf,initials}from'../lib/util'
 
@@ -41,7 +42,7 @@ export class ErrorBoundary extends React.Component<{children:React.ReactNode,res
   return <div className={this.props.full?'crash crash-full':'crash'} role="alert"><section className="panel">
    <h2>{t('Something went wrong on this page')}</h2>
    <p>{t('Your library and reading progress are safe. You can go back to the library or reload NovelReader.')}</p>
-   <div className="libraryactions">{this.props.onHome&&<button className="primary" onClick={()=>{this.setState({error:null});this.props.onHome!()}}>{t('Back to library')}</button>}<button className={this.props.onHome?undefined:'primary'} onClick={()=>location.reload()}>{t('Reload')}</button></div>
+   <div className="libraryactions">{this.props.onHome&&<button className="primary" onClick={()=>{this.setState({error:null});this.props.onHome!()}}>{t('Back to library')}</button>}<button className={this.props.onHome?undefined:'primary'} onClick={()=>location.reload()}>{t('Reload')}</button><ReportButton context={'UI error: '+String(e?.message||e)}/></div>
    <div className="crash-detail"><NoticeText text={t('Error:')+' '+String(e?.message||e)+' | '+detail}/></div>
   </section></div>
  }
