@@ -26,13 +26,28 @@ export function ReaderSettings({prefs,onChange,onClose}:{prefs:ReaderPrefs,onCha
 }
 
 // ---- Read aloud (Web Speech API, uses the voices installed in Windows) ------------
-export type TtsPrefs={rate:number,voice:string,autoNext:boolean}
-export function loadTts():TtsPrefs{try{const x=JSON.parse(lsGet('ttsPrefs')||'{}')||{};return{rate:clamp(Number(x.rate)||1,0.5,2.5),voice:typeof x.voice==='string'?x.voice:'',autoNext:x.autoNext!==false}}catch{return{rate:1,voice:'',autoNext:true}}}
-export function useVoices(){const[v,setV]=useState<SpeechSynthesisVoice[]>([]);useEffect(()=>{const ss=window.speechSynthesis;if(!ss)return;const upd=()=>setV(ss.getVoices());upd();ss.addEventListener?.('voiceschanged',upd);return()=>ss.removeEventListener?.('voiceschanged',upd)},[]);return v}
+export type TtsPrefs={rate:number,voice:string,autoNext:boolean,words:boolean}
+export function loadTts():TtsPrefs{try{const x=JSON.parse(lsGet('ttsPrefs')||'{}')||{};return{rate:clamp(Number(x.rate)||1,0.5,2.5),voice:typeof x.voice==='string'?x.voice:'',autoNext:x.autoNext!==false,words:x.words!==false}}catch{return{rate:1,voice:'',autoNext:true,words:true}}}
+export function useVoices(){const[v,setV]=useState<SpeechSynthesisVoice[]>([]);useEffect(()=>{const ss=window.speechSynthesis;if(!ss)return;const upd=()=>setV([...ss.getVoices()].sort((a,b)=>voiceRank(b)-voiceRank(a)||a.name.localeCompare(b.name)));upd();ss.addEventListener?.('voiceschanged',upd);return()=>ss.removeEventListener?.('voiceschanged',upd)},[]);return v}
+// "Natural" / neural voices sound far better: list them first.
+export const voiceRank=(v:SpeechSynthesisVoice)=>/natural|neural|online/i.test(v.name)?2:v.localService?0:1
+// The word being read, highlighted without touching the page (CSS Custom Highlight API).
+function wordRange(el:HTMLElement,start:number,len:number){
+ // Map positions of the spoken text (spaces collapsed, trimmed) back to the text nodes.
+ const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);const map:{node:Text,off:number}[]=[];let prevSpace=true,node:Node|null
+ while((node=walker.nextNode())){const tx=(node as Text).data;for(let i=0;i<tx.length;i++){const sp=/\s/.test(tx[i]);if(sp&&prevSpace)continue;map.push({node:node as Text,off:i});prevSpace=sp}}
+ const a=map[start],b=map[Math.min(map.length-1,start+Math.max(1,len)-1)];if(!a||!b)return null
+ const r=document.createRange();r.setStart(a.node,a.off);r.setEnd(b.node,b.off+1);return r
+}
+const setWordHighlight=(r:Range|null)=>{try{const hl=(CSS as any).highlights;if(!hl)return;if(!r){hl.delete('tts-word');return}hl.set('tts-word',new (window as any).Highlight(r))}catch{}}
 export function readableBlocks(root:HTMLElement|null):HTMLElement[]{if(!root)return[];const els=[...root.querySelectorAll<HTMLElement>('h1,h2,h3,h4,p,li,blockquote')].filter(e=>(e.textContent||'').trim().length>1&&!e.querySelector('p,li,blockquote'));return els.length?els:[root]}
 export function ReaderTTS({rootRef,chapterKey,hasNext,onNext,onClose}:{rootRef:React.RefObject<HTMLElement|null>,chapterKey:string,hasNext:boolean,onNext:()=>void,onClose:()=>void}){
  const voices=useVoices(),[prefs,setPrefs]=useState<TtsPrefs>(loadTts),[playing,setPlaying]=useState(false),[idx,setIdx]=useState(0),[err,setErr]=useState('')
  const playingRef=useRef(false),idxRef=useRef(0),token=useRef(0),pendingNext=useRef(false),prefsRef=useRef(prefs)
+ // Sleep timer: stop after N minutes, or at the end of the chapter.
+ const[sleep,setSleep]=useState<string>('off'),[sleepLeft,setSleepLeft]=useState(0),sleepRef=useRef('off'),sleepAt=useRef(0);sleepRef.current=sleep
+ const stopForSleep=()=>{playingRef.current=false;setPlaying(false);token.current++;window.speechSynthesis?.cancel();setWordHighlight(null);setSleep('off');setErr(t('Sleep timer: reading stopped.'))}
+ useEffect(()=>{if(!/^\d+$/.test(sleep)){setSleepLeft(0);return}sleepAt.current=Date.now()+Number(sleep)*60000;const tick=()=>{const left=sleepAt.current-Date.now();if(left<=0){stopForSleep();return}setSleepLeft(Math.ceil(left/60000))};tick();const iv=setInterval(tick,5000);return()=>clearInterval(iv)},[sleep])
  prefsRef.current=prefs
  const supported=typeof window!=='undefined'&&'speechSynthesis' in window
  const savePrefs=(patch:Partial<TtsPrefs>)=>setPrefs(p=>{const n={...p,...patch};lsSet('ttsPrefs',JSON.stringify(n));return n})
@@ -47,19 +62,20 @@ export function ReaderTTS({rootRef,chapterKey,hasNext,onNext,onClose}:{rootRef:R
   const v=voiceFor();if(v){u.voice=v;u.lang=v.lang}
   u.rate=prefsRef.current.rate
   const tok=++token.current
-  u.onend=()=>{if(tok===token.current&&playingRef.current)speak(i+1)}
+  u.onboundary=(e:any)=>{if(tok!==token.current||!prefsRef.current.words||e.name&&e.name!=='word')return;setWordHighlight(wordRange(els[i],e.charIndex,e.charLength||((u.text.slice(e.charIndex).match(/^\S+/)||[''])[0].length)))}
+  u.onend=()=>{setWordHighlight(null);if(tok===token.current&&playingRef.current){if(sleepRef.current==='chapter-end'&&i+1>=els.length){stopForSleep();return}speak(i+1)}}
   u.onerror=(e:any)=>{if(tok!==token.current||e?.error==='interrupted'||e?.error==='canceled')return;setErr(t('The voice stopped unexpectedly.')+' ('+(e?.error||'error')+')');playingRef.current=false;setPlaying(false)}
   window.speechSynthesis.cancel();window.speechSynthesis.speak(u)
  }
  const hasNextRef=useRef(hasNext),onNextRef=useRef(onNext);hasNextRef.current=hasNext;onNextRef.current=onNext
  const play=()=>{if(!supported)return;setErr('');playingRef.current=true;setPlaying(true);speak(idxRef.current)}
- const pause=()=>{playingRef.current=false;setPlaying(false);token.current++;window.speechSynthesis?.cancel()}
+ const pause=()=>{playingRef.current=false;setPlaying(false);token.current++;window.speechSynthesis?.cancel();setWordHighlight(null)}
  const jump=(d:number)=>{const n=Math.max(0,Math.min(readableBlocks(rootRef.current).length-1,idxRef.current+d));if(playingRef.current)speak(n);else{idxRef.current=n;setIdx(n);mark(n)}}
  // New chapter: start over, and keep reading if we got here by finishing the previous one.
  useEffect(()=>{idxRef.current=0;setIdx(0);mark(-1);if(pendingNext.current&&playingRef.current){pendingNext.current=false;const tm=setTimeout(()=>speak(0),400);return()=>clearTimeout(tm)}pendingNext.current=false},[chapterKey])
  // Click a paragraph to read from there.
  useEffect(()=>{const root=rootRef.current;if(!root)return;const onClick=(e:MouseEvent)=>{if((e.target as HTMLElement).closest('a'))return;if(!(window.getSelection()?.isCollapsed??true))return;const els=readableBlocks(root);const i=els.findIndex(el=>el.contains(e.target as Node));if(i<0)return;if(playingRef.current)speak(i);else{idxRef.current=i;setIdx(i);mark(i)}};root.addEventListener('click',onClick);root.classList.add('tts-on');return()=>{root.removeEventListener('click',onClick);root.classList.remove('tts-on')}},[chapterKey])
- useEffect(()=>()=>{token.current++;window.speechSynthesis?.cancel();mark(-1)},[])
+ useEffect(()=>()=>{token.current++;window.speechSynthesis?.cancel();mark(-1);setWordHighlight(null)},[])
  const total=readableBlocks(rootRef.current).length
  return <div className="tts-panel" role="region" aria-label={t('Read aloud')}>
   {!supported?<span>{t('Read aloud is not available on this system.')}</span>:<>
@@ -73,7 +89,10 @@ export function ReaderTTS({rootRef,chapterKey,hasNext,onNext,onClose}:{rootRef:R
     <label>{t('Speed')}<select value={String(prefs.rate)} onChange={e=>{savePrefs({rate:Number(e.target.value)});if(playingRef.current)setTimeout(()=>speak(idxRef.current),0)}}>{[0.75,1,1.25,1.5,1.75,2].map(r=><option key={r} value={String(r)}>{r}×</option>)}</select></label>
     <label>{t('Voice')}<select value={prefs.voice} onChange={e=>{savePrefs({voice:e.target.value});if(playingRef.current)setTimeout(()=>speak(idxRef.current),0)}}><option value="">{t('Automatic')}</option>{voices.map(v=><option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>)}</select></label>
     <label className="tts-check"><input type="checkbox" checked={prefs.autoNext} onChange={e=>savePrefs({autoNext:e.target.checked})}/> {t('Continue to the next chapter')}</label>
+    <label>{t('Sleep timer')}<select value={sleep} onChange={e=>setSleep(e.target.value)}><option value="off">{t('Off')}</option>{['15','30','45','60','90'].map(m=><option key={m} value={m}>{t('{n} min',{n:m})}</option>)}<option value="chapter-end">{t('End of chapter')}</option></select>{sleepLeft>0&&<small className="tts-sleep">{t('{n} min left',{n:sleepLeft})}</small>}</label>
+    <label className="tts-check"><input type="checkbox" checked={prefs.words} onChange={e=>{savePrefs({words:e.target.checked});if(!e.target.checked)setWordHighlight(null)}}/> {t('Highlight the word being read')}</label>
    </div>
+   {voices.length>0&&!voices.some(v=>voiceRank(v)===2)&&<small className="tts-hint">{t('Tip: more natural voices can be added in Windows Settings › Time & language › Speech › Add voices.')}</small>}
    {err&&<small className="tts-err">{err}</small>}
   </>}
   <button className="tts-close" onClick={()=>{pause();onClose()}} aria-label={t('Close')}>×</button>

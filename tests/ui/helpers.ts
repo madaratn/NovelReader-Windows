@@ -135,10 +135,10 @@ export async function fakeSpeech(page: Page) {
     class U { text: string; rate = 1; voice: any = null; lang = ''; onend: any; onerror: any; _x = false; constructor(t: string) { this.text = t } }
     w.SpeechSynthesisUtterance = U
     let cur: any = null
-    const voices = [{ name: 'Microsoft Hortense', lang: 'fr-FR', voiceURI: 'hortense' }, { name: 'Microsoft Zira', lang: 'en-US', voiceURI: 'zira' }]
+    const voices = [{ name: 'Microsoft Hortense', lang: 'fr-FR', voiceURI: 'hortense', localService: true }, { name: 'Microsoft Zira', lang: 'en-US', voiceURI: 'zira', localService: true }, { name: 'Microsoft Denise Online (Natural)', lang: 'fr-FR', voiceURI: 'denise', localService: false }]
     const ss = {
       getVoices: () => voices, addEventListener() {}, removeEventListener() {},
-      speak(u: any) { cur = u; w.__spoken.push({ text: u.text.slice(0, 40), voice: u.voice && u.voice.name, rate: u.rate }); setTimeout(() => { if (cur === u && !u._x) { cur = null; u.onend && u.onend() } }, 30) },
+      speak(u: any) { cur = u; w.__cur = u; w.__spoken.push({ text: u.text.slice(0, 40), voice: u.voice && u.voice.name, rate: u.rate }); if (w.__ttsHold) return; setTimeout(() => { if (cur === u && !u._x) { cur = null; u.onend && u.onend() } }, 30) },
       cancel() { if (cur) { const u = cur; u._x = true; cur = null; u.onerror && u.onerror({ error: 'interrupted' }) } }
     }
     Object.defineProperty(window, 'speechSynthesis', { value: ss, configurable: true })

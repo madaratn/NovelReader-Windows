@@ -560,6 +560,11 @@ const FR: Record<string, string> = {
   '“{q}” in {section}': '« {q} » dans {section}',
   'This source has no list to browse. Try another one.': 'Cette source n’a pas de liste à parcourir. Essaie une autre.',
   'Browse what is popular or new on one of your book sources.': 'Parcours ce qui est populaire ou nouveau sur une de tes sources de livres.',
+  'Sleep timer: reading stopped.': 'Minuterie : lecture arrêtée.',
+  'Sleep timer': 'Minuterie',
+  'End of chapter': 'Fin du chapitre',
+  'Highlight the word being read': 'Surligner le mot lu',
+  'Tip: more natural voices can be added in Windows Settings › Time & language › Speech › Add voices.': 'Astuce : des voix plus naturelles peuvent être ajoutées dans Paramètres Windows › Heure et langue › Voix › Ajouter des voix.',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

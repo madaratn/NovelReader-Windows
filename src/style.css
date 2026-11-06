@@ -692,3 +692,7 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .qs-row small{color:#8f94a3;font-size:12.5px}
 .qs-kind{flex:none!important;padding:2px 8px;border-radius:999px;background:#232838;color:#aab0c2;font-size:11.5px}
 .qs-icon{flex:none!important;width:34px;align-items:center;color:#8b7cff;font-size:18px}
+/* Read aloud: word being read, sleep timer */
+::highlight(tts-word){background-color:rgba(139,124,255,.45);color:inherit}
+.tts-sleep{margin-left:6px;color:#8b7cff}
+.tts-hint{display:block;margin-top:6px;color:#8f94a3;font-size:12px}
