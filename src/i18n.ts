@@ -666,6 +666,11 @@ const FR: Record<string, string> = {
   'Volume of the voices': 'Volume des voix',
   'Leave the voice channel': 'Quitter le vocal',
   'Tip: use headphones so the film does not come back through your microphone.': 'Astuce : mets un casque pour que le son du film ne repasse pas dans ton micro.',
+  'Weekly check: {state}': 'Test hebdomadaire : {state}',
+  'plays videos': 'lit les vidéos',
+  'partly works': 'marche en partie',
+  'not responding': 'ne répond pas',
+  'Weekly check ({date}): {state}': 'Test hebdomadaire ({date}) : {state}',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

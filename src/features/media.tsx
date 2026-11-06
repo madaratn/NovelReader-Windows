@@ -1,7 +1,7 @@
 // Anime / Series / Movies pages: libraries (shelves, resume, new episodes),
 // global search, detail hero/facts, and the video sources panels.
 import React,{useEffect,useRef,useState}from'react'
-import{SECTIONS,hasOverride,resultFits,setSourceSections,sourceFits,sourceSections,type VideoSection}from'../lib/source-kinds'
+import{cachedScan,loadScan,scanFor,SECTIONS,hasOverride,resultFits,setSourceSections,sourceFits,sourceSections,type VideoSection}from'../lib/source-kinds'
 import{t,plural,getLang}from'../i18n'
 import{lsGet,lsSet,timeAgo}from'../lib/util'
 import{Cover,NoticeText}from'../ui/common'
@@ -105,6 +105,8 @@ export function EpisodeGrid({eps,prefix,mediaId,selected,disabled,onPlay,renderE
 }
 
 // ---- Video sources: test installed extensions and remove the dead ones ----------
+// Result of the weekly automatic check, for sources not tested on this PC.
+function WeeklyScan({pkg,name}:{pkg:string,name:string}){const[,bump]=useState(0);useEffect(()=>{const f=()=>bump(x=>x+1);window.addEventListener('nr-source-scan',f);loadScan().catch(()=>{});return()=>window.removeEventListener('nr-source-scan',f)},[]);const sc=scanFor(pkg)||scanFor(name),at=cachedScan()?.at;if(!sc)return null;return <small className={'scan-line '+sc.state}>{(sc.state==='ok'?'✓ ':sc.state==='partial'?'~ ':'✗ ')+t('Weekly check ({date}): {state}',{date:at?new Date(at).toLocaleDateString():'',state:sc.state==='ok'?t('plays videos'):sc.state==='partial'?t('partly works'):t('not responding')})}</small>}
 // Which sections (Anime / Series / Movies) show this source; click to change.
 function SectionChips({name}:{name:string}){
  const[,bump]=useState(0),cur=sourceSections(name),custom=hasOverride(name)
@@ -158,7 +160,7 @@ export function VideoSourceHealth(){
  const dead=rows.filter(r=>r.state==='dead'),okN=rows.filter(r=>r.state==='ok').length,warnN=rows.filter(r=>r.state==='warn').length,done=rows.filter(r=>r.state==='ok'||r.state==='dead'||r.state==='warn').length,at=Number(lsGet('videoSourceHealthAt'))||0
  const tested=rows.some(r=>r.state!=='idle')
  return <section className="panel source-health"><div className="engine-row"><div><h2>{t('Installed sources')}</h2><p>{tested?(running?t('Testing {done} / {total} sources…',{done,total:rows.length}):t('{ok} working, {warn} partly working, {dead} not responding.',{ok:okN,warn:warnN,dead:dead.length})+(at&&!running?' · '+t('Checked {when}',{when:timeAgo(at)}):'')):t('Check which installed sources still work, and remove the ones that are down.')}</p></div><button className={tested?'':'primary'} disabled={running} onClick={test}>{running?t('Testing…'):tested?t('Test again'):t('Test my sources')}</button></div>
-  {rows.length>0&&<div className="health-list">{rows.map(r=><div key={r.pkg} className={'health-row '+r.state}><span className="health-dot" aria-hidden="true"/><div><b>{r.name}</b>{r.state==='testing'&&r.step?<small>{r.step}</small>:r.detail?<small className="health-steps">{r.detail}</small>:null}{(r.state==='dead'||r.state==='warn')&&r.error&&<small>{r.error}</small>}</div><SectionChips name={r.name}/><span className="health-state">{r.state==='testing'?t('Testing…'):r.state==='ok'?t('Plays'):r.state==='warn'?t('Partly'):r.state==='dead'?t('Not responding'):''}</span>{r.state==='dead'&&<button className="removebtn" onClick={()=>uninstall([r.pkg])}>{t('Uninstall')}</button>}</div>)}</div>}
+  {rows.length>0&&<div className="health-list">{rows.map(r=><div key={r.pkg} className={'health-row '+r.state}><span className="health-dot" aria-hidden="true"/><div><b>{r.name}</b>{r.state==='testing'&&r.step?<small>{r.step}</small>:r.detail?<small className="health-steps">{r.detail}</small>:<WeeklyScan pkg={r.pkg} name={r.name}/>}{(r.state==='dead'||r.state==='warn')&&r.error&&<small>{r.error}</small>}</div><SectionChips name={r.name}/><span className="health-state">{r.state==='testing'?t('Testing…'):r.state==='ok'?t('Plays'):r.state==='warn'?t('Partly'):r.state==='dead'?t('Not responding'):''}</span>{r.state==='dead'&&<button className="removebtn" onClick={()=>uninstall([r.pkg])}>{t('Uninstall')}</button>}</div>)}</div>}
   {!running&&dead.length>0&&<div className="libraryactions health-actions">{confirm?<><span>{plural(dead.length,'Uninstall {n} source that is not responding?','Uninstall {n} sources that are not responding?')}</span><button className="removebtn" onClick={()=>uninstall(dead.map(r=>r.pkg))}>{t('Yes, uninstall')}</button><button onClick={()=>setConfirm(false)}>{t('Cancel')}</button></>:<button className="removebtn" onClick={()=>setConfirm(true)}>{plural(dead.length,'Remove {n} dead source','Remove {n} dead sources')}</button>}</div>}
   {msg&&<p className="lib-update-status" role="status">{msg}</p>}
  </section>

@@ -21,11 +21,15 @@ on:
       java_opts:
         description: Extra JVM options for the engine
         default: -Dcom.sun.security.enableAIAcaIssuers=true
-  push:
-    branches: ['claude/source-scan']
-    paths: ['scripts/source-scan.mjs', '.github/workflows/source-scan.yml']
+      publish:
+        description: Publish the results for the app (release "source-status")
+        type: boolean
+        default: false
+  # Every Monday: the app reads the published results (Sources pages, recommended pack).
+  schedule:
+    - cron: '17 3 * * 1'
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 jobs:
@@ -58,12 +62,20 @@ jobs:
           for i in $(seq 1 90); do curl -fs http://127.0.0.1:4567/api/v1/health && break; sleep 2; done
       - name: Scan
         env:
-          LANGS: ${{ inputs.langs || 'all,en,fr' }}
+          LANGS: ${{ inputs.langs || 'all,en,fr,es' }}
           ONLY: ${{ inputs.only || '' }}
         run: node scripts/source-scan.mjs ${{ inputs.repos || 'https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json https://raw.githubusercontent.com/salmanbappi/extensions-repo/main/index.min.json https://raw.githubusercontent.com/msrofficial/anime-repo/repo/index.min.json' }}
       - name: Engine errors
         if: always()
         run: grep -iE -A3 "exception|error|caused by|failed to load|could not" engine.log | grep -v "^--$" | cut -c1-400 | head -300 || true
+      - name: Publish the results for the app
+        if: ${{ github.event_name == 'schedule' || inputs.publish }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node -e "const r=require('./source-scan.json');require('fs').writeFileSync('source-status.json',JSON.stringify({at:r.at,results:r.results.map(x=>({name:x.name,pkg:x.pkg,lang:x.lang,repo:x.repo,version:x.version,state:x.state,detail:x.detail}))}))"
+          gh release view source-status -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create source-status -R "$GITHUB_REPOSITORY" --title "Video source status" --notes "Weekly end-to-end check of the video sources (list, episodes, streams), read by NovelReader. Not an app release." --latest=false --prerelease
+          gh release upload source-status source-status.json -R "$GITHUB_REPOSITORY" --clobber
       - uses: actions/upload-artifact@v4
         if: always()
         with:

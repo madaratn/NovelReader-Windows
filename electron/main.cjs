@@ -109,6 +109,8 @@ ipcMain.handle('profile:color',(_e,{id,color})=>profiles.setColor(String(id),Str
 ipcMain.handle('profile:remove',async(_e,id)=>{const part=profiles.partition(String(id));profiles.remove(String(id));if(part){try{await session.fromPartition(part).clearStorageData()}catch{}}return true})
 // Switching opens a new window on the other profile's storage and closes this one.
 ipcMain.handle('profile:switch',(_e,id)=>{profiles.select(String(id));const old=mainWindow;setTimeout(()=>{createWindow();if(old&&!old.isDestroyed())old.close()},50);return true})
+// Weekly source check published by .github/workflows/source-scan.yml.
+ipcMain.handle('sources:status',async()=>{const r=await fetch('https://github.com/madaratn/NovelReader-Windows/releases/download/source-status/source-status.json',{redirect:'follow'});if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
 ipcMain.handle('report:collect',()=>diagnostics.collect({app,engineRoot:engineRoot(),engineLogs:miwayomiLogs,engineRunning:Boolean(miwayomiProcess)}))
 ipcMain.handle('report:redact',(_e,text)=>diagnostics.redact(String(text||'')))
 ipcMain.handle('report:copy',(_e,text)=>{clipboard.writeText(String(text||''));return true})

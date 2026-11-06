@@ -353,3 +353,13 @@ test('sections: anime sources only in Anime, movie/series sources in Series and 
   await page.locator('.sidebar .nav-item', { hasText: 'Discover' }).click()
   await expect.poll(options).toContain('Mapple (EN)')
 })
+
+test('weekly source check: shown for sources not tested on this PC', async ({ page }) => {
+  await page.addInitScript(() => { (window as any).__scan = { at: '2026-11-02T03:20:00Z', results: [{ name: 'Mapple', pkg: 'mapple', lang: 'en', repo: 'r', state: 'ok', detail: '2 streams' }, { name: 'LaMovie', pkg: 'lamovie', lang: 'es', repo: 'r', state: 'dead', detail: 'host unknown' }] } })
+  await openVideo(page, { mode: 'anime', 'lastPage:anime': 'anime' })
+  await page.evaluate(() => { (window as any).novelReader.sourceStatus = async () => (window as any).__scan })
+  await page.locator('.sidebar .nav-item', { hasText: 'Sources' }).click()
+  await expect(page.locator('.health-row', { hasText: 'Mapple' }).locator('.scan-line')).toContainText('✓ Weekly check')
+  await expect(page.locator('.health-row', { hasText: 'Mapple' }).locator('.scan-line')).toContainText('plays videos')
+  await expect(page.locator('.health-row', { hasText: 'LaMovie' }).locator('.scan-line.dead')).toContainText('not responding')
+})
