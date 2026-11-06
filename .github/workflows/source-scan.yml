@@ -15,6 +15,9 @@ on:
       only:
         description: Only these sources (comma separated, empty = all)
         default: ''
+      java_opts:
+        description: Extra JVM options for the engine
+        default: -Dcom.sun.security.enableAIAcaIssuers=true
   push:
     branches: ['claude/source-scan']
     paths: ['scripts/source-scan.mjs', '.github/workflows/source-scan.yml']
@@ -36,13 +39,16 @@ jobs:
       - name: Start the engine
         run: |
           mkdir -p data
-          nohup java -jar miwayomi-all.jar --host 127.0.0.1 --port 4567 --no-open --data "$PWD/data" > engine.log 2>&1 &
+          nohup java ${{ inputs.java_opts || '-Dcom.sun.security.enableAIAcaIssuers=true' }} -jar miwayomi-all.jar --host 127.0.0.1 --port 4567 --no-open --data "$PWD/data" > engine.log 2>&1 &
           for i in $(seq 1 90); do curl -fs http://127.0.0.1:4567/api/v1/health && break; sleep 2; done
       - name: Scan
         env:
           LANGS: ${{ inputs.langs || 'all,en,fr' }}
           ONLY: ${{ inputs.only || '' }}
         run: node scripts/source-scan.mjs ${{ inputs.repos || 'https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json https://raw.githubusercontent.com/salmanbappi/extensions-repo/main/index.min.json https://raw.githubusercontent.com/msrofficial/anime-repo/repo/index.min.json' }}
+      - name: Engine errors
+        if: always()
+        run: grep -iE -A3 "exception|error|caused by|failed to load|could not" engine.log | grep -v "^--$" | cut -c1-400 | head -300 || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
