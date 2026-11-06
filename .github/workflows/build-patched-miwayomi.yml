@@ -723,6 +723,10 @@ jobs:
               raise SystemExit("videos response anchor not found")
           p.write_text(s.replace(marker, replacement, 1))
 
+      - name: Compatibility with newer extensions (scripts/engine-patches/v16_compat.py)
+        shell: bash
+        run: python3 scripts/engine-patches/v16_compat.py miwayomi
+
       - name: Build patched fat JAR
         working-directory: miwayomi
         shell: bash

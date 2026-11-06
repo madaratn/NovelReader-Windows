@@ -15,12 +15,19 @@ on:
       only:
         description: Only these sources (comma separated, empty = all)
         default: ''
+      engine_run:
+        description: Use the engine built by this "Build patched Miwayomi engine" run id (empty = released engine)
+        default: ''
       java_opts:
         description: Extra JVM options for the engine
         default: -Dcom.sun.security.enableAIAcaIssuers=true
   push:
     branches: ['claude/source-scan']
     paths: ['scripts/source-scan.mjs', '.github/workflows/source-scan.yml']
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   scan:
     runs-on: ubuntu-latest
@@ -35,7 +42,15 @@ jobs:
         with:
           node-version: 22
       - name: Download the patched engine
-        run: curl -fsSL -o miwayomi-all.jar https://github.com/madaratn/NovelReader-Windows/releases/download/miwayomi-v0.2.9-novelreader/miwayomi-all.jar
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -n "${{ inputs.engine_run }}" ]; then
+            gh run download "${{ inputs.engine_run }}" -R "$GITHUB_REPOSITORY" -n novelreader-miwayomi-v0.2.9-stackframes -D .
+          else
+            curl -fsSL -o miwayomi-all.jar https://github.com/madaratn/NovelReader-Windows/releases/download/miwayomi-v0.2.9-novelreader/miwayomi-all.jar
+          fi
+          ls -la miwayomi-all.jar
       - name: Start the engine
         run: |
           mkdir -p data
