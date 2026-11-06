@@ -21,6 +21,8 @@ const COLORS=['#8b7cff','#3fb37f','#e08a2e','#d9545f','#2b9bd8','#c06bd8','#c9a4
 const clean=s=>String(s||'').replace(/[\u0000-\u001f]/g,'').trim().slice(0,40)
 const api={
  init,
+ // Modules that only receive `app` (sync, backups) get the profiles of that app.
+ forApp(app){if(appRef!==app)init(app);return api},
  current:()=>state.current,
  list:()=>state.list.map(p=>({...p,current:p.id===state.current})),
  // Electron partition for a profile (undefined = the default session).

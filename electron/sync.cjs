@@ -12,7 +12,7 @@ const MAX_BYTES = 50 * 1024 * 1024
 
 function createFolderSync({ app, dialog }) {
   // Each profile syncs with its own folder (electron/profiles.cjs).
-  const cfgFile = () => require('./profiles.cjs').dataPath('sync.json')
+  const cfgFile = () => require('./profiles.cjs').forApp(app).dataPath('sync.json')
   const readCfg = () => { try { return JSON.parse(fs.readFileSync(cfgFile(), 'utf8')) || {} } catch { return {} } }
   const writeCfg = c => { fs.mkdirSync(path.dirname(cfgFile()), { recursive: true }); fs.writeFileSync(cfgFile(), JSON.stringify(c)) }
   const device = () => {

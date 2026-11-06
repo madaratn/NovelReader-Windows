@@ -219,7 +219,16 @@ ipcMain.handle('lnreader:import',plainErr(e=>lnImporter.importBackup(BrowserWind
 const DEV_ORIGIN='http://127.0.0.1:5173'
 const isAppUrl=u=>{try{const x=new URL(u);return x.protocol==='file:'||(!app.isPackaged&&x.origin===DEV_ORIGIN)}catch{return false}}
 const openOutside=u=>{try{const x=new URL(u);if((x.protocol==='https:'||x.protocol==='http:')&&!SMOKE_TEST)shell.openExternal(x.toString())}catch{}}
+// AniList sign-in window: handled by electron/anilist.cjs, not by the rules below.
+const {createAniList}=require('./anilist.cjs')
+const anilist=createAniList({BrowserWindow,session,profiles})
+ipcMain.handle('anilist:status',()=>anilist.status())
+ipcMain.handle('anilist:login',async(e,clientId)=>anilist.login(BrowserWindow.fromWebContents(e.sender),clientId))
+ipcMain.handle('anilist:token',async(_e,{token})=>anilist.setToken(String(token||'').trim()))
+ipcMain.handle('anilist:logout',()=>anilist.logout())
+ipcMain.handle('anilist:call',async(_e,{name,vars})=>anilist.call(String(name),vars||{}))
 app.on('web-contents-created',(_e,contents)=>{
+ if(anilist.isAuthWindow(contents))return
  contents.setWindowOpenHandler(({url})=>{openOutside(url);return{action:'deny'}})
  contents.on('will-navigate',(e,url)=>{if(!isAppUrl(url)){e.preventDefault();openOutside(url)}})
  contents.on('will-redirect',(e,url)=>{if(!isAppUrl(url))e.preventDefault()})

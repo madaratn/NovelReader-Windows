@@ -732,3 +732,15 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
 .tv-keys{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:8px;font-size:13px;color:#aab0c2}
 .tv-keys span{display:inline-flex;gap:6px;align-items:center}
 .tv-keys b{padding:1px 7px;border:1px solid #30364a;border-radius:6px;color:#e6e8ef;font-size:12px}
+/* AniList */
+.anilist-steps{margin:6px 0 12px;padding-left:20px;color:#aab0c2;font-size:13.5px;line-height:1.7}
+.anilist-steps code{padding:1px 6px;border-radius:5px;background:#0e1117;color:#cfc6ff;font-size:12.5px;user-select:all}
+.anilist-manual{margin-top:10px;color:#9aa0b4;font-size:13px}.anilist-manual summary{cursor:pointer;margin-bottom:8px}
+.anilist-user{display:flex;align-items:center;gap:12px;margin:4px 0 10px}.anilist-user img{border-radius:50%}
+.anilist-user div{display:flex;flex-direction:column;flex:1}.anilist-user small{color:#8f94a3}
+.anilist-list{display:flex;flex-direction:column;gap:6px;max-height:420px;overflow:auto;margin-top:10px}
+.anilist-row{display:flex;align-items:center;gap:10px;padding:6px 8px;border:1px solid #232838;border-radius:10px}
+.anilist-row .libcover{width:34px;height:48px;flex:none;border-radius:5px;font-size:12px}
+.anilist-row div{display:flex;flex-direction:column;flex:1;min-width:0}.anilist-row b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.anilist-row small{color:#8f94a3}
+.qs-open .label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.qs-open kbd{white-space:nowrap;flex:none}

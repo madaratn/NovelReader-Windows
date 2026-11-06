@@ -15,6 +15,7 @@ import type{ReaderPrefs}from'./features/reader'
 import{NovelDiscover,NovelSearch,SourcesPage,normTitle}from'./features/search'
 import{ReportButton,captureUiLogs}from'./features/report'
 import{ProfileSwitcher}from'./features/profiles'
+import{anilistOnWatched}from'./features/anilist'
 import{useTvAndGamepad}from'./features/tv'
 import{TranslateControl,autoTranslateFor,translateChapterHtml,translateTarget}from'./features/translate'
 import{QuickSearch,type QuickKind}from'./features/quick-search'
@@ -243,7 +244,7 @@ useEffect(()=>{let stopped=false,timer:any
   if(!stopped)timer=setTimeout(run,delay)}
  timer=setTimeout(run,Number(lsGet('episodeCheckDelay'))||20000);return()=>{stopped=true;clearTimeout(timer)}},[])
 useEffect(()=>{applyDownloadSettings()},[])
-useEffect(()=>{const on=(e:any)=>noteWatched(String(e?.detail?.key||''));window.addEventListener('nr-watched',on);const tm=setTimeout(()=>{flushAutoDeletes()},10000);return()=>{window.removeEventListener('nr-watched',on);clearTimeout(tm)}},[])
+useEffect(()=>{const on=(e:any)=>{const key=String(e?.detail?.key||'');noteWatched(key);anilistOnWatched(key,videoLibsRef.current.anime,(next:any[])=>{setAnimeLibrary(next);localStorage.setItem('animeLibrary',JSON.stringify(next))}).catch(()=>{})};window.addEventListener('nr-watched',on);const tm=setTimeout(()=>{flushAutoDeletes()},10000);return()=>{window.removeEventListener('nr-watched',on);clearTimeout(tm)}},[])
 useEffect(()=>{const tm=setTimeout(()=>{backgroundExtensionCheck().catch(()=>{})},60000);return()=>clearTimeout(tm)},[])
 const downloads=useDownloads(),dlError=(msg:string)=>setAnimeNotice({ok:false,scope:'detail',text:t('Could not download:')+' '+msg})
 // Chapter translation: re-done for each chapter when "Always translate this novel" is on.
@@ -251,6 +252,7 @@ const trKey=reader?reader.novel.id+':'+reader.index:''
 const doTranslate=async(lang:string)=>{if(!reader)return;const key=trKey;setTransBusy(true);try{const html=await translateChapterHtml(chapterHtml(reader.content).__html,lang);setTrans({key,html})}catch(e:any){setError(t('Translation failed:')+' '+String(e?.message||e).replace(/^Error invoking remote method '[^']+': (Error: )?/,''))}finally{setTransBusy(false)}}
 useEffect(()=>{if(!reader)return;const lang=autoTranslateFor(reader.novel.id);if(lang)doTranslate(lang)},[trKey])
 useTvAndGamepad(()=>goBackRef.current(),()=>setQsOpen(true))
+useEffect(()=>{const f=(e:any)=>{const q=String(e?.detail||'');if(!q)return;sessionStorage.setItem('autoSearch','anime');setAnimeQuery(q);switchMode('anime');setPage('animeSearch')};window.addEventListener('nr-search-anime',f);return()=>window.removeEventListener('nr-search-anime',f)},[])
 const mediaFirst=useRef(true)
 useEffect(()=>{if(mediaFirst.current){mediaFirst.current=false;return}window.dispatchEvent(new Event('nr-media-changed'))},[animeLibrary,seriesLibrary,movieLibrary])
 // "Continue watching": once the detail page of the resumed title is loaded, play its episode.

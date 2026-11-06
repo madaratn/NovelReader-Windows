@@ -40,6 +40,7 @@ async function boot(page: Page) {
         { id: 'd3', kind: 'series', mediaId: 'series2', mediaName: 'Lanterns', episodeUrl: '/ep/3', episodeName: 'S1 E3 - Episode title 3', episodeNo: 3, mediaKey: '', state: 'downloading', progress: 0.37, bytes: 151e6 }
       ],
       reportCollect: async () => ({}), reportCopy: async () => true,
+      profileList: async () => ({ list: [{ id: 'default', name: 'Ali', color: '#8b7cff' }, { id: 'p1', name: 'Sara', color: '#3fb37f' }], current: 'default' }),
       dlBase: async () => 'http://127.0.0.1:9', dlUsage: async () => ({ bytes: 810e6, count: 2, folder: '' }), dlStart: async () => ({ id: 'x' }), onDownloadsChanged: () => () => {},
       miwayomiFetch: async (path: string) => {
         if (path.includes('/details')) return { title: 'Lanterns', description: desc, genre: ['Drama', 'Mystery', 'Sci-Fi & Fantasy'], status: 2, author: 'DC Studios, HBO' }
@@ -104,6 +105,7 @@ test('capture all sections', async ({ page }) => {
   await page.locator('.sidebar').getByText('Paramètres').first().click().catch(() => {})
   await shot(page, '40-parametres')
   await page.locator('.report-panel').scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {}); await shot(page, '41-parametres-rapport')
+  await page.keyboard.press('Control+k'); await page.locator('.qs-input').fill('la').catch(() => {}); await page.waitForTimeout(300); await shot(page, '42-recherche-partout'); await page.keyboard.press('Escape')
   // Dark theme: same key pages
   await page.locator('.settings-seg button', { hasText: 'Sombre' }).click().catch(() => {})
   await mode(page, 1); await navTo(page, 'Bibliothèque'); await shot(page, '50-sombre-livres')

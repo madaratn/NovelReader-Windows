@@ -29,7 +29,7 @@ export function Sidebar({mode,page,collapsed,onMode,onPage,onToggle,onHelp,onSea
  return <aside className="sidebar" aria-label={t('Main navigation')}>
   <div className="brand-row"><div className="brand" aria-label="NovelReader"><span className="brand-full">NOVEL<span>READER</span></span><span className="brand-short">N<span>R</span></span></div><button className="iconbtn collapse-btn" onClick={onToggle} title={t(collapsed?'Expand sidebar':'Collapse sidebar')+' (Ctrl+B)'} aria-label={t(collapsed?'Expand sidebar':'Collapse sidebar')} aria-expanded={!collapsed}><Icon name={collapsed?'expand':'collapse'}/></button></div>
   <div className="mode-switch" role="tablist" aria-label={t('Mode')}>{MODES.map((m,i)=><button key={m} role="tab" aria-selected={mode===m} className={mode===m?'active':''} onClick={()=>onMode(m)} title={t(NAV[m].label)+' (Ctrl+'+(i+1)+')'}><Icon name={NAV[m].icon}/><span className="label">{t(NAV[m].label)}</span></button>)}</div>
-  {onSearch&&<button className="qs-open" onClick={onSearch} title={t('Search everywhere')+' (Ctrl+K)'}><Icon name="search"/><span className="label">{t('Search everywhere')}</span><kbd className="label">Ctrl K</kbd></button>}
+  {onSearch&&<button className="qs-open" onClick={onSearch} title={t('Search everywhere')+' (Ctrl+K)'}><Icon name="search"/><span className="label">{t('Search')}</span><kbd className="label">Ctrl K</kbd></button>}
   <nav className="nav-list">{NAV[mode].items.map(it=><button key={it.page} className={'nav-item'+(current===it.page?' active':'')} aria-current={current===it.page?'page':undefined} onClick={()=>onPage(it.page)} title={collapsed?t(it.label):undefined}><Icon name={it.icon}/><span className="label">{t(it.label)}</span></button>)}</nav>
   <div className="grow"/>
   {extra}

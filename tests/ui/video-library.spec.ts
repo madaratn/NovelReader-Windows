@@ -299,3 +299,38 @@ test('report a problem: versions, sources and logs copied from Settings and from
   await panel.getByRole('button', { name: 'Preview' }).click()
   await expect(panel.locator('.report-preview')).toHaveValue(/NovelReader problem report/)
 })
+
+test('AniList: finished episode updates the AniList progress; the AniList list leads to a source search', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as any
+    w.__al = []
+    w.__alPatch = {
+      anilistStatus: async () => ({ clientId: '123', connected: true, user: { id: 7, name: 'ali' }, expiresAt: 0 }),
+      anilistCall: async (name: string, vars: any) => {
+        w.__al.push({ name, vars })
+        if (name === 'search') return { Page: { media: [{ id: 99, title: { romaji: 'Sousou no Frieren', english: 'Frieren: Beyond Journey’s End' }, episodes: 28 }, { id: 5, title: { romaji: 'Lanterns' }, episodes: 8 }] } }
+        if (name === 'entry') return { Media: { id: vars.id, episodes: 8, mediaListEntry: { status: 'CURRENT', progress: 2 } } }
+        if (name === 'save') return { SaveMediaListEntry: { id: 1, ...vars } }
+        if (name === 'list') return { MediaListCollection: { lists: [{ entries: [{ status: 'CURRENT', progress: 3, media: { id: 99, title: { romaji: 'Sousou no Frieren' }, episodes: 28 } }] }] } }
+      }
+    }
+  })
+  await openVideo(page, {
+    mode: 'anime', 'lastPage:anime': 'anime', animeLibrary: JSON.stringify([item('anime', 1, 'Lanterns')]),
+    'lastEpInfo:anime1': JSON.stringify({ url: '/ep/3', name: 'E3', n: 3, at: Date.now() })
+  })
+  await page.evaluate(() => Object.assign((window as any).novelReader, (window as any).__alPatch))
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('nr-watched', { detail: { key: 'anime:anime1:/ep/3' } })))
+  await expect.poll(() => page.evaluate(() => (window as any).__al.map((c: any) => c.name))).toEqual(['search', 'entry', 'save'])
+  const save = await page.evaluate(() => (window as any).__al[2].vars)
+  expect(save).toEqual({ mediaId: 5, progress: 3, status: 'CURRENT' }) // exact title match wins over the first result
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('animeLibrary') || '[]')[0].anilistId)).toBe(5)
+  // Settings: the AniList list, and a title searched in the sources
+  await page.locator('.sidebar').getByText('Settings').click()
+  const panel = page.locator('.anilist-panel')
+  await expect(panel).toContainText('Connected to AniList')
+  await expect(panel).toContainText('AniList: Lanterns → episode 3')
+  await panel.getByRole('button', { name: 'Show my AniList list' }).click()
+  await panel.locator('.anilist-row').getByRole('button', { name: 'Find in my sources' }).click()
+  await expect(page.locator('main .searchbar input, main input').first()).toHaveValue('Sousou no Frieren')
+})
