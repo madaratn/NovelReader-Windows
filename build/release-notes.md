@@ -1,26 +1,12 @@
-## NovelReader 0.9.0
+## NovelReader 0.9.1
 
-Si vous avez une version précédente, celle-ci s'installe toute seule (une bannière propose de redémarrer).
+### Mises à jour automatiques et silencieuses
+- Les mises à jour se téléchargent en arrière-plan et s'installent **sans fenêtre d'installation** : rien à désinstaller ni à réinstaller, votre bibliothèque et vos réglages restent.
+- Elles s'installent toutes seules **quand vous fermez NovelReader**, et au prochain lancement un petit message confirme « NovelReader a été mis à jour en … ».
+- Si NovelReader reste ouvert, la mise à jour s'installe aussi quand le PC est **inactif depuis 15 minutes**, jamais pendant une vidéo ; l'app se rouvre toute seule. Option désactivable dans Paramètres › Mises à jour.
+- Le bouton **Redémarrer maintenant** reste disponible pour l'installer tout de suite.
 
-### Lien d'invitation pour le watch party
-- Dans **👥 Regarder ensemble**, le bouton **Copier un lien d'invitation** copie un lien à envoyer à vos amis.
-- En cliquant dessus, NovelReader s'ouvre et rejoint directement la séance (s'il n'a pas encore votre nom, il le demande d'abord).
-- Si l'ami n'a pas encore NovelReader, la page d'invitation propose de le télécharger.
-
-### Traduction automatique des sous-titres
-- Dans le menu des sous-titres du lecteur : **Traduire** crée une piste « (traduit) » dans votre langue.
-- Option **automatique** : si aucun sous-titre n'existe dans votre langue, il est traduit tout seul.
-
-### MyAnimeList
-- Nouveau bloc **MyAnimeList** dans Paramètres, à côté d'AniList : connectez-vous avec votre compte MAL.
-- Quand vous finissez un épisode d'anime, votre progression MAL est mise à jour (et l'anime passe en « Completed » au dernier épisode).
-- **Afficher ma liste MyAnimeList** : vos animes en cours, prévus et en pause, avec **Chercher dans mes sources**.
-- Pour se connecter, il faut créer une fois un « Client ID » sur myanimelist.net (les étapes sont affichées dans Paramètres).
-
-### Vérification hebdomadaire des sources
-- Chaque semaine, toutes les sources vidéo des dépôts sont testées automatiquement (liste → épisodes → vidéo).
-- Le résultat apparaît dans l'app : badge ✅ / 🟠 / ❌ sur les sources du catalogue et dans la page des sources.
-- Le pack de sources recommandées pour Films et Séries ajoute les sources qui fonctionnent cette semaine.
+Pour passer de la 0.9.0 à celle-ci : fermez simplement NovelReader et rouvrez-le (évitez le bouton de la bannière de la 0.9.0, qui affiche encore l'installeur). Ensuite, tout se fait tout seul.
 
 ### Installation
-Téléchargez `NovelReader-Setup-0.9.0.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».
+Téléchargez `NovelReader-Setup-0.9.1.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».

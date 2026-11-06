@@ -699,6 +699,15 @@ const FR: Record<string, string> = {
   'Show my MyAnimeList list': 'Afficher ma liste MyAnimeList',
   'Your MyAnimeList list is empty.': 'Votre liste MyAnimeList est vide.',
   'On hold': 'En pause',
+  'NovelReader has been updated to {v}.': 'NovelReader a été mis à jour en {v}.',
+  'OK': 'OK',
+  'Installing the update… NovelReader will reopen by itself.': 'Installation de la mise à jour… NovelReader va se rouvrir tout seul.',
+  'NovelReader {v} is ready. It installs by itself when you close the app.': 'NovelReader {v} est prêt. Il s\'installe tout seul quand vous fermez l\'app.',
+  'Restart now': 'Redémarrer maintenant',
+  'Version {v} is ready: it installs when you close NovelReader.': 'La version {v} est prête : elle s\'installe quand vous fermez NovelReader.',
+  'Installing the update…': 'Installation de la mise à jour…',
+  'Updates download in the background and install silently: no installer to run, nothing to uninstall, your library and settings stay.': 'Les mises à jour se téléchargent en arrière-plan et s\'installent en silence : aucun installeur à lancer, rien à désinstaller, votre bibliothèque et vos réglages restent.',
+  'Also install when the PC has been idle for 15 minutes (never during a video); NovelReader reopens by itself': 'Installer aussi quand le PC est inactif depuis 15 minutes (jamais pendant une vidéo) ; NovelReader se rouvre tout seul',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
