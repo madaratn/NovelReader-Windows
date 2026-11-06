@@ -3,15 +3,18 @@
 // episode, play / pause and position everywhere, with a small chat.
 // Connection: the free public PeerJS server only introduces the PCs (6-letter
 // code), then they talk directly (WebRTC). The host relays to every guest.
+// Voice channel: each person in it calls the others directly (audio only).
 import React,{useEffect,useRef,useState}from'react'
 import{t,plural}from'../i18n'
 import{lsGet,lsSet}from'../lib/util'
 
 export type PartyMedia={kind:'anime'|'series'|'movie',sourceId:string,sourceName?:string,url:string,name:string,cover?:string,id?:string}
 export type PartyState={media:PartyMedia|null,episodeUrl:string,episodeName:string,playing:boolean,time:number,rate:number,by:string}
-type Msg={t:'hello',name:string}|{t:'members',list:{id:string,name:string}[]}|{t:'state',s:PartyState}|{t:'chat',name:string,text:string,at:number}|{t:'bye'}
+type Member={id:string,name:string,voice?:boolean,muted?:boolean}
+type Msg={t:'hello',name:string}|{t:'members',list:Member[]}|{t:'state',s:PartyState}|{t:'chat',name:string,text:string,at:number}|{t:'voice',on:boolean,muted:boolean}|{t:'bye'}
 type Conn={id:string,send:(m:Msg)=>void,onMessage:(cb:(m:Msg)=>void)=>void,onClose:(cb:()=>void)=>void,close:()=>void}
-type Transport={host:(code:string,onConn:(c:Conn)=>void)=>Promise<void>,join:(code:string)=>Promise<Conn>,destroy:()=>void}
+type Call={peer:string,answer:(s:MediaStream)=>void,onStream:(cb:(s:MediaStream)=>void)=>void,onClose:(cb:()=>void)=>void,close:()=>void}
+type Transport={host:(code:string,onConn:(c:Conn)=>void)=>Promise<void>,join:(code:string)=>Promise<Conn>,destroy:()=>void,selfId:()=>string,call:(peer:string,s:MediaStream)=>Call,onCall:(cb:(c:Call)=>void)=>void}
 
 // ---- Transports ------------------------------------------------------------------
 const PREFIX='novelreader-wp-'
@@ -23,30 +26,46 @@ async function peerTransport():Promise<Transport>{
  return{
   host:(code,onConn)=>new Promise((res,rej)=>{peer=new Peer(PREFIX+code.toLowerCase(),{debug:0});peer.on('open',()=>res());peer.on('error',(e:any)=>rej(failure(e)));peer.on('connection',(c:any)=>c.on('open',()=>onConn(wrap(c))))}),
   join:code=>new Promise((res,rej)=>{peer=new Peer({debug:0});peer.on('error',(e:any)=>rej(failure(e)));peer.on('open',()=>{const c=peer.connect(PREFIX+code.toLowerCase(),{reliable:true});c.on('open',()=>res(wrap(c)));setTimeout(()=>rej(new Error(t('No answer from this watch party. Check the code with your friend.'))),15000)})}),
-  destroy:()=>{try{peer?.destroy()}catch{}peer=null}
+  destroy:()=>{try{peer?.destroy()}catch{}peer=null},
+  selfId:()=>String(peer?.id||''),
+  call:(id,stream)=>wrapCall(peer.call(id,stream)),
+  onCall:cb=>{peer.on('call',(mc:any)=>cb(wrapCall(mc)))}
  }
+ function wrapCall(mc:any):Call{return{peer:String(mc.peer),answer:st=>mc.answer(st),onStream:cb=>mc.on('stream',cb),onClose:cb=>{mc.on('close',cb);mc.on('error',cb)},close:()=>{try{mc.close()}catch{}}}}
 }
 // Tests: two windows of the same browser talk through a BroadcastChannel.
 function fakeTransport():Transport{
  let chans:BroadcastChannel[]=[]
- const me=Math.random().toString(36).slice(2,8)
+ let me=Math.random().toString(36).slice(2,8)
+ const sig=new BroadcastChannel('wp-voice');chans.push(sig)
+ const pcs=new Map<string,RTCPeerConnection>();let onCallCb:(c:Call)=>void=()=>{}
+ const mkCall=(peer:string,id:string,pc:RTCPeerConnection,incoming?:RTCSessionDescriptionInit):Call=>{let onS:(s:MediaStream)=>void=()=>{},onC:()=>void=()=>{};pc.ontrack=e=>onS(e.streams[0]);pc.onicecandidate=e=>{if(e.candidate)sig.postMessage({to:peer,from:me,id,ice:e.candidate.toJSON()})};pc.onconnectionstatechange=()=>{if(['closed','failed'].includes(pc.connectionState))onC()}
+  return{peer,answer:async st=>{for(const tr of st.getTracks())pc.addTrack(tr,st);await pc.setRemoteDescription(incoming!);const a=await pc.createAnswer();await pc.setLocalDescription(a);sig.postMessage({to:peer,from:me,id,answer:a})},onStream:cb=>{onS=cb},onClose:cb=>{onC=cb},close:()=>{pc.close();sig.postMessage({to:peer,from:me,id,bye:1});onC()}}}
+ sig.onmessage=async e=>{const d=e.data;if(d.to!==me)return;const pc=pcs.get(d.id)
+  if(d.offer){const p2=new RTCPeerConnection();pcs.set(d.id,p2);onCallCb(mkCall(d.from,d.id,p2,d.offer))}
+  else if(d.answer&&pc)await pc.setRemoteDescription(d.answer)
+  else if(d.ice&&pc)await pc.addIceCandidate(d.ice).catch(()=>{})
+  else if(d.bye&&pc){pc.close();pcs.delete(d.id)}}
  const pipe=(name:string,peerId:string):Conn=>{const ch=new BroadcastChannel(name);chans.push(ch);let onMsg:(m:Msg)=>void=()=>{},onClose:()=>void=()=>{};ch.onmessage=e=>{const d=e.data;if(d.from===me)return;if(d.bye)onClose();else onMsg(d.m)};return{id:peerId,send:m=>ch.postMessage({from:me,m}),onMessage:cb=>{onMsg=cb},onClose:cb=>{onClose=cb},close:()=>{ch.postMessage({from:me,bye:1});ch.close()}}}
  return{
-  host:async(code,onConn)=>{const lobby=new BroadcastChannel('wp-'+code);chans.push(lobby);lobby.onmessage=e=>{if(e.data?.knock){const c=pipe('wp-'+code+'-'+e.data.knock,e.data.knock);lobby.postMessage({welcome:e.data.knock});onConn(c)}}},
+  host:async(code,onConn)=>{me='host';const lobby=new BroadcastChannel('wp-'+code);chans.push(lobby);lobby.onmessage=e=>{if(e.data?.knock){const c=pipe('wp-'+code+'-'+e.data.knock,e.data.knock);lobby.postMessage({welcome:e.data.knock});onConn(c)}}},
   join:code=>new Promise((res,rej)=>{const lobby=new BroadcastChannel('wp-'+code);chans.push(lobby);const tm=setTimeout(()=>rej(new Error(t('No watch party with this code. Check the code with your friend.'))),1500);lobby.onmessage=e=>{if(e.data?.welcome===me){clearTimeout(tm);res(pipe('wp-'+code+'-'+me,'host'))}};lobby.postMessage({knock:me})}),
-  destroy:()=>{for(const c of chans)try{c.close()}catch{}chans=[]}
+  destroy:()=>{for(const p of pcs.values())p.close();pcs.clear();for(const c of chans)try{c.close()}catch{}chans=[]},
+  selfId:()=>me,
+  call:(peer,stream)=>{const id=Math.random().toString(36).slice(2);const pc=new RTCPeerConnection();pcs.set(id,pc);const c=mkCall(peer,id,pc);for(const tr of stream.getTracks())pc.addTrack(tr,stream);pc.createOffer().then(async o=>{await pc.setLocalDescription(o);sig.postMessage({to:peer,from:me,id,offer:o})});return c},
+  onCall:cb=>{onCallCb=cb}
  }
 }
 
 // ---- Party (one per window, survives page changes) -------------------------------
 type Chat={name:string,text:string,at:number,mine?:boolean,system?:boolean}
-type Snapshot={role:''|'host'|'guest',code:string,status:'idle'|'connecting'|'ready'|'error',error:string,members:{id:string,name:string}[],chat:Chat[],unread:number,state:PartyState|null,stateAt:number}
+type Snapshot={role:''|'host'|'guest',code:string,status:'idle'|'connecting'|'ready'|'error',error:string,members:Member[],chat:Chat[],unread:number,state:PartyState|null,stateAt:number,voice:'off'|'joining'|'on',muted:boolean,speaking:string[],voiceError:string,selfId:string}
 const CODE_CHARS='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const newCode=()=>Array.from({length:6},()=>CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)]).join('')
 export const partyName=()=>lsGet('partyName')||''
 
 class Party{
- snap:Snapshot={role:'',code:'',status:'idle',error:'',members:[],chat:[],unread:0,state:null,stateAt:0}
+ snap:Snapshot={role:'',code:'',status:'idle',error:'',members:[],chat:[],unread:0,state:null,stateAt:0,voice:'off',muted:false,speaking:[],voiceError:'',selfId:''}
  private subs=new Set<()=>void>()
  private transport:Transport|null=null
  private conns:Conn[]=[]
@@ -61,23 +80,25 @@ class Party{
  private system(text:string){this.addChat({name:'',text,at:Date.now(),system:true})}
  private addChat(c:Chat){this.set({chat:[...this.snap.chat,c].slice(-200),unread:this.panelOpen||c.mine||c.system?this.snap.unread:this.snap.unread+1})}
  async host(){
-  this.leave();this.myName=partyName()||t('Guest');this.set({role:'host',status:'connecting',error:'',members:[{id:'me',name:this.me()}],chat:[]})
-  for(let i=0;i<4;i++){const code=newCode();try{this.transport=await this.make();await this.transport.host(code,c=>this.accept(c));this.set({code,status:'ready'});this.system(t('Watch party created. Share the code {code}.',{code}));return}catch(e:any){this.transport?.destroy();if(e?.message!=='taken'){this.set({status:'error',error:String(e?.message||e),role:''});return}}}
+  this.leave();this.myName=partyName()||t('Guest');this.set({role:'host',status:'connecting',error:'',members:[],chat:[]})
+  for(let i=0;i<4;i++){const code=newCode();try{this.transport=await this.make();await this.transport.host(code,c=>this.accept(c));this.transport.onCall(c=>this.incoming(c));this.set({code,status:'ready',selfId:this.transport.selfId()});this.sendMembers();this.system(t('Watch party created. Share the code {code}.',{code}));return}catch(e:any){this.transport?.destroy();if(e?.message!=='taken'){this.set({status:'error',error:String(e?.message||e),role:''});return}}}
  }
  async join(code:string){
   const c=code.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');if(c.length!==6){this.set({status:'error',error:t('The code has 6 letters or numbers.')});return}
   this.leave();this.myName=partyName()||t('Guest');this.set({role:'guest',code:c,status:'connecting',error:'',chat:[]})
-  try{this.transport=await this.make();const conn=await this.transport.join(c);this.conns=[conn];conn.onMessage(m=>this.receive(m,conn));conn.onClose(()=>{if(this.snap.role==='guest')this.leave(t('The host closed the watch party.'))});conn.send({t:'hello',name:this.me()});this.set({status:'ready'})}
+  try{this.transport=await this.make();const conn=await this.transport.join(c);this.conns=[conn];conn.onMessage(m=>this.receive(m,conn));conn.onClose(()=>{if(this.snap.role==='guest')this.leave(t('The host closed the watch party.'))});this.transport.onCall(c=>this.incoming(c));conn.send({t:'hello',name:this.me()});this.set({status:'ready',selfId:this.transport.selfId()})}
   catch(e:any){this.transport?.destroy();this.transport=null;this.set({status:'error',error:String(e?.message||e),role:''})}
  }
  private accept(c:Conn){
   this.conns.push(c);c.onMessage(m=>this.receive(m,c))
-  c.onClose(()=>{this.conns=this.conns.filter(x=>x!==c);const n=this.names.get(c.id);this.names.delete(c.id);if(n)this.system(t('{name} left.',{name:n}));this.sendMembers()})
+  c.onClose(()=>{this.conns=this.conns.filter(x=>x!==c);const n=this.names.get(c.id);this.names.delete(c.id);this.voiceOf.delete(c.id);this.hangUp(c.id);if(n)this.system(t('{name} left.',{name:n}));this.sendMembers()})
  }
- private sendMembers(){const list=[{id:'me',name:this.me()},...this.conns.map(c=>({id:c.id,name:this.names.get(c.id)||'…'}))];this.set({members:list});for(const c of this.conns)c.send({t:'members',list})}
+ private voiceOf=new Map<string,{on:boolean,muted:boolean}>()
+ private sendMembers(){const self=this.transport?.selfId()||'me',mine={on:this.snap.voice==='on',muted:this.snap.muted};const list:Member[]=[{id:self,name:this.me(),voice:mine.on,muted:mine.muted},...this.conns.map(c=>({id:c.id,name:this.names.get(c.id)||'…',voice:!!this.voiceOf.get(c.id)?.on,muted:!!this.voiceOf.get(c.id)?.muted}))];this.set({members:list});for(const c of this.conns)c.send({t:'members',list})}
  private receive(m:Msg,from:Conn){
   if(m.t==='hello'&&this.snap.role==='host'){this.names.set(from.id,String(m.name||t('Guest')).slice(0,30));this.system(t('{name} joined.',{name:this.names.get(from.id)!}));this.sendMembers();if(this.snap.state)from.send({t:'state',s:this.snap.state})}
-  else if(m.t==='members'){this.set({members:m.list})}
+  else if(m.t==='members'){this.set({members:m.list});this.syncCalls()}
+  else if(m.t==='voice'&&this.snap.role==='host'){this.voiceOf.set(from.id,{on:!!m.on,muted:!!m.muted});if(!m.on)this.hangUp(from.id);this.sendMembers();this.syncCalls()}
   else if(m.t==='chat'){this.addChat({name:m.name,text:String(m.text).slice(0,500),at:m.at});if(this.snap.role==='host')this.relay(m,from)}
   else if(m.t==='state'){this.set({state:m.s,stateAt:Date.now()});this.onRemoteState?.(m.s);if(this.snap.role==='host')this.relay(m,from)}
  }
@@ -86,8 +107,45 @@ class Party{
  say(text:string){const x=text.trim().slice(0,500);if(!x||this.snap.status!=='ready')return;const m:Msg={t:'chat',name:this.me(),text:x,at:Date.now()};this.addChat({name:m.name,text:x,at:m.at,mine:true});this.broadcast(m)}
  share(s:Omit<PartyState,'by'>){if(this.snap.status!=='ready')return;const st={...s,by:this.me()};this.set({state:st,stateAt:Date.now()});this.broadcast({t:'state',s:st})}
  seen(){if(this.snap.unread)this.set({unread:0})}
- leave(error=''){for(const c of this.conns)c.close();this.conns=[];this.names.clear();this.transport?.destroy();this.transport=null;this.set({role:'',status:error?'error':'idle',error,members:[],state:null,code:''})}
+ // ---- Voice channel ----
+ private local:MediaStream|null=null
+ private calls=new Map<string,{call:Call,audio?:HTMLAudioElement}>()
+ private meter:any=null
+ private voiceMsg(){if(this.snap.role==='host'){this.sendMembers();this.syncCalls()}else this.broadcast({t:'voice',on:this.snap.voice==='on',muted:this.snap.muted})}
+ async voiceJoin(){
+  if(this.snap.status!=='ready'||this.snap.voice!=='off')return
+  this.set({voice:'joining',voiceError:''})
+  try{this.local=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false})}
+  catch(e:any){this.set({voice:'off',voiceError:/NotAllowed|Permission/i.test(String(e?.name||e))?t('The microphone is not allowed. Check Windows Settings › Privacy › Microphone.'):/NotFound/i.test(String(e?.name||e))?t('No microphone found.'):String(e?.message||e)});return}
+  this.set({voice:'on',muted:false});this.system(t('You joined the voice channel.'));this.voiceMsg();this.startMeter()
+  // Newcomer calls everyone already in the channel; they answer.
+  this.syncCalls(true)
+ }
+ private syncCalls(callOut=false){
+  if(this.snap.voice!=='on'||!this.local||!this.transport)return
+  const self=this.transport.selfId()
+  for(const m of this.snap.members){if(m.id===self)continue
+   if(m.voice&&!this.calls.has(m.id)&&callOut){this.track(this.transport.call(m.id,this.local))}
+   if(!m.voice&&this.calls.has(m.id))this.hangUp(m.id)}
+ }
+ private incoming(c:Call){if(this.snap.voice!=='on'||!this.local){c.close();return}this.hangUp(c.peer);c.answer(this.local);this.track(c)}
+ private track(c:Call){
+  const entry:{call:Call,audio?:HTMLAudioElement}={call:c};this.calls.set(c.peer,entry)
+  c.onStream(st=>{const a=entry.audio||document.createElement('audio');a.autoplay=true;a.dataset.wpVoice=c.peer;a.srcObject=st;a.volume=voiceVolume();if(!entry.audio){a.style.display='none';document.body.appendChild(a)}entry.audio=a;a.play().catch(()=>{});this.watch(c.peer,st)})
+  c.onClose(()=>{if(this.calls.get(c.peer)===entry)this.hangUp(c.peer)})
+ }
+ private hangUp(id:string){const e=this.calls.get(id);if(!e)return;this.calls.delete(id);try{e.call.close()}catch{}e.audio?.remove();this.levels.delete(id)}
+ setMuted(muted:boolean){if(!this.local)return;for(const tr of this.local.getAudioTracks())tr.enabled=!muted;this.set({muted});this.voiceMsg()}
+ setVolume(v:number){lsSet('partyVoiceVolume',String(v));for(const e of this.calls.values())if(e.audio)e.audio.volume=v}
+ voiceLeave(silent=false){for(const id of [...this.calls.keys()])this.hangUp(id);this.local?.getTracks().forEach(tr=>tr.stop());this.local=null;clearInterval(this.meter);this.meter=null;this.levels.clear();const was=this.snap.voice==='on';this.set({voice:'off',muted:false,speaking:[]});if(was&&!silent){this.system(t('You left the voice channel.'));this.voiceMsg()}}
+ // Who is speaking: audio level of each voice (and mine), checked 6 times a second.
+ private ctx:AudioContext|null=null
+ private levels=new Map<string,AnalyserNode>()
+ private watch(id:string,st:MediaStream){try{this.ctx=this.ctx||new AudioContext();const src=this.ctx.createMediaStreamSource(st),an=this.ctx.createAnalyser();an.fftSize=512;src.connect(an);this.levels.set(id,an)}catch{}}
+ private startMeter(){if(this.local)this.watch(this.transport?.selfId()||'me',this.local);const buf=new Uint8Array(512);this.meter=setInterval(()=>{const on:string[]=[];for(const[id,an]of this.levels){an.getByteTimeDomainData(buf);let peak=0;for(const v of buf)peak=Math.max(peak,Math.abs(v-128));if(peak>12&&!(id===this.snap.selfId&&this.snap.muted))on.push(id)}const cur=this.snap.speaking;if(on.length!==cur.length||on.some(x=>!cur.includes(x)))this.set({speaking:on})},160)}
+ leave(error=''){this.voiceLeave(true);for(const c of this.conns)c.close();this.conns=[];this.names.clear();this.transport?.destroy();this.transport=null;this.set({role:'',status:error?'error':'idle',error,members:[],state:null,code:'',selfId:''})}
 }
+export const voiceVolume=()=>{const v=Number(lsGet('partyVoiceVolume'));return isFinite(v)&&lsGet('partyVoiceVolume')!==null?Math.min(1,Math.max(0,v)):1}
 export const party=new Party()
 export function useParty(){const[,bump]=useState(0);useEffect(()=>party.subscribe(()=>bump(x=>x+1)),[]);return party.snap}
 
@@ -173,7 +231,10 @@ export function WatchPartyPanel(){
   </div>:<div className="wp-body">
    {snap.status==='connecting'?<p className="wp-help"><span className="spinner"/> {snap.role==='host'?t('Creating the watch party…'):t('Joining…')}</p>:<>
     <div className="wp-code"><span>{t('Code')}</span><b>{snap.code}</b><button onClick={()=>{navigator.clipboard?.writeText(snap.code).catch(()=>{});setCopied(true);setTimeout(()=>setCopied(false),2000)}}>{copied?'✓':t('Copy')}</button></div>
-    <div className="wp-members">{plural(snap.members.length,'{n} person','{n} people')}: {snap.members.map(m=>m.name).join(', ')}</div>
+    <div className="wp-members" aria-label={plural(snap.members.length,'{n} person','{n} people')}>{snap.members.map(m=><span key={m.id} className={'wp-member'+(m.voice?' in-voice':'')+(snap.speaking.includes(m.id)?' speaking':'')} title={m.voice?(m.muted?t('In the voice channel (muted)'):t('In the voice channel')):''}>{m.voice?(m.muted?'🔇 ':'🎙 '):''}{m.name}{m.id===snap.selfId?' ('+t('you')+')':''}</span>)}</div>
+    <div className="wp-voice">{snap.voice==='off'?<button onClick={()=>party.voiceJoin()}>{'🎙 '+t('Join the voice channel')}</button>:snap.voice==='joining'?<span className="wp-help">{t('Allowing the microphone…')}</span>:<><button className={snap.muted?'danger':''} aria-pressed={snap.muted} onClick={()=>party.setMuted(!snap.muted)}>{snap.muted?'🔇 '+t('Unmute'):'🎙 '+t('Mute')}</button><label className="wp-vol" title={t('Volume of the voices')}>🔊<input type="range" min={0} max={1} step={0.05} defaultValue={voiceVolume()} onChange={e=>party.setVolume(Number(e.target.value))} aria-label={t('Volume of the voices')}/></label><button className="removebtn" onClick={()=>party.voiceLeave()}>{t('Leave the voice channel')}</button></>}</div>
+    {snap.voiceError&&<p className="wp-error" role="alert">{snap.voiceError}</p>}
+    {snap.voice==='on'&&<p className="wp-hint">{t('Tip: use headphones so the film does not come back through your microphone.')}</p>}
     {snap.state?.media?<div className="wp-now">▶ {snap.state.media.name}{snap.state.episodeName&&snap.state.media.kind!=='movie'?' · '+snap.state.episodeName:''}</div>:<div className="wp-now muted">{t('Open an episode: everyone will follow.')}</div>}
     <div className="wp-chat" ref={chatRef}>{snap.chat.map((c,i)=><div key={i} className={'wp-msg'+(c.mine?' mine':'')+(c.system?' system':'')}>{c.system?c.text:<><b>{c.name}</b> {c.text}</>}</div>)}</div>
     <form className="wp-say" onSubmit={e=>{e.preventDefault();party.say(text);setText('')}}><input value={text} onChange={e=>setText(e.target.value)} placeholder={t('Message…')} aria-label={t('Message')}/><button type="submit" disabled={!text.trim()}>{t('Send')}</button></form>

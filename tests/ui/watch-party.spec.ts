@@ -38,6 +38,8 @@ async function pc(context: BrowserContext, library: any[]) {
 }
 const video = (p: Page) => p.locator('.media-player-top video')
 
+test.use({ launchOptions: { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] } })
+
 test('watch party: create, join with the code, same episode, pause and position follow, chat, end', async ({ context }) => {
   const a = await pc(context, [series(1, 'Lanterns')])
   const b = await pc(context, []) // the guest does not even have the title in their library
@@ -52,8 +54,8 @@ test('watch party: create, join with the code, same episode, pause and position 
   await b.locator('.wp-field input').fill('Sara')
   await b.locator('.wp-join input').fill(code.toLowerCase())
   await b.getByRole('button', { name: 'Join' }).click()
-  await expect(a.locator('.wp-members')).toHaveText('2 people: Ali, Sara')
-  await expect(b.locator('.wp-members')).toHaveText('2 people: Ali, Sara')
+  await expect(a.locator('.wp-member')).toHaveText(['Ali (you)', 'Sara'])
+  await expect(b.locator('.wp-member')).toHaveText(['Ali', 'Sara (you)'])
   await expect(a.locator('.wp-chat')).toContainText('Sara joined.')
   // The host opens episode 2: the guest's window follows
   await a.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
@@ -87,4 +89,31 @@ test('watch party: wrong code', async ({ context }) => {
   await b.locator('.wp-join input').fill('ZZZZZZ')
   await b.getByRole('button', { name: 'Join' }).click()
   await expect(b.locator('.wp-error')).toHaveText('No watch party with this code. Check the code with your friend.')
+})
+
+test('watch party voice channel: join, hear each other, mute, leave', async ({ context }) => {
+  const a = await pc(context, []), b = await pc(context, [])
+  await a.locator('.wp-open').click(); await a.locator('.wp-field input').fill('Ali')
+  await a.getByRole('button', { name: 'Start a watch party' }).click()
+  const code = (await a.locator('.wp-code b').innerText()).trim()
+  await b.locator('.wp-open').click(); await b.locator('.wp-field input').fill('Sara')
+  await b.locator('.wp-join input').fill(code); await b.getByRole('button', { name: 'Join' }).click()
+  await expect(a.locator('.wp-member')).toHaveCount(2)
+  // Ali joins first, then Sara: Sara calls Ali
+  await a.getByRole('button', { name: /Join the voice channel/ }).click()
+  await expect(b.locator('.wp-member', { hasText: 'Ali' })).toHaveText('🎙 Ali')
+  await b.getByRole('button', { name: /Join the voice channel/ }).click()
+  await expect(a.locator('.wp-member', { hasText: 'Sara' })).toHaveText('🎙 Sara')
+  // Each side receives the other's microphone
+  const live = (p: Page) => p.evaluate(() => { const el = document.querySelector('audio[data-wp-voice]') as HTMLAudioElement | null; const st = el?.srcObject as MediaStream | null; return !!st && st.getAudioTracks().some(t => t.readyState === 'live') })
+  await expect.poll(() => live(a), { timeout: 15_000 }).toBe(true)
+  await expect.poll(() => live(b), { timeout: 15_000 }).toBe(true)
+  // Mute shows on the other side
+  await b.getByRole('button', { name: /Mute/ }).click()
+  await expect(a.locator('.wp-member', { hasText: 'Sara' })).toHaveText('🔇 Sara')
+  // Leaving hangs up on both sides
+  await b.getByRole('button', { name: 'Leave the voice channel' }).click()
+  await expect(a.locator('.wp-member', { hasText: 'Sara' })).toHaveText('Sara')
+  await expect.poll(() => a.evaluate(() => document.querySelectorAll('audio[data-wp-voice]').length)).toBe(0)
+  await expect(b.locator('.wp-chat')).toContainText('You left the voice channel.')
 })

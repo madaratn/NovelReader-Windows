@@ -3,6 +3,7 @@ import { setup } from './helpers'
 
 // Real connection through the public PeerJS server (needs internet): run with LIVE_PEER=1.
 test.skip(!process.env.LIVE_PEER, 'needs internet (LIVE_PEER=1)')
+test.use({ launchOptions: { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] } })
 
 async function pc(context: BrowserContext) {
   const page = await context.newPage()
@@ -25,13 +26,20 @@ test('live watch party over PeerJS: create, join, chat both ways', async ({ brow
   await b.locator('.wp-field input').fill('Sara')
   await b.locator('.wp-join input').fill(code)
   await b.getByRole('button', { name: 'Join' }).click()
-  await expect(a.locator('.wp-members')).toHaveText('2 people: Ali, Sara', { timeout: 30_000 })
+  await expect(a.locator('.wp-member')).toHaveText(['Ali (you)', 'Sara'], { timeout: 30_000 })
   await b.locator('.wp-say input').fill('hello from B')
   await b.locator('.wp-say input').press('Enter')
   await expect(a.locator('.wp-chat')).toContainText('Sara hello from B', { timeout: 15_000 })
   await a.locator('.wp-say input').fill('hi from A')
   await a.locator('.wp-say input').press('Enter')
   await expect(b.locator('.wp-chat')).toContainText('Ali hi from A', { timeout: 15_000 })
+  // Voice over the real connection: both receive a live microphone track
+  await a.getByRole('button', { name: /Join the voice channel/ }).click()
+  await expect(b.locator('.wp-member', { hasText: 'Ali' })).toHaveText('🎙 Ali', { timeout: 15_000 })
+  await b.getByRole('button', { name: /Join the voice channel/ }).click()
+  const live = (p: any) => p.evaluate(() => { const el = document.querySelector('audio[data-wp-voice]') as HTMLAudioElement | null; const st = el?.srcObject as MediaStream | null; return !!st && st.getAudioTracks().some(t => t.readyState === 'live') })
+  await expect.poll(() => live(a), { timeout: 30_000 }).toBe(true)
+  await expect.poll(() => live(b), { timeout: 30_000 }).toBe(true)
   await a.getByRole('button', { name: 'End the watch party' }).click()
   await expect(b.locator('.wp-error')).toHaveText('The host closed the watch party.', { timeout: 15_000 })
 })
