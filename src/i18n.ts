@@ -652,6 +652,20 @@ const FR: Record<string, string> = {
   'Sections for {name}': 'Sections de {name}',
   'Sections where this source is used. Click to change.': 'Sections où cette source est utilisée. Clique pour changer.',
   'Back to automatic': 'Revenir au réglage automatique',
+  'The microphone is not allowed. Check Windows Settings › Privacy › Microphone.': 'Le micro n’est pas autorisé. Vérifie Paramètres Windows › Confidentialité › Microphone.',
+  'No microphone found.': 'Aucun micro trouvé.',
+  'You joined the voice channel.': 'Tu as rejoint le vocal.',
+  'You left the voice channel.': 'Tu as quitté le vocal.',
+  'In the voice channel (muted)': 'Dans le vocal (micro coupé)',
+  'In the voice channel': 'Dans le vocal',
+  'you': 'toi',
+  'Join the voice channel': 'Rejoindre le vocal',
+  'Allowing the microphone…': 'Autorisation du micro…',
+  'Unmute': 'Activer le micro',
+  'Mute': 'Couper le micro',
+  'Volume of the voices': 'Volume des voix',
+  'Leave the voice channel': 'Quitter le vocal',
+  'Tip: use headphones so the film does not come back through your microphone.': 'Astuce : mets un casque pour que le son du film ne repasse pas dans ton micro.',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
