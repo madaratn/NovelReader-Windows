@@ -15,3 +15,12 @@ export function episodeNo(ep:any,fallback:number){const n=Number(ep?.number??ep?
 export function seasonNo(ep:any){const direct=Number(ep?.season??ep?.seasonNumber??ep?.season_number);if(Number.isFinite(direct))return direct;const text=String(ep?.name||ep?.title||'');const m=text.match(/season\s*(\d+)/i)||text.match(/\bS(\d+)\s*E\d+/i);return m?Number(m[1]):1}
 export function orderedEpisodes(list:any[]=[]){return list.map((ep,i)=>({ep,s:seasonNo(ep),n:episodeNo(ep,i+1),i})).sort((a,b)=>a.s-b.s||a.n-b.n||a.i-b.i).map(x=>x.ep)}
 
+
+// ---- Watch statistics (per day: seconds watched, episodes finished) ----------
+export type WatchDay={s:number,e:number}
+const dayKeyOf=(d=new Date())=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')
+export function readWatchStats():Record<string,WatchDay>{try{return JSON.parse(localStorage.getItem('watchStats')||'{}')||{}}catch{return{}}}
+export function bumpWatch(patch:{s?:number,e?:number}){try{const all=readWatchStats(),k=dayKeyOf(),d=all[k]||{s:0,e:0};d.s=Math.round((d.s||0)+(patch.s||0));d.e=(d.e||0)+(patch.e||0);all[k]=d;const keys=Object.keys(all).sort();for(const old of keys.slice(0,Math.max(0,keys.length-400)))delete all[old];localStorage.setItem('watchStats',JSON.stringify(all))}catch{}}
+export const watchDayKey=dayKeyOf
+/** Number of watched episodes saved for a title (mediapos:<prefix><id>:<episode> with done). */
+export function watchedCount(prefix:string,id:string){let n=0;try{const start='mediapos:'+prefix+id+':';for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i)!;if(k.startsWith(start)){try{if(JSON.parse(localStorage.getItem(k)||'null')?.done)n++}catch{}}}}catch{}return n}

@@ -4,13 +4,13 @@ import React,{useEffect,useRef,useState}from'react'
 import{t,plural,getLang}from'../i18n'
 import{lsGet,lsSet,timeAgo}from'../lib/util'
 import{Cover,NoticeText}from'../ui/common'
-import{mediaPosKey,readMediaPos,mediaNorm,mediaCover,enrichMediaCover,episodeNo,seasonNo,orderedEpisodes,cleanEngineError,type MediaKind}from'../lib/media'
+import{mediaPosKey,readMediaPos,mediaNorm,mediaCover,enrichMediaCover,episodeNo,seasonNo,orderedEpisodes,cleanEngineError,readWatchStats,watchDayKey,watchedCount,type MediaKind}from'../lib/media'
 // ---- Media libraries: mirror the polished Books library UX -----------------
 export function MediaLibrary({kind,items,onChange,onOpen,onSearch,loading,onResumeIntent}:{kind:'Anime'|'Series'|'Movie',items:any[],onChange:(x:any[])=>void,onOpen?:(x:any)=>void,onSearch:()=>void,loading?:boolean,onResumeIntent?:(a:any,epUrl:string)=>void}){
  const[filter,setFilter]=useState(''),[sort,setSort]=useState<'recent'|'title'>(()=>(lsGet('mediaSort:'+kind) as any)||'recent'),[undo,setUndo]=useState<{item:any,index:number}|null>(null)
  useEffect(()=>{if(!undo)return;const t=setTimeout(()=>setUndo(null),7000);return()=>clearTimeout(t)},[undo])
  const storeKey=kind==='Anime'?'animeLibrary':kind==='Series'?'seriesLibrary':'movieLibrary'
- const save=(next:any[])=>{onChange(next);localStorage.setItem(storeKey,JSON.stringify(next))}
+ const save=(next:any[])=>{onChange(next);localStorage.setItem(storeKey,JSON.stringify(next));window.dispatchEvent(new Event('nr-media-changed'))}
  const epCount=(a:any)=>Array.isArray(a?.episodes)?a.episodes.length:Number(a?.episodeCount||a?.episodes||0)
  // "Continue watching": the title whose episode was played most recently.
  const keyPrefix=kind==='Anime'?'anime:':kind==='Series'?'series:':'movie:'
@@ -25,7 +25,7 @@ export function MediaLibrary({kind,items,onChange,onOpen,onSearch,loading,onResu
  const VSHELVES=[{id:'watching',label:t('Watching')},{id:'plan',label:t('Plan to watch')},{id:'completed',label:t('Completed')},{id:'dropped',label:t('Dropped')}]
  const shelfOf=(a:any)=>VSHELVES.some(x=>x.id===a.shelf)?a.shelf:(lsGet('lastEpInfo:'+String(a.id||a.url||a.name))?'watching':'plan')
  const[shelf,setShelf]=useState<string>(()=>lsGet('mediaShelf:'+kind)||'all')
- const setItemShelf=(a:any,v:string)=>save(items.map(x=>x===a?{...x,shelf:v}:x))
+ const setItemShelf=(a:any,v:string)=>save(items.map(x=>x===a?{...x,shelf:v,shelfAt:Date.now()}:x))
  const counts:Record<string,number>={};for(const a of items){const k=shelfOf(a);counts[k]=(counts[k]||0)+1}
  // Missing covers: ask the source for the details of up to 6 titles per visit.
  const coverTried=useRef(new Set<string>())
@@ -34,20 +34,59 @@ export function MediaLibrary({kind,items,onChange,onOpen,onSearch,loading,onResu
   return()=>{alive=false}},[items.length])
  const q=filter.trim().toLowerCase()
  const shown=items.filter((x:any)=>shelf==='all'||shelfOf(x)===shelf).filter(x=>(kind==='Anime'||!/streamingunity|streamingcommunity/i.test(String(x.sourceName||x.source||'')))&&(!q||String((x.name||x.title||'')+' '+(x.sourceName||x.source||'')).toLowerCase().includes(q))).sort((a,b)=>sort==='title'?String(a.name||a.title||'').localeCompare(String(b.name||b.title||'')):(b.addedAt||0)-(a.addedAt||0))
- const remove=(item:any)=>{const index=items.indexOf(item);const next=items.filter(x=>x!==item);onChange(next);localStorage.setItem(kind==='Anime'?'animeLibrary':kind==='Series'?'seriesLibrary':'movieLibrary',JSON.stringify(next));setUndo({item,index})}
- const restore=()=>{if(!undo)return;const next=[...items];next.splice(Math.min(undo.index,next.length),0,undo.item);onChange(next);localStorage.setItem(kind==='Anime'?'animeLibrary':kind==='Series'?'seriesLibrary':'movieLibrary',JSON.stringify(next));setUndo(null)}
+ const remove=(item:any)=>{const index=items.indexOf(item);const next=items.filter(x=>x!==item);try{const rm=JSON.parse(localStorage.getItem('mediaRemoved')||'{}');rm[storeKey+':'+item.id]=Date.now();localStorage.setItem('mediaRemoved',JSON.stringify(rm))}catch{}save(next);setUndo({item,index})}
+ const restore=()=>{if(!undo)return;const next=[...items];next.splice(Math.min(undo.index,next.length),0,{...undo.item,addedAt:Date.now()});save(next);setUndo(null)}
  return <div className="media-page books-ui"><header><div><h1>{kind==='Anime'?t('Anime Library'):kind==='Series'?t('Series Library'):t('Movie Library')}</h1><p>{kind==='Anime'?plural(items.length,'{n} anime saved on this PC.','{n} anime saved on this PC.'):kind==='Series'?plural(items.length,'{n} series saved on this PC.','{n} series saved on this PC.'):plural(items.length,'{n} movie saved on this PC.','{n} movies saved on this PC.')}</p></div></header>
  {items.length===0?<section className="panel lib-empty"><h2>{t('Your library is empty')}</h2><p>{t('Use Global Search to find a title and add it to your library.')}</p><button className="primary" onClick={onSearch}>{t('Open Global Search')}</button></section>:<>
   {last&&!q&&<section className="lib-resume" onClick={()=>resume(last)}><Cover src={mediaCover(last.a)} name={last.a.name||last.a.title||kind}/><div className="lib-resume-meta"><small>{t('Continue where you left off')} · {timeAgo(last.info.at)}</small><h2>{last.a.name||last.a.title}</h2><p>{[kind==='Movie'?'':(last.info.name||t('Episode {n}',{n:last.info.n})),last.pos&&!last.pos.done?t('stopped at {time}',{time:fmt(last.pos.t)}):last.pos?.done?t('finished'):''].filter(Boolean).join(' · ')}</p>{last.pos&&last.pos.d>0&&<div className="libbar"><span style={{width:Math.min(100,last.pos.t/last.pos.d*100)+'%'}}/></div>}</div><button className="primary" onClick={e=>{e.stopPropagation();resume(last)}}>{kind==='Movie'?t('Resume the movie'):t('Continue · Ep. {n}',{n:last.info.n||1})}</button></section>}
+  {!q&&<WatchStats/>}
   <div className="shelftabs" role="tablist" aria-label={t('Shelves')}>{[{id:'all',label:t('All'),n:items.length},...VSHELVES.map(x=>({...x,n:counts[x.id]||0}))].map(x=><button key={x.id} role="tab" aria-selected={shelf===x.id} className={'shelftab'+(shelf===x.id?' on':'')} onClick={()=>{setShelf(x.id);lsSet('mediaShelf:'+kind,x.id)}}>{x.label} <small>{x.n}</small></button>)}</div>
   <div className="lib-toolbar"><div className="searchbar"><input placeholder={t('Filter by title or source…')} value={filter} onChange={e=>setFilter(e.target.value)} aria-label={t('Filter by title or source…')}/></div>{kind!=='Movie'&&<button className="lib-update" disabled={upd.running} onClick={checkNew}>{upd.running?t('Checking {done}/{total}…',{done:upd.done,total:upd.total}):t('Check for new episodes')}</button>}<label className="lib-sort">{t('Sort')}<select value={sort} onChange={e=>{const v=e.target.value as 'recent'|'title';setSort(v);lsSet('mediaSort:'+kind,v)}}><option value="recent">{t('Recently added')}</option><option value="title">{t('Title A–Z')}</option></select></label></div>
   {!upd.running&&upd.at>0&&<p className="lib-update-status" role="status">{upd.found?plural(upd.found,'{n} title has new episodes.','{n} titles have new episodes.'):t('Everything is up to date.')}{upd.failed?' '+plural(upd.failed,'{n} source did not answer.','{n} sources did not answer.'):''}</p>}
-  {shown.length===0?<section className="panel"><p>{t('No title matches “{q}”.',{q:filter})}</p></section>:<section className="libgrid">{shown.map((a:any)=><article className="libcard" key={a.id}><button className="libcard-cover" onClick={()=>open(a)} disabled={!onOpen} aria-label={t('Open {name}',{name:a.name||a.title})}><Cover src={mediaCover(a)} name={a.name||a.title||kind}/></button><div className="libcard-meta"><h2 title={a.name||a.title}><button className="libtitle" onClick={()=>open(a)} disabled={!onOpen}>{a.name||a.title}</button></h2>{Number(a.newEpisodes)>0&&<span className="newbadge">{t('+{n} new',{n:a.newEpisodes})}</span>}<p>{a.sourceName||a.source||kind}</p><small>{[kind!=='Movie'?plural(Number(Array.isArray(a.episodes)?a.episodes.length:(a.episodeCount||a.episodes||0)),'{n} episode','{n} episodes'):'',a.addedAt?t('added {when}',{when:timeAgo(a.addedAt)}):''].filter(Boolean).join(' · ')}</small><div className="libraryactions">{onOpen&&<button className="primary" disabled={loading} onClick={()=>open(a)}>{loading?t('Loading…'):kind==='Movie'?t('Watch the movie'):t('Show episodes')}</button>}<select className="shelfselect" value={shelfOf(a)} aria-label={t('Shelf')} title={t('Shelf')} onChange={e=>setItemShelf(a,e.target.value)}>{VSHELVES.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select><button className="removebtn" onClick={()=>remove(a)}>{t('Remove')}</button></div></div></article>)}</section>}
+  {shown.length===0?<section className="panel"><p>{t('No title matches “{q}”.',{q:filter})}</p></section>:<section className="libgrid">{shown.map((a:any)=><article className="libcard" key={a.id}><button className="libcard-cover" onClick={()=>open(a)} disabled={!onOpen} aria-label={t('Open {name}',{name:a.name||a.title})}><Cover src={mediaCover(a)} name={a.name||a.title||kind}/></button><div className="libcard-meta"><h2 title={a.name||a.title}><button className="libtitle" onClick={()=>open(a)} disabled={!onOpen}>{a.name||a.title}</button></h2>{Number(a.newEpisodes)>0&&<span className="newbadge">{t('+{n} new',{n:a.newEpisodes})}</span>}<p>{a.sourceName||a.source||kind}</p><small>{[kind!=='Movie'?plural(Number(Array.isArray(a.episodes)?a.episodes.length:(a.episodeCount||a.episodes||0)),'{n} episode','{n} episodes')+((n=>n?' · '+t('{n} watched',{n}):'')(watchedCount(keyPrefix,String(a.id||a.url||a.name)))):'',a.addedAt?t('added {when}',{when:timeAgo(a.addedAt)}):''].filter(Boolean).join(' · ')}</small><div className="libraryactions">{onOpen&&<button className="primary" disabled={loading} onClick={()=>open(a)}>{loading?t('Loading…'):kind==='Movie'?t('Watch the movie'):t('Show episodes')}</button>}<select className="shelfselect" value={shelfOf(a)} aria-label={t('Shelf')} title={t('Shelf')} onChange={e=>setItemShelf(a,e.target.value)}>{VSHELVES.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select><button className="removebtn" onClick={()=>remove(a)}>{t('Remove')}</button></div></div></article>)}</section>}
  </>}
  {undo&&<div className="anime-toast ok lib-undo" role="status"><span>{t('Removed “{name}”.',{name:undo.item.name||undo.item.title})}</span><div><button className="undo-btn" onClick={restore}>{t('Undo')}</button><button aria-label={t('Dismiss')} onClick={()=>setUndo(null)}>×</button></div></div>}
  </div>
 }
 
+
+
+// ---- Watch statistics (shared by Anime / Series / Movies) ------------------------
+const fmtWatch=(sec:number)=>{const m=Math.round(sec/60);if(m<60)return t('{n} min',{n:m});const h=Math.floor(m/60),r=m%60;return r?t('{h} h {m} min',{h,m:r}):t('{h} h',{h})}
+export function WatchStats(){
+ const[open,setOpen]=useState(()=>lsGet('watchStatsOpen')!=='0'),[hover,setHover]=useState<number|null>(null)
+ const all=readWatchStats()
+ if(!Object.keys(all).length)return null
+ const days=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));const k=watchDayKey(d);return{date:d,key:k,s:all[k]?.s||0,e:all[k]?.e||0}})
+ const week={s:days.reduce((a,d)=>a+d.s,0),e:days.reduce((a,d)=>a+d.e,0)}
+ let streak=0;{const d=new Date();if((all[watchDayKey(d)]?.s||0)<60)d.setDate(d.getDate()-1);for(;;){const x=all[watchDayKey(d)];if(x&&x.s>=60){streak++;d.setDate(d.getDate()-1)}else break}}
+ const max=Math.max(60,...days.map(d=>d.s))
+ const label=(d:typeof days[number])=>d.date.toLocaleDateString(getLang(),{weekday:'long',day:'numeric',month:'short'})+' · '+fmtWatch(d.s)+(d.e?' · '+plural(d.e,'{n} episode','{n} episodes'):'')
+ return <section className="panel stats">
+  <button className="stats-head" aria-expanded={open} onClick={()=>{setOpen(!open);lsSet('watchStatsOpen',open?'0':'1')}}><span>{t('Your watching this week')}</span><small>{fmtWatch(week.s)} · {plural(week.e,'{n} episode','{n} episodes')}</small><span className="stats-chev" aria-hidden="true">{open?'▴':'▾'}</span></button>
+  {open&&<div className="stats-body">
+   <div className="stats-tiles"><div><b>{fmtWatch(week.s)}</b><small>{t('watched in 7 days')}</small></div><div><b>{week.e}</b><small>{t('episodes finished in 7 days')}</small></div><div><b>{streak}</b><small>{plural(streak,'day in a row','days in a row')}</small></div></div>
+   <figure className="stats-chart" aria-label={t('Time watched per day, last 7 days')}><div className="stats-bars" onMouseLeave={()=>setHover(null)}>{days.map((d,i)=><button key={d.key} className={'stats-bar'+(hover===i?' on':'')} onMouseEnter={()=>setHover(i)} onFocus={()=>setHover(i)} onBlur={()=>setHover(null)} aria-label={label(d)}><span className="stats-fill" style={{height:d.s?Math.max(4,d.s/max*100)+'%':'0'}}/><span className="stats-day">{d.date.toLocaleDateString(getLang(),{weekday:'short'})}</span></button>)}</div>{hover!=null&&<div className="stats-tip" role="status" style={{left:((hover+0.5)/7*100)+'%'}}>{label(days[hover])}</div>}</figure>
+  </div>}
+ </section>
+}
+
+// ---- Episode list with watched marks ------------------------------------------
+export function EpisodeGrid({eps,prefix,mediaId,selected,disabled,onPlay,renderExtra}:{eps:any[],prefix:string,mediaId:string,selected:any,disabled?:boolean,onPlay:(ep:any)=>void,renderExtra?:(ep:any)=>any}){
+ const[,bump]=useState(0)
+ useEffect(()=>{const f=()=>bump(x=>x+1);window.addEventListener('nr-watched',f);window.addEventListener('nr-media-synced',f);return()=>{window.removeEventListener('nr-watched',f);window.removeEventListener('nr-media-synced',f)}},[])
+ const keyOf=(ep:any,i:number)=>prefix+mediaId+':'+String(ep.url||ep.path||ep.number||ep.name||i)
+ const posOf=(ep:any,i:number)=>readMediaPos(keyOf(ep,i))
+ const setWatched=(list:{ep:any,i:number}[],on:boolean)=>{for(const {ep,i} of list){const k=mediaPosKey(keyOf(ep,i));if(on)localStorage.setItem(k,JSON.stringify({t:0,d:0,done:true,at:Date.now()}));else localStorage.removeItem(k)}window.dispatchEvent(new Event('nr-media-changed'));bump(x=>x+1)}
+ const watched=eps.filter((ep,i)=>posOf(ep,i)?.done).length
+ const all=eps.map((ep,i)=>({ep,i}))
+ return <>
+  <div className="episode-tools"><small>{t('{n} / {total} watched',{n:watched,total:eps.length})}</small>{eps.length>0&&<button onClick={()=>setWatched(all,watched<eps.length)}>{watched<eps.length?t('Mark all as watched'):t('Mark all as unwatched')}</button>}</div>
+  <div className="episodegrid">{eps.map((ep:any,i:number)=>{const label=ep.name||ep.title||t('Episode {n}',{n:episodeNo(ep,i+1)}),active=selected===ep,pos=posOf(ep,i),done=!!pos?.done,pct=!done&&pos&&pos.d>0?Math.min(100,pos.t/pos.d*100):0
+   return <div className="episodecell" key={(ep.url||ep.path||ep.name||'ep')+i}><button className={'episodecard'+(active?' active':'')+(done?' watched':'')} disabled={disabled} onClick={()=>onPlay(ep)}><span className="episodebadge">S{seasonNo(ep)}<b>E{episodeNo(ep,i+1)}</b></span><span className="episodetitle">{label}</span><span className="episodeplay">{active?'▶':'▷'}</span>{pct>0&&<span className="episodeprog" style={{width:pct+'%'}}/>}</button>
+    <button className={'ep-watch'+(done?' on':'')} aria-pressed={done} title={done?t('Mark as unwatched'):t('Mark as watched (and the previous ones with Shift)')} aria-label={done?t('Mark as unwatched'):t('Mark as watched')} onClick={e=>setWatched(e.shiftKey&&!done?all.slice(0,i+1):[{ep,i}],!done)}>{done?'✓':''}</button>{renderExtra?.(ep)}</div>})}</div>
+ </>
+}
 
 // ---- Video sources: test installed extensions and remove the dead ones ----------
 export function VideoSourceHealth(){
