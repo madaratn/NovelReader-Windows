@@ -54,6 +54,7 @@ export function useTvAndGamepad(goBack:()=>void,openSearch:()=>void){
   // Game controllers (polled only while one is connected).
   let raf=0,prev:boolean[]=[],repeatAt:Record<string,number>={}
   const press=(i:number)=>{
+   window.dispatchEvent(new Event('nr-user-input')) // a controller press counts as the user acting (watch party)
    const el=document.activeElement as HTMLElement|null
    if(i===0){ // A
     if(el&&el!==document.body&&!(el instanceof HTMLVideoElement)){if(el.tagName==='SELECT'){(el as any).showPicker?.()}else el.click()}
