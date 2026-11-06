@@ -13,6 +13,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout NovelReader engine patches
+        uses: actions/checkout@v4
+        with:
+          path: nr
+          sparse-checkout: scripts/engine-patches
+
       - name: Checkout Miwayomi v0.2.9
         uses: actions/checkout@v4
         with:
@@ -722,6 +728,10 @@ jobs:
           if marker not in s:
               raise SystemExit("videos response anchor not found")
           p.write_text(s.replace(marker, replacement, 1))
+
+      - name: Compatibility with newer extensions (scripts/engine-patches/v16_compat.py)
+        shell: bash
+        run: python3 nr/scripts/engine-patches/v16_compat.py miwayomi
 
       - name: Build patched fat JAR
         working-directory: miwayomi

@@ -1,0 +1,74 @@
+name: Video source scan
+# Starts the patched video engine and checks every movie / series / anime source
+# of the repositories end to end (list -> episodes -> streams). Results in the run
+# summary and as an artifact. Runs from GitHub's network: a site that blocks
+# data centers can still work at home.
+on:
+  workflow_dispatch:
+    inputs:
+      repos:
+        description: Repository index URLs (space separated)
+        default: https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json https://raw.githubusercontent.com/salmanbappi/extensions-repo/main/index.min.json https://raw.githubusercontent.com/msrofficial/anime-repo/repo/index.min.json
+      langs:
+        description: Languages to test
+        default: all,en,fr
+      only:
+        description: Only these sources (comma separated, empty = all)
+        default: ''
+      engine_run:
+        description: Use the engine built by this "Build patched Miwayomi engine" run id (empty = released engine)
+        default: ''
+      java_opts:
+        description: Extra JVM options for the engine
+        default: -Dcom.sun.security.enableAIAcaIssuers=true
+  push:
+    branches: ['claude/source-scan']
+    paths: ['scripts/source-scan.mjs', '.github/workflows/source-scan.yml']
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download the patched engine
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -n "${{ inputs.engine_run }}" ]; then
+            gh run download "${{ inputs.engine_run }}" -R "$GITHUB_REPOSITORY" -n novelreader-miwayomi-v0.2.9-stackframes -D .
+          else
+            curl -fsSL -o miwayomi-all.jar https://github.com/madaratn/NovelReader-Windows/releases/download/miwayomi-v0.2.9-novelreader/miwayomi-all.jar
+          fi
+          ls -la miwayomi-all.jar
+      - name: Start the engine
+        run: |
+          mkdir -p data
+          nohup java ${{ inputs.java_opts || '-Dcom.sun.security.enableAIAcaIssuers=true' }} -jar miwayomi-all.jar --host 127.0.0.1 --port 4567 --no-open --data "$PWD/data" > engine.log 2>&1 &
+          for i in $(seq 1 90); do curl -fs http://127.0.0.1:4567/api/v1/health && break; sleep 2; done
+      - name: Scan
+        env:
+          LANGS: ${{ inputs.langs || 'all,en,fr' }}
+          ONLY: ${{ inputs.only || '' }}
+        run: node scripts/source-scan.mjs ${{ inputs.repos || 'https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json https://raw.githubusercontent.com/salmanbappi/extensions-repo/main/index.min.json https://raw.githubusercontent.com/msrofficial/anime-repo/repo/index.min.json' }}
+      - name: Engine errors
+        if: always()
+        run: grep -iE -A3 "exception|error|caused by|failed to load|could not" engine.log | grep -v "^--$" | cut -c1-400 | head -300 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: source-scan
+          path: |
+            source-scan.json
+            source-scan.md
+            engine.log
