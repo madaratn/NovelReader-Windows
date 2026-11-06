@@ -9,6 +9,7 @@ import{fmtDateTime,lsGet,lsSet}from'../lib/util'
 import{NoticeText}from'../ui/common'
 import{ReportPanel}from'./report'
 import{ProfilesPanel}from'./profiles'
+import{TvSettings}from'./tv'
 
 // ---- Backup helpers (renderer side) ------------------------------------------
 // Everything the app keeps in localStorage is user data (library, progress,
@@ -76,6 +77,7 @@ export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onSh
   </section>
   <UpdateSettings status={update} version={version}/>
   <ProfilesPanel/>
+  <TvSettings/>
   <ReportPanel/>
   <section className="panel settings-block"><h2>{t('About')}</h2><p className="settings-help">NovelReader · Windows · {version?'v'+version:''}</p><button onClick={onWelcome}>{t('Show the welcome guide again')}</button></section>
  </>

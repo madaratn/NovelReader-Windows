@@ -585,6 +585,17 @@ const FR: Record<string, string> = {
   'Delete with its data': 'Supprimer avec ses données',
   'New profile name': 'Nom du nouveau profil',
   'Add a profile': 'Ajouter un profil',
+  'TV mode and controller': 'Mode TV et manette',
+  'TV mode: bigger interface, full screen, arrow keys move between buttons (for a TV remote)': 'Mode TV : interface agrandie, plein écran, les flèches passent d’un bouton à l’autre (pour une télécommande)',
+  'Controller connected: {name}': 'Manette connectée : {name}',
+  'Plug in or pair a game controller (Xbox, PlayStation…) to use it: press any button once.': 'Branche ou associe une manette (Xbox, PlayStation…) pour l’utiliser : appuie une fois sur un bouton.',
+  'D-pad / stick': 'Croix / stick',
+  'move': 'se déplacer',
+  'back': 'retour',
+  'full screen': 'plein écran',
+  'search': 'rechercher',
+  'previous / next episode': 'épisode précédent / suivant',
+  'play / pause': 'lecture / pause',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

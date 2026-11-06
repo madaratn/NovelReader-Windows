@@ -725,3 +725,10 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .pf-color.on{border-color:#fff}
 .pf-here{color:#8b7cff;font-size:12.5px}
 .pf-add{display:flex;gap:8px;flex-wrap:wrap}
+/* TV mode and controller navigation */
+html.tv-mode body{zoom:1.22}
+html.kbd-nav :focus{outline:3px solid #8b7cff!important;outline-offset:3px}
+html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv-mode .episodecell:focus-within{transform:scale(1.03);transition:transform .12s}
+.tv-keys{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:8px;font-size:13px;color:#aab0c2}
+.tv-keys span{display:inline-flex;gap:6px;align-items:center}
+.tv-keys b{padding:1px 7px;border:1px solid #30364a;border-radius:6px;color:#e6e8ef;font-size:12px}

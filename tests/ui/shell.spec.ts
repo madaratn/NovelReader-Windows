@@ -94,3 +94,32 @@ test('books Discover: popular list of a source, add, open, load more', async ({ 
   await page.locator('.resultcard', { hasText: 'Popular 2' }).getByRole('button', { name: /Open/ }).click()
   await expect(page.locator('main h1')).toHaveText('Shadow Slave') // the fake parseNovel always answers this title
 })
+
+test('TV mode: arrows move between buttons; a game controller moves, opens and goes back', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as any
+    w.__pad = { buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })), axes: [0, 0, 0, 0] }
+    Object.defineProperty(navigator, 'getGamepads', { value: () => [{ id: 'Xbox Wireless Controller (STANDARD GAMEPAD)', ...w.__pad }] })
+    w.__tap = async (i: number) => { w.__pad.buttons[i].pressed = true; await new Promise(r => setTimeout(r, 80)); w.__pad.buttons[i].pressed = false; await new Promise(r => setTimeout(r, 80)) }
+  })
+  await open(page, { library: [novel('n1', 'Lord of Mysteries', 5), novel('n2', 'Shadow Slave', 5)], storage: { tvMode: '1' } })
+  await expect(page.locator('html.tv-mode')).toHaveCount(1)
+  // Keyboard (TV remote): focus moves between buttons, Enter opens
+  await page.locator('.libcard').first().locator('.primary').focus()
+  const before = await page.evaluate(() => document.activeElement?.closest('.libcard')?.querySelector('h3, h2, b')?.textContent)
+  await page.keyboard.press('ArrowRight')
+  const after = await page.evaluate(() => document.activeElement?.closest('.libcard')?.querySelector('h3, h2, b')?.textContent)
+  expect(after).not.toBe(before)
+  await expect(page.locator('html.kbd-nav')).toHaveCount(1)
+  // Controller: A opens the focused title, B goes back
+  await page.evaluate(() => window.dispatchEvent(new Event('gamepadconnected')))
+  await page.evaluate(() => (window as any).__tap(0))
+  await expect(page.locator('main h1')).toHaveText(after!.trim())
+  await page.evaluate(() => (window as any).__tap(1))
+  await expect(page.locator('.libcard')).toHaveCount(2)
+  // Y opens Search everywhere, B closes it
+  await page.evaluate(() => (window as any).__tap(3))
+  await expect(page.locator('.qs')).toBeVisible()
+  await page.evaluate(() => (window as any).__tap(1))
+  await expect(page.locator('.qs')).toHaveCount(0)
+})

@@ -15,6 +15,7 @@ import type{ReaderPrefs}from'./features/reader'
 import{NovelDiscover,NovelSearch,SourcesPage,normTitle}from'./features/search'
 import{ReportButton,captureUiLogs}from'./features/report'
 import{ProfileSwitcher}from'./features/profiles'
+import{useTvAndGamepad}from'./features/tv'
 import{TranslateControl,autoTranslateFor,translateChapterHtml,translateTarget}from'./features/translate'
 import{QuickSearch,type QuickKind}from'./features/quick-search'
 import{ExtUpdateBanner,ExtensionUpdates,backgroundExtensionCheck}from'./features/ext-updates'
@@ -249,6 +250,7 @@ const downloads=useDownloads(),dlError=(msg:string)=>setAnimeNotice({ok:false,sc
 const trKey=reader?reader.novel.id+':'+reader.index:''
 const doTranslate=async(lang:string)=>{if(!reader)return;const key=trKey;setTransBusy(true);try{const html=await translateChapterHtml(chapterHtml(reader.content).__html,lang);setTrans({key,html})}catch(e:any){setError(t('Translation failed:')+' '+String(e?.message||e).replace(/^Error invoking remote method '[^']+': (Error: )?/,''))}finally{setTransBusy(false)}}
 useEffect(()=>{if(!reader)return;const lang=autoTranslateFor(reader.novel.id);if(lang)doTranslate(lang)},[trKey])
+useTvAndGamepad(()=>goBackRef.current(),()=>setQsOpen(true))
 const mediaFirst=useRef(true)
 useEffect(()=>{if(mediaFirst.current){mediaFirst.current=false;return}window.dispatchEvent(new Event('nr-media-changed'))},[animeLibrary,seriesLibrary,movieLibrary])
 // "Continue watching": once the detail page of the resumed title is loaded, play its episode.
