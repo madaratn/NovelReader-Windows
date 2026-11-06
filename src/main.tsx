@@ -14,6 +14,7 @@ import{FindBar,READER_FONTS,READER_WIDTHS,ReaderSettings,ReaderTTS,chapterHtml,l
 import type{ReaderPrefs}from'./features/reader'
 import{NovelDiscover,NovelSearch,SourcesPage,normTitle}from'./features/search'
 import{ReportButton,captureUiLogs}from'./features/report'
+import{TranslateControl,autoTranslateFor,translateChapterHtml,translateTarget}from'./features/translate'
 import{QuickSearch,type QuickKind}from'./features/quick-search'
 import{ExtUpdateBanner,ExtensionUpdates,backgroundExtensionCheck}from'./features/ext-updates'
 import{applyDownloadSettings,BatchDownload,DownloadsPage,EpisodeDownload,flushAutoDeletes,noteWatched,offlineVideoFor,useDownloads}from'./features/downloads'
@@ -121,7 +122,7 @@ function App(){
  const closeWelcome=()=>{lsSet('onboarded','1');setShowWelcome(false)}
  // Read aloud panel in the reader.
  const[notesNovel,setNotesNovel]=useState('')
- const[ttsOpen,setTtsOpen]=useState(false),[findOpen,setFindOpen]=useState(false),readerArticleRef=useRef<HTMLElement>(null)
+ const[ttsOpen,setTtsOpen]=useState(false),[trans,setTrans]=useState<{key:string,html:string}|null>(null),[transBusy,setTransBusy]=useState(false),[findOpen,setFindOpen]=useState(false),readerArticleRef=useRef<HTMLElement>(null)
  useEffect(()=>{if(page!=='reader'){setTtsOpen(false);setFindOpen(false)}},[page])
  // Removal tombstones let folder sync know a novel was removed on purpose.
  const markRemoved=(id:string,removed:boolean)=>{let m:Record<string,number>={};try{m=JSON.parse(lsGet('libraryRemoved')||'{}')||{}}catch{}if(removed)m[id]=Date.now();else delete m[id];lsSet('libraryRemoved',JSON.stringify(m))}
@@ -243,6 +244,10 @@ useEffect(()=>{applyDownloadSettings()},[])
 useEffect(()=>{const on=(e:any)=>noteWatched(String(e?.detail?.key||''));window.addEventListener('nr-watched',on);const tm=setTimeout(()=>{flushAutoDeletes()},10000);return()=>{window.removeEventListener('nr-watched',on);clearTimeout(tm)}},[])
 useEffect(()=>{const tm=setTimeout(()=>{backgroundExtensionCheck().catch(()=>{})},60000);return()=>clearTimeout(tm)},[])
 const downloads=useDownloads(),dlError=(msg:string)=>setAnimeNotice({ok:false,scope:'detail',text:t('Could not download:')+' '+msg})
+// Chapter translation: re-done for each chapter when "Always translate this novel" is on.
+const trKey=reader?reader.novel.id+':'+reader.index:''
+const doTranslate=async(lang:string)=>{if(!reader)return;const key=trKey;setTransBusy(true);try{const html=await translateChapterHtml(chapterHtml(reader.content).__html,lang);setTrans({key,html})}catch(e:any){setError(t('Translation failed:')+' '+String(e?.message||e).replace(/^Error invoking remote method '[^']+': (Error: )?/,''))}finally{setTransBusy(false)}}
+useEffect(()=>{if(!reader)return;const lang=autoTranslateFor(reader.novel.id);if(lang)doTranslate(lang)},[trKey])
 const mediaFirst=useRef(true)
 useEffect(()=>{if(mediaFirst.current){mediaFirst.current=false;return}window.dispatchEvent(new Event('nr-media-changed'))},[animeLibrary,seriesLibrary,movieLibrary])
 // "Continue watching": once the detail page of the resumed title is loaded, play its episode.
@@ -281,13 +286,13 @@ const installAnimeSource=async(src:any)=>{setAnimeNotice(null);try{const pkg=src
   <div className={'readerbar'+(readerBarHidden&&!readerSettingsOpen&&!findOpen?' hidden':'')}>
    <button className="backbtn" onClick={()=>setPage('novel')}>← {t('Chapters')}</button>
    <div className="readerbar-title"><b>{reader.novel.name}</b><small>{title}</small></div>
-   <div className="readertools"><BookmarkButton rootRef={readerArticleRef} ctx={{novelId:reader.novel.id,novelName:reader.novel.name,chapterPath:reader.chapter.path||reader.chapter.url,chapterIndex:reader.index,chapterTitle:title}}/><button className={'themebtn tts-toggle'+(ttsOpen?' on':'')} aria-pressed={ttsOpen} title={t('Read aloud')} aria-label={t('Read aloud')} onClick={()=>setTtsOpen(o=>!o)}>🔊</button><button className="themebtn find-toggle" title={t('Find in chapter…')+' (Ctrl+F)'} aria-label={t('Find in chapter…')} onClick={()=>setFindOpen(o=>!o)}>⌕</button><span className="readerpos" title={t('Chapter position')}>{reader.index+1} / {total}</span><button className="themebtn readersettings-btn" aria-expanded={readerSettingsOpen} title={t('Reading settings')} onClick={()=>setReaderSettingsOpen(o=>!o)}>Aa</button></div>
+   <div className="readertools"><BookmarkButton rootRef={readerArticleRef} ctx={{novelId:reader.novel.id,novelName:reader.novel.name,chapterPath:reader.chapter.path||reader.chapter.url,chapterIndex:reader.index,chapterTitle:title}}/><button className={'themebtn tts-toggle'+(ttsOpen?' on':'')} aria-pressed={ttsOpen} title={t('Read aloud')} aria-label={t('Read aloud')} onClick={()=>setTtsOpen(o=>!o)}>🔊</button><TranslateControl novelId={reader.novel.id} active={!!trans&&trans.key===trKey} busy={transBusy} onTranslate={doTranslate} onOriginal={()=>setTrans(null)}/><button className="themebtn find-toggle" title={t('Find in chapter…')+' (Ctrl+F)'} aria-label={t('Find in chapter…')} onClick={()=>setFindOpen(o=>!o)}>⌕</button><span className="readerpos" title={t('Chapter position')}>{reader.index+1} / {total}</span><button className="themebtn readersettings-btn" aria-expanded={readerSettingsOpen} title={t('Reading settings')} onClick={()=>setReaderSettingsOpen(o=>!o)}>Aa</button></div>
    <div className="readprogress" aria-hidden="true"><span style={{width:(readProgress*100).toFixed(1)+'%'}}/></div>
    {readerSettingsOpen&&<ReaderSettings prefs={readerPrefs} onChange={updateReaderPrefs} onClose={()=>setReaderSettingsOpen(false)}/>}
    {findOpen&&<FindBar rootRef={readerArticleRef} chapterKey={reader.novel.id+':'+reader.index} onClose={()=>setFindOpen(false)}/>}
   </div>
-  <article className="readercontent" ref={readerArticleRef}><h1>{title}</h1><div dangerouslySetInnerHTML={chapterHtml(reader.content)} /></article>
-  <ChapterHighlights rootRef={readerArticleRef} novelId={reader.novel.id} chapterPath={reader.chapter.path||reader.chapter.url} contentKey={reader.novel.id+':'+reader.index}/><SelectionToolbar rootRef={readerArticleRef} ctx={{novelId:reader.novel.id,novelName:reader.novel.name,chapterPath:reader.chapter.path||reader.chapter.url,chapterIndex:reader.index,chapterTitle:title}}/>
+  <article className={'readercontent'+(trans&&trans.key===trKey?' translated':'')} ref={readerArticleRef}><h1>{title}</h1>{trans&&trans.key===trKey?<div lang={translateTarget()} dangerouslySetInnerHTML={chapterHtml(trans.html)} />:<div dangerouslySetInnerHTML={chapterHtml(reader.content)} />}</article>
+  {!(trans&&trans.key===trKey)&&<><ChapterHighlights rootRef={readerArticleRef} novelId={reader.novel.id} chapterPath={reader.chapter.path||reader.chapter.url} contentKey={reader.novel.id+':'+reader.index}/><SelectionToolbar rootRef={readerArticleRef} ctx={{novelId:reader.novel.id,novelName:reader.novel.name,chapterPath:reader.chapter.path||reader.chapter.url,chapterIndex:reader.index,chapterTitle:title}}/></>}
   {ttsOpen&&<ReaderTTS rootRef={readerArticleRef} chapterKey={reader.novel.id+':'+reader.index} hasNext={!last} onNext={()=>moveChapter(1)} onClose={()=>setTtsOpen(false)}/>}
   <div className="readerend"><small>{t('End of chapter {n} of {total}',{n:reader.index+1,total})}</small></div>
   <div className="readernav"><button disabled={first||readerLoading} onClick={()=>moveChapter(-1)}>← {t('Previous')}</button><button className="readernext" disabled={last||readerLoading} onClick={()=>moveChapter(1)}>{readerLoading?t('Loading…'):last?t('Last chapter'):t('Next chapter')+' →'}</button></div>

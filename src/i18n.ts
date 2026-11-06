@@ -565,6 +565,13 @@ const FR: Record<string, string> = {
   'End of chapter': 'Fin du chapitre',
   'Highlight the word being read': 'Surligner le mot lu',
   'Tip: more natural voices can be added in Windows Settings › Time & language › Speech › Add voices.': 'Astuce : des voix plus naturelles peuvent être ajoutées dans Paramètres Windows › Heure et langue › Voix › Ajouter des voix.',
+  'Translation failed:': 'Échec de la traduction :',
+  'Show the original': 'Afficher l’original',
+  'Translate this chapter': 'Traduire ce chapitre',
+  'Translation settings': 'Réglages de traduction',
+  'Translate into': 'Traduire en',
+  'Always translate this novel': 'Toujours traduire ce roman',
+  'Machine translation by Google Translate. Bookmarks and highlights stay on the original text.': 'Traduction automatique par Google Traduction. Les signets et surlignages restent sur le texte original.',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

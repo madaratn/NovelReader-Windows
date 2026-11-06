@@ -696,3 +696,14 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 ::highlight(tts-word){background-color:rgba(139,124,255,.45);color:inherit}
 .tts-sleep{margin-left:6px;color:#8b7cff}
 .tts-hint{display:block;margin-top:6px;color:#8f94a3;font-size:12px}
+/* Chapter translation */
+.translate-ctl{position:relative;display:inline-flex;align-items:center}
+.translate-toggle{font-size:13px;font-weight:700;letter-spacing:-.02em}
+.translate-toggle.on{background:#8b7cff;color:#fff;border-color:#8b7cff}
+.translate-more{width:22px!important;min-width:22px;padding:0!important;font-size:11px}
+.translate-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:40;width:280px;display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid #30364a;border-radius:12px;background:#151922;box-shadow:0 14px 40px rgba(0,0,0,.4);font-size:13.5px;color:#d5d8e2;text-align:left}
+.translate-menu label{display:flex;flex-direction:column;gap:6px}
+.translate-menu label.tts-check{flex-direction:row;align-items:center;gap:8px}
+.translate-menu select{min-height:32px;padding:0 8px;border:1px solid #30364a;border-radius:8px;background:#0f1218;color:#e6e8ef;font:inherit}
+.translate-menu small{color:#8f94a3;font-size:12px;line-height:1.4}
+.readercontent.translated>div{border-left:3px solid rgba(139,124,255,.35);padding-left:14px;margin-left:-17px}

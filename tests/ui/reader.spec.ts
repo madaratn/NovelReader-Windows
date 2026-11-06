@@ -100,6 +100,28 @@ test('read aloud: word highlight, natural voices first, sleep timer', async ({ p
   await expect(page.locator('.readerbar-title small')).toHaveText('Chapter 1: The Road')
 })
 
+test('translate a chapter, back to the original, always translate this novel', async ({ page }) => {
+  await open(page, { library: [novel('n1', 'The Lantern Road', 3)] })
+  await page.locator('.libcard .primary').click()
+  const first = (await page.locator('.readercontent p').first().innerText()).trim()
+  await page.locator('.translate-toggle').click()
+  await expect(page.locator('.readercontent p').first()).toHaveText('[en] ' + first.toUpperCase())
+  await expect(page.locator('.readercontent.translated')).toHaveCount(1)
+  await page.locator('.translate-toggle').click()
+  await expect(page.locator('.readercontent p').first()).toHaveText(first)
+  // Always translate, into French: applies now and to the next chapter
+  await page.locator('.translate-more').click()
+  await page.locator('.translate-menu select').selectOption('fr')
+  await page.locator('.translate-menu input[type=checkbox]').check()
+  await expect(page.locator('.readercontent p').first()).toHaveText('[fr] ' + first.toUpperCase())
+  await page.locator('.translate-more').click()
+  await page.locator('.readercontent h1').click()
+  await page.keyboard.press('ArrowRight')
+  await expect(page.locator('.readerbar-title small')).toHaveText('Chapter 2: The Road')
+  await expect(page.locator('.readercontent p').first()).toHaveText(/^\[fr\] /)
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('translateNovels') || '{}'))).toEqual({ n1: 'fr' })
+})
+
 test('scripts hidden in chapter HTML never run (content security policy)', async ({ page }) => {
   await page.addInitScript(() => { (window as any).__chapterOverride = '<p>Safe text</p><img src="data:x" onerror="window.__xss=1"><p onclick="window.__xss=2">Click me</p><script>window.__xss=3</script>' })
   await open(page, { library: [novel('n1', 'The Lantern Road', 3)] })
