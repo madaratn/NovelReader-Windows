@@ -38,7 +38,7 @@ try{if(process.defaultApp&&process.argv.length>=2)app.setAsDefaultProtocolClient
 app.on('second-instance',(_e,argv)=>{if(mainWindow){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.show();mainWindow.focus()}deliverDeepLink(findDeepLink(argv))})
 app.on('open-url',(e,url)=>{e.preventDefault();deliverDeepLink(url)})
 if(process.platform==='win32')app.setAppUserModelId(APP_ID) // required for Windows notifications
-const updater=createUpdater({app,ipcMain,getWindow:()=>mainWindow})
+const updater=createUpdater({app,ipcMain,getWindow:()=>mainWindow,powerMonitor:require('electron').powerMonitor})
 ipcMain.handle('app:focus',()=>{if(mainWindow){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.show();mainWindow.focus()}return true})
 const mediaCorsDone=new WeakSet();
 function installMediaCors(ses=session.defaultSession){if(mediaCorsDone.has(ses))return;mediaCorsDone.add(ses);ses.webRequest.onHeadersReceived({urls:['http://127.0.0.1:4567/*']},(details,callback)=>{const h={...(details.responseHeaders||{})};h['Access-Control-Allow-Origin']=['*'];h['Access-Control-Allow-Headers']=['*'];h['Access-Control-Allow-Methods']=['GET, HEAD, OPTIONS'];callback({responseHeaders:h})})}

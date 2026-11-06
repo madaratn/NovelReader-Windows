@@ -15,12 +15,31 @@ test('a downloaded update shows a banner that restarts the app', async ({ page }
   await page.evaluate(() => (window as any).__emitUpdate({ state: 'downloading', version: '0.2.0', next: '0.3.0', percent: 40 }))
   await expect(page.locator('.update-banner')).toHaveCount(0)
   await page.evaluate(() => (window as any).__emitUpdate({ state: 'ready', version: '0.2.0', next: '0.3.0' }))
-  await expect(page.locator('.update-banner')).toContainText('NovelReader 0.3.0 is ready to install.')
+  await expect(page.locator('.update-banner')).toContainText('NovelReader 0.3.0 is ready. It installs by itself when you close the app.')
   await page.locator('.update-banner button', { hasText: 'Later' }).click()
   await expect(page.locator('.update-banner')).toHaveCount(0)
   await nav(page, 'Settings')
-  await page.locator('.settings-block button', { hasText: 'Restart and update' }).click()
+  const block = page.locator('.settings-block', { hasText: 'Updates' })
+  await expect(block).toContainText('Version 0.3.0 is ready: it installs when you close NovelReader.')
+  await expect(block).toContainText('nothing to uninstall')
+  // Idle install is on by default and the app is told; turning it off is passed on
+  expect(await page.evaluate(() => (window as any).__busy)).toEqual({ busy: false, auto: true })
+  await block.getByLabel(/idle for 15 minutes/).uncheck()
+  expect(await page.evaluate(() => (window as any).__busy)).toEqual({ busy: false, auto: false })
+  await block.getByRole('button', { name: 'Restart now' }).click()
   expect(await page.evaluate(() => (window as any).__installed)).toBe(true)
+  await page.evaluate(() => (window as any).__emitUpdate({ state: 'installing', version: '0.2.0', next: '0.3.0' }))
+  await expect(page.locator('.update-banner')).toContainText('NovelReader will reopen by itself')
+})
+
+test('after an update installed itself, a one-time "updated" message is shown', async ({ page }) => {
+  await open(page, { storage: { lastRunVersion: '0.1.0' } })
+  await expect(page.locator('.update-banner')).toContainText('NovelReader has been updated to 0.2.0.')
+  await page.locator('.update-banner').getByRole('button', { name: 'OK' }).click()
+  await expect(page.locator('.update-banner')).toHaveCount(0)
+  await page.reload()
+  await expect(page.locator('.sidebar .version')).toBeVisible()
+  await expect(page.locator('.update-banner')).toHaveCount(0)
 })
 
 test('new chapters found in the background raise a Windows notification that opens the library', async ({ page }) => {

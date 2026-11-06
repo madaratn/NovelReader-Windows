@@ -47,9 +47,15 @@ function createWindowState({ app, screen }) {
 }
 
 // ---- Auto-updates (GitHub releases, packaged app only) ---------------------------
-function createUpdater({ app, ipcMain, getWindow, log = console }) {
+// Updates download in the background and install silently (no installer window,
+// nothing to uninstall): when NovelReader closes, when the user clicks "Restart
+// and update", or by itself when the PC has been idle for a while and nothing is
+// playing (the app then reopens on its own).
+const IDLE_INSTALL_SECONDS = 15 * 60
+function createUpdater({ app, ipcMain, getWindow, log = console, powerMonitor = null }) {
   let status = { state: 'idle', version: app.getVersion() }
   let updater = null
+  let busy = false, autoIdle = true, installing = false
 
   const send = patch => {
     status = { ...status, ...patch }
@@ -61,7 +67,8 @@ function createUpdater({ app, ipcMain, getWindow, log = console }) {
     try {
       updater = require('electron-updater').autoUpdater
       updater.autoDownload = true
-      updater.autoInstallOnAppQuit = true
+      updater.autoInstallOnAppQuit = true // silent install when the app closes
+      updater.autoRunAppAfterInstall = true
       updater.on('checking-for-update', () => send({ state: 'checking', error: null }))
       updater.on('update-not-available', () => send({ state: 'up-to-date', checkedAt: Date.now() }))
       updater.on('update-available', i => send({ state: 'downloading', next: i && i.version, percent: 0 }))
@@ -79,15 +86,32 @@ function createUpdater({ app, ipcMain, getWindow, log = console }) {
 
   ipcMain.handle('update:status', () => status)
   ipcMain.handle('update:check', () => check())
-  ipcMain.handle('update:install', () => { if (updater && status.state === 'ready') setImmediate(() => updater.quitAndInstall(false, true)); return true })
+  // Silent install (no setup window), then NovelReader starts again.
+  const install = () => {
+    if (!updater || status.state !== 'ready' || installing) return false
+    installing = true; send({ state: 'installing' })
+    setImmediate(() => updater.quitAndInstall(true, true))
+    return true
+  }
+  ipcMain.handle('update:install', () => { install(); return true })
+  // The page says whether something is playing, and whether idle install is on.
+  ipcMain.handle('update:busy', (_e, o) => { busy = !!(o && o.busy); if (o && typeof o.auto === 'boolean') autoIdle = o.auto; return true })
+  const idleTick = () => {
+    if (!autoIdle || busy || status.state !== 'ready' || !powerMonitor) return false
+    let idle = 0; try { idle = powerMonitor.getSystemIdleTime() } catch {}
+    if (idle < IDLE_INSTALL_SECONDS) return false
+    log.info && log.info('[update] PC idle, installing', status.next)
+    return install()
+  }
   ipcMain.handle('app:version', () => app.getVersion())
 
   function start() {
     if (!updater) return
     setTimeout(check, 10_000)
     setInterval(check, 6 * 3600_000)
+    setInterval(idleTick, 60_000)
   }
-  return { start, check }
+  return { start, check, idleTick, install, _set: o => { status = { ...status, ...o } } }
 }
 
 module.exports = { createWindowState, createUpdater }
