@@ -708,6 +708,11 @@ const FR: Record<string, string> = {
   'Installing the update…': 'Installation de la mise à jour…',
   'Updates download in the background and install silently: no installer to run, nothing to uninstall, your library and settings stay.': 'Les mises à jour se téléchargent en arrière-plan et s\'installent en silence : aucun installeur à lancer, rien à désinstaller, votre bibliothèque et vos réglages restent.',
   'Also install when the PC has been idle for 15 minutes (never during a video); NovelReader reopens by itself': 'Installer aussi quand le PC est inactif depuis 15 minutes (jamais pendant une vidéo) ; NovelReader se rouvre tout seul',
+  '{names} still loading: the party goes on without waiting.': '{names} charge encore : la séance continue sans attendre.',
+  'Your video is loading, the others are waiting for you…': 'Votre vidéo charge, les autres vous attendent…',
+  'Waiting for {names}… (video loading)': 'En attente de {names}… (vidéo en chargement)',
+  'Your video keeps loading: choose a lower quality in the Quality menu, or another server.': 'Votre vidéo charge souvent : choisissez une qualité plus basse dans le menu Qualité, ou un autre serveur.',
+  'Wait for people whose video is loading': 'Attendre ceux dont la vidéo charge',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

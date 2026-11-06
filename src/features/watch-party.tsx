@@ -11,7 +11,7 @@ import{lsGet,lsSet}from'../lib/util'
 export type PartyMedia={kind:'anime'|'series'|'movie',sourceId:string,sourceName?:string,url:string,name:string,cover?:string,id?:string}
 export type PartyState={media:PartyMedia|null,episodeUrl:string,episodeName:string,playing:boolean,time:number,rate:number,by:string}
 type Member={id:string,name:string,voice?:boolean,muted?:boolean}
-type Msg={t:'hello',name:string}|{t:'members',list:Member[]}|{t:'state',s:PartyState}|{t:'chat',name:string,text:string,at:number}|{t:'voice',on:boolean,muted:boolean}|{t:'bye'}
+type Msg={t:'hello',name:string}|{t:'members',list:Member[]}|{t:'state',s:PartyState}|{t:'chat',name:string,text:string,at:number}|{t:'voice',on:boolean,muted:boolean}|{t:'buffer',on:boolean,time:number}|{t:'wait',list:{id:string,name:string}[]}|{t:'bye'}
 type Conn={id:string,send:(m:Msg)=>void,onMessage:(cb:(m:Msg)=>void)=>void,onClose:(cb:()=>void)=>void,close:()=>void}
 type Call={peer:string,answer:(s:MediaStream)=>void,onStream:(cb:(s:MediaStream)=>void)=>void,onClose:(cb:()=>void)=>void,close:()=>void}
 type Transport={host:(code:string,onConn:(c:Conn)=>void)=>Promise<void>,join:(code:string)=>Promise<Conn>,destroy:()=>void,selfId:()=>string,call:(peer:string,s:MediaStream)=>Call,onCall:(cb:(c:Call)=>void)=>void}
@@ -59,13 +59,13 @@ function fakeTransport():Transport{
 
 // ---- Party (one per window, survives page changes) -------------------------------
 type Chat={name:string,text:string,at:number,mine?:boolean,system?:boolean}
-type Snapshot={role:''|'host'|'guest',code:string,status:'idle'|'connecting'|'ready'|'error',error:string,members:Member[],chat:Chat[],unread:number,state:PartyState|null,stateAt:number,voice:'off'|'joining'|'on',muted:boolean,speaking:string[],voiceError:string,selfId:string}
+type Snapshot={role:''|'host'|'guest',code:string,status:'idle'|'connecting'|'ready'|'error',error:string,members:Member[],chat:Chat[],unread:number,state:PartyState|null,stateAt:number,voice:'off'|'joining'|'on',muted:boolean,speaking:string[],voiceError:string,selfId:string,waiting:{id:string,name:string}[]}
 const CODE_CHARS='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const newCode=()=>Array.from({length:6},()=>CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)]).join('')
 export const partyName=()=>lsGet('partyName')||''
 
 class Party{
- snap:Snapshot={role:'',code:'',status:'idle',error:'',members:[],chat:[],unread:0,state:null,stateAt:0,voice:'off',muted:false,speaking:[],voiceError:'',selfId:''}
+ snap:Snapshot={role:'',code:'',status:'idle',error:'',members:[],chat:[],unread:0,state:null,stateAt:0,voice:'off',muted:false,speaking:[],voiceError:'',selfId:'',waiting:[]}
  private subs=new Set<()=>void>()
  private transport:Transport|null=null
  private conns:Conn[]=[]
@@ -91,7 +91,7 @@ class Party{
  }
  private accept(c:Conn){
   this.conns.push(c);c.onMessage(m=>this.receive(m,c))
-  c.onClose(()=>{this.conns=this.conns.filter(x=>x!==c);const n=this.names.get(c.id);this.names.delete(c.id);this.voiceOf.delete(c.id);this.hangUp(c.id);if(n)this.system(t('{name} left.',{name:n}));this.sendMembers()})
+  c.onClose(()=>{this.conns=this.conns.filter(x=>x!==c);const n=this.names.get(c.id);this.names.delete(c.id);this.voiceOf.delete(c.id);this.hangUp(c.id);this.noteBuffer(c.id,false,0);if(n)this.system(t('{name} left.',{name:n}));this.sendMembers()})
  }
  private voiceOf=new Map<string,{on:boolean,muted:boolean}>()
  private sendMembers(){const self=this.transport?.selfId()||'me',mine={on:this.snap.voice==='on',muted:this.snap.muted};const list:Member[]=[{id:self,name:this.me(),voice:mine.on,muted:mine.muted},...this.conns.map(c=>({id:c.id,name:this.names.get(c.id)||'…',voice:!!this.voiceOf.get(c.id)?.on,muted:!!this.voiceOf.get(c.id)?.muted}))];this.set({members:list});for(const c of this.conns)c.send({t:'members',list})}
@@ -100,6 +100,8 @@ class Party{
   else if(m.t==='members'){this.set({members:m.list});this.syncCalls()}
   else if(m.t==='voice'&&this.snap.role==='host'){this.voiceOf.set(from.id,{on:!!m.on,muted:!!m.muted});if(!m.on)this.hangUp(from.id);this.sendMembers();this.syncCalls()}
   else if(m.t==='chat'){this.addChat({name:m.name,text:String(m.text).slice(0,500),at:m.at});if(this.snap.role==='host')this.relay(m,from)}
+  else if(m.t==='buffer'&&this.snap.role==='host')this.noteBuffer(from.id,!!m.on,Number(m.time)||0)
+  else if(m.t==='wait'&&this.snap.role==='guest')this.set({waiting:(m.list||[]).map(x=>({id:String(x.id),name:String(x.name)}))})
   else if(m.t==='state'){this.set({state:m.s,stateAt:Date.now()});this.onRemoteState?.(m.s);if(this.snap.role==='host')this.relay(m,from)}
  }
  private relay(m:Msg,from:Conn){for(const c of this.conns)if(c!==from)c.send(m)}
@@ -107,6 +109,19 @@ class Party{
  say(text:string){const x=text.trim().slice(0,500);if(!x||this.snap.status!=='ready')return;const m:Msg={t:'chat',name:this.me(),text:x,at:Date.now()};this.addChat({name:m.name,text:x,at:m.at,mine:true});this.broadcast(m)}
  share(s:Omit<PartyState,'by'>){if(this.snap.status!=='ready')return;const st={...s,by:this.me()};this.set({state:st,stateAt:Date.now()});this.broadcast({t:'state',s:st})}
  seen(){if(this.snap.unread)this.set({unread:0})}
+ // ---- Waiting for people whose video is loading ----
+ // Each PC says when its video is stuck loading; the host decides to pause the group
+ // (WatchPartyBridge) and tells everyone who is being waited for.
+ buffering=new Map<string,{name:string,time:number,since:number}>()
+ onBufferChange:(()=>void)|null=null
+ private noteBuffer(id:string,on:boolean,time:number){
+  const had=this.buffering.has(id)
+  if(on){const name=id===this.snap.selfId?this.me():this.names.get(id)||t('Guest');this.buffering.set(id,{name,time,since:this.buffering.get(id)?.since||Date.now()})}else this.buffering.delete(id)
+  if(had!==on)this.onBufferChange?.()
+ }
+ reportBuffer(on:boolean,time:number){if(this.snap.status!=='ready')return;if(this.snap.role==='host')this.noteBuffer(this.snap.selfId,on,time);else this.broadcast({t:'buffer',on,time})}
+ setWaiting(list:{id:string,name:string}[]){if(this.snap.role!=='host')return;const cur=this.snap.waiting;if(cur.length===list.length&&cur.every((x,i)=>x.id===list[i].id))return;this.set({waiting:list});this.broadcast({t:'wait',list})}
+ note(text:string){this.system(text)}
  // ---- Voice channel ----
  private local:MediaStream|null=null
  private calls=new Map<string,{call:Call,audio?:HTMLAudioElement}>()
@@ -143,7 +158,7 @@ class Party{
  private levels=new Map<string,AnalyserNode>()
  private watch(id:string,st:MediaStream){try{this.ctx=this.ctx||new AudioContext();const src=this.ctx.createMediaStreamSource(st),an=this.ctx.createAnalyser();an.fftSize=512;src.connect(an);this.levels.set(id,an)}catch{}}
  private startMeter(){if(this.local)this.watch(this.transport?.selfId()||'me',this.local);const buf=new Uint8Array(512);this.meter=setInterval(()=>{const on:string[]=[];for(const[id,an]of this.levels){an.getByteTimeDomainData(buf);let peak=0;for(const v of buf)peak=Math.max(peak,Math.abs(v-128));if(peak>12&&!(id===this.snap.selfId&&this.snap.muted))on.push(id)}const cur=this.snap.speaking;if(on.length!==cur.length||on.some(x=>!cur.includes(x)))this.set({speaking:on})},160)}
- leave(error=''){this.voiceLeave(true);for(const c of this.conns)c.close();this.conns=[];this.names.clear();this.transport?.destroy();this.transport=null;this.set({role:'',status:error?'error':'idle',error,members:[],state:null,code:'',selfId:''})}
+ leave(error=''){this.voiceLeave(true);for(const c of this.conns)c.close();this.conns=[];this.names.clear();this.transport?.destroy();this.transport=null;this.buffering.clear();this.set({role:'',status:error?'error':'idle',error,members:[],state:null,code:'',selfId:'',waiting:[]})}
 }
 export async function inviteText(code:string){const base=await (window.novelReader as any).inviteBase?.().catch(()=>'')||'';const link=base?base+code:'novelreader://party/'+code;return t('Join my NovelReader watch party: {link} (code {code})',{link,code})}
 export const voiceVolume=()=>{const v=Number(lsGet('partyVoiceVolume'));return isFinite(v)&&lsGet('partyVoiceVolume')!==null?Math.min(1,Math.max(0,v)):1}
@@ -212,7 +227,55 @@ const onInput=()=>{lastInput=Date.now()};window.addEventListener('pointerdown',o
   if(snap.role==='host')hb=setInterval(()=>{if(attached&&!attached.paused&&!attached.seeking&&attached.readyState>=3&&!pending.current&&Date.now()>=quietUntil.current)send()},5000)
   return()=>{clearInterval(iv);clearInterval(hb);attached?.removeEventListener('canplay',onCanPlay);window.removeEventListener('pointerdown',onInput,true);window.removeEventListener('keydown',onInput,true);window.removeEventListener('nr-user-input',onInput);window.removeEventListener('nr-player-reload',onReload);for(const e of evs)attached?.removeEventListener(e,send)}
  },[active,snap.role])
- return null
+ // ---- Waiting for slow connections ----
+ // Every PC: say when its video has been stuck loading for 1.5 s, and when it has
+ // enough loaded again. The host: pause everyone at the slow person's position, and
+ // start again together once nobody is loading (at most 30 s per person).
+ const[slowHint,setSlowHint]=useState(false)
+ useEffect(()=>{if(!active)return
+  let since=0,reported=false;const mine:number[]=[]
+  const ahead=(v:HTMLVideoElement)=>{const b=v.buffered;for(let i=0;i<b.length;i++)if(b.start(i)<=v.currentTime+0.2&&b.end(i)>=v.currentTime)return b.end(i)-v.currentTime;return 0}
+  const iv=setInterval(()=>{const v=video(),st=party.snap.state,now=Date.now()
+   const relevant=!!v&&!!st&&sameEp(st)&&!pending.current
+   if(!reported){
+    const stuck=relevant&&st!.playing&&!v!.paused&&!v!.ended&&(v!.readyState<3||v!.seeking)
+    if(!stuck){since=0;return}
+    if(!since)since=now
+    if(now-since<1500)return
+    reported=true;party.reportBuffer(true,v!.currentTime)
+    mine.push(now);while(mine.length&&now-mine[0]>5*60000)mine.shift()
+    if(mine.length>=3)setSlowHint(true)
+   }else{
+    const nearEnd=!!v&&Number.isFinite(v.duration)&&v.duration-v.currentTime<4
+    if(!relevant||v!.ended||nearEnd||v!.readyState>=4||ahead(v!)>=4){reported=false;since=0;party.reportBuffer(false,0)}
+   }
+  },300)
+  return()=>{clearInterval(iv);if(reported)party.reportBuffer(false,0)}
+ },[active])
+ useEffect(()=>{if(!slowHint)return;const tm=setTimeout(()=>setSlowHint(false),20000);return()=>clearTimeout(tm)},[slowHint])
+ useEffect(()=>{if(!active||snap.role!=='host')return
+  let hold:{time:number,since:number}|null=null;const skip=new Map<string,number>()
+  const names=(w:[string,{name:string}][])=>w.map(([id,b])=>({id,name:b.name}))
+  const shareLocal=(patch:Partial<PartyState>)=>{const st=party.snap.state;if(!st)return;party.share({media:st.media,episodeUrl:st.episodeUrl,episodeName:st.episodeName,playing:st.playing,time:st.time,rate:st.rate,...patch});const now=party.snap.state;if(now)apply(now)}
+  const tick=()=>{const now=Date.now(),st=party.snap.state,v=video()
+   const w=[...party.buffering.entries()].filter(([id])=>!((skip.get(id)||0)>now))
+   if(lsGet('partyWait')==='0'){if(hold){hold=null;shareLocal({playing:true})}party.setWaiting([]);return}
+   if(!hold){
+    if(w.length&&st&&st.playing&&v&&sameEp(st)){const times=w.map(([,b])=>b.time).filter(x=>x>0);hold={time:Math.max(0,Math.min(v.currentTime,...times)),since:now};shareLocal({playing:false,time:hold.time});party.setWaiting(names(w))}
+    else party.setWaiting([])
+    return}
+   if(!st||!sameEp(st)){hold=null;party.setWaiting([]);return}
+   if(st.playing){hold=null;for(const[id]of w)skip.set(id,now+10000);party.setWaiting([]);return} // someone pressed play: go on
+   if(!w.length){const at=hold.time;hold=null;party.setWaiting([]);shareLocal({playing:true,time:at});return}
+   if(now-hold.since>30000){for(const[id]of w)skip.set(id,now+120000);party.note(t('{names} still loading: the party goes on without waiting.',{names:names(w).map(x=>x.name).join(', ')}));const at=hold.time;hold=null;party.setWaiting([]);shareLocal({playing:true,time:at});return}
+   party.setWaiting(names(w))}
+  party.onBufferChange=tick;const iv=setInterval(tick,500)
+  return()=>{clearInterval(iv);party.onBufferChange=null;party.setWaiting([])}
+ },[active,snap.role])
+ if(!active)return null
+ const meWaited=snap.waiting.some(x=>x.id===snap.selfId)
+ if(!snap.waiting.length&&!slowHint)return null
+ return <div className="wp-wait" role="status">{snap.waiting.length?<span>⏳ {meWaited&&snap.waiting.length===1?t('Your video is loading, the others are waiting for you…'):t('Waiting for {names}… (video loading)',{names:snap.waiting.map(x=>x.name).join(', ')})}</span>:null}{slowHint&&<span className="wp-wait-hint">{t('Your video keeps loading: choose a lower quality in the Quality menu, or another server.')}</span>}</div>
 }
 
 // ---- Panel ------------------------------------------------------------------------
@@ -249,6 +312,7 @@ export function WatchPartyPanel(){
     <div className="wp-voice">{snap.voice==='off'?<button onClick={()=>party.voiceJoin()}>{'🎙 '+t('Join the voice channel')}</button>:snap.voice==='joining'?<span className="wp-help">{t('Allowing the microphone…')}</span>:<><button className={snap.muted?'danger':''} aria-pressed={snap.muted} onClick={()=>party.setMuted(!snap.muted)}>{snap.muted?'🔇 '+t('Unmute'):'🎙 '+t('Mute')}</button><label className="wp-vol" title={t('Volume of the voices')}>🔊<input type="range" min={0} max={1} step={0.05} defaultValue={voiceVolume()} onChange={e=>party.setVolume(Number(e.target.value))} aria-label={t('Volume of the voices')}/></label><button className="removebtn" onClick={()=>party.voiceLeave()}>{t('Leave the voice channel')}</button></>}</div>
     {snap.voiceError&&<p className="wp-error" role="alert">{snap.voiceError}</p>}
     {snap.voice==='on'&&<p className="wp-hint">{t('Tip: use headphones so the film does not come back through your microphone.')}</p>}
+    {snap.role==='host'&&<label className="wp-check"><input type="checkbox" defaultChecked={lsGet('partyWait')!=='0'} onChange={e=>lsSet('partyWait',e.target.checked?'1':'0')}/> {t('Wait for people whose video is loading')}</label>}
     {snap.state?.media?<div className="wp-now">▶ {snap.state.media.name}{snap.state.episodeName&&snap.state.media.kind!=='movie'?' · '+snap.state.episodeName:''}</div>:<div className="wp-now muted">{t('Open an episode: everyone will follow.')}</div>}
     <div className="wp-chat" ref={chatRef}>{snap.chat.map((c,i)=><div key={i} className={'wp-msg'+(c.mine?' mine':'')+(c.system?' system':'')}>{c.system?c.text:<><b>{c.name}</b> {c.text}</>}</div>)}</div>
     <form className="wp-say" onSubmit={e=>{e.preventDefault();party.say(text);setText('')}}><input value={text} onChange={e=>setText(e.target.value)} placeholder={t('Message…')} aria-label={t('Message')}/><button type="submit" disabled={!text.trim()}>{t('Send')}</button></form>

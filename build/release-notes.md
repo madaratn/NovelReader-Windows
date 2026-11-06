@@ -1,14 +1,16 @@
-## NovelReader 0.9.2
+## NovelReader 0.9.3
 
 Cette version s'installe toute seule en arrière-plan (fermez NovelReader et rouvrez-le).
 
-### Correction : le watch party ne repart plus à 0
-- Pendant une séance, la vidéo pouvait revenir au début pour tout le monde après un moment. Cela arrivait quand le lecteur d'une personne rechargeait la vidéo tout seul (changement de serveur après un blocage, reprise du flux, changement de qualité) : il repartait à 0 et l'envoyait à tout le groupe.
-- Maintenant, un lecteur qui revient au début tout seul est simplement remis à la position du groupe, et les autres ne bougent pas.
-- Revenir au début volontairement (clic sur la barre, touche du clavier ou de la manette) est toujours partagé avec le groupe.
+### Watch party : on attend ceux qui ont une connexion lente
+- Si la vidéo de quelqu'un charge depuis plus d'une seconde et demie, **tout le monde se met en pause** à l'endroit où il s'est arrêté, avec le message « ⏳ En attente de Sara… ». Celui qui charge voit « Votre vidéo charge, les autres vous attendent… ».
+- Dès que sa vidéo a assez chargé, **tout le monde repart ensemble** au même endroit : personne ne rate de passage.
+- Si quelqu'un charge plus de 30 secondes, la séance continue sans l'attendre (pendant 2 minutes), pour ne pas bloquer tout le monde.
+- Si votre vidéo charge souvent, NovelReader vous conseille de choisir une **qualité plus basse** (menu Qualité) ou un autre serveur. Chacun peut choisir sa propre qualité, la synchronisation continue.
+- Quelqu'un peut appuyer sur lecture pendant l'attente pour repartir tout de suite.
+- L'hôte peut désactiver l'attente dans le panneau 👥 : « Attendre ceux dont la vidéo charge ».
 
-### Aussi
-- Pour les vidéos dont la durée n'est pas connue (certains serveurs), la position est maintenant retenue : la reprise et le changement de serveur « à la même position » fonctionnent aussi pour elles.
+Tout le monde dans la séance doit avoir la 0.9.3.
 
 ### Installation
-Téléchargez `NovelReader-Setup-0.9.2.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».
+Téléchargez `NovelReader-Setup-0.9.3.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».
