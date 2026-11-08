@@ -754,6 +754,14 @@ const FR: Record<string, string> = {
   'Recommended anime sources': 'Sources anime recommandées',
   'Installs anime sources that worked in this week\'s check (One Piece, Naruto, Solo Leveling… and Chinese anime). Your other sources are not changed.': 'Installe les sources anime qui ont fonctionné lors de la vérification de la semaine (One Piece, Naruto, Solo Leveling… et animes chinois). Vos autres sources ne changent pas.',
   'Install the anime pack': 'Installer le pack anime',
+  'The camera is not allowed. Check Windows Settings › Privacy › Camera.': 'La caméra n\'est pas autorisée. Vérifiez Paramètres Windows › Confidentialité › Caméra.',
+  'No camera found.': 'Aucune caméra trouvée.',
+  'The camera is used by another app.': 'La caméra est utilisée par une autre application.',
+  'Turn my camera off': 'Couper ma caméra',
+  'Allowing the camera…': 'Autorisation de la caméra…',
+  'Turn my camera on': 'Allumer ma caméra',
+  'Hide the others\' cameras': 'Masquer les caméras des autres',
+  'Cameras': 'Caméras',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
