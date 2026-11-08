@@ -1,12 +1,14 @@
-## NovelReader 0.14.0
+## NovelReader 0.14.1
 
-Cette version s'installe toute seule quand vous fermez NovelReader.
+Cette mise à jour s'applique **sans fermer NovelReader**.
 
-### Écran de chargement au démarrage
-- Quand NovelReader met un peu de temps à s'ouvrir, un **écran de chargement** apparaît tout de suite (logo, barre animée, « Ouverture… »), au lieu de ne rien voir pendant quelques secondes.
-- La fenêtre principale s'affiche seulement quand l'interface est prête, sans écran vide ni clignotement.
-- Si l'ouverture est rapide, l'écran de chargement n'apparaît pas du tout.
-- Le texte suit la langue de Windows (français, anglais, arabe, espagnol).
+### Correction : « matched … but it has no episode » avec les autres sources
+- Quand la source principale n'a pas l'épisode, NovelReader le cherche dans vos autres sources. Mais il cherchait l'épisode avec le numéro tel que donné par la source, et beaucoup de sources envoient « -1 » : l'épisode n'était jamais trouvé.
+- Maintenant l'épisode est trouvé par **saison et numéro**, lus aussi dans le nom (« S1 E2 », « Episode 2 »…).
+- Quand plusieurs titres portent le même nom (un film et une série « Deep in Love »…), les **3 premiers** sont essayés au lieu du premier seulement.
+
+### Messages d'erreur plus clairs
+- La liste « Pourquoi chaque source a échoué » explique maintenant les cas courants : site **protégé par Cloudflare** (installez ou démarrez FlareSolverr dans Sources › Protection Cloudflare), **bloqué dans votre pays**, site qui **refuse l'app**, **aucune vidéo pour cet épisode**, **site qui n'existe plus**.
 
 ### Installation
-Téléchargez `NovelReader-Setup-0.14.0.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».
+Téléchargez `NovelReader-Setup-0.14.1.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».
