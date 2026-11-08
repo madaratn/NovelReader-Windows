@@ -762,6 +762,8 @@ const FR: Record<string, string> = {
   'Turn my camera on': 'Allumer ma caméra',
   'Hide the others\' cameras': 'Masquer les caméras des autres',
   'Cameras': 'Caméras',
+  '{n} source shown': '{n} source affichée',
+  '{n} sources shown': '{n} sources affichées',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
