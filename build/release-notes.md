@@ -1,13 +1,12 @@
-## NovelReader 0.13.5
+## NovelReader 0.14.0
 
-Cette version s'installe toute seule quand vous fermez NovelReader (elle touche le lecteur de torrents).
+Cette version s'installe toute seule quand vous fermez NovelReader.
 
-### Correction : les épisodes des sources torrent (Torrentio) ne se lançaient pas
-- Avant, seul le premier torrent de la liste était essayé (souvent une énorme version 4K) : s'il n'avait pas de sources ou ne répondait pas, rien ne se passait.
-- Maintenant, les **3 meilleurs torrents** sont essayés l'un après l'autre : beaucoup de sources (seeders), 1080p ou 720p, pas de HEVC / 4K / HDR souvent illisibles, pas de fichiers géants.
-- Un message montre où on en est : « Connexion au torrent (1/3)… Cela peut prendre jusqu'à 30 secondes. »
-- Pour les **packs de saison**, le bon épisode est maintenant ouvert (avant, le plus gros fichier du pack était pris, donc souvent le mauvais épisode).
-- Si aucune vidéo ne marche, l'erreur s'affiche maintenant directement dans le lecteur, avec le bouton pour la signaler.
+### Écran de chargement au démarrage
+- Quand NovelReader met un peu de temps à s'ouvrir, un **écran de chargement** apparaît tout de suite (logo, barre animée, « Ouverture… »), au lieu de ne rien voir pendant quelques secondes.
+- La fenêtre principale s'affiche seulement quand l'interface est prête, sans écran vide ni clignotement.
+- Si l'ouverture est rapide, l'écran de chargement n'apparaît pas du tout.
+- Le texte suit la langue de Windows (français, anglais, arabe, espagnol).
 
 ### Installation
-Téléchargez `NovelReader-Setup-0.13.5.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».
+Téléchargez `NovelReader-Setup-0.14.0.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».

@@ -15,6 +15,10 @@ const SMOKE_TEST=process.env.NR_SMOKE_TEST==='1'
 const {createWindowState,createUpdater}=require('./app-shell.cjs')
 // Interface updates without closing the app (electron/ui-update.cjs).
 const {createUiUpdate}=require('./ui-update.cjs')
+// Loading screen while the app opens (electron/splash.cjs).
+const {createSplash}=require('./splash.cjs')
+const splash=createSplash({BrowserWindow,app})
+let revealMain=null
 const uiUpdate=createUiUpdate({app})
 const {createOfflineStore}=require('./offline.cjs')
 const {createLNReaderImporter}=require('./lnreader-import.cjs')
@@ -44,7 +48,7 @@ if(process.platform==='win32')app.setAppUserModelId(APP_ID) // required for Wind
 const updater=createUpdater({app,ipcMain,getWindow:()=>mainWindow,powerMonitor:require('electron').powerMonitor,version:()=>uiUpdate.version()})
 ipcMain.handle('ui:status',()=>uiUpdate.status())
 ipcMain.handle('ui:check',()=>uiUpdate.check())
-ipcMain.handle('ui:ok',()=>uiUpdate.ok())
+ipcMain.handle('ui:ok',()=>{try{revealMain&&revealMain()}catch{}return uiUpdate.ok()})
 ipcMain.handle('ui:apply',()=>{const file=uiUpdate.apply();if(!file||!mainWindow)return false;setImmediate(()=>mainWindow.loadFile(file));return true})
 uiUpdate.onStatus(st=>{try{mainWindow&&mainWindow.webContents.send('ui:status',st)}catch{}})
 if(app.isPackaged){setTimeout(()=>uiUpdate.check(),30000);setInterval(()=>uiUpdate.check(),3*3600e3)}
@@ -54,7 +58,8 @@ function installMediaCors(ses=session.defaultSession){if(mediaCorsDone.has(ses))
 // Each profile window uses its own session (storage); give it the same rules as the default one.
 const preparedSessions=new WeakSet()
 function sessionFor(partition){const ses=partition?session.fromPartition(partition):session.defaultSession;if(!preparedSessions.has(ses)){preparedSessions.add(ses);installMediaCors(ses);if(ses!==session.defaultSession){ses.setPermissionRequestHandler(permissionRequest);ses.setPermissionCheckHandler(permissionCheck);try{registerLocalProtocol(ses.protocol)}catch(e){console.warn('[profiles] nrlocal',e)}}}return ses}
-function createWindow(){const partition=profiles.partition();sessionFor(partition);const ws=createWindowState({app,screen});const state=ws.load();const win=new BrowserWindow({...state,minWidth:900,minHeight:600,show:false,icon:path.join(__dirname,'icon.png'),backgroundColor:'#0b0c10',title:'NovelReader',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,...(partition?{partition}:{})}});if(!app.isPackaged&&!SMOKE_TEST)win.loadURL('http://127.0.0.1:5173');else win.loadFile(uiUpdate.entry());win.webContents.on('did-fail-load',(_e,code,desc,url)=>console.error('Load failed',code,desc,url));ws.track(win);win.once('ready-to-show',()=>{if(state.maximized)win.maximize();win.show()});setTimeout(()=>{if(!win.isDestroyed()&&!win.isVisible())win.show()},3000);mainWindow=win;win.on('closed',()=>{if(mainWindow===win)mainWindow=null});return win}
+function createWindow(){const partition=profiles.partition();sessionFor(partition);const ws=createWindowState({app,screen});const state=ws.load();const win=new BrowserWindow({...state,minWidth:900,minHeight:600,show:false,icon:path.join(__dirname,'icon.png'),backgroundColor:'#0b0c10',title:'NovelReader',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,...(partition?{partition}:{})}});if(!app.isPackaged&&!SMOKE_TEST)win.loadURL('http://127.0.0.1:5173');else win.loadFile(uiUpdate.entry());win.webContents.on('did-fail-load',(_e,code,desc,url)=>console.error('Load failed',code,desc,url));ws.track(win);// Shown once the interface has drawn itself (it says so with ui:ok), with the loading screen meanwhile; never later than 12 s.
+const reveal=()=>{if(win.isDestroyed()||win.isVisible())return;if(state.maximized)win.maximize();win.show();splash.finish()};win.once('ready-to-show',()=>{if(SMOKE_TEST||!app.isPackaged)reveal()});revealMain=reveal;setTimeout(reveal,12000);mainWindow=win;win.on('closed',()=>{if(mainWindow===win)mainWindow=null});return win}
 ipcMain.handle('plugin:search',async(_e,{plugin,query})=>runner.search(plugin,query))
 const translator=require('./translate.cjs')
 ipcMain.handle('translate:batch',async(_e,o)=>translator.translate(o||{}))
@@ -334,6 +339,6 @@ async function runSmokeTest(win){
  app.exit(result.ok?0:1)
 }
 
-app.whenReady().then(()=>{registerLocalProtocol();if(SMOKE_TEST){runSmokeTest(createWindow());return}try{flareApi().start()}catch{}startMiwayomi();createWindow();updater.start()})
+app.whenReady().then(()=>{registerLocalProtocol();if(SMOKE_TEST){runSmokeTest(createWindow());return}splash.start();try{flareApi().start()}catch{}startMiwayomi();createWindow();updater.start()})
 app.on('before-quit',()=>{if(miwayomiProcess){miwayomiProcess.kill();miwayomiProcess=null}try{flare&&flare.stop()}catch{}try{videoDl&&videoDl.close()}catch{}})
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()})
