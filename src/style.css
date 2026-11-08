@@ -819,3 +819,4 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
 @media (prefers-reduced-motion:reduce){.po-fly{animation-duration:1.6s}}
 .wp-leaves{display:flex;flex-wrap:wrap;gap:8px}
 .wp-voice-opts{display:flex;flex-direction:column;gap:6px}.wp-ptt{color:#8f94a3;font-size:12px}.wp-ptt.on{color:#3fb37f;font-weight:600}
+.audio-fix-note{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 8px;padding:7px 12px;border:1px solid #2f4a6b;border-radius:10px;background:#132033;color:#cfe1ff;font-size:13.5px}.audio-fix-note.warn{border-color:#5a4a24;background:#211c12;color:#ffd99a}.audio-fix-note label{display:flex;align-items:center;gap:6px}

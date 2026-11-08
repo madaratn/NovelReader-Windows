@@ -742,6 +742,13 @@ const FR: Record<string, string> = {
   'Talking…': 'Vous parlez…',
   'Microphone off until you hold V': 'Micro coupé tant que vous ne maintenez pas V',
   'Lower the film while someone speaks': 'Baisser le son du film quand quelqu\'un parle',
+  'This video has a sound format the player cannot read (Dolby / DTS). Downloading the sound converter (once, about 30 MB)… {p}%': 'Cette vidéo a un son que le lecteur ne sait pas lire (Dolby / DTS). Téléchargement du convertisseur de son (une seule fois, environ 30 Mo)… {p} %',
+  'This video has a sound format the player cannot read (Dolby / DTS). Converting the sound…': 'Cette vidéo a un son que le lecteur ne sait pas lire (Dolby / DTS). Conversion du son…',
+  'Sound converted live (the file uses Dolby / DTS sound).': 'Son converti en direct (le fichier utilise un son Dolby / DTS).',
+  'Sound track': 'Piste son',
+  'This file has no sound track. Pick another quality.': 'Ce fichier n\'a pas de piste son. Choisissez une autre qualité.',
+  'The sound of this file could not be converted: {e}. Pick another quality.': 'Le son de ce fichier n\'a pas pu être converti : {e}. Choisissez une autre qualité.',
+  'Volume': 'Volume',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
