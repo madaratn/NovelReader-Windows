@@ -857,3 +857,4 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
 .sub-settings h3{margin:12px 0 4px;font-size:14px}
 @media (max-width:760px){.sub-finder{grid-template-columns:1fr}}
 .sub-settings a{color:var(--accent,#8b7cff)}
+.sub-finder-lang{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:10px}.sub-finder-lang small{color:#8f94a3}.sub-lang{display:inline-flex;align-items:center;gap:8px}

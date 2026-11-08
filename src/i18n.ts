@@ -817,6 +817,8 @@ const FR: Record<string, string> = {
   'AI quality': 'Qualité de l\'IA',
   'Fast (150 MB)': 'Rapide (150 Mo)',
   'More accurate (470 MB, slower)': 'Plus précise (470 Mo, plus lente)',
+  'Subtitle language': 'Langue des sous-titres',
+  'Used for the online search and to translate subtitles.': 'Utilisée pour la recherche en ligne et pour traduire les sous-titres.',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
