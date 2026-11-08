@@ -241,6 +241,12 @@ ipcMain.handle('anilist:token',async(_e,{token})=>anilist.setToken(String(token|
 ipcMain.handle('anilist:logout',()=>anilist.logout())
 ipcMain.handle('anilist:call',async(_e,{name,vars})=>anilist.call(String(name),vars||{}))
 // MyAnimeList sign-in window: handled by electron/mal.cjs.
+// Sound for videos in AC3 / DTS (electron/audio-fix.cjs).
+const {createAudioFix}=require('./audio-fix.cjs')
+const audioFix=createAudioFix({app})
+ipcMain.handle('audiofix:start',async(e,src)=>audioFix.start(String(src||''),p=>{try{e.sender.send('audiofix:progress',p)}catch{}}))
+ipcMain.handle('audiofix:stop',()=>{audioFix.stopAll();return true})
+app.on('will-quit',()=>audioFix.close())
 const {createMAL}=require('./mal.cjs')
 const mal=createMAL({BrowserWindow,session,profiles})
 ipcMain.handle('mal:status',()=>mal.status())
