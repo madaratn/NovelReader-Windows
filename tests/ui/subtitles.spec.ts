@@ -41,3 +41,15 @@ test('automatic translation when no subtitle is in the chosen language', async (
   await open(page, { subAutoTranslate: '1', translateTo: 'fr' })
   await expect.poll(() => cues(page)).toEqual(['[fr] Hello there\nfriend', '[fr] <i>Run!</i>'])
 })
+
+test('choose the subtitle language (French, English, Arabic…) for the translation', async ({ page }) => {
+  await open(page)
+  await page.getByTitle('Subtitle style').click()
+  await page.locator('.sub-translate select').selectOption('ar')
+  await page.getByRole('button', { name: 'Translate into العربية' }).click()
+  await expect.poll(() => cues(page)).toEqual(['[ar] Hello there\nfriend', '[ar] <i>Run!</i>'])
+  // Automatic translation follows the chosen language
+  await page.locator('.sub-auto input').check()
+  await page.locator('.sub-translate select').selectOption('fr')
+  await expect.poll(() => cues(page)).toEqual(['[fr] Hello there\nfriend', '[fr] <i>Run!</i>'])
+})

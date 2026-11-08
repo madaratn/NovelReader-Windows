@@ -56,6 +56,11 @@ test('without a key: explains where to add it; the AI writes subtitles ahead of 
   await expect.poll(() => page.evaluate(() => (window as any).__subs.chunks)).toEqual([0])
   await expect.poll(() => cues(page)).toEqual(['[en] Konnichiwa 0'])
   await expect(page.locator('.player-trackbar select option:checked').filter({ hasText: 'AI · English' })).toHaveCount(1)
+  // Another subtitle language: what was written is translated again, and the search uses it first
+  await box.getByLabel('Subtitle language').selectOption('ar')
+  await expect.poll(() => cues(page)).toEqual(['[ar] Konnichiwa 0'])
+  await expect(page.locator('.player-trackbar select option:checked').filter({ hasText: 'AI · العربية' })).toHaveCount(1)
+  expect(await page.evaluate(() => localStorage.getItem('subTranslateTo'))).toBe('ar')
   await box.getByRole('button', { name: 'Stop the AI subtitles' }).click()
   await expect(box.getByRole('button', { name: 'Generate subtitles' })).toBeVisible()
 })
