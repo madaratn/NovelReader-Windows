@@ -819,6 +819,8 @@ const FR: Record<string, string> = {
   'More accurate (470 MB, slower)': 'Plus précise (470 Mo, plus lente)',
   'Subtitle language': 'Langue des sous-titres',
   'Used for the online search and to translate subtitles.': 'Utilisée pour la recherche en ligne et pour traduire les sous-titres.',
+  'This PC cannot show the picture of this quality (video format not supported). Trying another quality…': 'Ce PC ne peut pas afficher l\'image de cette qualité (format vidéo non pris en charge). Essai d\'une autre qualité…',
+  'This PC cannot show the picture of this quality (video format not supported). Pick another quality.': 'Ce PC ne peut pas afficher l\'image de cette qualité (format vidéo non pris en charge). Choisissez une autre qualité.',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

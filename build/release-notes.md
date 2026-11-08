@@ -1,13 +1,11 @@
-## NovelReader 0.13.1
+## NovelReader 0.13.2
 
-Cette mise à jour s'applique **sans fermer NovelReader** (la fenêtre se recharge en une seconde quand vous n'utilisez pas l'app, ou avec le bouton de la bannière).
+Cette mise à jour s'applique **sans fermer NovelReader**.
 
-### Choisir la langue des sous-titres
-- Nouveau menu **Langue des sous-titres** : français, anglais, arabe, espagnol, allemand, italien, portugais, japonais, coréen, chinois, russe, turc.
-- Il est dans **💬 Sous-titres**, dans le panneau **Aa** du lecteur (partie « Traduire ») et dans **Paramètres › Sous-titres**.
-- Il sert partout : la recherche en ligne cherche d'abord dans cette langue, « Traduire en … » et la traduction automatique l'utilisent, et les sous-titres écrits par l'IA sont traduits dans cette langue.
-- Changer de langue pendant que l'IA écrit retraduit tout ce qui est déjà écrit.
-- Le choix est indépendant de la langue de traduction des chapitres de livres.
+### Correction : écran noir (le temps défile mais pas d'image)
+- Certaines qualités (souvent les gros fichiers **HEVC / x265**, 4K ou 10 bits) ne peuvent pas être affichées par certains PC : le son et le temps avancent, mais l'image reste noire. C'était le cas pour des invités de watch party, puisque chacun a sa propre qualité.
+- Le lecteur le détecte maintenant après quelques secondes et **passe tout seul à une autre qualité** qui n'a pas encore été essayée, en restant au même endroit (et en restant synchronisé dans un watch party).
+- Les autres changements de qualité automatiques (serveur bloqué, erreur réseau) essaient aussi toutes les qualités, plus seulement celle d'après.
 
 ### Installation
-Téléchargez `NovelReader-Setup-0.13.1.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».
+Téléchargez `NovelReader-Setup-0.13.2.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».
