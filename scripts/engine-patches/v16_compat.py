@@ -9,6 +9,10 @@
 4. TLS like a browser: JDK roots + Windows roots, and missing intermediate
    certificates fetched from the certificate itself (AIA) - EmpireStreaming,
    AnimeVostFr, UHD Movies failed with "PKIX path building failed".
+5. Seeking in proxied videos: the length of the video is sent (Ktor refused the
+   copied Content-Length header, so the player saw a stream of unknown size and
+   could not jump ahead), and when a video server ignores the requested byte
+   range, the proxy skips to the requested place itself and answers 206.
 Usage: python v16_compat.py <miwayomi source root>
 """
 import sys
@@ -204,4 +208,76 @@ edit("android-compat/src/main/kotlin/android/net/Uri.kt",
             for (ch in s) {
                 if ((ch in 'a'..'z') || (ch in 'A'..'Z') || (ch in '0'..'9') || ch in "_-!.~'()*" || (allow != null && ch in allow)) sb.append(ch) else {''',
      "Uri.encode")
+# 5. Seeking: Content-Length through respondBytesWriter, byte ranges emulated.
+api = root / "server/src/main/kotlin/miwayomi/api/ApiHelpers.kt"
+src = api.read_text()
+start = src.index("internal suspend fun ApplicationCall.proxyStream(")
+end = src.index("\n}\n", start) + 3
+src = src[:start] + '''internal suspend fun ApplicationCall.proxyStream(
+    upstream: okhttp3.Response,
+    contentType: String,
+    status: HttpStatusCode,
+    requestedRange: String? = null,
+) {
+    val body = upstream.body
+    if (body == null) {
+        upstream.close()
+        respond(status, ErrorDto("empty body"))
+        return
+    }
+    val upLength = upstream.header("Content-Length")?.toLongOrNull() ?: body.contentLength().takeIf { it >= 0 }
+    var outStatus = status
+    var outLength = upLength
+    var skip = 0L
+    val wanted = requestedRange?.let { Regex("""bytes=(\\d+)-(\\d*)""").find(it) }
+    if (status == HttpStatusCode.OK && wanted != null && upLength != null && upLength > 0) {
+        // The video server ignored the byte range: skip to it here.
+        val from = wanted.groupValues[1].toLong()
+        if (from in 0 until upLength) {
+            skip = from
+            outStatus = HttpStatusCode.PartialContent
+            outLength = upLength - from
+            response.headers.append(HttpHeaders.ContentRange, "bytes $from-${upLength - 1}/$upLength")
+        }
+    } else {
+        upstream.header("Content-Range")?.let { response.headers.append(HttpHeaders.ContentRange, it) }
+    }
+    if (upLength != null || upstream.header("Accept-Ranges") != null) response.headers.append(HttpHeaders.AcceptRanges, "bytes")
+    try {
+        respondBytesWriter(ContentType.parse(contentType), outStatus, outLength) {
+            val input = body.byteStream()
+            try {
+                val buf = ByteArray(64 * 1024)
+                var left = skip
+                while (left > 0) {
+                    val n = input.read(buf, 0, minOf(buf.size.toLong(), left).toInt())
+                    if (n < 0) break
+                    left -= n
+                }
+                while (true) {
+                    val n = input.read(buf)
+                    if (n < 0) break
+                    writeFully(buf, 0, n)
+                }
+            } finally {
+                runCatching { input.close() }
+            }
+        }
+    } finally {
+        upstream.close()
+    }
+}
+''' + src[end:]
+api.write_text(src)
+routes = root / "server/src/main/kotlin/miwayomi/api/StreamingRoutes.kt"
+r = routes.read_text()
+old = """            val status = if (response.code == 206) HttpStatusCode.PartialContent else HttpStatusCode.OK
+            call.proxyStream(response, contentType, status)
+        }"""
+if old not in r:
+    raise SystemExit("proxy route anchor not found")
+r = r.replace(old, """            val status = if (response.code == 206) HttpStatusCode.PartialContent else HttpStatusCode.OK
+            call.proxyStream(response, contentType, status, range)
+        }""", 1)
+routes.write_text(r)
 print("v16 compatibility patches applied")

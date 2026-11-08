@@ -1,3 +1,4 @@
+import{party}from'./watch-party'
 import React,{useEffect,useRef,useState}from'react'
 import{SyncSettings}from'./sync'
 import{getThemePref,setThemePref}from'../lib/theme'
@@ -93,15 +94,34 @@ export function useUpdateStatus(){const[s,setS]=useState<UpdateStatus|null>(null
 const autoIdleOn=()=>lsGet('updateAutoIdle')!=='0'
 // Tells the app when something is playing (no idle install then), every minute.
 export function useUpdateBusyReport(){useEffect(()=>{const send=()=>{const busy=[...document.querySelectorAll('video,audio')].some((v:any)=>!v.paused&&!v.ended);window.novelReader?.updateBusy?.({busy,auto:autoIdleOn()}).catch(()=>{})};send();const id=setInterval(send,60_000);return()=>clearInterval(id)},[])}
+// Interface updates without closing (electron/ui-update.cjs): applied by reloading the
+// window when nothing is going on (no video playing, no watch party, app in the
+// background or untouched for 2 minutes), or at once with the button.
+const playingNow=()=>[...document.querySelectorAll('video,audio')].some((v:any)=>!v.paused&&!v.ended&&!v.dataset?.wpVoice)
+export function useUiUpdate(){
+ const[ui,setUi]=useState<UiStatus|null>(null)
+ useEffect(()=>{const nr:any=window.novelReader;nr?.uiOk?.().catch(()=>{});nr?.uiStatus?.().then(setUi).catch(()=>{});return nr?.onUiStatus?.(setUi)},[])
+ useEffect(()=>{if(ui?.state!=='ready')return
+  let lastInput=Date.now();const touch=()=>{lastInput=Date.now()}
+  for(const e of['pointerdown','keydown','wheel'])window.addEventListener(e,touch,{passive:true})
+  const iv=setInterval(()=>{const calm=!playingNow()&&party.snap.status!=='ready'&&!document.querySelector('.readertools')
+   if(calm&&(document.hidden||Date.now()-lastInput>120000))window.novelReader?.uiApply?.().catch(()=>{})},15000)
+  return()=>{clearInterval(iv);for(const e of['pointerdown','keydown','wheel'])window.removeEventListener(e,touch)}},[ui?.state])
+ return ui
+}
 export function UpdateBanner({status}:{status:UpdateStatus|null}){
- const[dismissed,setDismissed]=useState('')
+ const[dismissed,setDismissed]=useState(''),[version,setVersion]=useState('')
  // "Updated to x.y.z" once, after an update installed itself.
  const[updated,setUpdated]=useState('')
- useEffect(()=>{window.novelReader?.appVersion?.().then((v:string)=>{const prev=lsGet('lastRunVersion');lsSet('lastRunVersion',v);if(prev&&v&&prev!==v)setUpdated(v)}).catch(()=>{})},[])
+ useEffect(()=>{window.novelReader?.appVersion?.().then((v:string)=>{setVersion(v);const prev=lsGet('lastRunVersion');lsSet('lastRunVersion',v);if(prev&&v&&prev!==v)setUpdated(v)}).catch(()=>{})},[])
  useUpdateBusyReport()
+ const ui=useUiUpdate()
  if(updated)return <div className="update-banner done" role="status"><span>{t('NovelReader has been updated to {v}.',{v:updated})}</span><div><button onClick={()=>setUpdated('')}>{t('OK')}</button></div></div>
+ if(ui?.state==='ready'&&dismissed!=='ui'+ui.version)return <div className="update-banner" role="status"><span>{t('NovelReader {v} is ready. It applies by itself when you are not using the app, without closing it.',{v:ui.version||''})}</span><div><button className="primary" onClick={()=>window.novelReader?.uiApply?.()}>{t('Update now (1 second)')}</button><button onClick={()=>setDismissed('ui'+ui.version)}>{t('Later')}</button></div></div>
  if(status?.state==='installing')return <div className="update-banner" role="status"><span>{t('Installing the update… NovelReader will reopen by itself.')}</span></div>
  if(!status||status.state!=='ready'||dismissed===status.next)return null
+ // The interface of this version is already running: the rest installs silently at closing.
+ if(status.next&&(status.next===version||(ui&&(ui.state==='downloading'||ui.state==='ready')&&ui.version===status.next)))return null
  return <div className="update-banner" role="status"><span>{t('NovelReader {v} is ready. It installs by itself when you close the app.',{v:status.next||''})}</span><div><button className="primary" onClick={()=>window.novelReader.updateInstall()}>{t('Restart now')}</button><button onClick={()=>setDismissed(status.next||'x')}>{t('Later')}</button></div></div>
 }
 export function UpdateSettings({status,version}:{status:UpdateStatus|null,version:string}){

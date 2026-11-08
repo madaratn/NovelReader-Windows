@@ -64,6 +64,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Interface-only update (applied without closing the app, electron/ui-update.cjs).
+      - name: Publish the interface bundle
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.publish }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          v=$(node -p "require('./package.json').version")
+          node scripts/ui-bundle.mjs
+          gh release upload "v$v" release/ui.json "release/ui-$v.json.gz" --clobber
       - uses: actions/upload-artifact@v4
         with:
           name: NovelReader-Windows
