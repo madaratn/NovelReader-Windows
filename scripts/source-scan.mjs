@@ -7,6 +7,8 @@ import fs from 'node:fs'
 const BASE = process.env.ENGINE || 'http://127.0.0.1:4567'
 const LANGS = (process.env.LANGS || 'all,en,fr').split(',')
 const ONLY = (process.env.ONLY || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+// QUERY=title: check that the sources find this title (search instead of the popular list).
+const QUERY = (process.env.QUERY || '').trim()
 const repos = process.argv.slice(2)
 
 async function api(path, { method = 'GET', body, timeout = 30000 } = {}) {
@@ -26,6 +28,12 @@ const clean = s => String(s || '').replace(/^Aniyomi:\s*/i, '')
 async function checkSource(src) {
   const sid = encodeURIComponent(src.id), out = { list: false, episodes: false, streams: 0, error: '', sample: '' }
   let items
+  if (QUERY) {
+    try { items = list(await api(`/api/v1/anime/${sid}/search?q=${encodeURIComponent(QUERY)}&query=${encodeURIComponent(QUERY)}&page=1`, { timeout: 30000 }), 'animes', 'results', 'items', 'list') }
+    catch (e) { out.error = 'search: ' + e.message; return out }
+    if (!items.length) { out.error = 'not found: ' + QUERY; return out }
+    out.list = true; out.found = items.slice(0, 3).map(a => clean(a.title || a.name)).join(' / ')
+  } else
   try { items = list(await api(`/api/v1/anime/${sid}/popular?page=1`, { timeout: 25000 }), 'animes', 'results', 'items', 'list') }
   catch (e) {
     // Some sources have no popular list: try a search instead.
@@ -53,7 +61,9 @@ for (const repoUrl of repos) {
   let exts
   try { exts = list(await api('/api/v1/extensions/repo?url=' + encodeURIComponent(repoUrl), { timeout: 60000 }), 'extensions', 'items') }
   catch (e) { console.log('repo failed', repoUrl, e.message); continue }
-  const todo = exts.filter(x => !x.nsfw && !x.torrent && LANGS.includes(String(x.lang)) && (!ONLY.length || ONLY.some(o => clean(x.name).toLowerCase().includes(o))))
+  // Sources asked for by name are tested even when the repository marks them NSFW
+  // (some film sites are flagged that way).
+  const todo = exts.filter(x => (ONLY.length || !x.nsfw) && !x.torrent && LANGS.includes(String(x.lang)) && (!ONLY.length || ONLY.some(o => clean(x.name).toLowerCase().includes(o))))
   console.log(`\n### ${repoUrl}: ${todo.length} extensions to test`)
   for (const x of todo) {
     const name = clean(x.name), started = Date.now()
@@ -71,7 +81,7 @@ for (const repoUrl of repos) {
       }
       const best = row.sources.find(s => s.streams) || row.sources[0]
       row.state = best?.streams ? 'ok' : best?.list ? 'partial' : 'dead'
-      row.detail = best?.streams ? `${best.streams} streams (${best.sample})` : best?.error || ''
+      row.detail = (best?.found ? '[' + best.found + '] ' : '') + (best?.streams ? `${best.streams} streams (${best.sample})` : best?.error || '')
     } catch (e) { row.detail = e.message.slice(0, 160) }
     try { await api('/api/v1/extensions/uninstall', { method: 'POST', body: { pkg: x.pkg }, timeout: 30000 }) } catch {}
     console.log(`${row.state.padEnd(7)} ${String(x.lang).padEnd(4)} ${name.padEnd(28)} ${((Date.now() - started) / 1000).toFixed(0)}s  ${row.detail}`)

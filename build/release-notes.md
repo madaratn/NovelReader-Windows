@@ -1,11 +1,15 @@
-## NovelReader 0.13.2
+## NovelReader 0.13.3
 
 Cette mise à jour s'applique **sans fermer NovelReader**.
 
-### Correction : écran noir (le temps défile mais pas d'image)
-- Certaines qualités (souvent les gros fichiers **HEVC / x265**, 4K ou 10 bits) ne peuvent pas être affichées par certains PC : le son et le temps avancent, mais l'image reste noire. C'était le cas pour des invités de watch party, puisque chacun a sa propre qualité.
-- Le lecteur le détecte maintenant après quelques secondes et **passe tout seul à une autre qualité** qui n'a pas encore été essayée, en restant au même endroit (et en restant synchronisé dans un watch party).
-- Les autres changements de qualité automatiques (serveur bloqué, erreur réseau) essaient aussi toutes les qualités, plus seulement celle d'après.
+### 🇹🇷 Séries et films turcs
+- Nouveau bouton **Installer le pack turc** dans Séries › Sources et Films › Sources.
+- Il installe les sources qui ont des séries turques (Kuruluş Osman, Kara Sevda, Hudutsuz Sevda…) :
+  - des sources internationales (OneTouch TV avec sous-titres anglais, Torrentio, HexaWatch, Mapple, Cinemaos, FboxTV, Flixer, Vidbox, Watchroo, MoviesMod),
+  - des sites arabes (Egy Dead, Cimaleek, FaselHD, Tuktuk Cinema, Arab Seed, asia2tv),
+  - un site turc (HDFilmCehennemi).
+- Ajoutez des sous-titres **français ou arabes** avec **💬 Sous-titres** dans le lecteur (recherche en ligne, ou traduction / IA).
+- Certains sites arabes et turcs sont protégés par Cloudflare ou limités selon le pays : s'ils ne répondent pas, essayez le bloc **Cloudflare** de la page Sources, ou une autre source.
 
 ### Installation
-Téléchargez `NovelReader-Setup-0.13.2.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».
+Téléchargez `NovelReader-Setup-0.13.3.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».
