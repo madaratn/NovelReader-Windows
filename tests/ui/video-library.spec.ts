@@ -112,6 +112,24 @@ test('video sources: test installed sources and remove the dead one', async ({ p
   await expect.poll(() => page.evaluate(() => (window as any).__engine.calls.some((c: string) => c === 'POST /api/v1/extensions/uninstall'))).toBe(true)
 })
 
+test('anime source pack: installs the recommended anime sources that worked in the weekly check', async ({ page }) => {
+  const index = [
+    { name: 'Aniyomi: Hianimes', pkg: 'p.hianimes', apk: 'hianimes.apk', lang: 'en' },
+    { name: 'Aniyomi: Gogoanime', pkg: 'p.gogo', apk: 'gogo.apk', lang: 'en' },
+    { name: 'Aniyomi: AnimeKai (Unoriginal)', pkg: 'p.kai', apk: 'kai.apk', lang: 'en' },
+    { name: 'Aniyomi: Anikoto', pkg: 'p.anikoto', apk: 'anikoto.apk', lang: 'all' },
+    { name: 'Aniyomi: Vostfree', pkg: 'p.vostfree', apk: 'vostfree.apk', lang: 'fr' },
+    { name: 'Aniyomi: MovieBox', pkg: 'p.moviebox', apk: 'moviebox.apk', lang: 'all' }
+  ]
+  await page.route('**/index.min.json', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify(index) }))
+  await page.addInitScript((idx: any[]) => { (window as any).__repoIndex = idx }, index)
+  await openVideo(page, { mode: 'anime', 'lastPage:anime': 'animeSources', animeRepos: JSON.stringify([{ name: 'Test repo', url: 'https://raw.githubusercontent.com/test/anime-repo/repo/index.min.json', enabled: true }]), sourceScan: JSON.stringify({ at: new Date().toISOString(), results: [{ name: 'Anikoto', pkg: 'p.anikoto', lang: 'all', repo: 'x', state: 'partial', detail: 'no stream' }, { name: 'Hianimes', pkg: 'p.hianimes', lang: 'en', repo: 'x', state: 'ok', detail: '6 streams' }] }), sourceScanFetched: String(Date.now()) })
+  await page.evaluate(() => { const w = window as any, f = w.novelReader.miwayomiFetch; w.__installs = []; w.novelReader.miwayomiFetch = async (p: string, m?: string, b?: any) => { if (p.startsWith('/api/v1/extensions/repo')) return w.__repoIndex; if (p === '/api/v1/extensions/install') { w.__installs.push(b.apk); return { ok: true } } return f(p, m, b) } })
+  await page.getByRole('button', { name: 'Install the anime pack' }).click()
+  await expect(page.locator('.anime-toast')).toContainText('Source pack ready: 3 sources installed or already available.')
+  expect((await page.evaluate(() => (window as any).__installs)).sort()).toEqual(['gogo.apk', 'hianimes.apk', 'kai.apk']) // Anikoto failed the check, Vostfree is French, MovieBox is not anime
+})
+
 test('episodes: watched marks, Shift marks the previous ones, counts on the card', async ({ page }) => {
   await openVideo(page, { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns')]) })
   await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()

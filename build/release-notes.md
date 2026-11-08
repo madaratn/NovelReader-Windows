@@ -11,5 +11,8 @@ Cette version s'installe toute seule quand vous fermez NovelReader. C'est la der
 ### Correction : avancer dans la vidéo
 - Avec certains serveurs vidéo, il était impossible d'avancer dans la vidéo (le curseur revenait en arrière) : le moteur vidéo n'indiquait pas la taille du fichier, et certains serveurs ignorent les demandes « à partir de tel endroit ». Le moteur envoie maintenant la taille, et saute lui-même au bon endroit quand le serveur ne le fait pas.
 
+### Sources anime
+- Nouveau bouton **Installer le pack anime** dans Anime › Sources : il installe en un clic les sources anime qui ont fonctionné lors de la vérification automatique de la semaine (AnimeKai, Hianimes, Gogoanime, AniWaves, KickAssAnime, Anikage, AnimeHeaven…, plus des sources d'animes chinois). Vos autres sources ne changent pas.
+
 ### Installation
 Téléchargez `NovelReader-Setup-0.10.1.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».
