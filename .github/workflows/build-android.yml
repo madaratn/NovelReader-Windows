@@ -81,6 +81,8 @@ jobs:
     if: ${{ !inputs.publish }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -91,7 +93,7 @@ jobs:
           sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
       - uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 30
+          api-level: 34
           arch: x86_64
           target: google_apis
           disable-animations: true
@@ -99,9 +101,21 @@ jobs:
             adb install -r NovelReader-*.apk
             adb logcat -c
             adb shell am start -n com.madaratn.novelreader/.MainActivity
-            sleep 30
+            sleep 40
+            mkdir -p shots; adb exec-out screencap -p > shots/android-start.png
             adb shell uiautomator dump /sdcard/ui.xml >/dev/null; adb pull /sdcard/ui.xml ui.xml >/dev/null
             echo "--- texts on screen"; grep -o 'text="[^"]*"' ui.xml | grep -v 'text=""' | head -40
-            echo "--- web console"; adb logcat -d -s Capacitor/Console:* Capacitor:* chromium:* | tail -60
+            echo "--- web console"; adb logcat -d | grep -iE 'capacitor|chromium|console|novelreader|AndroidRuntime' | tail -80
+            cp ui.xml shots/ || true
             grep -qE 'Global Search|Recherche globale' ui.xml
-            ! adb logcat -d -s Capacitor/Console:E chromium:E | grep -E 'Uncaught|TypeError|ReferenceError'
+            ! adb logcat -d | grep -E 'Capacitor/Console.*(Uncaught|TypeError|ReferenceError|SyntaxError)'
+      # Screenshot readable without downloading the artifact.
+      - name: Publish the screenshot to a branch
+        if: always()
+        shell: bash
+        run: |
+          [ -d shots ] || exit 0
+          BR="screens/android-${GITHUB_REF_NAME//\//-}"
+          cd shots && git init -q && git checkout -q -b "$BR"
+          git add . && git -c user.name=ci -c user.email=ci@local commit -qm "android screenshot for $GITHUB_SHA"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" "$BR"

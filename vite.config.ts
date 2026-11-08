@@ -44,5 +44,6 @@ export default defineConfig(({ mode }) => ({
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   plugins: [light(), react(), cspFor(mode)],
   base: './',
-  build: { outDir: 'dist' }
+  // Android: also runs on phones whose WebView was not updated for a while.
+  build: { outDir: 'dist', ...(mode === 'android' ? { target: ['es2019', 'chrome79'] } : {}) }
 }))
