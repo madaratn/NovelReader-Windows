@@ -20,3 +20,6 @@ export async function translateVtt(vtt:string,to:string,translate:(o:{texts:stri
  const body=cues.map((c,i)=>c.head+'\n'+String(out[i]??c.text).replace(/\s*<br\s*\/?>\s*/gi,'\n').replace(/&#39;/g,"'").replace(/&quot;/g,'"').replace(/&amp;/g,'&').trim()).join('\n\n')
  return(/^WEBVTT/.test(header)?header:'WEBVTT')+'\n\n'+body+'\n'
 }
+// Lines written by the AI -> WebVTT.
+const vttTime=(s:number)=>{s=Math.max(0,s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=s%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+sec.toFixed(3).padStart(6,'0')}
+export function vttFromLines(lines:{start:number,end:number,text:string}[]){return 'WEBVTT\n\n'+lines.filter(l=>l.end>l.start&&l.text).map(l=>vttTime(l.start)+' --> '+vttTime(l.end)+'\n'+l.text.replace(/\n{2,}/g,'\n')).join('\n\n')+'\n'}
