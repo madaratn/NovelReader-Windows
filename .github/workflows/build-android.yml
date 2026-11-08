@@ -84,6 +84,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --prefix "$RUNNER_TEMP/pw" playwright-core@1.56.0
       - uses: actions/download-artifact@v4
         with:
           name: NovelReader-Android
@@ -97,18 +102,7 @@ jobs:
           arch: x86_64
           target: google_apis
           disable-animations: true
-          script: |
-            adb install -r NovelReader-*.apk
-            adb logcat -c
-            adb shell am start -n com.madaratn.novelreader/.MainActivity
-            sleep 40
-            mkdir -p shots; adb exec-out screencap -p > shots/android-start.png
-            adb shell uiautomator dump /sdcard/ui.xml >/dev/null; adb pull /sdcard/ui.xml ui.xml >/dev/null
-            echo "--- texts on screen"; grep -o 'text="[^"]*"' ui.xml | grep -v 'text=""' | head -40
-            echo "--- web console"; adb logcat -d | grep -iE 'capacitor|chromium|console|novelreader|AndroidRuntime' | tail -80
-            cp ui.xml shots/ || true
-            grep -qE 'Global Search|Recherche globale' ui.xml
-            ! adb logcat -d | grep -E 'Capacitor/Console.*(Uncaught|TypeError|ReferenceError|SyntaxError)'
+          script: NODE_PATH="$RUNNER_TEMP/pw/node_modules" bash scripts/android-smoke.sh
       # Screenshot readable without downloading the artifact.
       - name: Publish the screenshot to a branch
         if: always()
