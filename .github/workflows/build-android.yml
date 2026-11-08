@@ -36,7 +36,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v3
+      # ubuntu-latest already has the Android SDK (ANDROID_HOME).
       - run: npm install
       - name: Build the app interface for Android
         run: npm run build:android
