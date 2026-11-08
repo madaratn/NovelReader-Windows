@@ -1,0 +1,18 @@
+{
+  "appId": "com.madaratn.novelreader",
+  "appName": "NovelReader",
+  "webDir": "dist-android",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true,
+    "webContentsDebuggingEnabled": true
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  },
+  "loggingBehavior": "production"
+}

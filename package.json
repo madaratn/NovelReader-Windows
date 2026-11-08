@@ -1,6 +1,6 @@
 {
   "name": "novel-reader-windows",
-  "version": "0.14.1",
+  "version": "0.15.0",
   "private": true,
   "description": "NovelReader for Windows",
   "main": "electron/main.cjs",
@@ -18,7 +18,9 @@
     "release": "npm run prepare:anime-engine && npm run build && electron-builder --win nsis --publish always",
     "test:unit": "node --test \"tests/unit/*.test.cjs\"",
     "check:i18n": "node scripts/check-i18n.cjs",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "build:android": "vite build --mode android --outDir dist-android",
+    "apk": "npm run build:android && npx cap sync android && cd android && ./gradlew assembleRelease"
   },
   "dependencies": {
     "castv2-client": "^1.2.0",
@@ -33,6 +35,9 @@
     "webtorrent": "~2.8.5"
   },
   "devDependencies": {
+    "@capacitor/android": "^6.2.3",
+    "@capacitor/cli": "^6.2.3",
+    "@capacitor/core": "^6.2.3",
     "@playwright/test": "^1.56.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
