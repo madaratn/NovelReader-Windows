@@ -795,4 +795,28 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
 .wp-wait{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:160;display:flex;flex-direction:column;align-items:center;gap:4px;max-width:min(560px,calc(100vw - 32px));padding:9px 16px;border:1px solid #3a4f7a;border-radius:12px;background:rgba(17,20,29,.94);color:#e6e8ef;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.4);text-align:center;pointer-events:none}
 .wp-wait-hint{color:#ffcf7a;font-size:12.5px}
 .wp-check{display:flex;align-items:center;gap:8px;color:#aab0c2;font-size:13px}.wp-check input{min-height:0!important;width:auto}
+.wp-missing{display:flex;flex-direction:column;gap:8px;padding:9px 10px;border:1px solid #5a4a24;border-radius:10px;background:#211c12}.wp-missing p{margin:0;color:#ffd99a;line-height:1.4}
+
+/* Watch party over the video */
+.player-stage:fullscreen{display:flex;align-items:center;justify-content:center;background:#000}
+.player-stage:fullscreen video{max-height:100vh!important;height:100%;width:100%}
+.party-overlay{position:absolute;inset:0;pointer-events:none;z-index:5;overflow:hidden}
+.po-bar{position:absolute;left:12px;top:12px;display:flex;gap:4px;padding:4px;border-radius:999px;background:rgba(10,12,18,.72);opacity:0;transition:opacity .2s;pointer-events:auto}
+.player-stage:hover .po-bar,.po-bar:focus-within{opacity:1}
+.party-overlay.full .po-bar{left:auto;top:auto;right:16px;bottom:72px}
+.po-bar button{position:relative;width:34px;height:34px;padding:0;border:0;border-radius:50%;background:none;font-size:18px;line-height:1;cursor:pointer}
+.po-bar button:hover{background:rgba(255,255,255,.14)}
+.po-badge{position:absolute;top:-2px;right:-2px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#d9545f;color:#fff;font-size:10px;font-weight:700;line-height:16px}
+.po-flies{position:absolute;inset:0}
+.po-fly{position:absolute;bottom:70px;display:flex;flex-direction:column;align-items:center;font-size:34px;animation:po-up 3.2s ease-out forwards;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
+.po-fly small{font-size:11px;color:#fff;background:rgba(0,0,0,.55);padding:1px 6px;border-radius:999px;margin-top:2px}
+@keyframes po-up{0%{transform:translateY(0) scale(.6);opacity:0}10%{opacity:1;transform:translateY(-20px) scale(1.1)}80%{opacity:1}100%{transform:translateY(-55vh) scale(1);opacity:0}}
+.po-chat{position:absolute;left:16px;bottom:72px;display:flex;flex-direction:column;gap:6px;max-width:min(460px,60%);pointer-events:auto}
+.po-line{align-self:flex-start;padding:6px 11px;border-radius:12px;background:rgba(10,12,18,.72);color:#eef0f6;font-size:15px;line-height:1.35;word-break:break-word;animation:po-in .2s ease-out}
+.po-line b{color:#a99cff}.po-line.system{color:#aab0c2;font-style:italic;font-size:13px}
+@keyframes po-in{from{opacity:0;transform:translateY(6px)}}
+.po-say input{width:min(420px,60vw);min-height:38px;padding:0 12px;border:1px solid #8b7cff;border-radius:999px;background:rgba(10,12,18,.88);color:#fff;font:inherit;font-size:15px;outline:none}
+@media (prefers-reduced-motion:reduce){.po-fly{animation-duration:1.6s}}
+.wp-leaves{display:flex;flex-wrap:wrap;gap:8px}
+.wp-voice-opts{display:flex;flex-direction:column;gap:6px}.wp-ptt{color:#8f94a3;font-size:12px}.wp-ptt.on{color:#3fb37f;font-weight:600}
 .audio-fix-note{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 8px;padding:7px 12px;border:1px solid #2f4a6b;border-radius:10px;background:#132033;color:#cfe1ff;font-size:13.5px}.audio-fix-note.warn{border-color:#5a4a24;background:#211c12;color:#ffd99a}.audio-fix-note label{display:flex;align-items:center;gap:6px}
