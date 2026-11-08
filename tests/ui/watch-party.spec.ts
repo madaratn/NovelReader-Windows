@@ -137,7 +137,7 @@ test('watch party: when one video is loading, everyone waits, then starts again 
   await a.locator('.wp-open').click()
   await a.locator('.wp-field input').fill('Ali')
   await a.getByRole('button', { name: 'Start a watch party' }).click()
-  await expect(a.locator('.wp-check')).toContainText('Wait for people whose video is loading')
+  await expect(a.locator('.wp-check', { hasText: 'Wait for people whose video is loading' })).toBeVisible()
   const code = (await a.locator('.wp-code b').innerText()).trim()
   await b.locator('.wp-open').click()
   await b.locator('.wp-field input').fill('Sara')
@@ -169,7 +169,7 @@ test('watch party: when one video is loading, everyone waits, then starts again 
   expect(Math.abs(ta - tb)).toBeLessThan(1.6)
   expect(ta).toBeGreaterThanOrEqual(at - 0.5)
   // With the option off, nobody waits
-  await a.locator('.wp-check input').uncheck()
+  await a.getByLabel('Wait for people whose video is loading').uncheck()
   await b.evaluate(() => { (window as any).__stuck = true })
   await a.waitForTimeout(3000)
   await expect(a.locator('.wp-wait')).toHaveCount(0)

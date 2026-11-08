@@ -273,8 +273,9 @@ app.on('web-contents-created',(_e,contents)=>{
  contents.on('will-attach-webview',e=>e.preventDefault())
 })
 const ALLOWED_PERMISSIONS=new Set(['notifications','fullscreen','clipboard-sanitized-write'])
-// The microphone (never the camera) for the watch party voice channel.
-const permissionAllowed=(permission,details)=>ALLOWED_PERMISSIONS.has(permission)||(permission==='media'&&(!details||!Array.isArray(details.mediaTypes)||details.mediaTypes.length===0||details.mediaTypes.every(t=>t==='audio'))&&(!details||details.mediaType==null||details.mediaType==='audio'||details.mediaType==='unknown'))
+// The microphone and the camera, only for NovelReader's own pages (watch party
+// voice channel and camera bubbles, each turned on by the user).
+const permissionAllowed=(permission,details)=>ALLOWED_PERMISSIONS.has(permission)||(permission==='media'&&(!details||!details.requestingUrl||isAppUrl(details.requestingUrl))&&(!details||!Array.isArray(details.mediaTypes)||details.mediaTypes.every(t=>t==='audio'||t==='video'))&&(!details||details.mediaType==null||['audio','video','unknown'].includes(details.mediaType)))
 const permissionRequest=(_wc,permission,cb,details)=>cb(permissionAllowed(permission,details))
 const permissionCheck=(_wc,permission,_origin,details)=>permissionAllowed(permission,details)
 app.whenReady().then(()=>{

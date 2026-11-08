@@ -820,3 +820,13 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
 .wp-leaves{display:flex;flex-wrap:wrap;gap:8px}
 .wp-voice-opts{display:flex;flex-direction:column;gap:6px}.wp-ptt{color:#8f94a3;font-size:12px}.wp-ptt.on{color:#3fb37f;font-weight:600}
 .audio-fix-note{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 8px;padding:7px 12px;border:1px solid #2f4a6b;border-radius:10px;background:#132033;color:#cfe1ff;font-size:13.5px}.audio-fix-note.warn{border-color:#5a4a24;background:#211c12;color:#ffd99a}.audio-fix-note label{display:flex;align-items:center;gap:6px}
+
+/* Watch party camera bubbles */
+.party-cams{position:fixed;top:76px;right:22px;z-index:140;display:flex;gap:10px;flex-wrap:wrap;max-width:min(420px,60vw);justify-content:flex-end;cursor:grab;touch-action:none;user-select:none}
+.party-cams.in-full{position:absolute;z-index:6}
+.cam-bubble{position:relative;margin:0;width:96px;height:96px;border-radius:50%;overflow:hidden;background:#111;border:2px solid rgba(255,255,255,.75);box-shadow:0 6px 18px rgba(0,0,0,.45);cursor:pointer;transition:width .15s,height .15s,border-radius .15s}
+.cam-bubble.big{width:240px;height:180px;border-radius:14px}
+.cam-bubble.speaking{border-color:#3fb37f;box-shadow:0 0 0 3px rgba(63,179,127,.5),0 6px 18px rgba(0,0,0,.45)}
+.cam-bubble video{width:100%;height:100%;object-fit:cover;pointer-events:none}
+.cam-bubble video.mirror{transform:scaleX(-1)}
+.cam-bubble figcaption{position:absolute;left:0;right:0;bottom:6px;text-align:center;font-size:11px;color:#fff;text-shadow:0 1px 3px #000;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px}
