@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { open, novel, nav } from './helpers'
+import { open, novel, nav, setup } from './helpers'
 
 test('settings show the installed version and a manual update check', async ({ page }) => {
   await open(page)
@@ -113,4 +113,34 @@ test('profiles: switcher in the sidebar, create, rename, switch and remove in Se
   await panel.locator('.pf-row', { hasText: '' }).nth(1).getByRole('button', { name: 'Remove' }).click()
   await panel.getByRole('button', { name: 'Delete with its data' }).click()
   await expect(panel.locator('.pf-row')).toHaveCount(1)
+})
+
+test('interface update without closing: offered, applied with the button, or by itself when the app is not used', async ({ page }) => {
+  await page.clock.install()
+  await setup(page, {})
+  await page.addInitScript(() => {
+    const w = window as any, base = w.novelReader
+    w.__ui = { ok: 0, apply: 0 }
+    w.novelReader = { ...base,
+      uiOk: async () => { w.__ui.ok++; return true },
+      uiStatus: async () => ({ state: 'ready', version: '0.3.0' }),
+      onUiStatus: () => () => {},
+      uiApply: async () => { w.__ui.apply++; return true } }
+  })
+  await page.goto('/')
+  const banner = page.locator('.update-banner')
+  await expect(banner).toContainText('NovelReader 0.3.0 is ready. It applies by itself when you are not using the app, without closing it.')
+  expect(await page.evaluate(() => (window as any).__ui.ok)).toBe(1)
+  // The full update of the same version does not ask for a restart
+  await page.evaluate(() => (window as any).__emitUpdate({ state: 'ready', version: '0.2.0', next: '0.3.0' }))
+  await expect(banner).not.toContainText('Restart now')
+  await banner.getByRole('button', { name: 'Update now (1 second)' }).click()
+  expect(await page.evaluate(() => (window as any).__ui.apply)).toBe(1)
+  // Still in use: nothing happens by itself
+  await page.clock.runFor(16000)
+  expect(await page.evaluate(() => (window as any).__ui.apply)).toBe(1)
+  // By itself: the app goes to the background with nothing playing
+  await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }) })
+  await page.clock.runFor(16000)
+  await expect.poll(() => page.evaluate(() => (window as any).__ui.apply)).toBe(2)
 })

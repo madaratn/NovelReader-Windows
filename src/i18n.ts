@@ -749,6 +749,11 @@ const FR: Record<string, string> = {
   'This file has no sound track. Pick another quality.': 'Ce fichier n\'a pas de piste son. Choisissez une autre qualité.',
   'The sound of this file could not be converted: {e}. Pick another quality.': 'Le son de ce fichier n\'a pas pu être converti : {e}. Choisissez une autre qualité.',
   'Volume': 'Volume',
+  'NovelReader {v} is ready. It applies by itself when you are not using the app, without closing it.': 'NovelReader {v} est prêt. Il s\'applique tout seul quand vous n\'utilisez pas l\'app, sans la fermer.',
+  'Update now (1 second)': 'Mettre à jour maintenant (1 seconde)',
+  'Recommended anime sources': 'Sources anime recommandées',
+  'Installs anime sources that worked in this week\'s check (One Piece, Naruto, Solo Leveling… and Chinese anime). Your other sources are not changed.': 'Installe les sources anime qui ont fonctionné lors de la vérification de la semaine (One Piece, Naruto, Solo Leveling… et animes chinois). Vos autres sources ne changent pas.',
+  'Install the anime pack': 'Installer le pack anime',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

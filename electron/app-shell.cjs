@@ -52,7 +52,7 @@ function createWindowState({ app, screen }) {
 // and update", or by itself when the PC has been idle for a while and nothing is
 // playing (the app then reopens on its own).
 const IDLE_INSTALL_SECONDS = 15 * 60
-function createUpdater({ app, ipcMain, getWindow, log = console, powerMonitor = null }) {
+function createUpdater({ app, ipcMain, getWindow, log = console, powerMonitor = null, version = null }) {
   let status = { state: 'idle', version: app.getVersion() }
   let updater = null
   let busy = false, autoIdle = true, installing = false
@@ -103,7 +103,8 @@ function createUpdater({ app, ipcMain, getWindow, log = console, powerMonitor = 
     log.info && log.info('[update] PC idle, installing', status.next)
     return install()
   }
-  ipcMain.handle('app:version', () => app.getVersion())
+  // The interface may be newer than the installed app (electron/ui-update.cjs).
+  ipcMain.handle('app:version', () => (version ? version() : app.getVersion()))
 
   function start() {
     if (!updater) return
