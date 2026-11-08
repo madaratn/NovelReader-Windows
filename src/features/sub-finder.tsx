@@ -6,6 +6,7 @@ import React,{useEffect,useRef,useState}from'react'
 import{t,getLang}from'../i18n'
 import{lsGet,lsSet}from'../lib/util'
 import{vttFromLines}from'../lib/subtitles'
+import{TRANSLATE_LANGS,translateTarget}from'./translate'
 
 export type SubInfo={kind:'anime'|'series'|'movie',title:string,year?:number,season?:number,episode?:number}
 const nr=()=>window.novelReader as any
@@ -13,6 +14,13 @@ const clean=(e:any)=>String(e?.message||e).replace(/^Error invoking remote metho
 const LANG_LABEL:Record<string,string>={fr:'Français',en:'English',es:'Español',de:'Deutsch',it:'Italiano',pt:'Português',ar:'العربية',ja:'日本語',ko:'한국어',zh:'中文',ru:'Русский',tr:'Türkçe',hi:'हिन्दी',id:'Indonesia',vi:'Tiếng Việt',th:'ไทย',pl:'Polski',nl:'Nederlands'}
 export const subLangName=(l:string)=>LANG_LABEL[String(l).toLowerCase()]||String(l||'?').toUpperCase()
 export const wyzieKey=()=>lsGet('wyzieKey')||''
+// Language of the subtitles (search order, AI translation, "Translate into"):
+// its own choice, else the chapter translation language, else the app language.
+export const SUB_LANGS=TRANSLATE_LANGS
+export const subtitleLang=()=>lsGet('subTranslateTo')||translateTarget()
+export const setSubtitleLang=(l:string)=>{lsSet('subTranslateTo',l);window.dispatchEvent(new Event('nr-sub-lang'))}
+export function useSubtitleLang(){const[l,setL]=useState(subtitleLang);useEffect(()=>{const f=()=>setL(subtitleLang());window.addEventListener('nr-sub-lang',f);return()=>window.removeEventListener('nr-sub-lang',f)},[]);return l}
+export function SubLangPicker({label}:{label?:string}){const l=useSubtitleLang();return <label className="sub-lang">{label??t('Subtitle language')}<select value={l} onChange={e=>setSubtitleLang(e.target.value)} aria-label={t('Subtitle language')}>{SUB_LANGS.map(([c,n])=><option key={c} value={c}>{n}</option>)}</select></label>}
 const aiSize=()=>lsGet('aiSubSize')==='small'?'small':'base'
 const CHUNK=30,AHEAD=90
 
@@ -20,10 +28,12 @@ export function useSubFinder({ref,streamUrl,info,haveSubs,addSub}:{ref:React.Ref
  const[open,setOpen]=useState(false),[results,setResults]=useState<OnlineSub[]|null>(null),[busy,setBusy]=useState(''),[error,setError]=useState(''),[ai,setAi]=useState<{state:'off'|'preparing'|'on',step?:string,p?:number,lines:number,lang?:string,error?:string}>({state:'off',lines:0})
  const session=useRef(0),auto=useRef('')
  const supported=typeof nr()?.subsSearch==='function'
- const ui=getLang().slice(0,2),langs=[...new Set([ui,'en'])]
+ const target=useSubtitleLang(),ui=target.slice(0,2),langs=[...new Set([ui,'en'])]
+ const aiLines=useRef<{orig:{start:number,end:number,text:string}[],shown:{start:number,end:number,text:string}[],to:string,lang:string}>({orig:[],shown:[],to:'',lang:''})
  // A new video: AI stops, the list is for that video.
  useEffect(()=>{session.current++;setResults(null);setError('');setAi({state:'off',lines:0})},[streamUrl])
  useEffect(()=>()=>{session.current++},[])
+ useEffect(()=>{if(open&&results!=null&&wyzieKey()&&info?.title&&info.kind!=='anime')searchOnline()},[target])
  async function searchOnline(){
   if(!info?.title)return
   setBusy('search');setError('')
@@ -39,23 +49,28 @@ export function useSubFinder({ref,streamUrl,info,haveSubs,addSub}:{ref:React.Ref
   try{await nr().subsAiPrepare(aiSize())}catch(e){setAi({state:'off',lines:0,error:t('The AI could not be installed: {e}',{e:clean(e)})});return}finally{off?.()}
   if(my!==session.current)return
   setAi({state:'on',lines:0})
-  const done=new Set<number>(),lines:{start:number,end:number,text:string}[]=[];let lang=''
+  const done=new Set<number>(),st=aiLines.current;st.orig=[];st.shown=[];st.to='';st.lang=''
+  const want=()=>subtitleLang()
+  const tr=async(list:{start:number,end:number,text:string}[],to:string)=>{if(!list.length||!st.lang||st.lang===to.slice(0,2)||lsGet('aiSubTranslate')==='0'||!nr().translate)return list;try{const out=await nr().translate({texts:list.map(x=>x.text),to});return list.map((x,i)=>({...x,text:String(out[i]||x.text)}))}catch{return list}}
+  const show=(my2:number)=>{if(my2!==session.current)return;const to=st.to,translated=st.lang&&st.lang!==to.slice(0,2)&&lsGet('aiSubTranslate')!=='0';addSub('ai',t('AI')+' · '+subLangName(translated?to.slice(0,2):st.lang||to.slice(0,2)),translated?to:st.lang||to,vttFromLines(st.shown),true);setAi(a=>({...a,lines:st.shown.length,lang:st.lang}))}
   while(my===session.current){
+   // Another subtitle language was chosen: everything written so far is translated again.
+   if(st.to&&st.to!==want()&&st.orig.length){st.to=want();st.shown=await tr(st.orig,st.to);show(my);continue}
    const v=ref.current;if(!v){await new Promise(r=>setTimeout(r,1000));continue}
    const now=v.currentTime,first=Math.floor(now/CHUNK)*CHUNK
    let next=-1;for(let s=first;s<now+AHEAD&&s<(v.duration||Infinity);s+=CHUNK)if(!done.has(s)){next=s;break}
    if(next<0){await new Promise(r=>setTimeout(r,1500));continue}
    done.add(next)
    try{
-    const r=await nr().subsAiChunk({src:streamUrl,start:next,dur:CHUNK,lang:lang||'auto',size:aiSize()})
+    const r=await nr().subsAiChunk({src:streamUrl,start:next,dur:CHUNK,lang:st.lang||'auto',size:aiSize()})
     if(my!==session.current)return
-    if(!lang&&r.language&&r.language!=='auto')lang=String(r.language).slice(0,2)
-    let got=r.lines||[]
-    // Translated into the app language when the video speaks another one.
-    if(got.length&&lang&&lang!==ui&&lsGet('aiSubTranslate')!=='0'&&nr().translate){try{const tr=await nr().translate({texts:got.map((x:any)=>x.text),to:ui});got=got.map((x:any,i:number)=>({...x,text:String(tr[i]||x.text)}))}catch{}}
-    lines.push(...got);lines.sort((a,b)=>a.start-b.start)
-    addSub('ai',t('AI')+' · '+subLangName(lang&&lang!==ui&&lsGet('aiSubTranslate')!=='0'?ui:lang||ui),ui,vttFromLines(lines),true)
-    setAi(a=>({...a,lines:lines.length,lang}))
+    if(!st.lang&&r.language&&r.language!=='auto')st.lang=String(r.language).slice(0,2)
+    const got=r.lines||[]
+    st.to=want()
+    st.orig.push(...got);st.orig.sort((a,b)=>a.start-b.start)
+    // Translated into the chosen subtitle language when the video speaks another one.
+    st.shown.push(...await tr(got,st.to));st.shown.sort((a,b)=>a.start-b.start)
+    show(my)
    }catch(e){if(my===session.current)setAi(a=>({...a,error:clean(e)}));await new Promise(r=>setTimeout(r,3000))}
   }
  }
@@ -70,6 +85,7 @@ export function useSubFinder({ref,streamUrl,info,haveSubs,addSub}:{ref:React.Ref
  const stepName=(s?:string)=>s==='ffmpeg'?t('sound tool'):s==='whisper'?t('AI program'):s==='model'?t('AI model'):''
  const button=<button className={'trackbtn'+(ai.state!=='off'?' on':'')} aria-expanded={open} onClick={()=>{setOpen(o=>!o);if(!open&&results==null&&wyzieKey()&&info?.title&&info.kind!=='anime')searchOnline()}} title={t('Find subtitles')}>💬 {t('Subtitles')}</button>
  const panel=open?<div className="sub-finder" role="dialog" aria-label={t('Find subtitles')}>
+  <div className="sub-finder-lang"><SubLangPicker/><small>{t('Used for the online search and to translate subtitles.')}</small></div>
   <section><b>🔎 {t('Online')}</b>
    {!wyzieKey()?<p className="cast-help">{t('Films and series: add your free Wyzie Subs key in Settings › Subtitles to search existing subtitles.')}</p>:
     busy==='search'?<p className="cast-help"><span className="spinner"/> {t('Searching subtitles…')}</p>:
@@ -94,6 +110,7 @@ export function SubtitleSettings(){
  const set=(k:string,v:boolean)=>{lsSet(k,v?'1':'0');bump(x=>x+1)}
  return <section className="panel settings-block sub-settings"><h2>{t('Subtitles')}</h2>
   <p className="settingsnote">{t('In the player, 💬 Subtitles finds subtitles for any video: online for films and series, or written by AI on this PC.')}</p>
+  <SubLangPicker/>
   <h3>{t('Online subtitles (Wyzie Subs)')}</h3>
   <p className="settingsnote">{t('Free key, once: open sub.wyzie.io/redeem, get your key and paste it here. 1,000 searches a day.')} <a href="https://sub.wyzie.io/redeem" target="_blank" rel="noreferrer">sub.wyzie.io/redeem</a></p>
   <div className="pf-add"><input value={key} onChange={e=>{setKey(e.target.value.trim());setSaved(false)}} placeholder={t('Wyzie Subs key')} aria-label={t('Wyzie Subs key')}/><button className="primary" onClick={()=>{lsSet('wyzieKey',key);setSaved(true)}}>{saved?'✓ '+t('Saved'):t('Save')}</button></div>
