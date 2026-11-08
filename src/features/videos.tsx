@@ -5,7 +5,8 @@ import{NoticeText}from'../ui/common'
 
 export function readPos(url:string):{t:number,d:number,done?:boolean,at?:number}|null{try{return JSON.parse(localStorage.getItem('localpos:'+url)||'null')}catch{return null}}
 // Shared player helpers: keyboard shortcuts and remembered volume.
-export function rememberVolume(el:HTMLVideoElement){lsSet('videoVolume',JSON.stringify({v:el.volume,m:el.muted}))}
+// (While the watch party lowers the film for a voice, the lowered volume is not kept.)
+export function rememberVolume(el:HTMLVideoElement){if(el.dataset.ducked)return;lsSet('videoVolume',JSON.stringify({v:el.volume,m:el.muted}))}
 export function restoreVolume(el:HTMLVideoElement){try{const x=JSON.parse(lsGet('videoVolume')||'null');if(x){el.volume=clamp(Number(x.v),0,1);el.muted=!!x.m}}catch{}}
 export function useVideoShortcuts(ref:React.RefObject<HTMLVideoElement|null>,active:boolean,opts:{onNext?:()=>void,onPrev?:()=>void}={}){
  const optsRef=useRef(opts);optsRef.current=opts
@@ -16,7 +17,7 @@ export function useVideoShortcuts(ref:React.RefObject<HTMLVideoElement|null>,act
    if((k===' '&&(e.target as HTMLElement).tagName!=='BUTTON')||k==='k'){v.paused?v.play().catch(()=>{}):v.pause()}
    else if(k==='ArrowRight'||k==='l'){v.currentTime=Math.min(v.duration||Infinity,v.currentTime+10)}
    else if(k==='ArrowLeft'||k==='j'){v.currentTime=Math.max(0,v.currentTime-10)}
-   else if(k==='f'){document.fullscreenElement?document.exitFullscreen().catch(()=>{}):v.requestFullscreen().catch(()=>{})}
+   else if(k==='f'){const stage=v.closest('.player-stage') as HTMLElement|null;const whole=!!stage?.querySelector('.party-overlay');document.fullscreenElement?document.exitFullscreen().catch(()=>{}):(whole?stage!:v).requestFullscreen().catch(()=>{})}
    else if(k==='m'){v.muted=!v.muted}
    else if(k==='n'&&optsRef.current.onNext){optsRef.current.onNext()}
    else if(k==='p'&&optsRef.current.onPrev){optsRef.current.onPrev()}
