@@ -4,6 +4,8 @@ buildscript {
     
     repositories {
         google()
+        // Same content as Maven Central, which sometimes refuses CI runners (403).
+        maven { url "https://maven-central.storage-download.googleapis.com/maven2/" }
         mavenCentral()
     }
     dependencies {
@@ -20,6 +22,8 @@ apply from: "variables.gradle"
 allprojects {
     repositories {
         google()
+        // Same content as Maven Central, which sometimes refuses CI runners (403).
+        maven { url "https://maven-central.storage-download.googleapis.com/maven2/" }
         mavenCentral()
     }
 }
