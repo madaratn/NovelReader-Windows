@@ -795,3 +795,4 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
 .wp-wait{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:160;display:flex;flex-direction:column;align-items:center;gap:4px;max-width:min(560px,calc(100vw - 32px));padding:9px 16px;border:1px solid #3a4f7a;border-radius:12px;background:rgba(17,20,29,.94);color:#e6e8ef;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.4);text-align:center;pointer-events:none}
 .wp-wait-hint{color:#ffcf7a;font-size:12.5px}
 .wp-check{display:flex;align-items:center;gap:8px;color:#aab0c2;font-size:13px}.wp-check input{min-height:0!important;width:auto}
+.wp-missing{display:flex;flex-direction:column;gap:8px;padding:9px 10px;border:1px solid #5a4a24;border-radius:10px;background:#211c12}.wp-missing p{margin:0;color:#ffd99a;line-height:1.4}

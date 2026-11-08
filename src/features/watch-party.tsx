@@ -8,8 +8,10 @@ import React,{useEffect,useRef,useState}from'react'
 import{t,plural}from'../i18n'
 import{lsGet,lsSet}from'../lib/util'
 
-export type PartyMedia={kind:'anime'|'series'|'movie',sourceId:string,sourceName?:string,url:string,name:string,cover?:string,id?:string}
-export type PartyState={media:PartyMedia|null,episodeUrl:string,episodeName:string,playing:boolean,time:number,rate:number,by:string}
+export type PartyMedia={kind:'anime'|'series'|'movie',sourceId:string,sourceName?:string,sourcePkg?:string,url:string,name:string,cover?:string,id?:string}
+// What a PC needs to show the same episode; episodeNumber lets a PC without the source find it elsewhere.
+export type PartyOpen={media:PartyMedia,episodeUrl:string,episodeName:string,episodeNumber?:number}
+export type PartyState={media:PartyMedia|null,episodeUrl:string,episodeName:string,episodeNumber?:number,playing:boolean,time:number,rate:number,by:string}
 type Member={id:string,name:string,voice?:boolean,muted?:boolean}
 type Msg={t:'hello',name:string}|{t:'members',list:Member[]}|{t:'state',s:PartyState}|{t:'chat',name:string,text:string,at:number}|{t:'voice',on:boolean,muted:boolean}|{t:'buffer',on:boolean,time:number}|{t:'wait',list:{id:string,name:string}[]}|{t:'bye'}
 type Conn={id:string,send:(m:Msg)=>void,onMessage:(cb:(m:Msg)=>void)=>void,onClose:(cb:()=>void)=>void,close:()=>void}
@@ -59,13 +61,13 @@ function fakeTransport():Transport{
 
 // ---- Party (one per window, survives page changes) -------------------------------
 type Chat={name:string,text:string,at:number,mine?:boolean,system?:boolean}
-type Snapshot={role:''|'host'|'guest',code:string,status:'idle'|'connecting'|'ready'|'error',error:string,members:Member[],chat:Chat[],unread:number,state:PartyState|null,stateAt:number,voice:'off'|'joining'|'on',muted:boolean,speaking:string[],voiceError:string,selfId:string,waiting:{id:string,name:string}[]}
+type Snapshot={role:''|'host'|'guest',code:string,status:'idle'|'connecting'|'ready'|'error',error:string,members:Member[],chat:Chat[],unread:number,state:PartyState|null,stateAt:number,voice:'off'|'joining'|'on',muted:boolean,speaking:string[],voiceError:string,selfId:string,waiting:{id:string,name:string}[],missing:PartyMedia|null,missingState:''|'installing'|'error',missingError:string}
 const CODE_CHARS='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const newCode=()=>Array.from({length:6},()=>CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)]).join('')
 export const partyName=()=>lsGet('partyName')||''
 
 class Party{
- snap:Snapshot={role:'',code:'',status:'idle',error:'',members:[],chat:[],unread:0,state:null,stateAt:0,voice:'off',muted:false,speaking:[],voiceError:'',selfId:'',waiting:[]}
+ snap:Snapshot={role:'',code:'',status:'idle',error:'',members:[],chat:[],unread:0,state:null,stateAt:0,voice:'off',muted:false,speaking:[],voiceError:'',selfId:'',waiting:[],missing:null,missingState:'',missingError:''}
  private subs=new Set<()=>void>()
  private transport:Transport|null=null
  private conns:Conn[]=[]
@@ -122,6 +124,12 @@ class Party{
  reportBuffer(on:boolean,time:number){if(this.snap.status!=='ready')return;if(this.snap.role==='host')this.noteBuffer(this.snap.selfId,on,time);else this.broadcast({t:'buffer',on,time})}
  setWaiting(list:{id:string,name:string}[]){if(this.snap.role!=='host')return;const cur=this.snap.waiting;if(cur.length===list.length&&cur.every((x,i)=>x.id===list[i].id))return;this.set({waiting:list});this.broadcast({t:'wait',list})}
  note(text:string){this.system(text)}
+ // This PC does not have the source of the episode being watched.
+ setMissing(m:PartyMedia|null){if((m?.sourceId||'')===(this.snap.missing?.sourceId||'')&&!!m===!!this.snap.missing)return;this.set({missing:m,missingState:'',missingError:''})}
+ async installMissing(){const m=this.snap.missing;if(!m||this.snap.missingState==='installing')return
+  this.set({missingState:'installing',missingError:''})
+  try{await installSourceOf(m);this.set({missing:null,missingState:''});this.system(t('{name} installed.',{name:m.sourceName||t('Source')}));window.dispatchEvent(new Event('nr-party-reopen'))}
+  catch(e:any){this.set({missingState:'error',missingError:String(e?.message||e)})}}
  // ---- Voice channel ----
  private local:MediaStream|null=null
  private calls=new Map<string,{call:Call,audio?:HTMLAudioElement}>()
@@ -158,7 +166,32 @@ class Party{
  private levels=new Map<string,AnalyserNode>()
  private watch(id:string,st:MediaStream){try{this.ctx=this.ctx||new AudioContext();const src=this.ctx.createMediaStreamSource(st),an=this.ctx.createAnalyser();an.fftSize=512;src.connect(an);this.levels.set(id,an)}catch{}}
  private startMeter(){if(this.local)this.watch(this.transport?.selfId()||'me',this.local);const buf=new Uint8Array(512);this.meter=setInterval(()=>{const on:string[]=[];for(const[id,an]of this.levels){an.getByteTimeDomainData(buf);let peak=0;for(const v of buf)peak=Math.max(peak,Math.abs(v-128));if(peak>12&&!(id===this.snap.selfId&&this.snap.muted))on.push(id)}const cur=this.snap.speaking;if(on.length!==cur.length||on.some(x=>!cur.includes(x)))this.set({speaking:on})},160)}
- leave(error=''){this.voiceLeave(true);for(const c of this.conns)c.close();this.conns=[];this.names.clear();this.transport?.destroy();this.transport=null;this.buffering.clear();this.set({role:'',status:error?'error':'idle',error,members:[],state:null,code:'',selfId:'',waiting:[]})}
+ leave(error=''){this.voiceLeave(true);for(const c of this.conns)c.close();this.conns=[];this.names.clear();this.transport?.destroy();this.transport=null;this.buffering.clear();this.set({role:'',status:error?'error':'idle',error,members:[],state:null,code:'',selfId:'',waiting:[],missing:null,missingState:'',missingError:''})}
+}
+// ---- Video sources of this PC (to tell if the party's source is installed) ------
+const listOf=(d:any,...k:string[])=>Array.isArray(d)?d:(k.map(x=>d?.[x]).find(Array.isArray)||[])
+let srcCache:{at:number,map:Map<string,{pkg:string,name:string}>}|null=null
+export async function videoSources(force=false){
+ if(!force&&srcCache&&Date.now()-srcCache.at<60000)return srcCache.map
+ const d=await window.novelReader.miwayomiFetch('/api/v1/sources')
+ const map=new Map<string,{pkg:string,name:string}>(listOf(d,'anime','sources','items').map((x:any)=>[String(x.id),{pkg:String(x.pkg||''),name:String(x.name||'')}]))
+ srcCache={at:Date.now(),map};return map
+}
+export const knownSourcePkg=(id:string)=>srcCache?.map.get(id)?.pkg||''
+// Install the extension of a source from the repositories enabled on this PC.
+async function installSourceOf(m:PartyMedia){
+ const nr:any=window.novelReader,clean=(n:any)=>String(n||'').replace(/^Aniyomi:\s*/i,'').toLowerCase()
+ let repos:string[]=[];try{const r=JSON.parse(localStorage.getItem('animeRepos')||'null');if(Array.isArray(r))repos=r.filter((x:any)=>x&&x.enabled&&x.url).map((x:any)=>String(x.url))}catch{}
+ if(!repos.length)repos=['https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json','https://raw.githubusercontent.com/msrofficial/anime-repo/repo/index.min.json']
+ for(const repoUrl of repos){
+  let list:any[]=[];try{list=listOf(await nr.miwayomiFetch('/api/v1/extensions/repo?url='+encodeURIComponent(repoUrl)),'extensions','plugins','items')}catch{continue}
+  const hit=list.find((x:any)=>(m.sourcePkg&&x.pkg===m.sourcePkg)||(Array.isArray(x.sources)&&x.sources.some((s:any)=>String(s.id)===m.sourceId))||(m.sourceName&&clean(x.name)===clean(m.sourceName)))
+  if(!hit?.apk)continue
+  const r:any=await nr.miwayomiFetch('/api/v1/extensions/install','POST',{repoUrl,apk:hit.apk});if(r&&r.ok===false)throw new Error(r.error||t('Install failed'))
+  const map=await videoSources(true);if(!map.has(m.sourceId))throw new Error(t('{name} was installed but its source did not appear. Restart NovelReader.',{name:m.sourceName||hit.name}))
+  return
+ }
+ throw new Error(t('{name} is not in your source repositories. Add the same repository as your friend (Video sources).',{name:m.sourceName||t('This source')}))
 }
 export async function inviteText(code:string){const base=await (window.novelReader as any).inviteBase?.().catch(()=>'')||'';const link=base?base+code:'novelreader://party/'+code;return t('Join my NovelReader watch party: {link} (code {code})',{link,code})}
 export const voiceVolume=()=>{const v=Number(lsGet('partyVoiceVolume'));return isFinite(v)&&lsGet('partyVoiceVolume')!==null?Math.min(1,Math.max(0,v)):1}
@@ -167,7 +200,7 @@ export function useParty(){const[,bump]=useState(0);useEffect(()=>party.subscrib
 
 // ---- Bridge: follows the player of this window ---------------------------------
 // current(): what this window is playing; open(): show the same title/episode.
-export function WatchPartyBridge({current,open}:{current:()=>{media:PartyMedia,episodeUrl:string,episodeName:string}|null,open:(media:PartyMedia,episodeUrl:string)=>void}){
+export function WatchPartyBridge({current,open}:{current:()=>PartyOpen|null,open:(o:PartyOpen)=>void}){
  const snap=useParty(),curRef=useRef(current),openRef=useRef(open);curRef.current=current;openRef.current=open
  const enforce=useRef<{until:number,s:PartyState|null}>({until:0,s:null}),quietUntil=useRef(0),pending=useRef<PartyState|null>(null),pendingAt=useRef(0),lastEp=useRef(''),seq=useRef(0)
  const active=snap.status==='ready'
@@ -182,7 +215,7 @@ export function WatchPartyBridge({current,open}:{current:()=>{media:PartyMedia,e
   enforce.current={until:Date.now()+3000,s} // the player may start playing by itself right after loading
   return true}
  useEffect(()=>{
-  party.onRemoteState=s=>{if(!s.media)return;seq.current++;if(sameEp(s)){const v=video();if(v&&v.readyState>=1&&apply(s))pending.current=null;else{pending.current=s;pendingAt.current=Date.now()}return}pending.current=s;pendingAt.current=Date.now();quietUntil.current=Date.now()+15000;lastEp.current=s.media.sourceId+'|'+s.media.url+'|'+s.episodeUrl;openRef.current(s.media,s.episodeUrl)}
+  party.onRemoteState=s=>{if(!s.media)return;seq.current++;if(sameEp(s)){const v=video();if(v&&v.readyState>=1&&apply(s))pending.current=null;else{pending.current=s;pendingAt.current=Date.now()}return}pending.current=s;pendingAt.current=Date.now();quietUntil.current=Date.now()+15000;lastEp.current=s.media.sourceId+'|'+s.media.url+'|'+s.episodeUrl;openRef.current({media:s.media,episodeUrl:s.episodeUrl,episodeName:s.episodeName,episodeNumber:s.episodeNumber})}
   return()=>{party.onRemoteState=null}
  },[])
  useEffect(()=>{if(!active)return
@@ -204,7 +237,7 @@ export function WatchPartyBridge({current,open}:{current:()=>{media:PartyMedia,e
    const st=party.snap.state
    if(st&&sameEp(st)&&Date.now()-lastInput>1500){const groupT=st.time+(st.playing?(Date.now()-(party.snap.stateAt||Date.now()))/1000:0)
     if(groupT>10&&v.currentTime<Math.min(5,groupT-8)){if(!pending.current){pending.current=st;pendingAt.current=party.snap.stateAt||Date.now()}return}}
-   party.share({media:c.media,episodeUrl:c.episodeUrl,episodeName:c.episodeName,playing:!v.paused,time:v.currentTime,rate:v.playbackRate})}
+   party.share({media:c.media,episodeUrl:c.episodeUrl,episodeName:c.episodeName,episodeNumber:c.episodeNumber,playing:!v.paused,time:v.currentTime,rate:v.playbackRate})}
   const evs=['play','pause','seeked','ratechange']
   let attachAt=0,settled=0,lastInput=0;const onCanPlay=()=>{if(!settled)settled=Date.now()+250}
   // The player reloads its stream in the same <video> (quality or server change, stall
@@ -227,6 +260,8 @@ const onInput=()=>{lastInput=Date.now()};window.addEventListener('pointerdown',o
   if(snap.role==='host')hb=setInterval(()=>{if(attached&&!attached.paused&&!attached.seeking&&attached.readyState>=3&&!pending.current&&Date.now()>=quietUntil.current)send()},5000)
   return()=>{clearInterval(iv);clearInterval(hb);attached?.removeEventListener('canplay',onCanPlay);window.removeEventListener('pointerdown',onInput,true);window.removeEventListener('keydown',onInput,true);window.removeEventListener('nr-user-input',onInput);window.removeEventListener('nr-player-reload',onReload);for(const e of evs)attached?.removeEventListener(e,send)}
  },[active,snap.role])
+ useEffect(()=>{if(active)videoSources().catch(()=>{})},[active])
+ useEffect(()=>{const f=()=>{const st=party.snap.state;if(!st?.media)return;pending.current=st;pendingAt.current=party.snap.stateAt||Date.now();quietUntil.current=Date.now()+15000;openRef.current({media:st.media,episodeUrl:st.episodeUrl,episodeName:st.episodeName,episodeNumber:st.episodeNumber})};window.addEventListener('nr-party-reopen',f);return()=>window.removeEventListener('nr-party-reopen',f)},[])
  // ---- Waiting for slow connections ----
  // Every PC: say when its video has been stuck loading for 1.5 s, and when it has
  // enough loaded again. The host: pause everyone at the slow person's position, and
@@ -256,7 +291,7 @@ const onInput=()=>{lastInput=Date.now()};window.addEventListener('pointerdown',o
  useEffect(()=>{if(!active||snap.role!=='host')return
   let hold:{time:number,since:number}|null=null;const skip=new Map<string,number>()
   const names=(w:[string,{name:string}][])=>w.map(([id,b])=>({id,name:b.name}))
-  const shareLocal=(patch:Partial<PartyState>)=>{const st=party.snap.state;if(!st)return;party.share({media:st.media,episodeUrl:st.episodeUrl,episodeName:st.episodeName,playing:st.playing,time:st.time,rate:st.rate,...patch});const now=party.snap.state;if(now)apply(now)}
+  const shareLocal=(patch:Partial<PartyState>)=>{const st=party.snap.state;if(!st)return;party.share({media:st.media,episodeUrl:st.episodeUrl,episodeName:st.episodeName,episodeNumber:st.episodeNumber,playing:st.playing,time:st.time,rate:st.rate,...patch});const now=party.snap.state;if(now)apply(now)}
   const tick=()=>{const now=Date.now(),st=party.snap.state,v=video()
    const w=[...party.buffering.entries()].filter(([id])=>!((skip.get(id)||0)>now))
    if(lsGet('partyWait')==='0'){if(hold){hold=null;shareLocal({playing:true})}party.setWaiting([]);return}
@@ -312,6 +347,7 @@ export function WatchPartyPanel(){
     <div className="wp-voice">{snap.voice==='off'?<button onClick={()=>party.voiceJoin()}>{'🎙 '+t('Join the voice channel')}</button>:snap.voice==='joining'?<span className="wp-help">{t('Allowing the microphone…')}</span>:<><button className={snap.muted?'danger':''} aria-pressed={snap.muted} onClick={()=>party.setMuted(!snap.muted)}>{snap.muted?'🔇 '+t('Unmute'):'🎙 '+t('Mute')}</button><label className="wp-vol" title={t('Volume of the voices')}>🔊<input type="range" min={0} max={1} step={0.05} defaultValue={voiceVolume()} onChange={e=>party.setVolume(Number(e.target.value))} aria-label={t('Volume of the voices')}/></label><button className="removebtn" onClick={()=>party.voiceLeave()}>{t('Leave the voice channel')}</button></>}</div>
     {snap.voiceError&&<p className="wp-error" role="alert">{snap.voiceError}</p>}
     {snap.voice==='on'&&<p className="wp-hint">{t('Tip: use headphones so the film does not come back through your microphone.')}</p>}
+    {snap.missing&&<div className="wp-missing" role="status"><p>{t('You do not have the source "{name}". NovelReader looks for the same episode in your other sources.',{name:snap.missing.sourceName||'?'})}</p><button className="primary" disabled={snap.missingState==='installing'} onClick={()=>party.installMissing()}>{snap.missingState==='installing'?t('Installing…'):t('Install {name}',{name:snap.missing.sourceName||t('the source')})}</button>{snap.missingError&&<p className="wp-error">{snap.missingError}</p>}</div>}
     {snap.role==='host'&&<label className="wp-check"><input type="checkbox" defaultChecked={lsGet('partyWait')!=='0'} onChange={e=>lsSet('partyWait',e.target.checked?'1':'0')}/> {t('Wait for people whose video is loading')}</label>}
     {snap.state?.media?<div className="wp-now">▶ {snap.state.media.name}{snap.state.episodeName&&snap.state.media.kind!=='movie'?' · '+snap.state.episodeName:''}</div>:<div className="wp-now muted">{t('Open an episode: everyone will follow.')}</div>}
     <div className="wp-chat" ref={chatRef}>{snap.chat.map((c,i)=><div key={i} className={'wp-msg'+(c.mine?' mine':'')+(c.system?' system':'')}>{c.system?c.text:<><b>{c.name}</b> {c.text}</>}</div>)}</div>
