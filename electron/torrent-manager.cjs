@@ -24,6 +24,18 @@ const STALL_AFTER = 45000
 
 function friendly(message, detail) { const e = new Error(message); if (detail) e.detail = detail; return e }
 
+function pickFile(torrent, wanted, index) {
+  const videos = torrent.files.filter(f => VIDEO_RE.test(f.name))
+  // Season packs: Torrentio says which file is the episode (magnet "index=").
+  if (Number.isInteger(index) && index >= 0 && torrent.files[index] && VIDEO_RE.test(torrent.files[index].name)) return torrent.files[index]
+  if (wanted) {
+    const hit = videos.find(f => f.name === wanted || f.path.endsWith('/' + wanted))
+    if (hit) return hit
+    throw friendly('That file is not included in the item\'s torrent.', 'wanted=' + wanted)
+  }
+  const rank = f => (/\.mp4$/i.test(f.name) ? 3 : /\.webm$/i.test(f.name) ? 2 : 1)
+  return videos.sort((a, b) => rank(b) - rank(a) || b.length - a.length)[0] || null
+}
 function createTorrentManager({ cacheRoot, log = () => {} }) {
   let client = null
   let server = null
@@ -71,16 +83,7 @@ function createTorrentManager({ cacheRoot, log = () => {} }) {
     } finally { clearTimeout(timer) }
   }
 
-  function pickFile(torrent, wanted) {
-    const videos = torrent.files.filter(f => VIDEO_RE.test(f.name))
-    if (wanted) {
-      const hit = videos.find(f => f.name === wanted || f.path.endsWith('/' + wanted))
-      if (hit) return hit
-      throw friendly('That file is not included in the item\'s torrent.', 'wanted=' + wanted)
-    }
-    const rank = f => (/\.mp4$/i.test(f.name) ? 3 : /\.webm$/i.test(f.name) ? 2 : 1)
-    return videos.sort((a, b) => rank(b) - rank(a) || b.length - a.length)[0] || null
-  }
+
 
   async function start({ identifier, fileName, magnet }) {
     const hasMagnet = typeof magnet === 'string' && magnet.startsWith('magnet:?')
@@ -114,7 +117,9 @@ function createTorrentManager({ cacheRoot, log = () => {} }) {
       })
       if (session.stopped) throw friendly('Stopped.')
 
-      const file = pickFile(torrent, fileName)
+      let index = null
+      if (hasMagnet) { const raw = new URLSearchParams(magnet.slice(magnet.indexOf('?') + 1)).get('index'); if (raw != null && /^\d+$/.test(raw)) index = Number(raw) }
+      const file = pickFile(torrent, fileName, index)
       if (!file) throw friendly('This torrent does not contain a video file.')
       file.select() // background download of the chosen file only (low priority)
       session.file = file
@@ -212,4 +217,4 @@ function createTorrentManager({ cacheRoot, log = () => {} }) {
   return { start, status, stop, stopAll, shutdown }
 }
 
-module.exports = { createTorrentManager }
+module.exports = { pickFile, createTorrentManager }

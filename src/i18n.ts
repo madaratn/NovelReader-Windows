@@ -830,6 +830,7 @@ const FR: Record<string, string> = {
   'Order of the episodes': 'Ordre des épisodes',
   'Last to first': 'Du dernier au premier',
   'First to last': 'Du premier au dernier',
+  'Connecting to the torrent ({n}/{total})… This can take up to 30 seconds.': 'Connexion au torrent ({n}/{total})… Cela peut prendre jusqu\'à 30 secondes.',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
