@@ -1,14 +1,11 @@
-## NovelReader 0.14.1
+## NovelReader 0.15.0 — première version Android 📱
 
-Cette mise à jour s'applique **sans fermer NovelReader**.
+### Nouveau : NovelReader sur Android (étape 1 : les livres)
+- Un fichier **NovelReader-0.15.0.apk** est joint à cette version. Sur le téléphone : téléchargez-le, ouvrez-le et autorisez « Installer des applications inconnues » si Android le demande.
+- Dans l'application Android : la **recherche globale**, les **sources de livres** (les mêmes extensions que sur PC), la **bibliothèque**, la **lecture des chapitres**, la **traduction** et la **lecture hors ligne** marchent directement sur le téléphone, sans PC.
+- Interface adaptée au téléphone : le menu passe en barre en bas de l'écran.
+- Les **animes, films et séries** arrivent dans une prochaine étape : l'onglet l'indique pour l'instant.
+- Les prochaines versions de l'APK s'installent par-dessus l'ancienne (la bibliothèque est gardée).
 
-### Correction : « matched … but it has no episode » avec les autres sources
-- Quand la source principale n'a pas l'épisode, NovelReader le cherche dans vos autres sources. Mais il cherchait l'épisode avec le numéro tel que donné par la source, et beaucoup de sources envoient « -1 » : l'épisode n'était jamais trouvé.
-- Maintenant l'épisode est trouvé par **saison et numéro**, lus aussi dans le nom (« S1 E2 », « Episode 2 »…).
-- Quand plusieurs titres portent le même nom (un film et une série « Deep in Love »…), les **3 premiers** sont essayés au lieu du premier seulement.
-
-### Messages d'erreur plus clairs
-- La liste « Pourquoi chaque source a échoué » explique maintenant les cas courants : site **protégé par Cloudflare** (installez ou démarrez FlareSolverr dans Sources › Protection Cloudflare), **bloqué dans votre pays**, site qui **refuse l'app**, **aucune vidéo pour cet épisode**, **site qui n'existe plus**.
-
-### Installation
-Téléchargez `NovelReader-Setup-0.14.1.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».
+### Windows
+- Rien ne change pour la version PC (mise à jour de l'interface sans redémarrer).

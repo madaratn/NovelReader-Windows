@@ -21,11 +21,6 @@ const CSP = [
   "form-action 'none'"
 ].join('; ')
 
-const csp = (): Plugin => ({
-  name: 'novelreader-csp',
-  apply: 'build',
-  transformIndexHtml: html => html.replace('<meta charset="utf-8" />', `<meta charset="utf-8" />\n    <meta http-equiv="Content-Security-Policy" content="${CSP}" />`)
-})
 
 // Light theme generated from style.css (see scripts/light-theme.cjs).
 const light = (): Plugin => ({
@@ -34,8 +29,20 @@ const light = (): Plugin => ({
   transform(code, id) { if (/[\\/]src[\\/]style\.css(\?|$)/.test(id)) return { code: code + lightTheme(code), map: null } }
 })
 
-export default defineConfig({
-  plugins: [light(), react(), csp()],
+// The Android app (Capacitor) runs book sources in the page: they are evaluated
+// with new Function, and requests go through the native layer.
+const ANDROID_CSP = CSP.replace("script-src 'self'", "script-src 'self' 'unsafe-eval'").replace(/connect-src [^;]+/, 'connect-src * data: blob:').replace(/media-src [^;]+/, 'media-src * blob: data:')
+const cspFor = (mode: string): Plugin => ({
+  name: 'novelreader-csp',
+  apply: 'build',
+  transformIndexHtml: html => html.replace('<meta charset="utf-8" />', `<meta charset="utf-8" />\n    <meta http-equiv="Content-Security-Policy" content="${mode === 'android' ? ANDROID_CSP : CSP}" />`)
+})
+// @ts-ignore - JSON import of the version
+import pkg from './package.json'
+
+export default defineConfig(({ mode }) => ({
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+  plugins: [light(), react(), cspFor(mode)],
   base: './',
   build: { outDir: 'dist' }
-})
+}))
