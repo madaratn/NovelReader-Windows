@@ -21,6 +21,9 @@ on:
       java_opts:
         description: Extra JVM options for the engine
         default: -Dcom.sun.security.enableAIAcaIssuers=true
+      query:
+        description: Search this title instead of testing the popular list (e.g. a Turkish series)
+        default: ''
       publish:
         description: Publish the results for the app (release "source-status")
         type: boolean
@@ -64,6 +67,7 @@ jobs:
         env:
           LANGS: ${{ inputs.langs || 'all,en,fr,es' }}
           ONLY: ${{ inputs.only || '' }}
+          QUERY: ${{ inputs.query || '' }}
         run: node scripts/source-scan.mjs ${{ inputs.repos || 'https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json https://raw.githubusercontent.com/salmanbappi/extensions-repo/main/index.min.json https://raw.githubusercontent.com/msrofficial/anime-repo/repo/index.min.json' }}
       - name: Engine errors
         if: always()
