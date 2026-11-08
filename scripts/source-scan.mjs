@@ -53,7 +53,9 @@ for (const repoUrl of repos) {
   let exts
   try { exts = list(await api('/api/v1/extensions/repo?url=' + encodeURIComponent(repoUrl), { timeout: 60000 }), 'extensions', 'items') }
   catch (e) { console.log('repo failed', repoUrl, e.message); continue }
-  const todo = exts.filter(x => !x.nsfw && !x.torrent && LANGS.includes(String(x.lang)) && (!ONLY.length || ONLY.some(o => clean(x.name).toLowerCase().includes(o))))
+  // Sources asked for by name are tested even when the repository marks them NSFW
+  // (some film sites are flagged that way).
+  const todo = exts.filter(x => (ONLY.length || !x.nsfw) && !x.torrent && LANGS.includes(String(x.lang)) && (!ONLY.length || ONLY.some(o => clean(x.name).toLowerCase().includes(o))))
   console.log(`\n### ${repoUrl}: ${todo.length} extensions to test`)
   for (const x of todo) {
     const name = clean(x.name), started = Date.now()
