@@ -339,12 +339,15 @@ const onInput=()=>{lastInput=Date.now()};window.addEventListener('pointerdown',o
  // start again together once nobody is loading (at most 30 s per person).
  const[slowHint,setSlowHint]=useState(false)
  useEffect(()=>{if(!active)return
-  let since=0,reported=false;const mine:number[]=[]
+  let since=0,reported=false,lastSeek=0;const mine:number[]=[]
+  const onSeek=()=>{lastSeek=Date.now();since=0}
+  document.addEventListener('seeking',onSeek,true)
   const ahead=(v:HTMLVideoElement)=>{const b=v.buffered;for(let i=0;i<b.length;i++)if(b.start(i)<=v.currentTime+0.2&&b.end(i)>=v.currentTime)return b.end(i)-v.currentTime;return 0}
   const iv=setInterval(()=>{const v=video(),st=party.snap.state,now=Date.now()
    const relevant=!!v&&!!st&&sameEp(st)&&!pending.current
    if(!reported){
-    const stuck=relevant&&st!.playing&&!v!.paused&&!v!.ended&&(v!.readyState<3||v!.seeking)
+    // A jump in the video (seeking) is not a slow connection: it is shared once it lands.
+    const stuck=relevant&&st!.playing&&!v!.paused&&!v!.ended&&!v!.seeking&&now-lastSeek>4000&&v!.readyState<3
     if(!stuck){since=0;return}
     if(!since)since=now
     if(now-since<1500)return
@@ -356,7 +359,7 @@ const onInput=()=>{lastInput=Date.now()};window.addEventListener('pointerdown',o
     if(!relevant||v!.ended||nearEnd||v!.readyState>=4||ahead(v!)>=4){reported=false;since=0;party.reportBuffer(false,0)}
    }
   },300)
-  return()=>{clearInterval(iv);if(reported)party.reportBuffer(false,0)}
+  return()=>{clearInterval(iv);document.removeEventListener('seeking',onSeek,true);if(reported)party.reportBuffer(false,0)}
  },[active])
  useEffect(()=>{if(!slowHint)return;const tm=setTimeout(()=>setSlowHint(false),20000);return()=>clearTimeout(tm)},[slowHint])
  useEffect(()=>{if(!active||snap.role!=='host')return
@@ -367,7 +370,7 @@ const onInput=()=>{lastInput=Date.now()};window.addEventListener('pointerdown',o
    const w=[...party.buffering.entries()].filter(([id])=>!((skip.get(id)||0)>now))
    if(lsGet('partyWait')==='0'){if(hold){hold=null;shareLocal({playing:true})}party.setWaiting([]);return}
    if(!hold){
-    if(w.length&&st&&st.playing&&v&&sameEp(st)){const times=w.map(([,b])=>b.time).filter(x=>x>0);hold={time:Math.max(0,Math.min(v.currentTime,...times)),since:now};shareLocal({playing:false,time:hold.time});party.setWaiting(names(w))}
+    if(w.length&&st&&st.playing&&v&&sameEp(st)){const groupT=st.time+(now-(party.snap.stateAt||now))/1000*(st.rate||1);const behind=w.map(([,b])=>b.time).filter(x=>x>0&&x<=groupT+1&&x>=groupT-15);hold={time:Math.max(0,Math.min(groupT,...behind)),since:now};shareLocal({playing:false,time:hold.time});party.setWaiting(names(w))}
     else party.setWaiting([])
     return}
    if(!st||!sameEp(st)){hold=null;party.setWaiting([]);return}
