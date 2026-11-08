@@ -831,6 +831,11 @@ const FR: Record<string, string> = {
   'Last to first': 'Du dernier au premier',
   'First to last': 'Du premier au dernier',
   'Connecting to the torrent ({n}/{total})… This can take up to 30 seconds.': 'Connexion au torrent ({n}/{total})… Cela peut prendre jusqu\'à 30 secondes.',
+  'protected by Cloudflare: install or start FlareSolverr in Sources › Cloudflare protection, then try again': 'protégé par Cloudflare : installez ou démarrez FlareSolverr dans Sources › Protection Cloudflare, puis réessayez',
+  'blocked in your country (HTTP 451)': 'bloqué dans votre pays (HTTP 451)',
+  'the site refuses the app for now (blocked)': 'le site refuse l\'app pour l\'instant (bloqué)',
+  'no video for this episode': 'aucune vidéo pour cet épisode',
+  'the site no longer exists': 'le site n\'existe plus',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
