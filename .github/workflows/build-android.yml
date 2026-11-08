@@ -88,7 +88,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --prefix "$RUNNER_TEMP/pw" playwright-core@1.56.0
       - uses: actions/download-artifact@v4
         with:
           name: NovelReader-Android
@@ -102,7 +101,7 @@ jobs:
           arch: x86_64
           target: google_apis
           disable-animations: true
-          script: NODE_PATH="$RUNNER_TEMP/pw/node_modules" bash scripts/android-smoke.sh
+          script: bash scripts/android-smoke.sh
       # Screenshot readable without downloading the artifact.
       - name: Publish the screenshot to a branch
         if: always()
