@@ -434,3 +434,52 @@ test('weekly source check: shown for sources not tested on this PC', async ({ pa
   await expect(page.locator('.health-row', { hasText: 'Mapple' }).locator('.scan-line')).toContainText('plays videos')
   await expect(page.locator('.health-row', { hasText: 'LaMovie' }).locator('.scan-line.dead')).toContainText('not responding')
 })
+
+test('languages for videos, as in Books: search only the chosen languages', async ({ page }) => {
+  await openVideo(page, { mode: 'anime', 'lastPage:anime': 'animeSearch' })
+  await page.evaluate(() => {
+    const w = window as any, f = w.novelReader.miwayomiFetch
+    w.__searched = []
+    w.novelReader.miwayomiFetch = async (p: string, m?: string, b?: any) => {
+      if (p === '/api/v1/sources') return { anime: [{ id: '50', name: 'Hianimes', lang: 'en' }, { id: '51', name: 'Vostfree', lang: 'fr' }, { id: '52', name: 'AnimeFLV', lang: 'es' }, { id: '53', name: 'AnimeXin', lang: 'all' }] }
+      const sid = /\/anime\/(\d+)\/search/.exec(p)?.[1]
+      if (sid) { w.__searched.push(sid); return [{ title: 'Naruto', url: '/n/' + sid, thumbnail_url: 'https://img.test/n.jpg' }] }
+      return f(p, m, b)
+    }
+  })
+  // Reopen the page so the chips load the sources above
+  await page.locator('.sidebar').getByText('Anime Library').click()
+  await page.locator('.sidebar').getByText('Global Search').click()
+  const bar = page.locator('.langbar')
+  await expect(bar.getByRole('button', { name: /English/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(bar.getByRole('button', { name: /Multi/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(bar.getByRole('button', { name: /Español/ })).toHaveAttribute('aria-pressed', 'false')
+  await expect(bar).toContainText('2 sources selected')
+  await bar.getByRole('button', { name: /Français/ }).click()
+  await page.locator('.search-main input').fill('Naruto')
+  await page.locator('.search-main input').press('Enter')
+  await expect(page.locator('.resultcard')).toHaveCount(1)
+  expect((await page.evaluate(() => (window as any).__searched)).sort()).toEqual(['50', '51', '53'])
+  await expect(page.locator('.resultcard .result-langs')).toContainText('English')
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('mediaLangs:Anime') || '[]').sort())).toEqual(['all', 'en', 'fr'])
+})
+
+test('video source catalog: language chips like Books', async ({ page }) => {
+  const index = [
+    { name: 'Aniyomi: Hianimes', pkg: 'p.h', apk: 'h.apk', lang: 'en' },
+    { name: 'Aniyomi: AnimeXin', pkg: 'p.x', apk: 'x.apk', lang: 'all' },
+    { name: 'Aniyomi: AnimeFLV', pkg: 'p.f', apk: 'f.apk', lang: 'es' },
+    { name: 'Aniyomi: Anime-Sama', pkg: 'p.s', apk: 's.apk', lang: 'fr' }
+  ]
+  await page.route('**/index.min.json', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify(index) }))
+  await openVideo(page, { mode: 'anime', 'lastPage:anime': 'animeSources', animeRepos: JSON.stringify([{ name: 'Test repo', url: 'https://raw.githubusercontent.com/test/anime-repo/repo/index.min.json', enabled: true }]) })
+  await page.getByRole('button', { name: 'Load all sources' }).click()
+  const bar = page.locator('.langbar')
+  await expect(bar).toContainText('2 sources shown')
+  await expect(page.locator('.anime-source-list')).toContainText('Hianimes')
+  await expect(page.locator('.anime-source-list')).not.toContainText('AnimeFLV')
+  await bar.getByRole('button', { name: /Español/ }).click()
+  await expect(page.locator('.anime-source-list')).toContainText('AnimeFLV')
+  await bar.getByRole('button', { name: 'All languages' }).click()
+  await expect(bar).toContainText('4 sources shown')
+})
