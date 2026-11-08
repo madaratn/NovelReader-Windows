@@ -824,6 +824,12 @@ const FR: Record<string, string> = {
   'Turkish series and films': 'Séries et films turcs',
   'Installs the sources that have Turkish series (Kuruluş Osman, Kara Sevda, Hudutsuz Sevda…): international sources with English subtitles, Arabic sites and a Turkish site. Add French or Arabic subtitles with 💬 Subtitles in the player.': 'Installe les sources qui ont des séries turques (Kuruluş Osman, Kara Sevda, Hudutsuz Sevda…) : sources internationales avec sous-titres anglais, sites arabes et un site turc. Ajoutez des sous-titres français ou arabes avec 💬 Sous-titres dans le lecteur.',
   'Install the Turkish pack': 'Installer le pack turc',
+  'Season {n}': 'Saison {n}',
+  'All seasons': 'Toutes les saisons',
+  'Seasons': 'Saisons',
+  'Order of the episodes': 'Ordre des épisodes',
+  'Last to first': 'Du dernier au premier',
+  'First to last': 'Du premier au dernier',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

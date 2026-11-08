@@ -11,9 +11,18 @@ export function mediaNorm(v:any){return String(v||'').toLowerCase().normalize('N
 export function mediaCover(a:any){return String(a?.thumbnailUrl||a?.thumbnail_url||a?.thumbnail||a?.coverUrl||a?.cover_url||a?.cover||a?.posterUrl||a?.poster_url||a?.poster||a?.imageUrl||a?.image_url||a?.image||'').trim()}
 export async function enrichMediaCover(a:any){if(mediaCover(a))return{...a,thumbnail:mediaCover(a)};const sid=String(a?.sourceId||'');const url=a?.url||a?.path;if(!sid||!url)return a;try{const d=await window.novelReader.miwayomiFetch('/api/v1/anime/'+encodeURIComponent(sid)+'/details?url='+encodeURIComponent(url));return{...a,...d,sourceId:sid,url:a.url||a.path||d?.url,thumbnail:mediaCover(d)||mediaCover(a)}}catch{return a}}
 
-export function episodeNo(ep:any,fallback:number){const n=Number(ep?.number??ep?.episodeNumber??ep?.episode_number);if(Number.isFinite(n))return n;const text=String(ep?.name||ep?.title||'');const m=text.match(/(?:episode|ep\.?|e)\s*(\d+(?:\.\d+)?)/i)||text.match(/(\d+(?:\.\d+)?)/);return m?Number(m[1]):fallback}
-export function seasonNo(ep:any){const direct=Number(ep?.season??ep?.seasonNumber??ep?.season_number);if(Number.isFinite(direct))return direct;const text=String(ep?.name||ep?.title||'');const m=text.match(/season\s*(\d+)/i)||text.match(/\bS(\d+)\s*E\d+/i);return m?Number(m[1]):1}
-export function orderedEpisodes(list:any[]=[]){return list.map((ep,i)=>({ep,s:seasonNo(ep),n:episodeNo(ep,i+1),i})).sort((a,b)=>a.s-b.s||a.n-b.n||a.i-b.i).map(x=>x.ep)}
+// Episode and season numbers, from the source's fields or from the name in many
+// languages ("S2 E5", "Episode 5", "Épisode 5", "5. Bölüm", "Sezon 2", "الحلقة ٥"…).
+// Sources often send -1 or 0 when they do not know the number: the name is used then.
+const digits=(t:string)=>t.replace(/[\u0660-\u0669]/g,d=>String(d.charCodeAt(0)-0x660)).replace(/[\u06F0-\u06F9]/g,d=>String(d.charCodeAt(0)-0x6F0))
+const SEASON_RE=[/\bS(\d+)\s*[.:-]?\s*E\d+/i,/(\d+)\s*\.?\s*(?:sezon|season|saison|temporada)\b/i,/(?:season|saison|sezon|temporada|staffel|stagione|الموسم|موسم)\s*[:#-]?\s*(\d+)/i]
+const EP_RE=[/\bS\d+\s*[.:-]?\s*E(\d+(?:\.\d+)?)/i,/(?:episode|épisode|episodio|epis[oó]dio|folge|b[öo]l[üu]m|capitulo|cap[ií]tulo|الحلقة|حلقة|\bep\.?|\beps?)\s*[:#-]?\s*(\d+(?:\.\d+)?)/i,/(\d+(?:\.\d+)?)\s*\.?\s*(?:b[öo]l[üu]m|episode|épisode|ep\b|الحلقة)/i,/\bE(\d+(?:\.\d+)?)\b/]
+const nameOf=(ep:any)=>digits(String(ep?.name||ep?.title||''))
+export function episodeNo(ep:any,fallback:number){const n=Number(ep?.number??ep?.episodeNumber??ep?.episode_number);if(Number.isFinite(n)&&n>0)return n;const text=nameOf(ep);for(const re of EP_RE){const m=text.match(re);if(m)return Number(m[1])}let rest=text;for(const re of SEASON_RE)rest=rest.replace(re,' ');const nums=(rest.match(/\d+(?:\.\d+)?/g)||[]).map(Number),noYears=nums.filter(x=>!(x>=1900&&x<=2099&&Number.isInteger(x)));const pick=noYears.length?noYears[0]:nums[0];return pick!=null?pick:fallback}
+export function seasonNo(ep:any){const direct=Number(ep?.season??ep?.seasonNumber??ep?.season_number);if(Number.isFinite(direct)&&direct>0)return direct;const text=nameOf(ep);for(const re of SEASON_RE){const m=text.match(re);if(m)return Number(m[1])}return 1}
+// Season, then episode number. Episodes without any number keep the source's order,
+// read from the oldest (sources list the newest first).
+export function orderedEpisodes(list:any[]=[]){const known=list.some(ep=>{const n=Number(ep?.number??ep?.episodeNumber??ep?.episode_number);return(Number.isFinite(n)&&n>0)||/\d/.test(nameOf(ep))});return list.map((ep,i)=>({ep,s:seasonNo(ep),n:episodeNo(ep,known?Number.MAX_SAFE_INTEGER:list.length-i),i})).sort((a,b)=>a.s-b.s||a.n-b.n||a.i-b.i).map(x=>x.ep)}
 
 
 // ---- Watch statistics (per day: seconds watched, episodes finished) ----------

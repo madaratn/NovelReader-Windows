@@ -97,11 +97,24 @@ export function EpisodeGrid({eps,prefix,mediaId,selected,disabled,onPlay,renderE
  const setWatched=(list:{ep:any,i:number}[],on:boolean)=>{for(const {ep,i} of list){const k=mediaPosKey(keyOf(ep,i));if(on)localStorage.setItem(k,JSON.stringify({t:0,d:0,done:true,at:Date.now()}));else localStorage.removeItem(k)}window.dispatchEvent(new Event('nr-media-changed'));bump(x=>x+1)}
  const watched=eps.filter((ep,i)=>posOf(ep,i)?.done).length
  const all=eps.map((ep,i)=>({ep,i}))
- return <>
-  <div className="episode-tools"><small>{t('{n} / {total} watched',{n:watched,total:eps.length})}</small>{eps.length>0&&<button onClick={()=>setWatched(all,watched<eps.length)}>{watched<eps.length?t('Mark all as watched'):t('Mark all as unwatched')}</button>}</div>
-  <div className="episodegrid">{eps.map((ep:any,i:number)=>{const label=ep.name||ep.title||t('Episode {n}',{n:episodeNo(ep,i+1)}),active=selected===ep,pos=posOf(ep,i),done=!!pos?.done,pct=!done&&pos&&pos.d>0?Math.min(100,pos.t/pos.d*100):0
+ // Seasons: chips to show one season (the one you are in by default), or all with a
+ // heading per season. Order: first to last, or last to first (remembered).
+ const seasons=[...new Set(eps.map(ep=>seasonNo(ep)))].sort((a,b)=>a-b)
+ const current=(()=>{const sel=selected?eps.indexOf(selected):-1;if(sel>=0)return seasonNo(eps[sel]);const next=all.find(x=>!posOf(x.ep,x.i)?.done);return next?seasonNo(next.ep):seasons[0]})()
+ const[season,setSeason]=useState<number|'all'|null>(null)
+ const[desc,setDesc]=useState(()=>lsGet('epOrder')==='desc')
+ const shown=seasons.length>1?(season??current):'all'
+ let list=all.filter(x=>shown==='all'||seasonNo(x.ep)===shown)
+ if(desc)list=[...list].reverse()
+ const cellOf=(ep:any,i:number)=>{const label=ep.name||ep.title||t('Episode {n}',{n:episodeNo(ep,i+1)}),active=selected===ep,pos=posOf(ep,i),done=!!pos?.done,pct=!done&&pos&&pos.d>0?Math.min(100,pos.t/pos.d*100):0
    return <div className="episodecell" key={(ep.url||ep.path||ep.name||'ep')+i}><button className={'episodecard'+(active?' active':'')+(done?' watched':'')} disabled={disabled} onClick={()=>onPlay(ep)}><span className="episodebadge">S{seasonNo(ep)}<b>E{episodeNo(ep,i+1)}</b></span><span className="episodetitle">{label}</span><span className="episodeplay">{active?'▶':'▷'}</span>{pct>0&&<span className="episodeprog" style={{width:pct+'%'}}/>}</button>
-    <button className={'ep-watch'+(done?' on':'')} aria-pressed={done} title={done?t('Mark as unwatched'):t('Mark as watched (and the previous ones with Shift)')} aria-label={done?t('Mark as unwatched'):t('Mark as watched')} onClick={e=>setWatched(e.shiftKey&&!done?all.slice(0,i+1):[{ep,i}],!done)}>{done?'✓':''}</button>{renderExtra?.(ep,i)}</div>})}</div>
+    <button className={'ep-watch'+(done?' on':'')} aria-pressed={done} title={done?t('Mark as unwatched'):t('Mark as watched (and the previous ones with Shift)')} aria-label={done?t('Mark as unwatched'):t('Mark as watched')} onClick={e=>setWatched(e.shiftKey&&!done?all.slice(0,i+1):[{ep,i}],!done)}>{done?'✓':''}</button>{renderExtra?.(ep,i)}</div>}
+ const rows:any[]=[];let lastS:number|null=null
+ for(const{ep,i}of list){const sn=seasonNo(ep);if(shown==='all'&&seasons.length>1&&sn!==lastS){rows.push(<h3 className="season-head" key={'s'+sn}>{t('Season {n}',{n:sn})}</h3>);lastS=sn}rows.push(cellOf(ep,i))}
+ return <>
+  <div className="episode-tools"><small>{t('{n} / {total} watched',{n:watched,total:eps.length})}</small>{eps.length>1&&<button onClick={()=>{const d=!desc;setDesc(d);lsSet('epOrder',d?'desc':'asc')}} title={t('Order of the episodes')}>{desc?'↓ '+t('Last to first'):'↑ '+t('First to last')}</button>}{eps.length>0&&<button onClick={()=>setWatched(all,watched<eps.length)}>{watched<eps.length?t('Mark all as watched'):t('Mark all as unwatched')}</button>}</div>
+  {seasons.length>1&&<div className="season-chips" role="tablist" aria-label={t('Seasons')}>{seasons.map(sn=><button key={sn} role="tab" aria-selected={shown===sn} className={'chip'+(shown===sn?' on':'')} onClick={()=>setSeason(sn)}>{t('Season {n}',{n:sn})} <small>{eps.filter(ep=>seasonNo(ep)===sn).length}</small></button>)}<button role="tab" aria-selected={shown==='all'} className={'chip'+(shown==='all'?' on':'')} onClick={()=>setSeason('all')}>{t('All seasons')}</button></div>}
+  <div className="episodegrid">{rows}</div>
  </>
 }
 

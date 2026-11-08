@@ -501,3 +501,29 @@ test('Turkish series pack: installs the sources that have Turkish series (intern
   await expect(page.locator('.anime-toast')).toContainText('Source pack ready: 4 sources installed or already available.')
   expect((await page.evaluate(() => (window as any).__installs)).sort()).toEqual(['egy.apk', 'hdf.apk', 'one.apk', 'tor.apk'])
 })
+
+test('episode list in order: seasons then episodes, whatever the language of the names or the source order', async ({ page }) => {
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify([item('series', 1, 'Kara Sevda')]) })
+  await page.evaluate(() => {
+    const w = window as any, f = w.novelReader.miwayomiFetch
+    w.novelReader.miwayomiFetch = async (p: string, m?: string, b?: any) => {
+      if (p.includes('/episodes')) return ['Kara Sevda 2. Sezon 10. Bölüm', 'Kara Sevda 2. Sezon 2. Bölüm', 'Kara Sevda 1. Sezon 12. Bölüm', 'Kara Sevda 1. Sezon 1. Bölüm', 'Kara Sevda 1. Sezon 2. Bölüm', 'Kara Sevda 2. Sezon 1. Bölüm'].map((name, i) => ({ name, url: '/ep/' + i, episode_number: -1 }))
+      return f(p, m, b)
+    }
+  })
+  await page.locator('.libcard', { hasText: 'Kara Sevda' }).getByRole('button', { name: 'Show episodes' }).click()
+  const order = async () => (await page.locator('.episodecell').allInnerTexts()).map(n => /(\d+)\. Sezon (\d+)\. Bölüm/.exec(n)?.slice(1).join('x'))
+  // One season at a time, starting with the one being watched
+  await expect(page.locator('.season-chips .chip.on')).toContainText('Season 1')
+  expect(await order()).toEqual(['1x1', '1x2', '1x12'])
+  await page.locator('.season-chips').getByRole('tab', { name: /Season 2/ }).click()
+  expect(await order()).toEqual(['2x1', '2x2', '2x10'])
+  // All seasons, with a heading per season
+  await page.locator('.season-chips').getByRole('tab', { name: 'All seasons' }).click()
+  expect(await order()).toEqual(['1x1', '1x2', '1x12', '2x1', '2x2', '2x10'])
+  await expect(page.locator('.season-head')).toHaveText(['Season 1', 'Season 2'])
+  // Last to first (remembered)
+  await page.getByRole('button', { name: '↑ First to last' }).click()
+  expect(await order()).toEqual(['2x10', '2x2', '2x1', '1x12', '1x2', '1x1'])
+  expect(await page.evaluate(() => localStorage.getItem('epOrder'))).toBe('desc')
+})
