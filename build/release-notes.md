@@ -1,13 +1,18 @@
-## NovelReader 0.9.4
+## NovelReader 0.10.0
 
-Cette version s'installe toute seule en arrière-plan (fermez NovelReader et rouvrez-le).
+Cette version s'installe toute seule en arrière-plan (fermez NovelReader et rouvrez-le). Pour le watch party, tout le monde doit avoir la 0.10.0.
 
-### Correction : films et séries sans son
-- Certains gros fichiers (souvent les « remux » 1080p / 4K de HubCloud, UHD Movies, 4KHDHub…) ont un son en **Dolby (AC3 / E-AC3) ou DTS**, que le lecteur intégré ne sait pas lire : l'image passait mais sans son, et le bouton du volume était grisé.
-- NovelReader le détecte maintenant tout seul après quelques secondes de lecture, et **convertit le son en direct**. Le son reste calé sur l'image (pause, avance, retour, vitesse).
-- La première fois, NovelReader télécharge le convertisseur de son (ffmpeg, environ 30 Mo, une seule fois).
-- S'il y a plusieurs langues dans le fichier (VF, VO…), un menu **Piste son** apparaît au-dessus de la vidéo ; votre choix est retenu. Un curseur de volume est aussi affiché, car celui du lecteur est grisé pour ces fichiers.
-- Bon à savoir : pour convertir le son, le fichier est lu une deuxième fois en parallèle, donc ces fichiers demandent plus de connexion. Avec une connexion lente, choisissez plutôt une qualité plus légère.
+### Watch party
+- **Rejoindre sans avoir la même source** : si votre ami regarde depuis une source que vous n'avez pas, NovelReader cherche le même épisode dans vos sources à vous, et la synchronisation continue. Un bouton **Installer …** dans le panneau 👥 installe la source de votre ami en un clic.
+- **Réactions** 😂 ❤️ 😮 😱 🔥 👏 😢 : passez la souris sur la vidéo et cliquez, elles s'envolent sur l'écran de tout le monde avec votre nom.
+- **Plein écran avec le chat** : en séance, le bouton ⛶ (ou F, ou double-clic) met le lecteur en plein écran avec les messages qui s'affichent sur la vidéo. **Entrée** pour écrire un message sans quitter le plein écran, Échap pour annuler.
+- **Reconnexion automatique** : si la connexion d'un invité saute, il revient tout seul dans la séance. Si le PC de l'hôte disparaît, le premier invité devient l'hôte et les autres le rejoignent automatiquement.
+- L'hôte peut **quitter en laissant la séance continuer** : « Quitter (Sara devient l'hôte) ». « Terminer la séance » reste disponible.
+- **Vocal** : le son du film baisse tout seul quand quelqu'un parle (désactivable), et l'option **Appuyer pour parler** (maintenir V) coupe votre micro le reste du temps.
+
+### Corrections
+- Watch party : avancer dans la vidéo pouvait vous ramener en arrière (la séance attendait l'ancien endroit). Un saut dans la vidéo est maintenant suivi par tout le monde.
+- Les différentes qualités ne s'affichent plus en boutons sous le lecteur : elles sont seulement dans le menu **Qualité**.
 
 ### Installation
-Téléchargez `NovelReader-Setup-0.9.4.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».
+Téléchargez `NovelReader-Setup-0.10.0.exe` ci-dessous. Windows SmartScreen peut afficher un avertissement car l'installeur n'est pas signé : « Informations complémentaires » › « Exécuter quand même ».
