@@ -13,13 +13,15 @@ export type PartyMedia={kind:'anime'|'series'|'movie',sourceId:string,sourceName
 // What a PC needs to show the same episode; episodeNumber lets a PC without the source find it elsewhere.
 export type PartyOpen={media:PartyMedia,episodeUrl:string,episodeName:string,episodeNumber?:number}
 export type PartyState={media:PartyMedia|null,episodeUrl:string,episodeName:string,episodeNumber?:number,playing:boolean,time:number,rate:number,by:string}
-type Member={id:string,name:string,voice?:boolean,muted?:boolean}
-type Msg={t:'hello',name:string}|{t:'members',list:Member[]}|{t:'state',s:PartyState}|{t:'chat',name:string,text:string,at:number}|{t:'voice',on:boolean,muted:boolean}|{t:'buffer',on:boolean,time:number}|{t:'react',emoji:string,name:string}|{t:'wait',list:{id:string,name:string}[]}|{t:'bye',end?:boolean,next?:string}|{t:'ping'}
+type Member={id:string,name:string,voice?:boolean,muted?:boolean,cam?:boolean}
+type Msg={t:'hello',name:string}|{t:'members',list:Member[]}|{t:'state',s:PartyState}|{t:'chat',name:string,text:string,at:number}|{t:'voice',on:boolean,muted:boolean,cam?:boolean}|{t:'buffer',on:boolean,time:number}|{t:'react',emoji:string,name:string}|{t:'wait',list:{id:string,name:string}[]}|{t:'bye',end?:boolean,next?:string}|{t:'ping'}
 type Conn={id:string,send:(m:Msg)=>void,onMessage:(cb:(m:Msg)=>void)=>void,onClose:(cb:()=>void)=>void,close:()=>void}
-type Call={peer:string,answer:(s:MediaStream)=>void,onStream:(cb:(s:MediaStream)=>void)=>void,onClose:(cb:()=>void)=>void,close:()=>void}
-type Transport={host:(code:string,onConn:(c:Conn)=>void)=>Promise<void>,join:(code:string)=>Promise<Conn>,destroy:()=>void,selfId:()=>string,call:(peer:string,s:MediaStream)=>Call,onCall:(cb:(c:Call)=>void)=>void}
+type Call={peer:string,kind:'voice'|'cam',limit:(bps:number)=>void,answer:(s:MediaStream)=>void,onStream:(cb:(s:MediaStream)=>void)=>void,onClose:(cb:()=>void)=>void,close:()=>void}
+type Transport={host:(code:string,onConn:(c:Conn)=>void)=>Promise<void>,join:(code:string)=>Promise<Conn>,destroy:()=>void,selfId:()=>string,call:(peer:string,s:MediaStream,kind?:'voice'|'cam')=>Call,onCall:(cb:(c:Call)=>void)=>void}
 
 // ---- Transports ------------------------------------------------------------------
+// Camera bubbles stay light so the film keeps the bandwidth.
+function capBitrate(pc:()=>RTCPeerConnection|undefined,bps:number){let n=0;const go=()=>{const p=pc();const ss=p?.getSenders().filter(x=>x.track?.kind==='video')||[];if(!ss.length){if(++n<20)setTimeout(go,500);return}for(const sd of ss){try{const prm=sd.getParameters();if(!prm.encodings||!prm.encodings.length)prm.encodings=[{}];prm.encodings[0].maxBitrate=bps;(prm as any).degradationPreference='maintain-framerate';sd.setParameters(prm).catch(()=>{})}catch{}}};go()}
 const PREFIX='novelreader-wp-'
 async function peerTransport():Promise<Transport>{
  const{default:Peer}=await import('peerjs')
@@ -31,10 +33,10 @@ async function peerTransport():Promise<Transport>{
   join:code=>new Promise((res,rej)=>{peer=new Peer({debug:0});peer.on('error',(e:any)=>rej(failure(e)));peer.on('open',()=>{const c=peer.connect(PREFIX+code.toLowerCase(),{reliable:true});c.on('open',()=>res(wrap(c)));setTimeout(()=>rej(new Error(t('No answer from this watch party. Check the code with your friend.'))),15000)})}),
   destroy:()=>{try{peer?.destroy()}catch{}peer=null},
   selfId:()=>String(peer?.id||''),
-  call:(id,stream)=>wrapCall(peer.call(id,stream)),
+  call:(id,stream,kind='voice')=>wrapCall(peer.call(id,stream,{metadata:{kind}})),
   onCall:cb=>{peer.on('call',(mc:any)=>cb(wrapCall(mc)))}
  }
- function wrapCall(mc:any):Call{return{peer:String(mc.peer),answer:st=>mc.answer(st),onStream:cb=>mc.on('stream',cb),onClose:cb=>{mc.on('close',cb);mc.on('error',cb)},close:()=>{try{mc.close()}catch{}}}}
+ function wrapCall(mc:any):Call{return{peer:String(mc.peer),kind:mc.metadata?.kind==='cam'?'cam':'voice',limit:bps=>capBitrate(()=>mc.peerConnection,bps),answer:st=>mc.answer(st&&st.getTracks().length?st:undefined),onStream:cb=>mc.on('stream',cb),onClose:cb=>{mc.on('close',cb);mc.on('error',cb)},close:()=>{try{mc.close()}catch{}}}}
 }
 // Tests: two windows of the same browser talk through a BroadcastChannel.
 function fakeTransport():Transport{
@@ -42,10 +44,10 @@ function fakeTransport():Transport{
  let me=Math.random().toString(36).slice(2,8)
  const sig=new BroadcastChannel('wp-voice');chans.push(sig)
  const pcs=new Map<string,RTCPeerConnection>();let onCallCb:(c:Call)=>void=()=>{}
- const mkCall=(peer:string,id:string,pc:RTCPeerConnection,incoming?:RTCSessionDescriptionInit):Call=>{let onS:(s:MediaStream)=>void=()=>{},onC:()=>void=()=>{};pc.ontrack=e=>onS(e.streams[0]);pc.onicecandidate=e=>{if(e.candidate)sig.postMessage({to:peer,from:me,id,ice:e.candidate.toJSON()})};pc.onconnectionstatechange=()=>{if(['closed','failed'].includes(pc.connectionState))onC()}
-  return{peer,answer:async st=>{for(const tr of st.getTracks())pc.addTrack(tr,st);await pc.setRemoteDescription(incoming!);const a=await pc.createAnswer();await pc.setLocalDescription(a);sig.postMessage({to:peer,from:me,id,answer:a})},onStream:cb=>{onS=cb},onClose:cb=>{onC=cb},close:()=>{pc.close();sig.postMessage({to:peer,from:me,id,bye:1});onC()}}}
+ const mkCall=(peer:string,id:string,pc:RTCPeerConnection,incoming?:RTCSessionDescriptionInit,kind:'voice'|'cam'='voice'):Call=>{let onS:(s:MediaStream)=>void=()=>{},onC:()=>void=()=>{};pc.ontrack=e=>onS(e.streams[0]);pc.onicecandidate=e=>{if(e.candidate)sig.postMessage({to:peer,from:me,id,ice:e.candidate.toJSON()})};pc.onconnectionstatechange=()=>{if(['closed','failed'].includes(pc.connectionState))onC()}
+  return{peer,kind,limit:bps=>capBitrate(()=>pc,bps),answer:async st=>{for(const tr of st.getTracks())pc.addTrack(tr,st);await pc.setRemoteDescription(incoming!);const a=await pc.createAnswer();await pc.setLocalDescription(a);sig.postMessage({to:peer,from:me,id,answer:a})},onStream:cb=>{onS=cb},onClose:cb=>{onC=cb},close:()=>{pc.close();sig.postMessage({to:peer,from:me,id,bye:1});onC()}}}
  sig.onmessage=async e=>{const d=e.data;if(d.to!==me)return;const pc=pcs.get(d.id)
-  if(d.offer){const p2=new RTCPeerConnection();pcs.set(d.id,p2);onCallCb(mkCall(d.from,d.id,p2,d.offer))}
+  if(d.offer){const p2=new RTCPeerConnection();pcs.set(d.id,p2);onCallCb(mkCall(d.from,d.id,p2,d.offer,d.kind==='cam'?'cam':'voice'))}
   else if(d.answer&&pc)await pc.setRemoteDescription(d.answer)
   else if(d.ice&&pc)await pc.addIceCandidate(d.ice).catch(()=>{})
   else if(d.bye&&pc){pc.close();pcs.delete(d.id)}}
@@ -55,21 +57,21 @@ function fakeTransport():Transport{
   join:code=>new Promise((res,rej)=>{const lobby=new BroadcastChannel('wp-'+code);chans.push(lobby);const tm=setTimeout(()=>rej(new Error(t('No watch party with this code. Check the code with your friend.'))),1500);lobby.onmessage=e=>{if(e.data?.welcome===me){clearTimeout(tm);res(pipe('wp-'+code+'-'+me,'host'))}};lobby.postMessage({knock:me})}),
   destroy:()=>{for(const p of pcs.values())p.close();pcs.clear();for(const c of chans)try{c.close()}catch{}chans=[]},
   selfId:()=>me,
-  call:(peer,stream)=>{const id=Math.random().toString(36).slice(2);const pc=new RTCPeerConnection();pcs.set(id,pc);const c=mkCall(peer,id,pc);for(const tr of stream.getTracks())pc.addTrack(tr,stream);pc.createOffer().then(async o=>{await pc.setLocalDescription(o);sig.postMessage({to:peer,from:me,id,offer:o})});return c},
+  call:(peer,stream,kind='voice')=>{const id=Math.random().toString(36).slice(2);const pc=new RTCPeerConnection();pcs.set(id,pc);const c=mkCall(peer,id,pc,undefined,kind);for(const tr of stream.getTracks())pc.addTrack(tr,stream);pc.createOffer().then(async o=>{await pc.setLocalDescription(o);sig.postMessage({to:peer,from:me,id,offer:o,kind})});return c},
   onCall:cb=>{onCallCb=cb}
  }
 }
 
 // ---- Party (one per window, survives page changes) -------------------------------
 type Chat={name:string,text:string,at:number,mine?:boolean,system?:boolean}
-type Snapshot={role:''|'host'|'guest',code:string,status:'idle'|'connecting'|'ready'|'error',error:string,members:Member[],chat:Chat[],unread:number,state:PartyState|null,stateAt:number,voice:'off'|'joining'|'on',muted:boolean,speaking:string[],voiceError:string,selfId:string,waiting:{id:string,name:string}[],missing:PartyMedia|null,missingState:''|'installing'|'error',missingError:string,reconnecting:boolean,ptt:boolean,talking:boolean}
+type Snapshot={role:''|'host'|'guest',code:string,status:'idle'|'connecting'|'ready'|'error',error:string,members:Member[],chat:Chat[],unread:number,state:PartyState|null,stateAt:number,voice:'off'|'joining'|'on',muted:boolean,speaking:string[],voiceError:string,selfId:string,waiting:{id:string,name:string}[],missing:PartyMedia|null,missingState:''|'installing'|'error',missingError:string,reconnecting:boolean,ptt:boolean,talking:boolean,cam:'off'|'starting'|'on',camError:string,camLocal:MediaStream|null,cams:{id:string,stream:MediaStream}[]}
 export const REACTIONS=['😂','❤️','😮','😱','🔥','👏','😢']
 const CODE_CHARS='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const newCode=()=>Array.from({length:6},()=>CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)]).join('')
 export const partyName=()=>lsGet('partyName')||''
 
 class Party{
- snap:Snapshot={role:'',code:'',status:'idle',error:'',members:[],chat:[],unread:0,state:null,stateAt:0,voice:'off',muted:false,speaking:[],voiceError:'',selfId:'',waiting:[],missing:null,missingState:'',missingError:'',reconnecting:false,ptt:lsGet('partyPtt')==='1',talking:false}
+ snap:Snapshot={role:'',code:'',status:'idle',error:'',members:[],chat:[],unread:0,state:null,stateAt:0,voice:'off',muted:false,speaking:[],voiceError:'',selfId:'',waiting:[],missing:null,missingState:'',missingError:'',reconnecting:false,ptt:lsGet('partyPtt')==='1',talking:false,cam:'off',camError:'',camLocal:null,cams:[]}
  private subs=new Set<()=>void>()
  private transport:Transport|null=null
  private conns:Conn[]=[]
@@ -85,7 +87,7 @@ class Party{
  private addChat(c:Chat){this.set({chat:[...this.snap.chat,c].slice(-200),unread:this.panelOpen||c.mine||c.system?this.snap.unread:this.snap.unread+1})}
  async host(){
   this.leave();this.myName=partyName()||t('Guest');this.set({role:'host',status:'connecting',error:'',members:[],chat:[]})
-  for(let i=0;i<4;i++){const code=newCode();try{this.transport=await this.make();await this.transport.host(code,c=>this.accept(c));this.transport.onCall(c=>this.incoming(c));this.set({code,status:'ready',selfId:this.transport.selfId()});this.sendMembers();this.keepAlive();this.system(t('Watch party created. Share the code {code}.',{code}));return}catch(e:any){this.transport?.destroy();if(e?.message!=='taken'){this.set({status:'error',error:String(e?.message||e),role:''});return}}}
+  for(let i=0;i<4;i++){const code=newCode();try{this.transport=await this.make();await this.transport.host(code,c=>this.accept(c));this.transport.onCall(c=>this.route(c));this.set({code,status:'ready',selfId:this.transport.selfId()});this.sendMembers();this.keepAlive();this.system(t('Watch party created. Share the code {code}.',{code}));return}catch(e:any){this.transport?.destroy();if(e?.message!=='taken'){this.set({status:'error',error:String(e?.message||e),role:''});return}}}
  }
  async join(code:string){
   const c=code.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');if(c.length!==6){this.set({status:'error',error:t('The code has 6 letters or numbers.')});return}
@@ -97,7 +99,7 @@ class Party{
   this.transport=await this.make();const conn=await this.transport.join(code);this.conns=[conn];this.seen_.set(conn,Date.now())
   conn.onMessage(m=>{this.seen_.set(conn,Date.now());this.receive(m,conn)})
   conn.onClose(()=>{if(this.snap.role==='guest'&&this.conns.includes(conn))this.lost()})
-  this.transport.onCall(c=>this.incoming(c));conn.send({t:'hello',name:this.me()});this.set({status:'ready',selfId:this.transport.selfId(),reconnecting:false});this.keepAlive()
+  this.transport.onCall(c=>this.route(c));conn.send({t:'hello',name:this.me()});this.set({status:'ready',selfId:this.transport.selfId(),reconnecting:false});this.keepAlive()
  }
  // ---- Staying connected ----
  // Every PC sends a small "ping" every 3 s. A guest that hears nothing from the host
@@ -112,7 +114,7 @@ class Party{
   if(this.snap.role==='guest'){const c=this.conns[0];if(c&&now-(this.seen_.get(c)||now)>10000)this.lost()}
   else if(this.snap.role==='host')for(const c of [...this.conns])if(now-(this.seen_.get(c)||now)>15000){c.close();this.dropGuest(c)}},3000)}
  private dropGuest(c:Conn){if(!this.conns.includes(c))return;this.conns=this.conns.filter(x=>x!==c);this.seen_.delete(c);const n=this.names.get(c.id);this.names.delete(c.id);this.voiceOf.delete(c.id);this.hangUp(c.id);this.noteBuffer(c.id,false,0);if(n)this.system(t('{name} left.',{name:n}));this.sendMembers()}
- private closeLinks(){clearInterval(this.alive);this.alive=null;this.voiceLeave(true);for(const c of this.conns)c.close();this.conns=[];this.seen_.clear();this.names.clear();this.voiceOf.clear();this.buffering.clear();this.transport?.destroy();this.transport=null}
+ private closeLinks(){clearInterval(this.alive);this.alive=null;this.voiceLeave(true);this.camStop(true);for(const c of this.camIn.values()){try{c.close()}catch{}}this.camIn.clear();this.set({cams:[]});for(const c of this.conns)c.close();this.conns=[];this.seen_.clear();this.names.clear();this.voiceOf.clear();this.buffering.clear();this.transport?.destroy();this.transport=null}
  private lost(next?:string){
   if(this.recovering||!this.snap.role)return
   const code=this.snap.code,self=this.snap.selfId,members=this.snap.members,hostId=members[0]?.id
@@ -124,7 +126,7 @@ class Party{
    if(next&&successor!==self)await new Promise(r=>setTimeout(r,1200))
    while(this.recovering&&Date.now()<until){
     // The successor takes over the code once the old host has been gone a few seconds.
-    if(successor===self&&(next||joinFails>=2)){try{this.transport=await this.make();await this.transport.host(code,c=>this.accept(c));this.transport.onCall(c=>this.incoming(c));this.set({role:'host',status:'ready',reconnecting:false,selfId:this.transport.selfId()});this.sendMembers();this.keepAlive();this.system(t('You are now the host of the watch party.'));this.recovering=false;return}catch{this.transport?.destroy();this.transport=null}}
+    if(successor===self&&(next||joinFails>=2)){try{this.transport=await this.make();await this.transport.host(code,c=>this.accept(c));this.transport.onCall(c=>this.route(c));this.set({role:'host',status:'ready',reconnecting:false,selfId:this.transport.selfId()});this.sendMembers();this.keepAlive();this.system(t('You are now the host of the watch party.'));this.recovering=false;return}catch{this.transport?.destroy();this.transport=null}}
     else{try{this.set({role:'guest'});await this.connectGuest(code);this.recovering=false;this.system(t('Reconnected.'));return}catch{this.transport?.destroy();this.transport=null;joinFails++}}
     await new Promise(r=>setTimeout(r,2000))}
    if(this.recovering){this.recovering=false;this.leave(t('Could not reconnect to the watch party.'))}})()
@@ -137,13 +139,13 @@ class Party{
   this.conns.push(c);this.seen_.set(c,Date.now());c.onMessage(m=>{this.seen_.set(c,Date.now());this.receive(m,c)})
   c.onClose(()=>this.dropGuest(c))
  }
- private voiceOf=new Map<string,{on:boolean,muted:boolean}>()
- private sendMembers(){const self=this.transport?.selfId()||'me',mine={on:this.snap.voice==='on',muted:this.snap.muted};const list:Member[]=[{id:self,name:this.me(),voice:mine.on,muted:mine.muted},...this.conns.map(c=>({id:c.id,name:this.names.get(c.id)||'…',voice:!!this.voiceOf.get(c.id)?.on,muted:!!this.voiceOf.get(c.id)?.muted}))];this.set({members:list});for(const c of this.conns)c.send({t:'members',list})}
+ private voiceOf=new Map<string,{on:boolean,muted:boolean,cam?:boolean}>()
+ private sendMembers(){const self=this.transport?.selfId()||'me',mine={on:this.snap.voice==='on',muted:this.snap.muted};const list:Member[]=[{id:self,name:this.me(),voice:mine.on,muted:mine.muted,cam:this.snap.cam==='on'},...this.conns.map(c=>({id:c.id,name:this.names.get(c.id)||'…',voice:!!this.voiceOf.get(c.id)?.on,muted:!!this.voiceOf.get(c.id)?.muted,cam:!!this.voiceOf.get(c.id)?.cam}))];this.set({members:list});for(const c of this.conns)c.send({t:'members',list});this.syncCams()}
  private receive(m:Msg,from:Conn){
   if(m.t==='hello'&&this.snap.role==='host'){this.names.set(from.id,String(m.name||t('Guest')).slice(0,30));this.system(t('{name} joined.',{name:this.names.get(from.id)!}));this.sendMembers();if(this.snap.state)from.send({t:'state',s:this.snap.state})}
   else if(m.t==='bye'&&this.snap.role==='guest'){if(m.next){const host=this.snap.members[0]?.name||'';const nn=this.snap.members.find(x=>x.id===m.next)?.name||'';this.system(t('{host} left; {name} is now the host.',{host,name:nn}));this.lost(String(m.next))}else this.leave(t('The host closed the watch party.'))}
-  else if(m.t==='members'){this.set({members:m.list});this.syncCalls()}
-  else if(m.t==='voice'&&this.snap.role==='host'){this.voiceOf.set(from.id,{on:!!m.on,muted:!!m.muted});if(!m.on)this.hangUp(from.id);this.sendMembers();this.syncCalls()}
+  else if(m.t==='members'){this.set({members:m.list});this.syncCalls();this.syncCams()}
+  else if(m.t==='voice'&&this.snap.role==='host'){this.voiceOf.set(from.id,{on:!!m.on,muted:!!m.muted,cam:!!m.cam});if(!m.on)this.hangUp(from.id);this.sendMembers();this.syncCalls()}
   else if(m.t==='chat'){this.addChat({name:m.name,text:String(m.text).slice(0,500),at:m.at});if(this.snap.role==='host')this.relay(m,from)}
   else if(m.t==='react'){if(REACTIONS.includes(m.emoji)){this.emitReact(m.emoji,String(m.name||'').slice(0,30));if(this.snap.role==='host')this.relay(m,from)}}
   else if(m.t==='buffer'&&this.snap.role==='host')this.noteBuffer(from.id,!!m.on,Number(m.time)||0)
@@ -184,7 +186,7 @@ class Party{
  private local:MediaStream|null=null
  private calls=new Map<string,{call:Call,audio?:HTMLAudioElement}>()
  private meter:any=null
- private voiceMsg(){if(this.snap.role==='host'){this.sendMembers();this.syncCalls()}else this.broadcast({t:'voice',on:this.snap.voice==='on',muted:this.snap.muted})}
+ private voiceMsg(){if(this.snap.role==='host'){this.sendMembers();this.syncCalls()}else this.broadcast({t:'voice',on:this.snap.voice==='on',muted:this.snap.muted,cam:this.snap.cam==='on'})}
  async voiceJoin(){
   if(this.snap.status!=='ready'||this.snap.voice!=='off')return
   this.set({voice:'joining',voiceError:''})
@@ -215,6 +217,33 @@ class Party{
  setTalking(on:boolean){if(!this.snap.ptt||this.snap.talking===on)return;this.set({talking:on});this.applyMic()}
  setVolume(v:number){lsSet('partyVoiceVolume',String(v));for(const e of this.calls.values())if(e.audio)e.audio.volume=v}
  voiceLeave(silent=false){for(const id of [...this.calls.keys()])this.hangUp(id);this.local?.getTracks().forEach(tr=>tr.stop());this.local=null;clearInterval(this.meter);this.meter=null;this.levels.clear();const was=this.snap.voice==='on';this.set({voice:'off',muted:false,speaking:[]});if(was&&!silent){this.system(t('You left the voice channel.'));this.voiceMsg()}}
+ // ---- Cameras (small bubbles over the video) ----
+ // Off by default. Whoever turns their camera on sends it to every other person
+ // (video only, small and capped); the others only receive.
+ private camOut=new Map<string,Call>()
+ private camIn=new Map<string,Call>()
+ private route(c:Call){if(c.kind==='cam')this.camIncoming(c);else this.incoming(c)}
+ async camStart(){
+  if(this.snap.status!=='ready'||this.snap.cam!=='off')return
+  this.set({cam:'starting',camError:''})
+  let st:MediaStream
+  try{st=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:320},height:{ideal:240},frameRate:{ideal:15,max:15}},audio:false})}
+  catch(e:any){const n=String(e?.name||e);this.set({cam:'off',camError:/NotAllowed|Permission/i.test(n)?t('The camera is not allowed. Check Windows Settings › Privacy › Camera.'):/NotFound|Overconstrained/i.test(n)?t('No camera found.'):/NotReadable|TrackStart/i.test(n)?t('The camera is used by another app.'):String(e?.message||e)});return}
+  this.set({cam:'on',camLocal:st});this.voiceMsg();this.syncCams()
+ }
+ camStop(silent=false){for(const c of this.camOut.values()){try{c.close()}catch{}}this.camOut.clear();this.snap.camLocal?.getTracks().forEach(tr=>tr.stop());const was=this.snap.cam==='on';this.set({cam:'off',camLocal:null});if(was&&!silent)this.voiceMsg()}
+ private syncCams(){
+  const self=this.snap.selfId;if(!this.transport)return
+  const ids=new Set(this.snap.members.filter(m=>m.id!==self).map(m=>m.id))
+  // Mine to everyone (newcomers included).
+  if(this.snap.cam==='on'&&this.snap.camLocal){for(const id of ids)if(!this.camOut.has(id)){const c=this.transport.call(id,this.snap.camLocal,'cam');this.camOut.set(id,c);c.limit(250000);c.onClose(()=>{if(this.camOut.get(id)===c)this.camOut.delete(id)})}}
+  for(const[id,c]of[...this.camOut])if(!ids.has(id)){try{c.close()}catch{}this.camOut.delete(id)}
+  // Theirs: dropped when they turn it off or leave.
+  const on=new Set(this.snap.members.filter(m=>m.cam).map(m=>m.id))
+  for(const[id,c]of[...this.camIn])if(!on.has(id)){try{c.close()}catch{}this.dropCam(id)}
+ }
+ private camIncoming(c:Call){const old=this.camIn.get(c.peer);if(old){try{old.close()}catch{}}this.camIn.set(c.peer,c);c.answer(new MediaStream());c.onStream(st=>this.set({cams:[...this.snap.cams.filter(x=>x.id!==c.peer),{id:c.peer,stream:st}]}));c.onClose(()=>{if(this.camIn.get(c.peer)===c)this.dropCam(c.peer)})}
+ private dropCam(id:string){this.camIn.delete(id);if(this.snap.cams.some(x=>x.id===id))this.set({cams:this.snap.cams.filter(x=>x.id!==id)})}
  // Who is speaking: audio level of each voice (and mine), checked 6 times a second.
  private ctx:AudioContext|null=null
  private levels=new Map<string,AnalyserNode>()
@@ -395,6 +424,7 @@ export function WatchPartyButton(){
  </button>
 }
 export function WatchPartyPanel(){
+ const[hideCams,setHideCams]=useHideCams()
  const snap=useParty(),[open,setOpen]=useState(false),[name,setName]=useState(partyName),[code,setCode]=useState(''),[text,setText]=useState(''),[copied,setCopied]=useState(false),[invited,setInvited]=useState(false),chatRef=useRef<HTMLDivElement>(null)
  // Invitation links (novelreader://party/CODE): open the panel and join.
  useEffect(()=>{const nr:any=window.novelReader;const handle=(url:string)=>{const m=/^novelreader:\/\/party\/([A-Z0-9]{6})/i.exec(String(url||''));if(!m)return;const c=m[1].toUpperCase();setCode(c);setOpen(true);if(party.snap.status==='ready'&&party.snap.code===c)return;if(partyName())party.join(c);else setTimeout(()=>(document.querySelector('.wp-field input') as HTMLInputElement|null)?.focus(),50)};nr?.takeDeepLink?.().then(handle).catch(()=>{});return nr?.onDeepLink?.(handle)},[])
@@ -417,10 +447,12 @@ export function WatchPartyPanel(){
    {snap.status==='connecting'?<p className="wp-help"><span className="spinner"/> {snap.reconnecting?t('Reconnecting to the watch party…'):snap.role==='host'?t('Creating the watch party…'):t('Joining…')}</p>:<>
     <div className="wp-code"><span>{t('Code')}</span><b>{snap.code}</b><button onClick={()=>{navigator.clipboard?.writeText(snap.code).catch(()=>{});setCopied(true);setTimeout(()=>setCopied(false),2000)}}>{copied?'✓':t('Copy')}</button></div>
     <button className="wp-invite" onClick={async()=>{const text=await inviteText(snap.code);navigator.clipboard?.writeText(text).catch(()=>{});(window as any).__lastInvite=text;setInvited(true);setTimeout(()=>setInvited(false),3000)}}>{invited?'✓ '+t('Invitation copied: paste it in Discord, WhatsApp…'):'🔗 '+t('Copy an invitation link')}</button>
-    <div className="wp-members" aria-label={plural(snap.members.length,'{n} person','{n} people')}>{snap.members.map(m=><span key={m.id} className={'wp-member'+(m.voice?' in-voice':'')+(snap.speaking.includes(m.id)?' speaking':'')} title={m.voice?(m.muted?t('In the voice channel (muted)'):t('In the voice channel')):''}>{m.voice?(m.muted?'🔇 ':'🎙 '):''}{m.name}{m.id===snap.selfId?' ('+t('you')+')':''}</span>)}</div>
+    <div className="wp-members" aria-label={plural(snap.members.length,'{n} person','{n} people')}>{snap.members.map(m=><span key={m.id} className={'wp-member'+(m.voice?' in-voice':'')+(snap.speaking.includes(m.id)?' speaking':'')} title={m.voice?(m.muted?t('In the voice channel (muted)'):t('In the voice channel')):''}>{m.voice?(m.muted?'🔇 ':'🎙 '):''}{m.cam?'📷 ':''}{m.name}{m.id===snap.selfId?' ('+t('you')+')':''}</span>)}</div>
     <div className="wp-voice">{snap.voice==='off'?<button onClick={()=>party.voiceJoin()}>{'🎙 '+t('Join the voice channel')}</button>:snap.voice==='joining'?<span className="wp-help">{t('Allowing the microphone…')}</span>:<><button className={snap.muted?'danger':''} aria-pressed={snap.muted} onClick={()=>party.setMuted(!snap.muted)}>{snap.muted?'🔇 '+t('Unmute'):'🎙 '+t('Mute')}</button><label className="wp-vol" title={t('Volume of the voices')}>🔊<input type="range" min={0} max={1} step={0.05} defaultValue={voiceVolume()} onChange={e=>party.setVolume(Number(e.target.value))} aria-label={t('Volume of the voices')}/></label><button className="removebtn" onClick={()=>party.voiceLeave()}>{t('Leave the voice channel')}</button></>}</div>
     {snap.voice==='on'&&<div className="wp-voice-opts"><label className="wp-check"><input type="checkbox" checked={snap.ptt} onChange={e=>party.setPtt(e.target.checked)}/> {t('Push to talk (hold V)')}</label>{snap.ptt&&<span className={'wp-ptt'+(snap.talking?' on':'')}>{snap.talking?'🎙 '+t('Talking…'):t('Microphone off until you hold V')}</span>}<label className="wp-check"><input type="checkbox" defaultChecked={lsGet('partyDuck')!=='0'} onChange={e=>lsSet('partyDuck',e.target.checked?'1':'0')}/> {t('Lower the film while someone speaks')}</label></div>}
     {snap.voiceError&&<p className="wp-error" role="alert">{snap.voiceError}</p>}
+    <div className="wp-voice">{snap.cam==='on'?<button className="removebtn" onClick={()=>party.camStop()}>{'📷 '+t('Turn my camera off')}</button>:<button disabled={snap.cam==='starting'} onClick={()=>party.camStart()}>{snap.cam==='starting'?t('Allowing the camera…'):'📷 '+t('Turn my camera on')}</button>}<label className="wp-check"><input type="checkbox" checked={hideCams} onChange={e=>setHideCams(e.target.checked)}/> {t("Hide the others' cameras")}</label></div>
+    {snap.camError&&<p className="wp-error" role="alert">{snap.camError}</p>}
     {snap.voice==='on'&&<p className="wp-hint">{t('Tip: use headphones so the film does not come back through your microphone.')}</p>}
     {snap.missing&&<div className="wp-missing" role="status"><p>{t('You do not have the source "{name}". NovelReader looks for the same episode in your other sources.',{name:snap.missing.sourceName||'?'})}</p><button className="primary" disabled={snap.missingState==='installing'} onClick={()=>party.installMissing()}>{snap.missingState==='installing'?t('Installing…'):t('Install {name}',{name:snap.missing.sourceName||t('the source')})}</button>{snap.missingError&&<p className="wp-error">{snap.missingError}</p>}</div>}
     {snap.role==='host'&&<label className="wp-check"><input type="checkbox" defaultChecked={lsGet('partyWait')!=='0'} onChange={e=>lsSet('partyWait',e.target.checked?'1':'0')}/> {t('Wait for people whose video is loading')}</label>}
@@ -463,4 +495,31 @@ export function PartyOverlay(){
    <button onClick={()=>{if(full)setTyping(true);else{party.panelOpen=true;party.seen();window.dispatchEvent(new Event('nr-party-open'))}}} title={full?t('Write a message (Enter)'):t('Open the chat')} aria-label={t('Chat')}>💬{!full&&snap.unread>0&&<span className="po-badge">{snap.unread}</span>}</button>
    <button onClick={toggleFull} title={full?t('Exit fullscreen'):t('Fullscreen with the party chat (F)')} aria-label={full?t('Exit fullscreen'):t('Fullscreen')}>{full?'🗗':'⛶'}</button></div>
  </div>,stage)
+}
+
+// ---- Camera bubbles ----------------------------------------------------------------
+const hideCamsOn=()=>lsGet('partyHideCams')==='1'
+export function useHideCams():[boolean,(v:boolean)=>void]{const[v,setV]=useState(hideCamsOn);useEffect(()=>{const f=()=>setV(hideCamsOn());window.addEventListener('nr-party-cams',f);return()=>window.removeEventListener('nr-party-cams',f)},[]);return[v,(x:boolean)=>{lsSet('partyHideCams',x?'1':'0');window.dispatchEvent(new Event('nr-party-cams'))}]}
+function CamVideo({stream,mirror}:{stream:MediaStream,mirror?:boolean}){return <video className={mirror?'mirror':''} autoPlay muted playsInline ref={el=>{if(el&&el.srcObject!==stream){el.srcObject=stream;el.play().catch(()=>{})}}}/>}
+// Small round videos in a corner; drag the group to move it, click one to enlarge it.
+// In fullscreen they are drawn inside the fullscreen player.
+export function PartyCams(){
+ const snap=useParty(),[hide]=useHideCams(),[big,setBig]=useState(''),[fs,setFs]=useState<Element|null>(null)
+ const[pos,setPos]=useState<{x:number,y:number}>(()=>{try{return JSON.parse(lsGet('partyCamsPos')||'null')||{x:-1,y:-1}}catch{return{x:-1,y:-1}}})
+ const drag=useRef<{dx:number,dy:number,moved:boolean}|null>(null),dragged=useRef(false)
+ useEffect(()=>{const f=()=>setFs(document.fullscreenElement);document.addEventListener('fullscreenchange',f);return()=>document.removeEventListener('fullscreenchange',f)},[])
+ if(snap.status!=='ready')return null
+ const name=(id:string)=>snap.members.find(m=>m.id===id)?.name||''
+ const list=[...(snap.camLocal?[{id:snap.selfId,stream:snap.camLocal,me:true}]:[]),...(hide?[]:snap.cams.map(c=>({...c,me:false})))]
+ if(!list.length)return null
+ const style:React.CSSProperties=pos.x<0?{}:{left:pos.x,top:pos.y,right:'auto'}
+ const down=(e:React.PointerEvent)=>{const r=(e.currentTarget as HTMLElement).getBoundingClientRect();drag.current={dx:e.clientX-r.left,dy:e.clientY-r.top,moved:false}}
+ // Capture the pointer only once it really moves, so a plain click still reaches a bubble.
+ const move=(e:React.PointerEvent)=>{const d=drag.current;if(!d)return;const r=(e.currentTarget as HTMLElement).getBoundingClientRect(),x=Math.max(0,Math.min(window.innerWidth-80,e.clientX-d.dx)),y=Math.max(0,Math.min(window.innerHeight-80,e.clientY-d.dy));if(!d.moved&&Math.abs(x-r.left)+Math.abs(y-r.top)<=4)return;if(!d.moved){d.moved=true;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)}setPos({x,y})}
+ const up=()=>{const d=drag.current;drag.current=null;dragged.current=!!d?.moved;if(d?.moved)lsSet('partyCamsPos',JSON.stringify(pos))}
+ const node=<div className={'party-cams'+(fs?' in-full':'')} style={style} onPointerDown={down} onPointerMove={move} onPointerUp={up} aria-label={t('Cameras')}>
+  {list.map(c=><figure key={c.id} className={'cam-bubble'+(big===c.id?' big':'')+(snap.speaking.includes(c.id)?' speaking':'')} onClick={()=>{if(dragged.current){dragged.current=false;return}setBig(b=>b===c.id?'':c.id)}} title={c.me?t('You'):name(c.id)}>
+   <CamVideo stream={c.stream} mirror={c.me}/><figcaption>{c.me?t('You'):name(c.id)}</figcaption></figure>)}
+ </div>
+ return createPortal(node,(fs as HTMLElement)||document.body)
 }
