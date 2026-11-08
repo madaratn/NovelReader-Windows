@@ -846,3 +846,14 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
 .cast-controls{display:flex;gap:10px}.cast-controls button{min-width:64px;font-size:18px}
 .cast-seek{display:flex;align-items:center;gap:10px;width:min(560px,90%)}.cast-seek input{flex:1}
 .cast-vol{display:flex;align-items:center;gap:8px;color:#9aa0b4}
+
+/* Find subtitles */
+.trackbtn.on{border-color:#3fb37f;color:#3fb37f}
+.sub-finder{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 0 10px;padding:12px;border:1px solid #30364a;border-radius:12px;background:#151924}
+.sub-finder section{display:flex;flex-direction:column;gap:8px;min-width:0}
+.sub-results{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;max-height:240px;overflow:auto}
+.sub-results button{width:100%;display:flex;align-items:center;gap:8px;text-align:left}
+.sub-rel{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;color:#c9cdd8}
+.sub-settings h3{margin:12px 0 4px;font-size:14px}
+@media (max-width:760px){.sub-finder{grid-template-columns:1fr}}
+.sub-settings a{color:var(--accent,#8b7cff)}

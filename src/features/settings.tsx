@@ -1,3 +1,4 @@
+import{SubtitleSettings}from'./sub-finder'
 import{party}from'./watch-party'
 import React,{useEffect,useRef,useState}from'react'
 import{SyncSettings}from'./sync'
@@ -81,6 +82,7 @@ export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onSh
   <UpdateSettings status={update} version={version}/>
   <AniListPanel onSearch={q=>window.dispatchEvent(new CustomEvent('nr-search-anime',{detail:q}))}/>
   <MALPanel onSearch={q=>window.dispatchEvent(new CustomEvent('nr-search-anime',{detail:q}))}/>
+  <SubtitleSettings/>
   <ProfilesPanel/>
   <TvSettings/>
   <ReportPanel/>
