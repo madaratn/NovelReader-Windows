@@ -103,12 +103,19 @@ export function AnimeVideo({video,mediaKey,onNext,onPrev,onUnsupported,variants,
   // Stall watchdog: if playback should be running but the time has not moved for a
   // while (segment request stuck, buffer hole), nudge the loader, skip the hole,
   // then move to another server at the same position.
+  // No picture: the time runs but no frame is ever shown (a video format this PC
+  // cannot decode, e.g. HEVC / x265 or AV1). Another quality is tried by itself.
+  let npSeen=0,npLast=-1;const npWatch=window.setInterval(()=>{if(el.paused||el.seeking||el.readyState<2){npLast=-1;return}if(npLast>=0&&el.currentTime>npLast)npSeen+=el.currentTime-npLast;npLast=el.currentTime;if(npSeen<4)return;window.clearInterval(npWatch)
+   const q=(el as any).getVideoPlaybackQuality?.(),frames=q?Number(q.totalVideoFrames):Number((el as any).webkitDecodedFrameCount)
+   if(!((window as any).__forceNoPicture||el.videoWidth===0||frames===0))return
+   console.warn('[novelreader] no-picture',{frames,width:el.videoWidth,video:video?.videoTitle})
+   if(onUnsupported){setPlayError(t('This PC cannot show the picture of this quality (video format not supported). Trying another quality…'));save(el);hls?.destroy();setTimeout(()=>onUnsupported(),250)}else setPlayError(t('This PC cannot show the picture of this quality (video format not supported). Pick another quality.'))},500)
   let lastT=-1,stalled=0;const watch=window.setInterval(()=>{if(el.paused||el.ended||el.seeking){stalled=0;lastT=el.currentTime;return}if(el.readyState>=3&&el.currentTime!==lastT){stalled=0;lastT=el.currentTime;return}if(el.currentTime!==lastT){lastT=el.currentTime;stalled=0;return}stalled++
    if(stalled===3){console.warn('[novelreader] playback-stall: restarting segment loader',{t:el.currentTime});hls?.startLoad(el.currentTime)}
    else if(stalled===5){const b=el.buffered;for(let i=0;i<b.length;i++){if(b.start(i)>el.currentTime&&b.start(i)-el.currentTime<3){console.warn('[novelreader] playback-stall: skipping buffer hole');el.currentTime=b.start(i)+0.05;return}}el.currentTime=el.currentTime+0.1;hls?.recoverMediaError()}
    else if(stalled>=10){stalled=0;save(el);if(onUnsupported){console.warn('[novelreader] playback-stall: switching server');setPlayError(t('This server stopped sending the video. Switching to another server at the same position…'));hls?.destroy();setTimeout(()=>onUnsupported(),250)}else{setPlayError(t('The video is stuck. Pick another quality or server.'))}}},2000)
   const kick=()=>{if(el.readyState<3)hls?.startLoad(el.currentTime)};el.addEventListener('play',kick)
-  return()=>{window.clearInterval(watch);el.removeEventListener('play',kick);save(el);el.removeEventListener('loadedmetadata',ready);hls?.destroy();hlsRef.current=null;el.removeAttribute('src');el.load()}
+  return()=>{window.clearInterval(watch);window.clearInterval(npWatch);el.removeEventListener('play',kick);save(el);el.removeEventListener('loadedmetadata',ready);hls?.destroy();hlsRef.current=null;el.removeAttribute('src');el.load()}
  },[video?.streamUrl,key])
  const choices=(variants||[]).filter(Boolean),label=(v:any,i:number)=>String(v.videoTitle||v.title||v.quality||v.resolution||('Stream '+(i+1)))
  // Sources like Anichi publish sub and dub as separate streams ("HD-1 - Sub - 1080p" /
