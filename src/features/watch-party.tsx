@@ -313,6 +313,7 @@ export function WatchPartyBridge({current,open}:{current:()=>PartyOpen|null,open
    if(type==='pause'&&ex.pause>0){ex.pause--;return}
    if(type==='ratechange'&&ex.rate>0){ex.rate--;return}
    if(Date.now()<quietUntil.current)return
+   if(v.dataset.casting)return // playing on a TV: the paused PC video is not a group action
    // A video that just loaded jumps to its own saved position and may start by itself: not a user action.
    if(e&&(!settled||Date.now()<settled)&&Date.now()-attachAt<4000)return
    // The player went back to the start by itself (stream reloaded, server switched after
