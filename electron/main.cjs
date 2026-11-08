@@ -250,6 +250,15 @@ ipcMain.handle('anilist:token',async(_e,{token})=>anilist.setToken(String(token|
 ipcMain.handle('anilist:logout',()=>anilist.logout())
 ipcMain.handle('anilist:call',async(_e,{name,vars})=>anilist.call(String(name),vars||{}))
 // MyAnimeList sign-in window: handled by electron/mal.cjs.
+// Cast to a TV on the same Wi-Fi (electron/cast.cjs).
+const {createCast}=require('./cast.cjs')
+const caster=createCast({})
+ipcMain.handle('cast:scan',()=>caster.scan())
+ipcMain.handle('cast:start',(_e,o)=>caster.start(o||{}))
+ipcMain.handle('cast:control',(_e,{action,value}={})=>caster.control(String(action),value))
+ipcMain.handle('cast:status',()=>caster.status())
+ipcMain.handle('cast:stop',()=>caster.stop())
+app.on('will-quit',()=>caster.close())
 // Sound for videos in AC3 / DTS (electron/audio-fix.cjs).
 const {createAudioFix}=require('./audio-fix.cjs')
 const audioFix=createAudioFix({app})

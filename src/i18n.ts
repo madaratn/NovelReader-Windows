@@ -764,6 +764,22 @@ const FR: Record<string, string> = {
   'Cameras': 'Caméras',
   '{n} source shown': '{n} source affichée',
   '{n} sources shown': '{n} sources affichées',
+  'Could not cast to {name}: {e}': 'Impossible de caster sur {name} : {e}',
+  'Play on a TV on the same Wi-Fi': 'Lire sur une télé du même Wi-Fi',
+  'On {name}': 'Sur {name}',
+  'Cast': 'Caster',
+  'Cast to a TV': 'Caster sur une télé',
+  'TVs on this Wi-Fi': 'Télés sur ce Wi-Fi',
+  'Looking for TVs…': 'Recherche des télés…',
+  'No TV found. Check that the TV is on and on the same Wi-Fi as this PC, and allow NovelReader on private networks if Windows asks.': 'Aucune télé trouvée. Vérifiez que la télé est allumée et sur le même Wi-Fi que ce PC, et autorisez NovelReader sur les réseaux privés si Windows le demande.',
+  'Search again': 'Chercher à nouveau',
+  'Remote control': 'Télécommande',
+  'Playing on {name}': 'Lecture sur {name}',
+  'Back 10 seconds': 'Reculer de 10 secondes',
+  'Forward 10 seconds': 'Avancer de 10 secondes',
+  'Position': 'Position',
+  'TV volume': 'Volume de la télé',
+  'Stop casting (continue on the PC)': 'Arrêter de caster (continuer sur le PC)',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

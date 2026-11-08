@@ -1,6 +1,6 @@
 {
   "name": "novel-reader-windows",
-  "version": "0.11.1",
+  "version": "0.12.0",
   "private": true,
   "description": "NovelReader for Windows",
   "main": "electron/main.cjs",
@@ -21,11 +21,13 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "castv2-client": "^1.2.0",
     "cheerio": "^1.1.2",
     "dayjs": "^1.11.13",
     "electron-updater": "^6.8.10",
     "htmlparser2": "^10.0.0",
     "jszip": "^3.10.1",
+    "multicast-dns": "^7.2.5",
     "peerjs": "^1.5.5",
     "urlencode": "^2.0.0",
     "webtorrent": "~2.8.5"
