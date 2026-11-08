@@ -29,6 +29,8 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Run UI tests
         run: npm run test:ui
+      - name: Android interface (phone layout, books without Electron)
+        run: npm run build:android && npx playwright test -c playwright.android.config.ts
       # Watch party over the real public PeerJS server: depends on an outside
       # service, so it reports but does not block.
       - name: Live watch party (PeerJS)

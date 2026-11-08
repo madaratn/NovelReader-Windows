@@ -1,0 +1,8 @@
+// CI only: put the Google mirror of Maven Central first for every project and
+// build script (also the Capacitor module from node_modules).
+def mirror = { RepositoryHandler r -> r.maven { url "https://maven-central.storage-download.googleapis.com/maven2/" } }
+allprojects {
+    buildscript { repositories { mirror(delegate) } }
+    repositories { mirror(delegate) }
+}
+settingsEvaluated { s -> s.pluginManagement { repositories { mirror(delegate); gradlePluginPortal(); google() } } }

@@ -1,0 +1,70 @@
+apply plugin: 'com.android.application'
+
+// Version taken from package.json (same number as the Windows app).
+def pkg = new groovy.json.JsonSlurper().parse(file('../../package.json'))
+def (vMaj, vMin, vPat) = pkg.version.tokenize('.').collect { it.replaceAll(/\D.*/, '') as int }
+
+android {
+    namespace "com.madaratn.novelreader"
+    compileSdk rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.madaratn.novelreader"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode vMaj * 10000 + vMin * 100 + vPat
+        versionName pkg.version
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    // One fixed key so a new APK installs over the old one (keeps the library).
+    // A private key can be given by CI (ANDROID_KEYSTORE_* secrets); otherwise the
+    // project key in the repo is used.
+    signingConfigs {
+        release {
+            storeFile file(System.getenv('ANDROID_KEYSTORE_FILE') ?: 'novelreader.keystore')
+            storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD') ?: 'novelreader'
+            keyAlias System.getenv('ANDROID_KEY_ALIAS') ?: 'novelreader'
+            keyPassword System.getenv('ANDROID_KEY_PASSWORD') ?: 'novelreader'
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
