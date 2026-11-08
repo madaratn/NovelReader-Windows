@@ -13,6 +13,8 @@ const KNOWN:Record<string,VideoSection[]>={
  cinemacity:BOTH,cinemaos:BOTH,flixer:BOTH,flixhub:BOTH,vegamovies:BOTH,zinkmovies:BOTH,gnula:BOTH,lamovie:BOTH,hexawatch:BOTH,mapple:BOTH,cinejoy:BOTH,
  streamingcommunity:BOTH,streamingunity:BOTH,torrentio:BOTH,torrentiotorrentdebrid:BOTH,empirestreaming:BOTH,wiflix:BOTH,hds:BOTH,movy:BOTH,stremio:BOTH,jellyfin:['anime','series','movies'],
  vidbox:BOTH,bingr:BOTH,moviewala:BOTH,oneshows:BOTH,yomovies:BOTH,pinoymoviepedia:BOTH,dflix:BOTH,dhakaflix2:BOTH,cineplexbd:BOTH,fojik:BOTH,roarzone:BOTH,ftpbd:BOTH,
+ // Arabic and Turkish film / series sites (Turkish series with Arabic subtitles)
+ egydead:['anime','series','movies'],cimaleek:BOTH,faselhd:['anime','series','movies'],tuktukcinema:BOTH,arabseed:BOTH,akwam:BOTH,mycima:BOTH,xsmovie:BOTH,hdfilmcehennemi:BOTH,asia2tv:['series'],
  // series only (dramas, shows)
  onetouchtv:['series'],dramanice:['series'],myasiantv:['series'],kisskh:['series'],asiaflix:['series'],'1mindrama':['series'],mykdrama:['series'],myrunningman:['series'],
  shuttletv:['series'],kimoitv:['series','anime'],fullraces:['series'],

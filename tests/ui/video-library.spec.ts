@@ -483,3 +483,21 @@ test('video source catalog: language chips like Books', async ({ page }) => {
   await bar.getByRole('button', { name: 'All languages' }).click()
   await expect(bar).toContainText('4 sources shown')
 })
+
+test('Turkish series pack: installs the sources that have Turkish series (international, Arabic, Turkish)', async ({ page }) => {
+  const index = [
+    { name: 'Aniyomi: OneTouch TV', pkg: 'p.one', apk: 'one.apk', lang: 'en' },
+    { name: 'Aniyomi: Egy Dead', pkg: 'p.egy', apk: 'egy.apk', lang: 'ar' },
+    { name: 'Aniyomi: HDFilmCehennemi', pkg: 'p.hdf', apk: 'hdf.apk', lang: 'tr', nsfw: 1 },
+    { name: 'Aniyomi: Torrentio (Torrent / Debrid)', pkg: 'p.tor', apk: 'tor.apk', lang: 'all' },
+    { name: 'Aniyomi: Hianimes', pkg: 'p.h', apk: 'h.apk', lang: 'en' },
+    { name: 'Aniyomi: Gnula', pkg: 'p.g', apk: 'g.apk', lang: 'es' }
+  ]
+  await page.route('**/index.min.json', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify(index) }))
+  await page.addInitScript((idx: any[]) => { (window as any).__repoIndex = idx }, index)
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'seriesSources', animeRepos: JSON.stringify([{ name: 'Test repo', url: 'https://raw.githubusercontent.com/test/anime-repo/repo/index.min.json', enabled: true }]) })
+  await page.evaluate(() => { const w = window as any, f = w.novelReader.miwayomiFetch; w.__installs = []; w.novelReader.miwayomiFetch = async (p: string, m?: string, b?: any) => { if (p.startsWith('/api/v1/extensions/repo')) return w.__repoIndex; if (p === '/api/v1/extensions/install') { w.__installs.push(b.apk); return { ok: true } } return f(p, m, b) } })
+  await page.getByRole('button', { name: 'Install the Turkish pack' }).click()
+  await expect(page.locator('.anime-toast')).toContainText('Source pack ready: 4 sources installed or already available.')
+  expect((await page.evaluate(() => (window as any).__installs)).sort()).toEqual(['egy.apk', 'hdf.apk', 'one.apk', 'tor.apk'])
+})

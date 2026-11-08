@@ -821,6 +821,9 @@ const FR: Record<string, string> = {
   'Used for the online search and to translate subtitles.': 'Utilisée pour la recherche en ligne et pour traduire les sous-titres.',
   'This PC cannot show the picture of this quality (video format not supported). Trying another quality…': 'Ce PC ne peut pas afficher l\'image de cette qualité (format vidéo non pris en charge). Essai d\'une autre qualité…',
   'This PC cannot show the picture of this quality (video format not supported). Pick another quality.': 'Ce PC ne peut pas afficher l\'image de cette qualité (format vidéo non pris en charge). Choisissez une autre qualité.',
+  'Turkish series and films': 'Séries et films turcs',
+  'Installs the sources that have Turkish series (Kuruluş Osman, Kara Sevda, Hudutsuz Sevda…): international sources with English subtitles, Arabic sites and a Turkish site. Add French or Arabic subtitles with 💬 Subtitles in the player.': 'Installe les sources qui ont des séries turques (Kuruluş Osman, Kara Sevda, Hudutsuz Sevda…) : sources internationales avec sous-titres anglais, sites arabes et un site turc. Ajoutez des sous-titres français ou arabes avec 💬 Sous-titres dans le lecteur.',
+  'Install the Turkish pack': 'Installer le pack turc',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
