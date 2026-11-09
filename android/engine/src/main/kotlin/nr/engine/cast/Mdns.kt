@@ -100,6 +100,44 @@ object Mdns {
     }
 
     fun search(timeoutMs: Long, log: (String) -> Unit, onDevice: (TvDevice) -> Unit) {
+        // Also listen on the mDNS port itself: some devices answer only to the group.
+        val shared = Thread { runCatching { listenGroup(timeoutMs, log, onDevice) }.onFailure { log("mDNS 5353: $it") } }.apply { start() }
+        try { legacy(timeoutMs, log, onDevice) } finally { shared.join(timeoutMs + 1000) }
+    }
+
+    private fun listenGroup(timeoutMs: Long, log: (String) -> Unit, onDevice: (TvDevice) -> Unit) {
+        val sock = MulticastSocket(null as java.net.SocketAddress?)
+        try {
+            sock.reuseAddress = true
+            sock.bind(java.net.InetSocketAddress(5353))
+            val group = InetAddress.getByName("224.0.0.251")
+            val nif = wifiInterface()
+            if (nif != null) sock.joinGroup(java.net.InetSocketAddress(group, 5353), nif) else @Suppress("DEPRECATION") sock.joinGroup(group)
+            nif?.let { runCatching { sock.networkInterface = it } }
+            sock.timeToLive = 255
+            sock.soTimeout = 300
+            val q = query("_googlecast._tcp.local").also { it[it.size - 2] = 0 } // QM: answer to the group
+            val end = System.currentTimeMillis() + timeoutMs
+            var sent = 0L; var answers = 0
+            val records = ArrayList<Record>(); val senders = HashMap<String, String>()
+            val buf = ByteArray(9000)
+            while (System.currentTimeMillis() < end) {
+                if (System.currentTimeMillis() - sent > 2000) { runCatching { sock.send(DatagramPacket(q, q.size, group, 5353)) }; sent = System.currentTimeMillis() }
+                val p = DatagramPacket(buf, buf.size)
+                try { sock.receive(p) } catch (_: SocketTimeoutException) { continue }
+                val b = p.data.copyOf(p.length)
+                if (b.size < 4 || (b[2].toInt() and 0x80) == 0) continue // queries, not answers
+                answers++
+                val rs = parse(b)
+                rs.filter { it.type == 33 }.forEach { senders[it.name.lowercase()] = p.address.hostAddress ?: "" }
+                records.addAll(rs)
+                devices(records, senders).forEach(onDevice)
+            }
+            log("mDNS 5353: $answers answers")
+        } finally { sock.close() }
+    }
+
+    private fun legacy(timeoutMs: Long, log: (String) -> Unit, onDevice: (TvDevice) -> Unit) {
         val sock = MulticastSocket(0)
         try {
             wifiInterface()?.let { runCatching { sock.networkInterface = it } }

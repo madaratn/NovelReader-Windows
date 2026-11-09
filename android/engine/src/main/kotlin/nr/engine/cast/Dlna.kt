@@ -60,12 +60,13 @@ object Dlna {
         // On the Wi-Fi interface: with mobile data on, it could otherwise leave there.
         val sock = java.net.MulticastSocket(0)
         var answers = 0
+        val seen = LinkedHashMap<String, String>()
         try {
             wifiInterface()?.let { runCatching { sock.networkInterface = it } }
             sock.timeToLive = 4
             sock.soTimeout = 300
             val group = InetAddress.getByName("239.255.255.250")
-            for (round in 0 until 2) for (st in listOf("urn:schemas-upnp-org:device:MediaRenderer:1", "urn:schemas-upnp-org:service:AVTransport:1")) {
+            for (round in 0 until 2) for (st in listOf("urn:schemas-upnp-org:device:MediaRenderer:1", "urn:schemas-upnp-org:service:AVTransport:1", "urn:dial-multiscreen-org:service:dial:1", "ssdp:all")) {
                 val msg = "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 2\r\nST: $st\r\n\r\n".toByteArray()
                 runCatching { sock.send(DatagramPacket(msg, msg.size, group, 1900)) }.onFailure { log("SSDP send: $it") }
             }
@@ -76,9 +77,19 @@ object Dlna {
                 try { sock.receive(p) } catch (_: SocketTimeoutException) { continue }
                 answers++
                 val text = String(p.data, 0, p.length)
-                Regex("^location:\\s*(.+)$", setOf(RegexOption.IGNORE_CASE, RegexOption.MULTILINE)).find(text)?.let { onLocation(it.groupValues[1].trim()) }
+                fun h(name: String) = Regex("^$name:\\s*(.+)$", setOf(RegexOption.IGNORE_CASE, RegexOption.MULTILINE)).find(text)?.groupValues?.get(1)?.trim() ?: ""
+                val st = h("st")
+                // What answers on the network, for the diagnosis (TV with DIAL only = YouTube/Netflix only).
+                val ip = p.address.hostAddress ?: "?"
+                val what = when {
+                    st.contains("MediaRenderer", true) || st.contains("AVTransport", true) -> "DLNA TV"
+                    st.contains("dial", true) -> "DIAL (YouTube only)"
+                    else -> null
+                }
+                synchronized(seen) { val cur = seen[ip]; if (cur == null || (what != null && !cur.contains(what))) seen[ip] = listOfNotNull(cur?.takeIf { it.isNotBlank() }, what ?: h("server").take(40).ifBlank { null }).joinToString(", ") }
+                if (st.contains("MediaRenderer", true) || st.contains("AVTransport", true)) h("location").takeIf { it.isNotBlank() }?.let(onLocation)
             }
-            log("SSDP: $answers answers")
+            log("SSDP: $answers answers" + if (seen.isEmpty()) "" else " (" + seen.entries.joinToString("; ") { it.key + " " + it.value } + ")")
         } finally { sock.close() }
     }
 }

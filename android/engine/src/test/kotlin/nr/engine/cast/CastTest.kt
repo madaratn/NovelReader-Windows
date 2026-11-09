@@ -176,3 +176,20 @@ class TinyHttp(private val handle: (String, Map<String, String>, String) -> Stri
     }
     override fun close() = server.close()
 }
+
+class CastProbeTest {
+    @Test fun subnetAndName() {
+        val hosts = CastProbe.subnetHosts("192.168.1.69")
+        assertEquals(253, hosts.size); assertTrue(hosts.first() == "192.168.1.1" && hosts.last() == "192.168.1.254" && "192.168.1.69" !in hosts)
+        assertEquals("Salon TCL", CastProbe.parseName("{\"name\":\"Salon TCL\",\"version\":12}"))
+        assertEquals(null, CastProbe.parseName("{\"version\":12}"))
+        val s = ServerSocket(0)
+        assertTrue(CastProbe.portOpen("127.0.0.1", s.localPort, 500)); s.close()
+        assertTrue(!CastProbe.portOpen("127.0.0.1", s.localPort, 300))
+        // Device info page served like a Google TV does (port given by the fake server).
+        val http = TinyHttp { _, _, _ -> "{\"name\":\"Salon TCL\"}" }
+        val name = OkHttpClient().newCall(okhttp3.Request.Builder().url("http://127.0.0.1:${http.port}/setup/eureka_info?params=name").build()).execute().use { CastProbe.parseName(it.body.string()) }
+        http.close()
+        assertEquals("Salon TCL", name)
+    }
+}
