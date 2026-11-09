@@ -851,6 +851,21 @@ const FR: Record<string, string> = {
   'More': 'Plus',
   'Notes': 'Notes',
   'The server of this quality refused to send the video ({code}). Trying another stream…': 'Le serveur de cette qualité a refusé d\'envoyer la vidéo ({code}). Essai d\'un autre flux…',
+  'Arabic films and series': 'Films et séries arabes',
+  'Installs the Arabic sites (Arab Seed, FaselHD, Tuktuk Cinema, Cimaleek, Egy Dead): Egyptian, Gulf and Maghreb films and series. Some are protected by Cloudflare: NovelReader gets through it by itself, which can take a few seconds the first time.': 'Installe les sites arabes (Arab Seed, FaselHD, Tuktuk Cinema, Cimaleek, Egy Dead) : films et séries égyptiens, du Golfe et du Maghreb. Certains sont protégés par Cloudflare : NovelReader passe la protection tout seul, ce qui peut prendre quelques secondes la première fois.',
+  'Install the Arabic pack': 'Installer le pack arabe',
+  'Played by YouTube (the channel\'s own video): casting and Watch together are not available for it.': 'Lue par YouTube (la vidéo de la chaîne elle-même) : le cast et le Watch together ne sont pas disponibles pour elle.',
+  'Tunisian TV is ready: series from {channels}. Search them in Global Search or Discover.': 'La TV tunisienne est prête : séries de {channels}. Cherchez-les dans la Recherche globale ou Découvrir.',
+  'The key works but no series was found on the channels.': 'La clé marche, mais aucune série n\'a été trouvée sur les chaînes.',
+  'Tunisian TV (official YouTube channels)': 'TV tunisienne (chaînes YouTube officielles)',
+  'Series and telefilms published by Tunisian channels on their official YouTube channels (Télévision Tunisienne, Elhiwar Ettounsi, Attessia, Carthage+, Nessma, Tunisna). They play in YouTube\'s player.': 'Les séries et téléfilms publiés par les chaînes tunisiennes sur leurs chaînes YouTube officielles (Télévision Tunisienne, Elhiwar Ettounsi, Attessia, Carthage+, Nessma, Tunisna). Ils se lisent dans le lecteur de YouTube.',
+  'Needs a free YouTube key: console.cloud.google.com → create a project → enable "YouTube Data API v3" → Credentials → Create an API key, then paste it here.': 'Il faut une clé YouTube gratuite : console.cloud.google.com → créer un projet → activer « YouTube Data API v3 » → Identifiants → Créer une clé API, puis la coller ici.',
+  'YouTube API key': 'Clé API YouTube',
+  'Turn on': 'Activer',
+  'Turn off': 'Désactiver',
+  'Add your free YouTube key in Sources › Tunisian TV.': 'Ajoutez votre clé YouTube gratuite dans Sources › TV tunisienne.',
+  'YouTube daily quota used up: try again tomorrow.': 'Quota YouTube du jour épuisé : réessayez demain.',
+  'The YouTube key is not valid.': 'La clé YouTube n\'est pas valide.',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

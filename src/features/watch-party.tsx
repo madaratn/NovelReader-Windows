@@ -8,6 +8,7 @@ import React,{useEffect,useRef,useState}from'react'
 import{createPortal}from'react-dom'
 import{t,plural}from'../i18n'
 import{lsGet,lsSet}from'../lib/util'
+import{engineFetch}from'../lib/engine'
 
 export type PartyMedia={kind:'anime'|'series'|'movie',sourceId:string,sourceName?:string,sourcePkg?:string,url:string,name:string,cover?:string,id?:string}
 // What a PC needs to show the same episode; episodeNumber lets a PC without the source find it elsewhere.
@@ -256,7 +257,7 @@ const listOf=(d:any,...k:string[])=>Array.isArray(d)?d:(k.map(x=>d?.[x]).find(Ar
 let srcCache:{at:number,map:Map<string,{pkg:string,name:string}>}|null=null
 export async function videoSources(force=false){
  if(!force&&srcCache&&Date.now()-srcCache.at<60000)return srcCache.map
- const d=await window.novelReader.miwayomiFetch('/api/v1/sources')
+ const d=await engineFetch('/api/v1/sources')
  const map=new Map<string,{pkg:string,name:string}>(listOf(d,'anime','sources','items').map((x:any)=>[String(x.id),{pkg:String(x.pkg||''),name:String(x.name||'')}]))
  srcCache={at:Date.now(),map};return map
 }

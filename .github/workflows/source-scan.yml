@@ -58,6 +58,12 @@ jobs:
             curl -fsSL -o miwayomi-all.jar https://github.com/madaratn/NovelReader-Windows/releases/download/miwayomi-v0.2.9-novelreader/miwayomi-all.jar
           fi
           ls -la miwayomi-all.jar
+      # Same Cloudflare solver as the Windows app (the engine uses http://127.0.0.1:8191).
+      - name: Start FlareSolverr
+        run: |
+          docker run -d --name flaresolverr -p 8191:8191 ghcr.io/flaresolverr/flaresolverr:latest
+          for i in $(seq 1 60); do curl -fs http://127.0.0.1:8191/ >/dev/null && break; sleep 2; done
+          curl -s http://127.0.0.1:8191/ | head -c 200; echo
       - name: Start the engine
         run: |
           mkdir -p data

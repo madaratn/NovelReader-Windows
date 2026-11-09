@@ -3,6 +3,7 @@
 import React,{useEffect,useState}from'react'
 import{t,plural}from'../i18n'
 import{cleanEngineError}from'../lib/media'
+import{engineFetch}from'../lib/engine'
 
 export type ExtUpdate={pkg:string,name:string,from:string,to:string,repoUrl:string,apk:string}
 const KEY='extUpdates'
@@ -15,17 +16,17 @@ export const readExtUpdates=():ExtUpdate[]=>{try{const v=JSON.parse(localStorage
 const saveUpdates=(u:ExtUpdate[])=>{localStorage.setItem(KEY,JSON.stringify(u));localStorage.setItem(KEY+'At',String(Date.now()));window.dispatchEvent(new Event('nr-ext-updates'))}
 
 export async function checkExtensionUpdates(repos=enabledRepoUrls()){
- const installed=listOf(await window.novelReader.miwayomiFetch('/api/v1/extensions/installed'))
+ const installed=listOf(await engineFetch('/api/v1/extensions/installed'))
  const have=new Map<string,any>(installed.filter((e:any)=>e?.pkg).map((e:any)=>[String(e.pkg),e]))
  const found=new Map<string,ExtUpdate>()
- const settled=await Promise.allSettled(repos.map(async url=>({url,list:listOf(await window.novelReader.miwayomiFetch('/api/v1/extensions/repo?url='+encodeURIComponent(url)))})))
+ const settled=await Promise.allSettled(repos.map(async url=>({url,list:listOf(await engineFetch('/api/v1/extensions/repo?url='+encodeURIComponent(url)))})))
  for(const r of settled){if(r.status!=='fulfilled')continue;for(const x of r.value.list){const cur=have.get(String(x.pkg||''));if(!cur||!x.apk||!x.version)continue;if(!newerVersion(x.version,cur.version||'0'))continue;const prev=found.get(cur.pkg);if(prev&&!newerVersion(x.version,prev.to))continue;found.set(cur.pkg,{pkg:cur.pkg,name:cleanName(cur.name||x.name),from:String(cur.version||''),to:String(x.version),repoUrl:r.value.url,apk:String(x.apk)})}}
  const out=[...found.values()].sort((a,b)=>a.name.localeCompare(b.name));saveUpdates(out);return out
 }
 // The engine keeps one copy per package: remove the old one, then install the new one.
 export async function updateExtension(u:ExtUpdate){
- await window.novelReader.miwayomiFetch('/api/v1/extensions/uninstall','POST',{pkg:u.pkg})
- try{const r:any=await window.novelReader.miwayomiFetch('/api/v1/extensions/install','POST',{repoUrl:u.repoUrl,apk:u.apk});if(r&&r.ok===false)throw new Error(r.error||'install failed')}
+ await engineFetch('/api/v1/extensions/uninstall','POST',{pkg:u.pkg})
+ try{const r:any=await engineFetch('/api/v1/extensions/install','POST',{repoUrl:u.repoUrl,apk:u.apk});if(r&&r.ok===false)throw new Error(r.error||'install failed')}
  catch(e:any){throw new Error(t('{name} could not be updated: {error}. Reinstall it from the repositories below.',{name:u.name,error:cleanEngineError(e)}))}
  saveUpdates(readExtUpdates().filter(x=>x.pkg!==u.pkg))
 }
