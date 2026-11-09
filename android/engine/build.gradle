@@ -23,7 +23,7 @@ android {
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
-        freeCompilerArgs.addAll(['-Xjvm-default=all-compatibility', '-opt-in=kotlin.RequiresOptIn'])
+        freeCompilerArgs.addAll(['-Xjvm-default=all-compatibility', '-opt-in=kotlin.RequiresOptIn', '-Xcontext-receivers'])
     }
 }
 
