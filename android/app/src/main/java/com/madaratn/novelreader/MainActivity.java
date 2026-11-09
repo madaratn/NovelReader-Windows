@@ -22,6 +22,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(UpdaterPlugin.class);
         super.onCreate(savedInstanceState);
         // Video engine (android/engine): http://127.0.0.1:4567, like on the PC.
         nr.engine.Engine.INSTANCE.start(getApplication());

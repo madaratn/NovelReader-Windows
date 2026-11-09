@@ -99,3 +99,33 @@ test('Android: search with no video source points to Sources', async ({ page }) 
   await expect(page.locator('.no-source')).toHaveCount(0)
   await expect(page.locator('.sidebar').getByRole('button', { name: 'Sources' })).toHaveAttribute('aria-current', /page|true/)
 })
+
+// In-app updates: a newer APK on GitHub is downloaded in the background, then
+// "Install" opens Android's installer (native Updater plugin, faked here).
+test('Android: update found on GitHub, downloaded, Install opens the installer', async ({ page }) => {
+  await page.route('https://api.github.com/**', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify([
+    { tag_name: 'source-status', assets: [{ name: 'source-status.json' }] },
+    { tag_name: 'v99.0.0', assets: [{ name: 'NovelReader-Setup-99.0.0.exe', browser_download_url: 'https://x/y.exe', size: 1 }, { name: 'NovelReader-99.0.0.apk', browser_download_url: 'https://github.com/x/NovelReader-99.0.0.apk', size: 1234 }] },
+    { tag_name: 'v0.1.0', assets: [{ name: 'NovelReader-0.1.0.apk', browser_download_url: 'https://x/old.apk', size: 1 }] },
+  ]) }))
+  await page.addInitScript(() => {
+    const w = window as any
+    w.__updater = { downloads: [] as any[], installs: 0 }
+    let progress: any = null
+    w.Capacitor.Plugins = { Updater: {
+      addListener: (_: string, cb: any) => { progress = cb; return { remove() {} } },
+      download: async (o: any) => { w.__updater.downloads.push(o); progress?.({ percent: 50 }); await new Promise(r => setTimeout(r, 300)); progress?.({ percent: 100 }); return { size: o.size } },
+      install: async () => { w.__updater.installs++; return { started: true } },
+      canInstall: async () => ({ allowed: true, downloaded: true }),
+    } }
+  })
+  await page.goto('/')
+  await page.locator('.sidebar').getByRole('button', { name: 'Settings' }).click()
+  await page.locator('main').getByRole('button', { name: 'Check for updates' }).click()
+  await expect(page.locator('.update-banner')).toContainText('NovelReader 99.0.0 is downloaded. Tap Install and confirm')
+  await expect(page.locator('main')).toContainText('Version 99.0.0 is downloaded: tap Install, Android asks you to confirm.')
+  await expect(page.locator('main')).not.toContainText('idle for 15 minutes')
+  expect(await page.evaluate(() => (window as any).__updater.downloads)).toEqual([{ url: 'https://github.com/x/NovelReader-99.0.0.apk', size: 1234 }])
+  await page.locator('.update-banner').getByRole('button', { name: 'Install' }).click()
+  await expect.poll(() => page.evaluate(() => (window as any).__updater.installs)).toBe(1)
+})
