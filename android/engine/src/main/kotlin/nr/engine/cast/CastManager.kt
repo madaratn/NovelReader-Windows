@@ -86,7 +86,11 @@ class CastManager(private val context: Context, private val http: OkHttpClient) 
         log.add("Wi-Fi: " + (wifiInterface()?.name ?: "?") + " " + (wifiAddress() ?: "no address") + (if (lock?.isHeld == true) "" else " (no multicast lock)"))
         fun add(d: TvDevice) {
             // The same TV can answer on several protocols: one entry per address and kind.
-            if (found.values.none { it.kind == d.kind && it.host == d.host }) found[d.id] = d
+            synchronized(found) {
+                val same = found.entries.firstOrNull { it.value.kind == d.kind && it.value.host == d.host }
+                // A real name beats "TV (ip)" from the direct probe.
+                if (same == null) found[d.id] = d else if (same.value.name.startsWith("TV (") && !d.name.startsWith("TV (")) { found.remove(same.key); found[d.id] = d }
+            }
         }
         try {
             val locations = ConcurrentHashMap.newKeySet<String>()
@@ -94,6 +98,7 @@ class CastManager(private val context: Context, private val http: OkHttpClient) 
                 Thread { runCatching { Dlna.ssdpSearch(timeoutMs, { log.add(it) }) { locations.add(it) } }.onFailure { log.add("SSDP: $it") } },
                 Thread { runCatching { nsdSearch(timeoutMs, { log.add(it) }) { add(it) } }.onFailure { log.add("Android mDNS: $it") } },
                 Thread { runCatching { Mdns.search(timeoutMs, { log.add(it) }) { add(it) } }.onFailure { log.add("mDNS: $it") } },
+                Thread { runCatching { CastProbe.scan(wifiAddress() ?: "", http, { log.add(it) }) { add(it) } }.onFailure { log.add("direct: $it") } },
             ).onEach { it.start() }
             threads[0].join(timeoutMs + 2000)
             locations.map { loc ->
