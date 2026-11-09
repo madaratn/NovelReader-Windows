@@ -79,3 +79,23 @@ test('Android: a series plays through the engine in the app', async ({ page }) =
   const m = await page.evaluate(() => { const main = document.querySelector('main')!.getBoundingClientRect(), p = document.querySelector('.remote-player video')!.getBoundingClientRect(); return { main: main.width, player: p.width, overflow: document.documentElement.scrollWidth - innerWidth, wide: [...document.querySelectorAll('main *')].filter(e => e.getBoundingClientRect().right > innerWidth + 1).map(e => e.tagName + '.' + e.className).slice(0, 5) } })
   console.log(JSON.stringify(m))
 })
+
+// Fresh install: no video source yet. Search says so and leads to Sources.
+test('Android: search with no video source points to Sources', async ({ page }) => {
+  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': '*' }
+  await page.route('http://127.0.0.1:4567/**', r => {
+    if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: cors })
+    const p = new URL(r.request().url()).pathname
+    const body = p === '/api/v1/health' ? { status: 'ok' } : p === '/api/v1/sources' ? { manga: [], anime: [] } : []
+    return r.fulfill({ contentType: 'application/json', headers: cors, body: JSON.stringify(body) })
+  })
+  await page.addInitScript(() => { localStorage.setItem('mode', 'anime'); localStorage.setItem('lastPage:anime', 'animeSearch') })
+  await page.goto('/')
+  await expect(page.locator('.no-source')).toContainText('No source installed yet')
+  await page.locator('main input').first().fill('Naruto')
+  await page.locator('main').getByRole('button', { name: 'Search', exact: true }).click()
+  await expect(page.locator('main')).not.toContainText('Choose at least one language.')
+  await page.locator('.no-source').getByRole('button', { name: 'Open Sources' }).click()
+  await expect(page.locator('.no-source')).toHaveCount(0)
+  await expect(page.locator('.sidebar').getByRole('button', { name: 'Sources' })).toHaveAttribute('aria-current', /page|true/)
+})
