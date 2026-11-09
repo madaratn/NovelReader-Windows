@@ -91,7 +91,8 @@ object Mdns {
         val a = records.filter { it.type == 1 }.associate { it.name.lowercase() to it.data as String }
         val txt = records.filter { it.type == 16 }.associate { it.name.lowercase() to @Suppress("UNCHECKED_CAST") (it.data as Map<String, String>) }
         return records.filter { it.type == 33 && it.name.contains("_googlecast", true) }.mapNotNull { r ->
-            @Suppress("UNCHECKED_CAST") val (port, target) = (r.data as Triple<Int, String, Int>).let { it.first to it.second }
+            @Suppress("UNCHECKED_CAST") val srv = r.data as Triple<Int, String, Int>
+            val port = srv.first; val target = srv.second
             val ip = a[target.lowercase()] ?: from[r.name.lowercase()] ?: return@mapNotNull null
             val t = txt[r.name.lowercase()].orEmpty()
             TvDevice("cast", "cast:" + (t["id"]?.ifBlank { null } ?: ip), t["fn"]?.ifBlank { null } ?: r.name.substringBefore("._googlecast"), ip, port)
