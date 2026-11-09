@@ -28,6 +28,8 @@ public class MainActivity extends BridgeActivity {
         nr.engine.Engine.INSTANCE.start(getApplication());
         // Capacitor closes full-screen video at once; the player needs it.
         bridge.getWebView().setWebChromeClient(new FullscreenClient(bridge));
+        // The reader sets its own text size: no automatic enlarging of paragraphs.
+        bridge.getWebView().getSettings().setLayoutAlgorithm(android.webkit.WebSettings.LayoutAlgorithm.NORMAL);
     }
 
     private class FullscreenClient extends BridgeWebChromeClient {

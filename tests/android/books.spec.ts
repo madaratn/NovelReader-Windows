@@ -223,3 +223,28 @@ test('Android: phone navigation fits the screen and gets out of the way to read'
   await expect(page.locator('.m-top')).toHaveCount(0)
   expect(await fits()).toBe(true)
 })
+
+// Text size in the reader applies to the whole chapter, also when the site forces
+// sizes in its HTML (inline styles, <font>), not only to the title.
+test('Android: reader text size changes the chapter text, not only the title', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 760 })
+  await page.goto('/')
+  await page.locator('.m-bottom').getByRole('button', { name: 'Global Search' }).click()
+  await page.locator('main input').first().fill('shadow')
+  await page.locator('main').getByRole('button', { name: 'Search', exact: true }).click()
+  await page.getByRole('button', { name: /Add from Test Source/ }).click()
+  await page.locator('.m-bottom').getByRole('button', { name: 'Library' }).click()
+  await page.locator('main').getByText('Shadow Slave').first().click()
+  await page.locator('main').getByText('Chapter 1', { exact: false }).first().click()
+  await expect(page.locator('main')).toContainText('Text of /c/1')
+  // What some sites send: sizes and fonts written into the text.
+  await page.evaluate(() => { const d = document.querySelector('.readercontent > div')!; d.insertAdjacentHTML('beforeend', '<p id="styled" style="font-size:13px;font-family:Arial"><span style="font-size:12px" id="inner">Small text from the site</span></p><p><font size="2" id="font">Old font tag</font></p>') })
+  const sizes = () => page.evaluate(() => ['.readercontent h1', '#styled', '#inner', '#font'].map(s => parseFloat(getComputedStyle(document.querySelector(s)!).fontSize)))
+  const [h1, p, inner, font] = await sizes()
+  expect(p).toBeCloseTo(h1 / 1.5, 0); expect(inner).toBe(p); expect(font).toBe(p)
+  await page.locator('.readertools').getByRole('button', { name: 'Aa' }).click()
+  for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Larger text' }).click()
+  const after = await sizes()
+  expect(after[1]).toBe(p + 4); expect(after[2]).toBe(p + 4); expect(after[3]).toBe(p + 4)
+  expect(after[0]).toBeCloseTo((p + 4) * 1.5, 0)
+})
