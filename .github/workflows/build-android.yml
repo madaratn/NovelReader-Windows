@@ -16,6 +16,9 @@ on:
       - 'src/**'
       - 'android/**'
       - 'capacitor.config.json'
+      - 'scripts/android-*'
+      - 'scripts/engine-patches/**'
+      - '.github/workflows/build-patched-miwayomi.yml'
       - 'vite.config.ts'
       - 'package.json'
       - '.github/workflows/build-android.yml'
@@ -42,6 +45,8 @@ jobs:
         shell: bash
       - name: Build the app interface for Android
         run: npm run build:android
+      - name: Prepare the video engine sources (PC engine + patches, for Android)
+        run: python3 -m pip install --quiet pyyaml 2>/dev/null || true; python3 scripts/android-engine.py
       - name: Copy it into the Android project
         run: npx cap sync android
       - name: Build the signed APK

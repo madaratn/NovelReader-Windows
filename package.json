@@ -1,6 +1,6 @@
 {
   "name": "novel-reader-windows",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "private": true,
   "description": "NovelReader for Windows",
   "main": "electron/main.cjs",
@@ -20,7 +20,7 @@
     "check:i18n": "node scripts/check-i18n.cjs",
     "typecheck": "tsc -p tsconfig.json",
     "build:android": "vite build --mode android --outDir dist-android",
-    "apk": "npm run build:android && npx cap sync android && cd android && ./gradlew assembleRelease"
+    "apk": "npm run build:android && python3 scripts/android-engine.py && npx cap sync android && cd android && ./gradlew assembleRelease"
   },
   "dependencies": {
     "castv2-client": "^1.2.0",
