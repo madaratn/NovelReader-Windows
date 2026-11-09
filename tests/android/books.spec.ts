@@ -248,3 +248,23 @@ test('Android: reader text size changes the chapter text, not only the title', a
   expect(after[1]).toBe(p + 4); expect(after[2]).toBe(p + 4); expect(after[3]).toBe(p + 4)
   expect(after[0]).toBeCloseTo((p + 4) * 1.5, 0)
 })
+
+// Unfolded phone / tablet: the left menu shows the page names and folds to icons.
+test('Android tablet: the left menu folds and unfolds', async ({ page }) => {
+  await page.setViewportSize({ width: 820, height: 900 })
+  await page.goto('/')
+  const side = page.locator('aside.sidebar')
+  const width = async () => (await side.boundingBox())!.width
+  await expect(side.getByText('Global Search')).toBeVisible()
+  await expect.poll(width).toBeGreaterThan(180)
+  await side.getByRole('button', { name: 'Collapse sidebar' }).click()
+  await expect(side.getByText('Global Search')).toBeHidden()
+  await expect.poll(width).toBeLessThan(80)
+  await expect(side.getByRole('button', { name: 'Global Search' })).toBeVisible()
+  await page.reload()
+  await expect.poll(width).toBeLessThan(80)
+  await side.getByRole('button', { name: 'Expand sidebar' }).click()
+  await expect(side.getByText('Global Search')).toBeVisible()
+  await expect.poll(width).toBeGreaterThan(180)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
+})
