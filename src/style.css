@@ -950,3 +950,9 @@ html.android body{padding-top:env(safe-area-inset-top)}
 .no-source p{margin:0;color:var(--muted,#9aa0b4)}
 /* Phone held sideways: reading takes the whole screen. */
 @media (max-height:480px) and (min-width:601px){html.android .app:has(.readerpage) aside.sidebar{display:none}}
+/* Reader text size: Android's WebView enlarges long paragraphs by itself ("font
+   boosting") and some sites force sizes in the chapter HTML; the reader settings
+   must win for the whole text, not only the title. */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+.readerpage .readercontent>div :not(h1):not(h2):not(h3):not(h4):not(h5):not(h6):not(sup):not(sub):not(small):not(code):not(pre){font-size:inherit!important;line-height:inherit!important}
+.readerpage .readercontent>div :is(p,span,div,font,td,li,blockquote,em,strong,b,i){font-family:inherit!important}
