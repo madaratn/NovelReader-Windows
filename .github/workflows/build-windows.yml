@@ -28,7 +28,9 @@ jobs:
         with:
           node-version: 22
           # No `cache: npm` here: it fails when package-lock.json is not committed.
-      - run: npm install
+      # Retried: a native module (node-datachannel) sometimes fails to download its prebuilt binary.
+      - run: npm install || { sleep 20; npm install; } || { sleep 60; npm install; }
+        shell: bash
       - name: Check that the tag matches package.json
         if: startsWith(github.ref, 'refs/tags/v')
         shell: bash

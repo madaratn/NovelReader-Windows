@@ -16,7 +16,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install
+      # Retried: a native module (node-datachannel) sometimes fails to download its prebuilt binary.
+      - run: npm install || { sleep 20; npm install; } || { sleep 60; npm install; }
+        shell: bash
       - name: Type check (TypeScript)
         run: npm run typecheck
       - name: Every UI string has a French translation
