@@ -1,5 +1,6 @@
-## NovelReader 0.18.6
+## NovelReader 0.18.7
 
-- **« Cette qualité n'est pas prise en charge »** : certains serveurs (Vidplay…) donnent un flux HLS à une adresse qui n'a pas l'air d'en être un. Le lecteur le prenait pour un fichier vidéo, n'arrivait pas à le lire et abandonnait cette qualité. Maintenant, il regarde ce que contient le lien, reconnaît le flux HLS et le lit (Android et PC).
-- Quand le serveur d'une qualité refuse d'envoyer la vidéo (erreur 403, page web au lieu d'une vidéo…), le message le dit clairement avant d'essayer un autre flux.
+- **Cast sur Android, télé introuvable** : quand le réseau ne laisse pas passer les messages de découverte (certaines box et certaines télés), l'application essaie maintenant directement chaque adresse du Wi-Fi sur le port des télés Chromecast / Google TV / Android TV, puis demande son nom à la télé. Quelques secondes.
+- Le diagnostic affiché quand aucune télé n'est trouvée dit aussi ce qui répond sur le réseau (télé DLNA, télé qui ne connaît que YouTube…).
+- (0.18.6) Les flux HLS dont l'adresse ne se termine pas par .m3u8 (Vidplay…) sont reconnus et lus au lieu d'être abandonnés ; message clair quand le serveur d'une qualité refuse la vidéo.
 - Android : la mise à jour se propose toute seule dans l'application (bouton **Installer**).
