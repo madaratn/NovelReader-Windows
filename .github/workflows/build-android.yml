@@ -37,7 +37,9 @@ jobs:
           distribution: temurin
           java-version: 17
       # ubuntu-latest already has the Android SDK (ANDROID_HOME).
-      - run: npm install
+      # Retried: a native module (node-datachannel) sometimes fails to download its prebuilt binary.
+      - run: npm install || { sleep 20; npm install; } || { sleep 60; npm install; }
+        shell: bash
       - name: Build the app interface for Android
         run: npm run build:android
       - name: Copy it into the Android project
