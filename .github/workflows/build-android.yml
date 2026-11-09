@@ -37,21 +37,34 @@ jobs:
           distribution: temurin
           java-version: 17
       # ubuntu-latest already has the Android SDK (ANDROID_HOME).
-      - run: npm install
+      # Retried: a native module (node-datachannel) sometimes fails to download its prebuilt binary.
+      - run: npm install || { sleep 20; npm install; } || { sleep 60; npm install; }
+        shell: bash
       - name: Build the app interface for Android
         run: npm run build:android
       - name: Copy it into the Android project
         run: npx cap sync android
       - name: Build the signed APK
         working-directory: android
+        # Private key from the repo secrets (ANDROID_KEYSTORE_BASE64 + ANDROID_KEYSTORE_PASSWORD).
+        # Without them (forks), the public test key in android/app is used, and a
+        # release cannot be published with it.
         env:
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          PUBLISH: ${{ inputs.publish }}
         run: |
-          [ -n "$ANDROID_KEYSTORE_PASSWORD" ] || unset ANDROID_KEYSTORE_PASSWORD
-          [ -n "$ANDROID_KEY_PASSWORD" ] || unset ANDROID_KEY_PASSWORD
+          if [ -n "$KEYSTORE_B64" ] && [ -n "$KEYSTORE_PW" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            export ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/release.keystore" ANDROID_KEYSTORE_PASSWORD="$KEYSTORE_PW" ANDROID_KEY_PASSWORD="$KEYSTORE_PW"
+            echo "Signing with the private key"
+          elif [ "$PUBLISH" = "true" ]; then
+            echo "::error::Add the ANDROID_KEYSTORE_BASE64 and ANDROID_KEYSTORE_PASSWORD secrets before publishing"; exit 1
+          else
+            echo "::warning::No private key in the secrets: signed with the public test key"
+          fi
           chmod +x gradlew
-          ./gradlew --no-daemon --init-script ci/mirror.init.gradle assembleRelease
+          ./gradlew --no-daemon --init-script ci/mirror.init.gradle assembleRelease || { echo "::warning::retrying once (network)"; sleep 20; ./gradlew --no-daemon --init-script ci/mirror.init.gradle assembleRelease; }
           v=$(node -p "require('../package.json').version")
           mkdir -p ../release
           cp app/build/outputs/apk/release/app-release.apk "../release/NovelReader-$v.apk"

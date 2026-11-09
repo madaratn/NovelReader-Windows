@@ -12,7 +12,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20 # same major as Electron 34's embedded Node
-      - run: npm install
+      # Retried: a native module (node-datachannel) sometimes fails to download its prebuilt binary.
+      - run: npm install || { sleep 20; npm install; } || { sleep 60; npm install; }
+        shell: bash
       - name: Torrent layer end-to-end (plain Node)
         run: |
           set +e
