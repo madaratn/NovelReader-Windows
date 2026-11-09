@@ -125,7 +125,7 @@ async function connect() {
   }
 
   // ---- Diagnosis of one source (workflow input diag_source / diag_query) ----
-  if (process.env.DIAG_SOURCE) {
+  for (const name of (process.env.DIAG_SOURCE || '').split(',').map(x => x.trim()).filter(Boolean)) {
     const d = await evaluate(async ([name, query]) => {
       const nr = window.novelReader, out = []
       for (let i = 0; i < 60; i++) { if ((await nr.miwayomiStatus()).online) break; await new Promise(r => setTimeout(r, 1000)) }
@@ -139,17 +139,32 @@ async function connect() {
       const src = (await nr.miwayomiFetch('/api/v1/sources')).anime.find(x => x.pkg === s.pkg)
       out.push('source: ' + JSON.stringify(src))
       const res = await step('search', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/search?query=' + encodeURIComponent(query || 'naruto') + '&page=1'))
-      const a = res && (res.animes || [])[0]; if (!a) return out
+      const list = (res && res.animes) || [], a = list.find(x => /III|3rd|Season 3/i.test(x.title)) || list[0]; if (!a) return out
+      out.push('title: ' + a.title)
       const er = await step('episodes', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/episodes?url=' + encodeURIComponent(a.url)))
       const eps = er && (er.episodes || er) || []
       const ep = eps[eps.length - 1] || eps[0]; if (!ep) return out
       out.push('episode: ' + JSON.stringify(ep).slice(0, 300))
       await step('hosters', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/hosters?url=' + encodeURIComponent(ep.url)))
-      await step('videos', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/videos?url=' + encodeURIComponent(ep.url)))
+      const vr = await step('videos', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/videos?url=' + encodeURIComponent(ep.url)))
+      // What each link really is, through the engine, as the player gets it.
+      for (const v of ((vr && (vr.videos || vr)) || []).slice(0, 12)) {
+        const raw = v.videoUrl || '', hls = /\.m3u8|\/playlist/i.test(raw)
+        const qs = 'sourceId=' + src.id + '&url=' + encodeURIComponent(raw) + '&headers=' + encodeURIComponent(Object.entries(v.headers || {}).map(([k, x]) => k + ': ' + x).join('\n'))
+        try {
+          const r = await fetch('http://127.0.0.1:4567/api/v1/' + (hls ? 'hls' : 'proxy') + '?' + qs, { headers: { Range: 'bytes=0-4095' } })
+          const b = new Uint8Array(await r.arrayBuffer()), head = Array.from(b.slice(0, 12)).map(x => x.toString(16).padStart(2, '0')).join(' ')
+          const text = new TextDecoder().decode(b.slice(0, 400)).replace(/\s+/g, ' ')
+          const kind = text.startsWith('#EXTM3U') ? 'HLS' + (/CODECS="[^"]*(hvc1|hev1)/i.test(text) ? ' HEVC' : '') : head.startsWith('1a 45 df a3') ? 'MKV' : head.slice(12, 23) === '66 74 79 70' ? 'MP4' : /<html|<!doctype/i.test(text) ? 'HTML!' : '?'
+          out.push('  · ' + v.videoTitle + ' [' + (hls ? 'hls' : 'proxy') + '] ' + r.status + ' ' + (r.headers.get('content-type') || '') + ' → ' + kind + ' | ' + raw.slice(0, 90) + ' | ' + (kind === '?' || kind === 'HTML!' ? text.slice(0, 160) : head))
+        } catch (e) { out.push('  · ' + v.videoTitle + ' probe failed: ' + e.message) }
+      }
       return out
-    }, [process.env.DIAG_SOURCE, process.env.DIAG_QUERY || ''])
-    console.log('=== DIAG ' + process.env.DIAG_SOURCE + ' ===')
+    }, [name, process.env.DIAG_QUERY || ''])
+    console.log('=== DIAG ' + name + ' ===')
     for (const l of d) console.log('  ' + l)
+  }
+  if (process.env.DIAG_SOURCE) {
     console.log('=== engine log ===')
     console.log(require('child_process').execSync("adb logcat -d | grep -iE 'miwayomi|System.err|AndroidRuntime' | grep -v 'Handling local' | tail -120").toString())
   }
