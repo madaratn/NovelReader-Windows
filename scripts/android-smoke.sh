@@ -15,6 +15,6 @@ if [ -n "${sock:-}" ]; then
   adb forward tcp:9222 localabstract:$sock
   node scripts/android-smoke.cjs; code=$?
 fi
-adb exec-out screencap -p > shots/android-after.png
-echo "--- app log"; adb logcat -d | grep -E 'Capacitor/Console|AndroidRuntime: FATAL' | tail -60
+sleep 2; adb exec-out screencap -p > shots/android-after.png
+echo "--- app log"; adb logcat -d | grep -E 'miwayomi|AndroidRuntime|FATAL|Capacitor/Console' | grep -v 'Handling local request' | tail -150
 exit $code

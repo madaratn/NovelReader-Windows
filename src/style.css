@@ -872,5 +872,10 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
  main,#main{padding:16px 12px calc(84px + env(safe-area-inset-bottom))!important;min-width:0;width:100%}
  header{flex-wrap:wrap;gap:10px;margin-bottom:18px}
  h1{font-size:22px}
+ .player-trackbar label{max-width:100%;min-width:0}
+ .player-trackbar select{max-width:100%;min-width:0;text-overflow:ellipsis}
+ .media-player-top{padding:12px}
 }
+/* Android: no keyboard there. */
+html.android .player-hint{display:none}
 html.android body{padding-top:env(safe-area-inset-top)}

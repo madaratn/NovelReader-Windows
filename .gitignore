@@ -1,9 +1,11 @@
 node_modules/
 dist/
 release/
-engine/
+/engine/
 test-results/
 playwright-report/
 *.log
 /screens/
 dist-android/
+android/engine/vendor/
+android/engine/build/
