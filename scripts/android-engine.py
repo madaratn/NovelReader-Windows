@@ -92,6 +92,30 @@ def main():
     edit(src / "miwayomi/api/ExtensionRoutes.kt",
          r"            // Best-effort: some repos also publish a desktop JVM jar.*?(?=            val loaded = try \{)",
          "", "skip desktop jar", regex=True)
+    # Video streams: OkHttp's 2-minute call timeout cut every stream at 2:00 (the
+    # player then stalled), and the blocking reads ran on the server's own threads,
+    # so one slow request held up all the others. Streams get a client without the
+    # call timeout and do their network work on Dispatchers.IO.
+    edit(src / "miwayomi/api/ProxyHelpers.kt", "    return client to headers\n}",
+         """    return streamingClient(client) to headers
+}
+
+private val streamClients = java.util.Collections.synchronizedMap(java.util.WeakHashMap<OkHttpClient, OkHttpClient>())
+
+/** Same client (pool, cookies, Cloudflare) without the overall call timeout: a video can last an hour. */
+fun streamingClient(c: OkHttpClient): OkHttpClient = streamClients.getOrPut(c) {
+    c.newBuilder().callTimeout(0, java.util.concurrent.TimeUnit.MILLISECONDS).readTimeout(45, java.util.concurrent.TimeUnit.SECONDS).build()
+}
+
+suspend fun okhttp3.Call.executeIO(): okhttp3.Response =
+    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { execute() }""", "stream client")
+    edit(src / "miwayomi/api/StreamingRoutes.kt", ".execute()", ".executeIO()", "stream execute on IO")
+    edit(src / "miwayomi/api/StreamingRoutes.kt", "response.body.string()",
+         "kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { response.body.string() }", "playlist read on IO")
+    edit(src / "miwayomi/api/ApiHelpers.kt",
+         r"(respondBytesWriter\(ContentType\.parse\(contentType\), outStatus, outLength\) \{\n)(.*?)(\n        \}\n    \} finally \{\n        upstream\.close\(\))",
+         r"\1kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {\n\2\n}\3", "stream copy on IO", regex=True)
+    edit(src / "miwayomi/api/ApiHelpers.kt", "val buf = ByteArray(64 * 1024)", "val buf = ByteArray(256 * 1024)", "bigger stream buffer")
     shutil.rmtree(WORK)
     n = sum(1 for _ in src.rglob("*.kt"))
     print(f"android engine sources ready: {n} files in {src.relative_to(ROOT)}")
