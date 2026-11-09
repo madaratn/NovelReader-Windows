@@ -75,37 +75,49 @@ class CastManager(private val context: Context, private val http: OkHttpClient) 
     private var currentDevice: String? = null
     val relay = CastRelay(http)
 
-    fun scan(timeoutMs: Long = 4000): List<CastDeviceDto> {
+    @Volatile var lastScan: String = ""
+        private set
+
+    fun scan(timeoutMs: Long = 6000): List<CastDeviceDto> {
         val wifi = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
         val lock = runCatching { wifi?.createMulticastLock("nr-cast")?.apply { setReferenceCounted(false); acquire() } }.getOrNull()
         val found = ConcurrentHashMap<String, TvDevice>()
+        val log = java.util.Collections.synchronizedList(ArrayList<String>())
+        log.add("Wi-Fi: " + (wifiInterface()?.name ?: "?") + " " + (wifiAddress() ?: "no address") + (if (lock?.isHeld == true) "" else " (no multicast lock)"))
+        fun add(d: TvDevice) {
+            // The same TV can answer on several protocols: one entry per address and kind.
+            if (found.values.none { it.kind == d.kind && it.host == d.host }) found[d.id] = d
+        }
         try {
             val locations = ConcurrentHashMap.newKeySet<String>()
-            val ssdp = Thread {
-                runCatching { Dlna.ssdpSearch(timeoutMs) { locations.add(it) } }
-            }.apply { start() }
-            val mdns = Thread { runCatching { nsdSearch(timeoutMs) { found[it.id] = it } } }.apply { start() }
-            ssdp.join(timeoutMs + 2000)
+            val threads = listOf(
+                Thread { runCatching { Dlna.ssdpSearch(timeoutMs, { log.add(it) }) { locations.add(it) } }.onFailure { log.add("SSDP: $it") } },
+                Thread { runCatching { nsdSearch(timeoutMs, { log.add(it) }) { add(it) } }.onFailure { log.add("Android mDNS: $it") } },
+                Thread { runCatching { Mdns.search(timeoutMs, { log.add(it) }) { add(it) } }.onFailure { log.add("mDNS: $it") } },
+            ).onEach { it.start() }
+            threads[0].join(timeoutMs + 2000)
             locations.map { loc ->
                 Thread {
                     runCatching {
                         http.newCall(Request.Builder().url(loc).build()).execute().use { r -> Dlna.parseDescription(r.body.string(), loc) }
-                            ?.let { found[it.id] = it }
-                    }
+                    }.onSuccess { d -> if (d != null) add(d) else log.add("not a TV player: $loc") }.onFailure { log.add("description $loc: $it") }
                 }.apply { start() }
             }.forEach { it.join(5000) }
-            mdns.join(timeoutMs + 3000)
+            threads.drop(1).forEach { it.join(timeoutMs + 4000) }
         } finally { runCatching { lock?.release() } }
         devices = found
+        log.add("TVs: " + found.values.joinToString { it.name + " (" + it.kind + " " + it.host + ")" }.ifBlank { "none" })
+        lastScan = log.joinToString(" · ")
+        println("[miwayomi] cast scan: $lastScan")
         return found.values.map { CastDeviceDto(it.id, it.name, it.kind, it.host) }.sortedBy { it.name }
     }
 
     /** Chromecasts through Android's own mDNS (NsdManager). Resolves one at a time. */
-    private fun nsdSearch(timeoutMs: Long, onDevice: (TvDevice) -> Unit) {
+    private fun nsdSearch(timeoutMs: Long, log: (String) -> Unit, onDevice: (TvDevice) -> Unit) {
         val nsd = context.getSystemService(Context.NSD_SERVICE) as? NsdManager ?: return
         val toResolve = java.util.concurrent.LinkedBlockingQueue<NsdServiceInfo>()
         val listener = object : NsdManager.DiscoveryListener {
-            override fun onStartDiscoveryFailed(t: String?, e: Int) {}
+            override fun onStartDiscoveryFailed(t: String?, e: Int) { log("Android mDNS failed to start ($e)") }
             override fun onStopDiscoveryFailed(t: String?, e: Int) {}
             override fun onDiscoveryStarted(t: String?) {}
             override fun onDiscoveryStopped(t: String?) {}
@@ -115,14 +127,16 @@ class CastManager(private val context: Context, private val http: OkHttpClient) 
         nsd.discoverServices("_googlecast._tcp", NsdManager.PROTOCOL_DNS_SD, listener)
         val end = System.currentTimeMillis() + timeoutMs
         val seen = HashSet<String>()
+        var services = 0
         try {
             while (System.currentTimeMillis() < end + 1500) {
                 val info = toResolve.poll(200, TimeUnit.MILLISECONDS) ?: continue
                 if (!seen.add(info.serviceName)) continue
+                services++
                 val done = CountDownLatch(1)
                 @Suppress("DEPRECATION")
                 nsd.resolveService(info, object : NsdManager.ResolveListener {
-                    override fun onResolveFailed(i: NsdServiceInfo?, e: Int) { done.countDown() }
+                    override fun onResolveFailed(i: NsdServiceInfo?, e: Int) { log("Android mDNS: could not resolve ${i?.serviceName} ($e)"); done.countDown() }
                     override fun onServiceResolved(i: NsdServiceInfo) {
                         runCatching {
                             @Suppress("DEPRECATION")
@@ -135,7 +149,7 @@ class CastManager(private val context: Context, private val http: OkHttpClient) 
                 })
                 done.await(3, TimeUnit.SECONDS)
             }
-        } finally { runCatching { nsd.stopServiceDiscovery(listener) } }
+        } finally { runCatching { nsd.stopServiceDiscovery(listener) }; log("Android mDNS: $services services") }
     }
 
     @Synchronized

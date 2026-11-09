@@ -963,3 +963,5 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 .readerpage .readercontent>div :is(p,span,div,font,td,li,blockquote,em,strong,b,i){font-family:inherit!important}
 /* Android draws drop-down menus white by default: keep the app's colors. */
 html.android select{background-color:transparent;color:inherit}
+.cast-menu .linkbtn{color:var(--accent,#8b7cff);background:transparent}
+.cast-diag{margin:6px 0 0;color:var(--muted,#9aa0b4);font-size:12px;line-height:1.4;word-break:break-word}

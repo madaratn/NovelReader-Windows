@@ -34,6 +34,7 @@ fun Application.registerCastApi() {
             val s = withContext(Dispatchers.IO) { cast.status() }
             if (s == null) call.respondText("null", ContentType.Application.Json) else call.respond(s)
         }
+        get("/api/v1/cast/diag") { call.respondText(cast.lastScan, ContentType.Text.Plain) }
         post("/api/v1/cast/stop") { withContext(Dispatchers.IO) { cast.stop() }; call.respond(OkDto()) }
     }
 }
