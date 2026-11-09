@@ -95,6 +95,7 @@ async function connect() {
         row.steps.push(vids.length + ' links')
         // Through the engine's proxy, as the player does.
         const raw = vid.videoUrl, hls = /\.m3u8|\/playlist/i.test(raw)
+        row.kind = hls ? 'hls' : /\.mpd/i.test(raw) ? 'dash' : 'file'
         const qs = 'sourceId=' + src.id + '&url=' + encodeURIComponent(raw) + '&headers=' + encodeURIComponent(Object.entries(vid.headers || {}).map(([k, x]) => k + ': ' + x).join('\n'))
         const r = await fetch('http://127.0.0.1:4567/api/v1/' + (hls ? 'hls' : 'proxy') + '?' + qs, { headers: hls ? {} : { Range: 'bytes=0-65535' } })
         const body = hls ? await r.text() : await r.arrayBuffer()
@@ -107,12 +108,13 @@ async function connect() {
     return { ok: results.filter(x => x.ok).length, log, results }
   })
   for (const l of v.log) console.log('  ' + l)
-  for (const x of v.results || []) console.log(`  ${x.ok ? '✓' : '✗'} ${x.name} (${x.version}, ${x.seconds}s): ${x.steps.join(' → ')}`)
+  for (const x of v.results || []) console.log(`  ${x.ok ? '✓' : '✗'} ${x.name} (${x.version}, ${x.kind || '-'}, ${x.seconds}s): ${x.steps.join(' → ')}`)
   console.log(`videos: ${v.ok}/${(v.results || []).length} sources stream on Android`)
   const fs = require('fs'); fs.mkdirSync('shots', { recursive: true }); fs.writeFileSync('shots/videos.json', JSON.stringify(v, null, 1))
 
   // Real player: the first working title, opened from the library like a person would.
-  const first = (v.results || []).find(x => x.ok)
+  // (DASH manifests are not read by the player, on the PC either.)
+  const first = (v.results || []).find(x => x.ok && x.kind === 'hls') || (v.results || []).find(x => x.ok && x.kind === 'file')
   let played = null
   if (first) {
     await evaluate(p => {
