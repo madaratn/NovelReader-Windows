@@ -147,6 +147,10 @@ async function connect() {
     require('child_process').execSync('adb exec-out screencap -p > shots/android-fullscreen.png')
     await evaluate(async () => { if (document.fullscreenElement) await document.exitFullscreen(); return true })
   }
+  // Cast: the engine looks for TVs on the network (none on the emulator; must not fail).
+  const cs = await evaluate(async () => { const t = Date.now(); try { const l = await window.novelReader.castScan(); return { ok: true, tvs: l.length, seconds: Math.round((Date.now() - t) / 1000) } } catch (e) { return { ok: false, error: String(e.message || e) } } })
+  console.log('cast scan:', JSON.stringify(cs))
+  if (!cs.ok) { console.error('Cast scan failed on Android'); process.exit(1) }
   // In-app update (native Updater plugin): download the APK of the latest release,
   // then Android's installer must open over the app.
   const upd = await evaluate(async () => {

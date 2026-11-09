@@ -1,6 +1,5 @@
 package nr.engine.cast
 
-import com.sun.net.httpserver.HttpServer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -88,34 +87,30 @@ class CastTest {
 
     @Test fun dlnaDescriptionAndControl() {
         val calls = Collections.synchronizedList(mutableListOf<String>())
-        val http = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
         val desc = """<?xml version="1.0"?><root><device><friendlyName>Salon TV &amp; Co</friendlyName><UDN>uuid:tv1</UDN><serviceList>
             <service><serviceType>urn:schemas-upnp-org:service:RenderingControl:1</serviceType><controlURL>/rc</controlURL></service>
             <service><serviceType>urn:schemas-upnp-org:service:AVTransport:1</serviceType><controlURL>/av</controlURL></service></serviceList></device></root>"""
-        http.createContext("/desc.xml") { ex -> val b = desc.toByteArray(); ex.sendResponseHeaders(200, b.size.toLong()); ex.responseBody.use { it.write(b) } }
-        for (path in listOf("/av", "/rc")) http.createContext(path) { ex ->
-            val action = ex.requestHeaders.getFirst("SOAPAction")
-            val body = ex.requestBody.readBytes().toString(Charsets.UTF_8)
+        val http = TinyHttp { path, headers, body ->
+            if (path == "/desc.xml") return@TinyHttp desc
+            val action = headers["soapaction"] ?: ""
             calls.add("$path $action " + Regex("<(CurrentURI|Target|DesiredVolume)>([^<]*)<").findAll(body).joinToString(",") { it.groupValues[2] })
-            val resp = when {
+            when {
                 action.contains("GetPositionInfo") -> "<s:Envelope><s:Body><u:R><RelTime>00:01:05</RelTime><TrackDuration>00:24:00</TrackDuration></u:R></s:Body></s:Envelope>"
                 action.contains("GetTransportInfo") -> "<s:Envelope><s:Body><u:R><CurrentTransportState>PLAYING</CurrentTransportState></u:R></s:Body></s:Envelope>"
                 else -> "<s:Envelope/>"
-            }.toByteArray()
-            ex.sendResponseHeaders(200, resp.size.toLong()); ex.responseBody.use { it.write(resp) }
+            }
         }
-        http.start()
-        val loc = "http://127.0.0.1:${http.address.port}/desc.xml"
+        val loc = "http://127.0.0.1:${http.port}/desc.xml"
         val client = OkHttpClient()
         val d = Dlna.parseDescription(client.newCall(okhttp3.Request.Builder().url(loc).build()).execute().body.string(), loc)!!
         assertEquals("Salon TV & Co", d.name)
         assertEquals("dlna:uuid:tv1", d.id)
-        assertEquals("http://127.0.0.1:${http.address.port}/av", d.avControl)
+        assertEquals("http://127.0.0.1:${http.port}/av", d.avControl)
         val p = DlnaPlayer(d, client)
         p.load("http://192.168.1.5:4570/t/x/4567/api/v1/proxy?u=a&b=c", "Film", "video/mp4", 0.0, emptyList())
         p.seek(3725.0); p.volume(0.3)
         val st = p.status()
-        http.stop(0)
+        http.close()
         assertEquals(65.0, st.time, 0.01); assertEquals(1440.0, st.duration, 0.01); assertTrue(st.playing)
         assertTrue(calls.toString(), calls.any { it.contains("#SetAVTransportURI") && it.contains("http://192.168.1.5:4570/t/x/4567/api/v1/proxy?u=a&amp;b=c") })
         assertTrue(calls.toString(), calls.any { it.contains("#Seek") && it.contains("01:02:05") })
@@ -132,4 +127,31 @@ class CastTest {
         assertEquals("application/x-mpegURL", mimeOf("http://127.0.0.1:4567/api/v1/hls?u=x"))
         assertEquals("video/x-matroska", mimeOf("http://127.0.0.1:4567/api/v1/proxy?url=https%3A%2F%2Fa%2Fb.mkv"))
     }
+}
+
+/** Minimal HTTP/1.1 server for the tests (one request per connection). */
+class TinyHttp(private val handle: (String, Map<String, String>, String) -> String) : AutoCloseable {
+    private val server = ServerSocket(0)
+    val port get() = server.localPort
+    init {
+        Thread {
+            while (!server.isClosed) {
+                val s = try { server.accept() } catch (_: Exception) { break }
+                Thread {
+                    s.use { sock ->
+                        val input = sock.getInputStream().buffered()
+                        fun line(): String { val b = StringBuilder(); while (true) { val c = input.read(); if (c < 0 || c == '\n'.code) break; if (c != '\r'.code) b.append(c.toChar()) }; return b.toString() }
+                        val path = line().split(" ").getOrElse(1) { "/" }
+                        val headers = HashMap<String, String>()
+                        while (true) { val l = line(); if (l.isEmpty()) break; val i = l.indexOf(':'); if (i > 0) headers[l.substring(0, i).trim().lowercase()] = l.substring(i + 1).trim() }
+                        val n = headers["content-length"]?.toIntOrNull() ?: 0
+                        val body = ByteArray(n); var got = 0; while (got < n) { val r = input.read(body, got, n - got); if (r < 0) break; got += r }
+                        val out = handle(path, headers, String(body, Charsets.UTF_8)).toByteArray()
+                        sock.getOutputStream().apply { write("HTTP/1.1 200 OK\r\nContent-Type: text/xml\r\nContent-Length: ${out.size}\r\nConnection: close\r\n\r\n".toByteArray()); write(out); flush() }
+                    }
+                }.start()
+            }
+        }.apply { isDaemon = true }.start()
+    }
+    override fun close() = server.close()
 }

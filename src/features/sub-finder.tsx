@@ -21,6 +21,8 @@ export const subtitleLang=()=>lsGet('subTranslateTo')||translateTarget()
 export const setSubtitleLang=(l:string)=>{lsSet('subTranslateTo',l);window.dispatchEvent(new Event('nr-sub-lang'))}
 export function useSubtitleLang(){const[l,setL]=useState(subtitleLang);useEffect(()=>{const f=()=>setL(subtitleLang());window.addEventListener('nr-sub-lang',f);return()=>window.removeEventListener('nr-sub-lang',f)},[]);return l}
 export function SubLangPicker({label}:{label?:string}){const l=useSubtitleLang();return <label className="sub-lang">{label??t('Subtitle language')}<select value={l} onChange={e=>setSubtitleLang(e.target.value)} aria-label={t('Subtitle language')}>{SUB_LANGS.map(([c,n])=><option key={c} value={c}>{n}</option>)}</select></label>}
+// AI subtitles run whisper.cpp on the PC (not on Android).
+const aiSupported=()=>typeof nr()?.subsAiPrepare==='function'
 const aiSize=()=>lsGet('aiSubSize')==='small'?'small':'base'
 const CHUNK=30,AHEAD=90
 
@@ -79,7 +81,7 @@ export function useSubFinder({ref,streamUrl,info,haveSubs,addSub}:{ref:React.Ref
  useEffect(()=>{if(!supported||!streamUrl||auto.current===streamUrl)return
   const tm=setTimeout(async()=>{if(haveSubs||auto.current===streamUrl)return;auto.current=streamUrl
    if(lsGet('subAutoOnline')!=='0'&&wyzieKey()&&info?.title&&info.kind!=='anime'){const list=await searchOnline();const best=list.find(s=>s.language===ui)||list.find(s=>s.language==='en');if(best){await useOnline(best);return}}
-   if(lsGet('aiSubAuto')==='1')startAi()},8000)
+   if(lsGet('aiSubAuto')==='1'&&aiSupported())startAi()},8000)
   return()=>clearTimeout(tm)},[streamUrl,haveSubs])
  if(!supported||!streamUrl)return{button:null,panel:null}
  const stepName=(s?:string)=>s==='ffmpeg'?t('sound tool'):s==='whisper'?t('AI program'):s==='model'?t('AI model'):''
@@ -92,7 +94,7 @@ export function useSubFinder({ref,streamUrl,info,haveSubs,addSub}:{ref:React.Ref
     results&&results.length?<ul className="sub-results">{results.slice(0,12).map(s=><li key={s.id}><button disabled={!!busy} onClick={()=>useOnline(s)}><span className="lang-tag">{subLangName(s.language)}</span><span className="sub-rel">{s.release||s.source}</span>{s.hi&&<small title={t('For the deaf and hard of hearing')}>SDH</small>}{busy===s.id&&<span className="spinner"/>}</button></li>)}</ul>:
     results?<p className="cast-help">{t('No subtitles found online for this video.')}</p>:<button onClick={searchOnline}>{t('Search online')}</button>}
   </section>
-  {typeof nr()?.subsAiPrepare==='function'&&<section><b>🤖 {t('Written by AI on this PC')}</b>
+  {aiSupported()&&<section><b>🤖 {t('Written by AI on this PC')}</b>
    {ai.state==='off'?<><p className="cast-help">{t('Works for every video, even without any subtitles: the AI listens and writes the lines a little ahead, then they are translated into your language. Uses the processor; the first time, about 150 MB are downloaded.')}</p><button className="primary" onClick={startAi}>{t('Generate subtitles')}</button></>:
     ai.state==='preparing'?<p className="cast-help"><span className="spinner"/> {t('Installing the AI ({what})… {p}%',{what:stepName(ai.step),p:Math.round((ai.p||0)*100)})}</p>:
     <><p className="cast-help">{ai.lines?t('{n} lines written so far. They appear a little ahead of playback.',{n:ai.lines}):t('Listening to the first 30 seconds…')}</p><button className="removebtn" onClick={stopAi}>{t('Stop the AI subtitles')}</button></>}
@@ -109,15 +111,17 @@ export function SubtitleSettings(){
  const flag=(k:string,def:boolean)=>lsGet(k)==null?def:lsGet(k)==='1'
  const set=(k:string,v:boolean)=>{lsSet(k,v?'1':'0');bump(x=>x+1)}
  return <section className="panel settings-block sub-settings"><h2>{t('Subtitles')}</h2>
-  <p className="settingsnote">{t('In the player, 💬 Subtitles finds subtitles for any video: online for films and series, or written by AI on this PC.')}</p>
+  <p className="settingsnote">{aiSupported()?t('In the player, 💬 Subtitles finds subtitles for any video: online for films and series, or written by AI on this PC.'):t('In the player, 💬 Subtitles finds subtitles online for films and series.')}</p>
   <SubLangPicker/>
   <h3>{t('Online subtitles (Wyzie Subs)')}</h3>
   <p className="settingsnote">{t('Free key, once: open sub.wyzie.io/redeem, get your key and paste it here. 1,000 searches a day.')} <a href="https://sub.wyzie.io/redeem" target="_blank" rel="noreferrer">sub.wyzie.io/redeem</a></p>
   <div className="pf-add"><input value={key} onChange={e=>{setKey(e.target.value.trim());setSaved(false)}} placeholder={t('Wyzie Subs key')} aria-label={t('Wyzie Subs key')}/><button className="primary" onClick={()=>{lsSet('wyzieKey',key);setSaved(true)}}>{saved?'✓ '+t('Saved'):t('Save')}</button></div>
   <label className="settings-check"><input type="checkbox" checked={flag('subAutoOnline',true)} onChange={e=>set('subAutoOnline',e.target.checked)}/> {t('When a film or episode has no subtitles, add the best ones found online by itself')}</label>
+  {aiSupported()&&<>
   <h3>{t('Subtitles written by AI')}</h3>
   <label className="settings-check"><input type="checkbox" checked={flag('aiSubAuto',false)} onChange={e=>set('aiSubAuto',e.target.checked)}/> {t('When nothing is found, let the AI write them by itself')}</label>
   <label className="settings-check"><input type="checkbox" checked={flag('aiSubTranslate',true)} onChange={e=>set('aiSubTranslate',e.target.checked)}/> {t('Translate the AI subtitles into the app language')}</label>
   <div className="rs-seg" role="group" aria-label={t('AI quality')}><span>{t('AI quality')}</span>{([['base',t('Fast (150 MB)')],['small',t('More accurate (470 MB, slower)')]] as const).map(([v,l])=><button key={v} className={(lsGet('aiSubSize')==='small'?'small':'base')===v?'on':''} onClick={()=>{lsSet('aiSubSize',v);bump(x=>x+1)}}>{l}</button>)}</div>
+  </>}
  </section>
 }

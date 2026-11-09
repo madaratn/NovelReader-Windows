@@ -845,6 +845,7 @@ const FR: Record<string, string> = {
   'NovelReader {v} is downloaded. Tap Install and confirm: your library stays.': 'NovelReader {v} est téléchargé. Appuyez sur Installer et confirmez : votre bibliothèque est conservée.',
   'Version {v} is downloaded: tap Install, Android asks you to confirm.': 'La version {v} est téléchargée : appuyez sur Installer, Android vous demande de confirmer.',
   'Updates download in the background. Android asks you to confirm the install with one tap; your library and settings stay.': 'Les mises à jour se téléchargent en arrière-plan. Android demande de confirmer l\'installation d\'un appui ; votre bibliothèque et vos réglages sont conservés.',
+  'In the player, 💬 Subtitles finds subtitles online for films and series.': 'Dans le lecteur, 💬 Sous-titres trouve des sous-titres en ligne pour les films et les séries.',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
