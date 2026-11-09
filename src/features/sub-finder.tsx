@@ -22,7 +22,7 @@ export const setSubtitleLang=(l:string)=>{lsSet('subTranslateTo',l);window.dispa
 export function useSubtitleLang(){const[l,setL]=useState(subtitleLang);useEffect(()=>{const f=()=>setL(subtitleLang());window.addEventListener('nr-sub-lang',f);return()=>window.removeEventListener('nr-sub-lang',f)},[]);return l}
 export function SubLangPicker({label}:{label?:string}){const l=useSubtitleLang();return <label className="sub-lang">{label??t('Subtitle language')}<select value={l} onChange={e=>setSubtitleLang(e.target.value)} aria-label={t('Subtitle language')}>{SUB_LANGS.map(([c,n])=><option key={c} value={c}>{n}</option>)}</select></label>}
 // AI subtitles run whisper.cpp on the PC (not on Android).
-const aiSupported=()=>typeof nr()?.subsAiPrepare==='function'
+const aiSupported=()=>!document.documentElement.classList.contains('android')
 const aiSize=()=>lsGet('aiSubSize')==='small'?'small':'base'
 const CHUNK=30,AHEAD=90
 
