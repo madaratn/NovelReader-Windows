@@ -912,15 +912,20 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
  .readerbar-title b,.readerbar-title small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
  .readertools{grid-column:1/-1;display:flex;justify-content:space-between;gap:6px;overflow-x:auto}
 }
-/* ---- Android, larger screens (foldable open, tablet): the menu keeps its names ---- */
-@media (min-width:720px) and (max-width:980px){
- html.android aside.sidebar{flex-basis:200px;width:200px;padding-left:12px;padding-right:12px}
- html.android .sidebar .label{display:inline}
- html.android .sidebar kbd.label{display:none}
- html.android .sidebar .mode-switch{grid-template-columns:1fr 1fr}
- html.android .sidebar .nav-item{justify-content:flex-start;padding:10px 12px!important}
- html.android .sidebar .nav-item.active::before{left:-12px}
- html.android .sidebar .version{display:block}
+/* ---- Android, larger screens (foldable open, tablet): the menu keeps its names,
+   and folds to icons with its button (like on the PC) ---- */
+@media (min-width:601px) and (max-width:980px){
+ html.android .app:not(.collapsed) aside.sidebar{flex-basis:200px;width:200px;padding-left:12px;padding-right:12px}
+ html.android .app:not(.collapsed) .sidebar .label{display:inline}
+ html.android .app:not(.collapsed) .sidebar kbd.label{display:none}
+ html.android .app:not(.collapsed) .sidebar .mode-switch{grid-template-columns:1fr 1fr}
+ html.android .app:not(.collapsed) .sidebar .nav-item{justify-content:flex-start;padding:10px 12px!important}
+ html.android .app:not(.collapsed) .sidebar .nav-item.active::before{left:-12px}
+ html.android .app:not(.collapsed) .sidebar .version{display:block}
+ html.android .app:not(.collapsed) .sidebar .brand-row{justify-content:space-between}
+ html.android .sidebar .collapse-btn{display:inline-grid;place-items:center;min-width:40px;min-height:40px}
+ html.android .app.collapsed .sidebar .brand-row{flex-direction:column;gap:10px}
+}
 }
 @media (min-width:601px) and (max-width:1180px){
  html.android main{padding:28px 24px}
@@ -956,3 +961,5 @@ html.android body{padding-top:env(safe-area-inset-top)}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 .readerpage .readercontent>div :not(h1):not(h2):not(h3):not(h4):not(h5):not(h6):not(sup):not(sub):not(small):not(code):not(pre){font-size:inherit!important;line-height:inherit!important}
 .readerpage .readercontent>div :is(p,span,div,font,td,li,blockquote,em,strong,b,i){font-family:inherit!important}
+/* Android draws drop-down menus white by default: keep the app's colors. */
+html.android select{background-color:transparent;color:inherit}
