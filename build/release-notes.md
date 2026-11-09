@@ -1,6 +1,7 @@
-## NovelReader 0.18.7
+## NovelReader 0.19.0
 
-- **Cast sur Android, télé introuvable** : quand le réseau ne laisse pas passer les messages de découverte (certaines box et certaines télés), l'application essaie maintenant directement chaque adresse du Wi-Fi sur le port des télés Chromecast / Google TV / Android TV, puis demande son nom à la télé. Quelques secondes.
-- Le diagnostic affiché quand aucune télé n'est trouvée dit aussi ce qui répond sur le réseau (télé DLNA, télé qui ne connaît que YouTube…).
-- (0.18.6) Les flux HLS dont l'adresse ne se termine pas par .m3u8 (Vidplay…) sont reconnus et lus au lieu d'être abandonnés ; message clair quand le serveur d'une qualité refuse la vidéo.
+- **Séries tunisiennes (nouvelle source « Tunisian TV »)** : les séries publiées par les chaînes tunisiennes sur leurs chaînes YouTube officielles (Télévision Tunisienne, Elhiwar Ettounsi, Attessia, Carthage+, Nessma, Tunisna). Elles apparaissent dans la Recherche globale et Découvrir (langue العربية), avec les épisodes dans l'ordre. Lecture dans le lecteur YouTube intégré. À activer dans **Sources › Tunisian TV** avec une clé YouTube gratuite.
+- **Pack arabe** : un bouton dans Sources installe en une fois les sites de films et séries en arabe (Arab Seed, FaselHD, Tuktuk Cinema, Cimaleek, Egy Dead).
+- **Android : sites protégés par Cloudflare** : la vérification « Just a moment… » est maintenant passée automatiquement dans le téléphone (comme FlareSolverr sur PC).
+- La Recherche globale trouve maintenant les titres écrits en arabe (et dans les autres alphabets non latins), même avec une orthographe un peu différente (أ / ا, ة / ه).
 - Android : la mise à jour se propose toute seule dans l'application (bouton **Installer**).

@@ -502,6 +502,25 @@ test('Turkish series pack: installs the sources that have Turkish series (intern
   expect((await page.evaluate(() => (window as any).__installs)).sort()).toEqual(['egy.apk', 'hdf.apk', 'one.apk', 'tor.apk'])
 })
 
+test('Arabic pack: installs the Arabic film and series sites only', async ({ page }) => {
+  const index = [
+    { name: 'Aniyomi: Arab Seed', pkg: 'p.as', apk: 'as.apk', lang: 'ar' },
+    { name: 'Aniyomi: FASELHD', pkg: 'p.fa', apk: 'fa.apk', lang: 'ar' },
+    { name: 'Aniyomi: Tuktuk Cinema', pkg: 'p.tu', apk: 'tu.apk', lang: 'ar' },
+    { name: 'Aniyomi: Cimaleek', pkg: 'p.ci', apk: 'ci.apk', lang: 'ar' },
+    { name: 'Aniyomi: Egy Dead', pkg: 'p.egy', apk: 'egy.apk', lang: 'ar' },
+    { name: 'Aniyomi: Anime4up', pkg: 'p.a4', apk: 'a4.apk', lang: 'ar' },
+    { name: 'Aniyomi: OneTouch TV', pkg: 'p.one', apk: 'one.apk', lang: 'en' }
+  ]
+  await page.route('**/index.min.json', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify(index) }))
+  await page.addInitScript((idx: any[]) => { (window as any).__repoIndex = idx }, index)
+  await openVideo(page, { mode: 'movies', 'lastPage:movies': 'movieSources', animeRepos: JSON.stringify([{ name: 'Test repo', url: 'https://raw.githubusercontent.com/test/anime-repo/repo/index.min.json', enabled: true }]) })
+  await page.evaluate(() => { const w = window as any, f = w.novelReader.miwayomiFetch; w.__installs = []; w.novelReader.miwayomiFetch = async (p: string, m?: string, b?: any) => { if (p.startsWith('/api/v1/extensions/repo')) return w.__repoIndex; if (p === '/api/v1/extensions/install') { w.__installs.push(b.apk); return { ok: true } } return f(p, m, b) } })
+  await page.getByRole('button', { name: 'Install the Arabic pack' }).click()
+  await expect(page.locator('.anime-toast')).toContainText('Source pack ready: 5 sources installed or already available.')
+  expect((await page.evaluate(() => (window as any).__installs)).sort()).toEqual(['as.apk', 'ci.apk', 'egy.apk', 'fa.apk', 'tu.apk'])
+})
+
 test('episode list in order: seasons then episodes, whatever the language of the names or the source order', async ({ page }) => {
   await openVideo(page, { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify([item('series', 1, 'Kara Sevda')]) })
   await page.evaluate(() => {

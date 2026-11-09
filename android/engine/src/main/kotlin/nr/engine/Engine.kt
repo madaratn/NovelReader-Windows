@@ -61,7 +61,10 @@ object Engine {
         val data = File(app.filesDir, "miwayomi").apply { mkdirs() }
         CompatRuntime.baseDir = data
         CompatRuntime.cacheDir = app.cacheDir
-        val config = ServerConfig(host = "127.0.0.1", port = PORT, dataDir = data, flareSolverrUrl = null, openBrowser = false)
+        // Cloudflare: the FlareSolverr API served by the app (hidden WebView), like FlareSolverr on the PC.
+        nr.engine.cf.FlareSolverrServer.start(app)
+        val flare = "http://127.0.0.1:" + nr.engine.cf.FlareSolverrServer.PORT
+        val config = ServerConfig(host = "127.0.0.1", port = PORT, dataDir = data, flareSolverrUrl = flare, openBrowser = false)
         ConfigHolder.config = config
         Injekt.importModule(object : InjektModule {
             override fun InjektRegistrar.registerInjectables() {
@@ -69,7 +72,7 @@ object Engine {
                 addSingleton<android.content.Context>(app)
                 addSingletonFactory<PreferenceStore> { InMemoryPreferenceStore() }
                 addSingletonFactory { NetworkPreferences(get()) }
-                addSingletonFactory { NetworkHelper(app, get(), null) }
+                addSingletonFactory { NetworkHelper(app, get(), flare) }
                 addSingletonFactory { Json { ignoreUnknownKeys = true; explicitNulls = false } }
                 addSingletonFactory { MangaSourceManager() }
                 addSingletonFactory { AnimeSourceManager() }

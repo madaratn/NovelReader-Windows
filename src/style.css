@@ -965,3 +965,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 html.android select{background-color:transparent;color:inherit}
 .cast-menu .linkbtn{color:var(--accent,#8b7cff);background:transparent}
 .cast-diag{margin:6px 0 0;color:var(--muted,#9aa0b4);font-size:12px;line-height:1.4;word-break:break-word}
+.tntv-row{flex-wrap:wrap}
+.tntv-key{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.tntv-key input{flex:1 1 220px;min-width:0}
+.youtube-player .player-actions{display:flex;gap:10px;margin-top:10px}
