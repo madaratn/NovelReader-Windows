@@ -879,3 +879,5 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
 /* Android: no keyboard there. */
 html.android .player-hint{display:none}
 html.android body{padding-top:env(safe-area-inset-top)}
+.no-source{margin:0 0 18px;padding:16px 18px;display:grid;gap:8px;justify-items:start}
+.no-source p{margin:0;color:var(--muted,#9aa0b4)}
