@@ -846,6 +846,10 @@ const FR: Record<string, string> = {
   'Version {v} is downloaded: tap Install, Android asks you to confirm.': 'La version {v} est téléchargée : appuyez sur Installer, Android vous demande de confirmer.',
   'Updates download in the background. Android asks you to confirm the install with one tap; your library and settings stay.': 'Les mises à jour se téléchargent en arrière-plan. Android demande de confirmer l\'installation d\'un appui ; votre bibliothèque et vos réglages sont conservés.',
   'In the player, 💬 Subtitles finds subtitles online for films and series.': 'Dans le lecteur, 💬 Sous-titres trouve des sous-titres en ligne pour les films et les séries.',
+  'No TV found. Check that the TV is on and on the same Wi-Fi as this phone.': 'Aucune télé trouvée. Vérifiez que la télé est allumée et sur le même Wi-Fi que ce téléphone.',
+  'Like the phone': 'Comme le téléphone',
+  'More': 'Plus',
+  'Notes': 'Notes',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

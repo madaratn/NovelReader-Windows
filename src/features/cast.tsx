@@ -37,7 +37,7 @@ export function useCast(ref:React.RefObject<HTMLVideoElement|null>,video:any,tit
  const button=<div className="cast-wrap"><button className={'cast-btn'+(cast?' on':'')} onClick={()=>{if(cast)return;setMenu(m=>!m);if(!menu)scan()}} title={t('Play on a TV on the same Wi-Fi')}>📺 {cast?t('On {name}',{name:cast.device.name}):t('Cast')}</button>
   {menu&&!cast&&<div className="cast-menu" role="dialog" aria-label={t('Cast to a TV')}>
    <b>{t('TVs on this Wi-Fi')}</b>
-   {devices==null?<p className="cast-help"><span className="spinner"/> {t('Looking for TVs…')}</p>:devices.length===0?<p className="cast-help">{t('No TV found. Check that the TV is on and on the same Wi-Fi as this PC, and allow NovelReader on private networks if Windows asks.')}</p>:
+   {devices==null?<p className="cast-help"><span className="spinner"/> {t('Looking for TVs…')}</p>:devices.length===0?<p className="cast-help">{document.documentElement.classList.contains('android')?t('No TV found. Check that the TV is on and on the same Wi-Fi as this phone.'):t('No TV found. Check that the TV is on and on the same Wi-Fi as this PC, and allow NovelReader on private networks if Windows asks.')}</p>:
     <ul>{devices.map(d=><li key={d.id}><button disabled={!!busy} onClick={()=>send(d,ref.current?.currentTime||0)}>{d.kind==='cast'?'📡':'📺'} {d.name}<small>{d.kind==='cast'?'Chromecast':'DLNA'}</small>{busy===d.id&&<span className="spinner"/>}</button></li>)}</ul>}
    <div className="cast-menu-foot"><button className="linkbtn" onClick={scan}>{t('Search again')}</button><button className="linkbtn" onClick={()=>setMenu(false)}>{t('Close')}</button></div>
    {error&&<p className="wp-error">{error}</p>}
