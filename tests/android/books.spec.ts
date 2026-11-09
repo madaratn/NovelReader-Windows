@@ -75,4 +75,7 @@ test('Android: a series plays through the engine in the app', async ({ page }) =
   await expect(page.locator('.remote-player video')).toHaveAttribute('src', /^http:\/\/127\.0\.0\.1:4567\/api\/v1\/proxy\?/)
   await expect.poll(() => page.locator('.remote-player video').evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThan(0)
   expect(calls).toContain('/api/v1/anime/42/videos')
+  // Phone layout: the player takes the width, nothing sticks out on the side.
+  const m = await page.evaluate(() => { const main = document.querySelector('main')!.getBoundingClientRect(), p = document.querySelector('.remote-player video')!.getBoundingClientRect(); return { main: main.width, player: p.width, overflow: document.documentElement.scrollWidth - innerWidth, wide: [...document.querySelectorAll('main *')].filter(e => e.getBoundingClientRect().right > innerWidth + 1).map(e => e.tagName + '.' + e.className).slice(0, 5) } })
+  console.log(JSON.stringify(m))
 })

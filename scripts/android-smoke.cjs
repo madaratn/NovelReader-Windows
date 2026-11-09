@@ -21,7 +21,7 @@ async function connect() {
   ws.onmessage = m => { const d = JSON.parse(m.data); if (d.id && waiting.has(d.id)) { waiting.get(d.id)(d); waiting.delete(d.id) } }
   const evaluate = (fn, arg) => new Promise((ok, ko) => {
     const n = ++id; waiting.set(n, d => d.error ? ko(new Error(d.error.message)) : d.result.exceptionDetails ? ko(new Error(JSON.stringify(d.result.exceptionDetails).slice(0, 400))) : ok(d.result.result.value))
-    ws.send(JSON.stringify({ id: n, method: 'Runtime.evaluate', params: { expression: `(${fn})(${JSON.stringify(arg)})`, awaitPromise: true, returnByValue: true } }))
+    ws.send(JSON.stringify({ id: n, method: 'Runtime.evaluate', params: { expression: `(${fn})(${JSON.stringify(arg)})`, awaitPromise: true, returnByValue: true, userGesture: true } }))
   })
   let shell
   for (let i = 0; i < 30; i++) {
@@ -141,6 +141,11 @@ async function connect() {
       return { box: box && [Math.round(box.width), Math.round(box.height)], viewport: [innerWidth, innerHeight], step: t ? 'playing' : 'not advancing', currentTime: vid.currentTime, readyState: vid.readyState, error: vid.error && vid.error.message, src: vid.currentSrc.slice(0, 120) }
     })
     console.log('player:', JSON.stringify(played))
+    // Full screen (the activity shows the video over everything, in landscape).
+    const fs1 = await evaluate(async () => { const v = document.querySelector('.remote-player video'); try { await v.requestFullscreen() } catch (e) { return 'refused: ' + e.message } await new Promise(r => setTimeout(r, 2500)); return { fullscreen: !!document.fullscreenElement, size: [innerWidth, innerHeight], playing: !v.paused, t: v.currentTime } })
+    console.log('fullscreen:', JSON.stringify(fs1))
+    require('child_process').execSync('adb exec-out screencap -p > shots/android-fullscreen.png')
+    await evaluate(async () => { if (document.fullscreenElement) await document.exitFullscreen(); return true })
   }
   ws.close()
   if (v.ok < 2) { console.error('Fewer than 2 video sources stream on Android'); process.exit(1) }
