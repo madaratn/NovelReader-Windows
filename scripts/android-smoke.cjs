@@ -136,7 +136,9 @@ async function connect() {
       if (!vid) return { step: 'no player', text: document.body.innerText.slice(0, 400) }
       vid.muted = true; vid.play().catch(() => {})
       const t = await wait(() => vid.currentTime > 2 && vid.currentTime, 60000)
-      return { step: t ? 'playing' : 'not advancing', currentTime: vid.currentTime, readyState: vid.readyState, error: vid.error && vid.error.message, src: vid.currentSrc.slice(0, 120) }
+      document.querySelector('.remote-player')?.scrollIntoView({ block: 'start' })
+      const box = document.querySelector('.remote-player')?.getBoundingClientRect()
+      return { box: box && [Math.round(box.width), Math.round(box.height)], viewport: [innerWidth, innerHeight], step: t ? 'playing' : 'not advancing', currentTime: vid.currentTime, readyState: vid.readyState, error: vid.error && vid.error.message, src: vid.currentSrc.slice(0, 120) }
     })
     console.log('player:', JSON.stringify(played))
   }
