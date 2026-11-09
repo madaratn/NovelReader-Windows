@@ -8,7 +8,8 @@ export function readMediaPos(mediaKey:string):{t:number,d:number,done?:boolean,a
 export function cleanEngineError(e:any){let m=String(e?.message||e||'').replace(/^Error invoking remote method '[^']*': (Error: )?/,'').replace(/^Miwayomi HTTP \d+ — /,'');try{const j=JSON.parse(m);if(j&&j.error)m=String(j.error)}catch{}return m}
 // ---- Media global search: Books-style progress/grouping without touching Books ----
 export type MediaKind='Anime'|'Series'|'Movie'
-export function mediaNorm(v:any){return String(v||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim()}
+// Any script (Arabic, Cyrillic, CJK…), with loose Arabic spellings (hamza, alef maqsura, ta marbuta).
+export function mediaNorm(v:any){return String(v||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f\u064b-\u065f\u0670]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/ـ/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim()}
 export function mediaCover(a:any){return String(a?.thumbnailUrl||a?.thumbnail_url||a?.thumbnail||a?.coverUrl||a?.cover_url||a?.cover||a?.posterUrl||a?.poster_url||a?.poster||a?.imageUrl||a?.image_url||a?.image||'').trim()}
 export async function enrichMediaCover(a:any){if(mediaCover(a))return{...a,thumbnail:mediaCover(a)};const sid=String(a?.sourceId||'');const url=a?.url||a?.path;if(!sid||!url)return a;try{const d=await engineFetch('/api/v1/anime/'+encodeURIComponent(sid)+'/details?url='+encodeURIComponent(url));return{...a,...d,sourceId:sid,url:a.url||a.path||d?.url,thumbnail:mediaCover(d)||mediaCover(a)}}catch{return a}}
 
