@@ -838,6 +838,9 @@ const FR: Record<string, string> = {
   'the site no longer exists': 'le site n\'existe plus',
   'Videos are coming to the Android app in the next step. For now, enjoy your books here; videos keep working on the PC.': 'Les vidéos arrivent dans l\'appli Android à la prochaine étape. Pour l\'instant, profitez de vos livres ici ; les vidéos marchent toujours sur le PC.',
   'Go to my books': 'Aller à mes livres',
+  'No source installed yet': 'Aucune source installée pour l\'instant',
+  'Searching needs at least one video source. Install the recommended pack in Sources: it takes a few seconds.': 'Pour chercher, il faut au moins une source vidéo. Installez le pack recommandé dans Sources : ça prend quelques secondes.',
+  'Open Sources': 'Ouvrir Sources',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
