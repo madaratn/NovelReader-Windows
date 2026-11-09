@@ -9,6 +9,14 @@ on:
         description: Upload the APK to the GitHub Release for the version in package.json (main only)
         type: boolean
         default: false
+      diag_source:
+        description: 'Emulator: video source to diagnose (name, e.g. Anikage)'
+        type: string
+        default: ''
+      diag_query:
+        description: 'Emulator: title to search with that source'
+        type: string
+        default: ''
   push:
     branches-ignore:
       - 'screens/**'
@@ -119,7 +127,7 @@ jobs:
           arch: x86_64
           target: google_apis
           disable-animations: true
-          script: bash scripts/android-smoke.sh
+          script: DIAG_SOURCE='${{ inputs.diag_source }}' DIAG_QUERY='${{ inputs.diag_query }}' bash scripts/android-smoke.sh
       # Screenshot readable without downloading the artifact.
       - name: Publish the screenshot to a branch
         if: always()

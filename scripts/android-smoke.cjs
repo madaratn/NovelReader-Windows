@@ -72,6 +72,36 @@ async function connect() {
   console.log('reader text size:', JSON.stringify(ts))
   if (ts.at18[1] !== 18 || ts.at26[1] !== 26 || ts.at26[2] !== 26) { console.error('Reader text size is not applied to paragraphs in the WebView'); process.exit(1) }
 
+  // ---- Diagnosis of one source (workflow input diag_source / diag_query) ----
+  if (process.env.DIAG_SOURCE) {
+    const d = await evaluate(async ([name, query]) => {
+      const nr = window.novelReader, out = []
+      for (let i = 0; i < 60; i++) { if ((await nr.miwayomiStatus()).online) break; await new Promise(r => setTimeout(r, 1000)) }
+      const status = await (await fetch('https://github.com/madaratn/NovelReader-Windows/releases/download/source-status/source-status.json')).json()
+      const s = status.results.find(x => x.name.toLowerCase() === name.toLowerCase())
+      if (!s) return ['source not in the scan: ' + name]
+      const step = async (label, f) => { const t = Date.now(); try { const r = await f(); out.push(label + ' (' + (Date.now() - t) + ' ms): ' + JSON.stringify(r).slice(0, 1500)); return r } catch (e) { out.push(label + ' FAILED (' + (Date.now() - t) + ' ms): ' + String(e && e.message || e).slice(0, 1500)); return null } }
+      const repo = await step('repo', () => nr.miwayomiFetch('/api/v1/extensions/repo?url=' + encodeURIComponent(s.repo)))
+      const e = repo && repo.extensions.find(x => x.pkg === s.pkg)
+      await step('install', () => nr.miwayomiFetch('/api/v1/extensions/install', 'POST', { repoUrl: s.repo, apk: e.apk }))
+      const src = (await nr.miwayomiFetch('/api/v1/sources')).anime.find(x => x.pkg === s.pkg)
+      out.push('source: ' + JSON.stringify(src))
+      const res = await step('search', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/search?q=' + encodeURIComponent(query || 'naruto') + '&page=1'))
+      const a = res && (res.animes || [])[0]; if (!a) return out
+      const er = await step('episodes', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/episodes?url=' + encodeURIComponent(a.url)))
+      const eps = er && (er.episodes || er) || []
+      const ep = eps[eps.length - 1] || eps[0]; if (!ep) return out
+      out.push('episode: ' + JSON.stringify(ep).slice(0, 300))
+      await step('hosters', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/hosters?url=' + encodeURIComponent(ep.url)))
+      await step('videos', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/videos?url=' + encodeURIComponent(ep.url)))
+      return out
+    }, [process.env.DIAG_SOURCE, process.env.DIAG_QUERY || ''])
+    console.log('=== DIAG ' + process.env.DIAG_SOURCE + ' ===')
+    for (const l of d) console.log('  ' + l)
+    console.log('=== engine log ===')
+    console.log(require('child_process').execSync("adb logcat -d | grep -iE 'miwayomi|System.err|AndroidRuntime' | grep -v 'Handling local' | tail -120").toString())
+  }
+
   // ---- Videos: the engine inside the app, with real extensions ----
   const v = await evaluate(async () => {
     const nr = window.novelReader, log = [], t0 = Date.now()
