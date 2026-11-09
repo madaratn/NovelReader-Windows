@@ -30,13 +30,52 @@ export function Sidebar({mode,page,collapsed,onMode,onPage,onToggle,onHelp,onSea
   <div className="brand-row"><div className="brand" aria-label="NovelReader"><span className="brand-full">NOVEL<span>READER</span></span><span className="brand-short">N<span>R</span></span></div><button className="iconbtn collapse-btn" onClick={onToggle} title={t(collapsed?'Expand sidebar':'Collapse sidebar')+' (Ctrl+B)'} aria-label={t(collapsed?'Expand sidebar':'Collapse sidebar')} aria-expanded={!collapsed}><Icon name={collapsed?'expand':'collapse'}/></button></div>
   <div className="mode-switch" role="tablist" aria-label={t('Mode')}>{MODES.map((m,i)=><button key={m} role="tab" aria-selected={mode===m} className={mode===m?'active':''} onClick={()=>onMode(m)} title={t(NAV[m].label)+' (Ctrl+'+(i+1)+')'}><Icon name={NAV[m].icon}/><span className="label">{t(NAV[m].label)}</span></button>)}</div>
   {onSearch&&<button className="qs-open" onClick={onSearch} title={t('Search everywhere')+' (Ctrl+K)'}><Icon name="search"/><span className="label">{t('Search')}</span><kbd className="label">Ctrl K</kbd></button>}
-  <nav className="nav-list">{NAV[mode].items.map(it=><button key={it.page} className={'nav-item'+(current===it.page?' active':'')} aria-current={current===it.page?'page':undefined} onClick={()=>onPage(it.page)} aria-label={t(it.label)} title={collapsed?t(it.label):undefined}><Icon name={it.icon}/><span className="label">{t(it.label)}</span></button>)}</nav>
+  <nav className="nav-list">{navItems(mode).map(it=><button key={it.page} className={'nav-item'+(current===it.page?' active':'')} aria-current={current===it.page?'page':undefined} onClick={()=>onPage(it.page)} aria-label={t(it.label)} title={collapsed?t(it.label):undefined}><Icon name={it.icon}/><span className="label">{t(it.label)}</span></button>)}</nav>
   <div className="grow"/>
   {extra}
   <button className={'nav-item subtle'+(page==='settings'?' active':'')} aria-current={page==='settings'?'page':undefined} onClick={()=>onPage('settings')} title={t('Settings')}><Icon name="gear"/><span className="label">{t('Settings')}</span></button>
-  <button className="nav-item subtle" onClick={onHelp} title={t('Keyboard shortcuts')+' (?)'}><Icon name="keys"/><span className="label">{t('Shortcuts')}</span></button>
-  <div className="version">{version?(collapsed?'v'+version:'Windows · v'+version):''}</div>
+  {!onAndroid()&&<button className="nav-item subtle shortcuts-btn" onClick={onHelp} title={t('Keyboard shortcuts')+' (?)'}><Icon name="keys"/><span className="label">{t('Shortcuts')}</span></button>}
+  <div className="version">{version?(collapsed?'v'+version:(onAndroid()?'Android':'Windows')+' · v'+version):''}</div>
  </aside>
+}
+
+// ---- Phone layout (narrow screens, the Android app) ---------------------------------
+export const onAndroid=()=>typeof document!=='undefined'&&document.documentElement.classList.contains('android')
+export function useMedia(q:string){
+ const[m,setM]=useState(()=>typeof matchMedia==='function'&&matchMedia(q).matches)
+ useEffect(()=>{if(typeof matchMedia!=='function')return;const mq=matchMedia(q),f=()=>setM(mq.matches);f();mq.addEventListener?.('change',f);return()=>mq.removeEventListener?.('change',f)},[q])
+ return m
+}
+export const PHONE_QUERY='(max-width:600px)'
+// Pages that need the PC (local files, torrents, downloads): not shown on Android.
+const PC_ONLY=new Set(['localVideos','archive','downloads'])
+export const navItems=(mode:Mode)=>NAV[mode].items.filter(i=>!(onAndroid()&&PC_ONLY.has(i.page)))
+// Short names for the bottom bar.
+const SHORT:Record<string,string>={'Anime Library':'Library','Series Library':'Library','Movie Library':'Library','Global Search':'Search','Bookmarks & notes':'Notes'}
+/** Phone: the modes on top, the 4 main pages at the bottom (thumb reach), the rest
+ * under "More". Hidden while reading, which is full screen. */
+export function MobileNav({mode,page,onMode,onPage,onSearch,extra}:{mode:Mode,page:string,onMode:(m:Mode)=>void,onPage:(p:string)=>void,onSearch?:()=>void,extra?:React.ReactNode}){
+ const[more,setMore]=useState(false)
+ const current=isTopPage(mode,page)?page:PARENT[page]
+ const items=navItems(mode),main=items.slice(0,4),rest=items.slice(4)
+ useEffect(()=>{setMore(false)},[mode,page])
+ if(page==='reader')return null
+ const go=(p:string)=>{setMore(false);onPage(p)}
+ return <>
+  <header className="m-top">
+   <div className="m-modes" role="tablist" aria-label={t('Mode')}>{MODES.map(m=><button key={m} role="tab" aria-selected={mode===m} className={mode===m?'active':''} onClick={()=>onMode(m)}><Icon name={NAV[m].icon}/><span>{t(NAV[m].label)}</span></button>)}</div>
+   {onSearch&&<button className="m-search" onClick={onSearch} aria-label={t('Search everywhere')}><Icon name="search"/></button>}
+  </header>
+  <nav className="m-bottom" aria-label={t('Main navigation')}>
+   {main.map(it=><button key={it.page} className={'m-tab'+(current===it.page?' active':'')} aria-current={current===it.page?'page':undefined} aria-label={t(it.label)} onClick={()=>go(it.page)}><Icon name={it.icon}/><span>{t(SHORT[it.label]||it.label)}</span></button>)}
+   <button className={'m-tab'+(more||page==='settings'||rest.some(i=>i.page===current)?' active':'')} aria-expanded={more} aria-label={t('More')} onClick={()=>setMore(m=>!m)}><Icon name="more"/><span>{t('More')}</span></button>
+  </nav>
+  {more&&<div className="m-sheet-backdrop" onClick={()=>setMore(false)}><div className="m-sheet" role="dialog" aria-label={t('More')} onClick={e=>e.stopPropagation()}>
+   {rest.map(it=><button key={it.page} className={'m-sheet-item'+(current===it.page?' active':'')} aria-current={current===it.page?'page':undefined} onClick={()=>go(it.page)}><Icon name={it.icon}/><span>{t(it.label)}</span></button>)}
+   <button className={'m-sheet-item'+(page==='settings'?' active':'')} aria-current={page==='settings'?'page':undefined} onClick={()=>go('settings')}><Icon name="gear"/><span>{t('Settings')}</span></button>
+   {extra&&<div className="m-sheet-extra">{extra}</div>}
+  </div></div>}
+ </>
 }
 
 // ---- Welcome guide (first launch) ------------------------------------------------
