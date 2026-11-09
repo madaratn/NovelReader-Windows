@@ -850,6 +850,7 @@ const FR: Record<string, string> = {
   'Like the phone': 'Comme le téléphone',
   'More': 'Plus',
   'Notes': 'Notes',
+  'The server of this quality refused to send the video ({code}). Trying another stream…': 'Le serveur de cette qualité a refusé d\'envoyer la vidéo ({code}). Essai d\'un autre flux…',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
