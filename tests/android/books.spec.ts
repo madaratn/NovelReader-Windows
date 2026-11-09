@@ -129,3 +129,61 @@ test('Android: update found on GitHub, downloaded, Install opens the installer',
   await page.locator('.update-banner').getByRole('button', { name: 'Install' }).click()
   await expect.poll(() => page.evaluate(() => (window as any).__updater.installs)).toBe(1)
 })
+
+// Cast (served by the engine in the app) and online subtitles (run in the app).
+test('Android: cast a series to a TV, and find subtitles online', async ({ page }) => {
+  const clip = fs.readFileSync(path.join(__dirname, 'fixtures', 'clip.webm'))
+  const castCalls: any[] = []
+  let playing = true
+  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': '*' }
+  await page.route('http://127.0.0.1:4567/**', async r => {
+    const u = new URL(r.request().url()), p = u.pathname
+    if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: cors })
+    const json = (b: any, status = 200) => r.fulfill({ status, contentType: 'application/json', headers: cors, body: JSON.stringify(b) })
+    if (p.startsWith('/api/v1/cast/')) {
+      const body = r.request().postData() ? JSON.parse(r.request().postData()!) : null
+      castCalls.push([p.slice(13), body])
+      if (p.endsWith('/scan')) return json([{ id: 'dlna:tv1', name: 'Salon TV', kind: 'dlna', host: '192.168.1.20' }])
+      if (p.endsWith('/start')) return json({ device: { id: 'dlna:tv1', name: 'Salon TV', kind: 'dlna' }, url: 'http://192.168.1.5:4570/t/x/4567/api/v1/proxy' })
+      if (p.endsWith('/status')) return json({ time: 42, duration: 1440, playing, state: playing ? 'playing' : 'paused_playback' })
+      if (p.endsWith('/control')) { if (body.action === 'pause') playing = false; return json({ ok: true }) }
+      return json({ ok: true })
+    }
+    if (p === '/api/v1/proxy') return r.fulfill({ status: 200, body: clip, headers: { ...cors, 'Content-Type': 'video/webm' } })
+    if (p === '/api/v1/health') return json({ status: 'ok' })
+    if (p === '/api/v1/sources') return json({ manga: [], anime: [{ id: '42', name: 'Mapple', lang: 'en', pkg: 'mapple' }] })
+    if (p.endsWith('/details')) return json({ url: '/series/1', title: 'Lanterns', status: 2, thumbnail_url: '' })
+    if (p.endsWith('/episodes')) return json([{ name: 'S1 E1', url: '/ep/1', episode_number: 1 }])
+    if (p.endsWith('/videos')) return json([{ videoUrl: 'https://cdn.test/a.mp4', videoTitle: '720p', headers: {}, subtitleTracks: [], audioTracks: [] }])
+    return json([])
+  })
+  await page.route('https://v2.sg.media-imdb.com/**', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ d: [{ id: 'tt1234567', l: 'Lanterns', y: 2024, qid: 'tvSeries' }] }) }))
+  await page.route('https://sub.wyzie.io/search**', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify([{ id: 's1', url: 'https://sub.wyzie.io/c/s1.srt', language: 'en', display: 'English', release: 'Lanterns.S01E01.WEB', format: 'srt', downloadCount: 9 }]) }))
+  await page.route('https://sub.wyzie.io/c/**', r => r.fulfill({ contentType: 'text/plain', body: '1\r\n00:00:01,000 --> 00:00:04,000\r\nThe lanterns are lit.\r\n' }))
+  await page.addInitScript(() => {
+    localStorage.setItem('mode', 'series'); localStorage.setItem('lastPage:series', 'series'); localStorage.setItem('wyzieKey', 'k'); localStorage.setItem('subAutoOnline', '0')
+    localStorage.setItem('seriesLibrary', JSON.stringify([{ id: 'series1', name: 'Lanterns', sourceId: '42', sourceName: 'Mapple', url: '/series/1', thumbnail: '', episodes: 1, addedAt: Date.now() }]))
+  })
+  await page.goto('/')
+  await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
+  await page.locator('.media-hero .primary').click()
+  await expect(page.locator('.remote-player video')).toHaveAttribute('src', /127\.0\.0\.1:4567\/api\/v1\/proxy/)
+  // Subtitles found online, added to the player.
+  await page.getByRole('button', { name: /Subtitles/ }).first().click()
+  await expect(page.locator('.sub-finder')).not.toContainText('Written by AI')
+  await page.locator('.sub-results button', { hasText: 'Lanterns.S01E01.WEB' }).click()
+  await expect.poll(() => page.locator('.remote-player video').evaluate((v: HTMLVideoElement) => [...v.textTracks].map(t => t.label).join('|'))).toContain('English')
+  // Cast: TVs found by the engine, then the remote control.
+  await page.locator('.cast-btn').click()
+  await page.locator('.cast-menu').getByRole('button', { name: /Salon TV/ }).click()
+  await expect(page.locator('.cast-panel')).toContainText('Playing on Salon TV')
+  await expect(page.locator('.cast-seek')).toContainText('0:42')
+  await page.locator('.cast-panel').getByRole('button', { name: 'Pause' }).click()
+  await expect.poll(() => castCalls.some(c => c[0] === 'control' && c[1].action === 'pause')).toBe(true)
+  const start = castCalls.find(c => c[0] === 'start')[1]
+  expect(start.deviceId).toBe('dlna:tv1')
+  expect(start.url).toMatch(/^http:\/\/127\.0\.0\.1:4567\/api\/v1\/proxy\?/)
+  await page.locator('.cast-panel').getByRole('button', { name: /Stop casting/ }).click()
+  await expect(page.locator('.cast-panel')).toHaveCount(0)
+  expect(castCalls.some(c => c[0] === 'stop')).toBe(true)
+})
