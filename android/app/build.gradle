@@ -31,6 +31,14 @@ android {
             keyPassword System.getenv('ANDROID_KEY_PASSWORD') ?: 'novelreader'
         }
     }
+    // Libraries of the video engine ship the same notice files.
+    packagingOptions {
+        resources {
+            excludes += ['META-INF/INDEX.LIST', 'META-INF/DEPENDENCIES', 'META-INF/LICENSE*', 'META-INF/NOTICE*',
+                         'META-INF/*.version', 'META-INF/versions/9/OSGI-INF/MANIFEST.MF', 'META-INF/io.netty.versions.properties']
+            pickFirsts += ['META-INF/*.kotlin_module']
+        }
+    }
     buildTypes {
         release {
             signingConfig signingConfigs.release
@@ -52,6 +60,7 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    implementation project(':engine')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

@@ -11,6 +11,9 @@ buildscript {
     dependencies {
         classpath 'com.android.tools.build:gradle:8.2.1'
         classpath 'com.google.gms:google-services:4.4.0'
+        // Video engine (engine/): Kotlin, same version as the PC engine.
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.0'
+        classpath 'org.jetbrains.kotlin:kotlin-serialization:2.2.0'
 
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
@@ -25,6 +28,8 @@ allprojects {
         // Same content as Maven Central, which sometimes refuses CI runners (403).
         maven { url "https://maven-central.storage-download.googleapis.com/maven2/" }
         mavenCentral()
+        // Injekt (the Aniyomi dependency container) is published there.
+        maven { url "https://www.jitpack.io" }
     }
 }
 
