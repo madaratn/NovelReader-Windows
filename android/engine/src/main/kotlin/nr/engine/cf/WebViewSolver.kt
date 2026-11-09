@@ -46,7 +46,7 @@ class WebViewSolver(private val app: Application) {
     private fun <T> onMain(timeoutMs: Long = 10000, f: () -> T): T {
         if (Looper.myLooper() == Looper.getMainLooper()) return f()
         val latch = CountDownLatch(1)
-        var r: Result<T>? = null
+        var r: kotlin.Result<T>? = null
         main.post { r = runCatching(f); latch.countDown() }
         if (!latch.await(timeoutMs, TimeUnit.MILLISECONDS)) throw IllegalStateException("WebView busy")
         return r!!.getOrThrow()

@@ -16,7 +16,7 @@ const CSP = [
   "font-src 'self' data:",
   "worker-src 'self' blob:",
   "object-src 'none'",
-  "frame-src 'none'",
+  "frame-src https://www.youtube-nocookie.com https://www.youtube.com",
   "base-uri 'none'",
   "form-action 'none'"
 ].join('; ')
