@@ -851,6 +851,9 @@ const FR: Record<string, string> = {
   'More': 'Plus',
   'Notes': 'Notes',
   'The server of this quality refused to send the video ({code}). Trying another stream…': 'Le serveur de cette qualité a refusé d\'envoyer la vidéo ({code}). Essai d\'un autre flux…',
+  'Arabic films and series': 'Films et séries arabes',
+  'Installs the Arabic sites (Arab Seed, FaselHD, Tuktuk Cinema, Cimaleek, Egy Dead): Egyptian, Gulf and Maghreb films and series. Some are protected by Cloudflare: NovelReader gets through it by itself, which can take a few seconds the first time.': 'Installe les sites arabes (Arab Seed, FaselHD, Tuktuk Cinema, Cimaleek, Egy Dead) : films et séries égyptiens, du Golfe et du Maghreb. Certains sont protégés par Cloudflare : NovelReader passe la protection tout seul, ce qui peut prendre quelques secondes la première fois.',
+  'Install the Arabic pack': 'Installer le pack arabe',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {

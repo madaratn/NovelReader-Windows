@@ -84,6 +84,10 @@ def main():
     edit(src / "eu/kanade/tachiyomi/network/SqliteStore.kt",
          'DriverManager.getConnection("jdbc:sqlite:${dbFile.absolutePath}")',
          "nr.engine.AndroidJdbc.connect(dbFile)", "sqlite on android")
+    # The WebView check takes longer than FlareSolverr on a PC: more time for it.
+    edit(src / "eu/kanade/tachiyomi/network/NetworkHelper.kt",
+         r"\.readTimeout\(15, TimeUnit\.SECONDS\)(\s*)\.callTimeout\(25, TimeUnit\.SECONDS\)",
+         r".readTimeout(60, TimeUnit.SECONDS)\1.callTimeout(75, TimeUnit.SECONDS)", "flare timeouts", regex=True)
     # No desktop jars on the phone: the APK's dex is loaded as is.
     edit(src / "miwayomi/api/ExtensionRoutes.kt",
          r"            // Best-effort: some repos also publish a desktop JVM jar.*?(?=            val loaded = try \{)",

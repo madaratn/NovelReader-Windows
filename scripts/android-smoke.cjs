@@ -245,6 +245,30 @@ async function connect() {
     require('child_process').execSync('adb exec-out screencap -p > shots/android-fullscreen.png')
     await evaluate(async () => { if (document.fullscreenElement) await document.exitFullscreen(); return true })
   }
+  // Cloudflare on Android: the app's solver (hidden WebView, FlareSolverr API) passes a
+  // check page, then the engine fetches through it and keeps the clearance.
+  const cf = await evaluate(async () => {
+    const out = {}
+    const stats = async () => (await fetch('http://10.0.2.2:8099/stats')).json().catch(() => null)
+    try {
+      const t = Date.now()
+      const r = await (await fetch('http://127.0.0.1:8191/v1', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cmd: 'request.get', url: 'http://10.0.2.2:8099/page', maxTimeout: 60000 }) })).json()
+      out.direct = { status: r.status, message: r.message, real: String(r.solution && r.solution.response || '').includes('REAL CONTENT'), cookies: (r.solution && r.solution.cookies || []).map(c => c.name), seconds: Math.round((Date.now() - t) / 1000) }
+      // Through the engine (its Cloudflare interceptor -> solver), then a JSON API on the same site.
+      const p1 = await fetch('http://127.0.0.1:4567/api/v1/proxy?url=' + encodeURIComponent('http://10.0.2.2:8099/other-page'))
+      out.engine = { status: p1.status, real: (await p1.text()).includes('REAL CONTENT') }
+      const before = await stats()
+      const p2 = await fetch('http://127.0.0.1:4567/api/v1/proxy?url=' + encodeURIComponent('http://10.0.2.2:8099/api.json'))
+      out.api = { status: p2.status, body: (await p2.text()).slice(0, 80) }
+      const after = await stats()
+      out.newChecksForApi = after && before ? after.challenges - before.challenges : null
+      out.stats = after
+    } catch (e) { out.error = String(e && e.message || e) }
+    return out
+  })
+  console.log('cloudflare:', JSON.stringify(cf))
+  if (!(cf.direct && cf.direct.real && cf.engine && cf.engine.real && cf.api && cf.api.body.includes('"ok":true'))) { console.error('Cloudflare solving failed on Android'); process.exit(1) }
+
   // Cast: the engine looks for TVs on the network (none on the emulator; must not fail).
   const cs = await evaluate(async () => { const t = Date.now(); try { const l = await window.novelReader.castScan(); return { ok: true, tvs: l.length, seconds: Math.round((Date.now() - t) / 1000) } } catch (e) { return { ok: false, error: String(e.message || e) } } })
   console.log('cast scan:', JSON.stringify(cs))
