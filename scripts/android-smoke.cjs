@@ -85,11 +85,11 @@ async function connect() {
         const a = page.animes?.[0]
         if (!a) { row.steps.push('popular: empty'); continue }
         row.steps.push('popular ' + page.animes.length + ' ("' + a.title.slice(0, 40) + '")')
-        const eps = await nr.miwayomiFetch('/api/v1/anime/' + src.id + '/episodes?url=' + encodeURIComponent(a.url))
+        const er = await nr.miwayomiFetch('/api/v1/anime/' + src.id + '/episodes?url=' + encodeURIComponent(a.url)), eps = er.episodes || er
         if (!eps.length) { row.steps.push('no episode'); continue }
         row.steps.push(eps.length + ' episodes')
         const ep = eps[eps.length - 1]
-        const vids = await nr.miwayomiFetch('/api/v1/anime/' + src.id + '/videos?url=' + encodeURIComponent(ep.url))
+        const vr = await nr.miwayomiFetch('/api/v1/anime/' + src.id + '/videos?url=' + encodeURIComponent(ep.url)), vids = vr.videos || vr
         const vid = vids.find(x => /^https?:/.test(x.videoUrl || ''))
         if (!vid) { row.steps.push('no video link (' + vids.length + ')'); continue }
         row.steps.push(vids.length + ' links')
@@ -102,8 +102,7 @@ async function connect() {
         const good = r.ok && (hls ? body.includes('#EXT') : size > 1000)
         row.steps.push((hls ? 'HLS playlist ' : 'video bytes ') + r.status + ' ' + size + (good ? ' ✓' : ' ✗'))
         if (good) { row.ok = true; row.play = { sourceId: src.id, sourceName: src.name, url: a.url, title: a.title, episodes: eps.length } }
-      } catch (e) { row.steps.push('error: ' + String(e && e.message || e).slice(0, 200)) }
-      row.seconds = Math.round((Date.now() - t) / 1000)
+      } catch (e) { row.steps.push('error: ' + String(e && e.message || e).slice(0, 200)) } finally { row.seconds = Math.round((Date.now() - t) / 1000) }
     }
     return { ok: results.filter(x => x.ok).length, log, results }
   })
