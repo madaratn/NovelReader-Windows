@@ -92,12 +92,12 @@ export function useSubFinder({ref,streamUrl,info,haveSubs,addSub}:{ref:React.Ref
     results&&results.length?<ul className="sub-results">{results.slice(0,12).map(s=><li key={s.id}><button disabled={!!busy} onClick={()=>useOnline(s)}><span className="lang-tag">{subLangName(s.language)}</span><span className="sub-rel">{s.release||s.source}</span>{s.hi&&<small title={t('For the deaf and hard of hearing')}>SDH</small>}{busy===s.id&&<span className="spinner"/>}</button></li>)}</ul>:
     results?<p className="cast-help">{t('No subtitles found online for this video.')}</p>:<button onClick={searchOnline}>{t('Search online')}</button>}
   </section>
-  <section><b>🤖 {t('Written by AI on this PC')}</b>
+  {typeof nr()?.subsAiPrepare==='function'&&<section><b>🤖 {t('Written by AI on this PC')}</b>
    {ai.state==='off'?<><p className="cast-help">{t('Works for every video, even without any subtitles: the AI listens and writes the lines a little ahead, then they are translated into your language. Uses the processor; the first time, about 150 MB are downloaded.')}</p><button className="primary" onClick={startAi}>{t('Generate subtitles')}</button></>:
     ai.state==='preparing'?<p className="cast-help"><span className="spinner"/> {t('Installing the AI ({what})… {p}%',{what:stepName(ai.step),p:Math.round((ai.p||0)*100)})}</p>:
     <><p className="cast-help">{ai.lines?t('{n} lines written so far. They appear a little ahead of playback.',{n:ai.lines}):t('Listening to the first 30 seconds…')}</p><button className="removebtn" onClick={stopAi}>{t('Stop the AI subtitles')}</button></>}
    {ai.error&&<p className="wp-error">{ai.error}</p>}
-  </section>
+  </section>}
   {error&&<p className="wp-error">{error}</p>}
  </div>:null
  return{button,panel}

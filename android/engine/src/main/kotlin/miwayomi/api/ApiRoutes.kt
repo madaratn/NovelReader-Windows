@@ -16,6 +16,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import kotlinx.serialization.json.Json
 import miwayomi.extension.ExtensionManager
+import nr.engine.cast.registerCastApi
 import miwayomi.source.AnimeSourceManager
 import miwayomi.source.MangaSourceManager
 import uy.kohesive.injekt.Injekt
@@ -70,4 +71,5 @@ fun Application.registerApi() {
     registerExtensionApi()
     registerFavoritesApi()
     registerWatchApi()
+    registerCastApi()
 }
