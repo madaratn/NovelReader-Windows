@@ -55,6 +55,22 @@ async function connect() {
   if (r.sample) console.log('chapter sample:', r.sample)
   if (!r.ok) { console.error('No live source could be read on Android'); process.exit(1) }
   console.log('Books OK')
+  // Reader text size in Android's real WebView: a long chapter keeps the size set in
+  // the reader (no "font boosting" of paragraphs), and follows a change.
+  const ts = await evaluate(async () => {
+    const sec = document.createElement('section'); sec.className = 'readerpage'; sec.style.setProperty('--r-size', '18px'); sec.style.cssText += ';position:fixed;inset:0;overflow:auto;z-index:9999'
+    sec.innerHTML = '<article class="readercontent"><h1>T</h1><div>' + Array.from({ length: 30 }, (_, i) => '<p>' + 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. '.repeat(12) + '</p>').join('') + '<p><span style="font-size:11px" id="ts-span">site size</span></p></div></article>'
+    document.body.appendChild(sec)
+    await new Promise(r => setTimeout(r, 500))
+    const size = s => parseFloat(getComputedStyle(sec.querySelector(s)).fontSize)
+    const a = [size('h1'), size('p'), size('#ts-span')]
+    sec.style.setProperty('--r-size', '26px'); await new Promise(r => setTimeout(r, 300))
+    const b = [size('h1'), size('p'), size('#ts-span')]
+    sec.remove()
+    return { at18: a, at26: b }
+  })
+  console.log('reader text size:', JSON.stringify(ts))
+  if (ts.at18[1] !== 18 || ts.at26[1] !== 26 || ts.at26[2] !== 26) { console.error('Reader text size is not applied to paragraphs in the WebView'); process.exit(1) }
 
   // ---- Videos: the engine inside the app, with real extensions ----
   const v = await evaluate(async () => {
