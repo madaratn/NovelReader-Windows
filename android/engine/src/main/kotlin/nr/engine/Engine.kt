@@ -74,6 +74,8 @@ object Engine {
                 addSingletonFactory { MangaSourceManager() }
                 addSingletonFactory { AnimeSourceManager() }
                 addSingletonFactory { ExtensionManager(app, config.extensionsDir, get(), get()) }
+                // Cast: plain client (the engine's has interceptors for the sources).
+                addSingletonFactory { nr.engine.cast.CastManager(app, okhttp3.OkHttpClient.Builder().readTimeout(java.time.Duration.ofSeconds(60)).build()) }
             }
         })
         val ext = Injekt.get<ExtensionManager>()

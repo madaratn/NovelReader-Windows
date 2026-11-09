@@ -4,6 +4,7 @@
 import * as plugins from './plugin-runtime'
 import{offline}from'./offline-idb'
 import{createAndroidUpdater}from'./android-update'
+import{subsSearch,subsFetch}from'./android-subs'
 
 export const isAndroidApp=()=>!!(window as any).Capacitor?.isNativePlatform?.()&&(window as any).Capacitor?.getPlatform?.()==='android'
 
@@ -28,6 +29,7 @@ function engineTimeout(path:string){const p=String(path).split('?')[0]
  if(/\/(episodes|seasons|details)$/.test(p))return 30000
  if(/\/(search|popular|latest)$/.test(p))return 20000
  if(/\/extensions\/(install|repo)/.test(p))return 90000
+ if(/\/cast\/(scan|start)$/.test(p))return 45000
  return 10000}
 async function miwayomiFetch(path:string,method='GET',body?:any){
  if(typeof path!=='string'||!path.startsWith('/'))throw Error('Invalid Miwayomi path')
@@ -38,6 +40,17 @@ async function miwayomiFetch(path:string,method='GET',body?:any){
   return ct.includes('json')?await r.json():await r.text()}
  catch(e:any){if(e?.name==='AbortError')throw Error('Miwayomi request timed out after '+Math.round(ms/1000)+' s ('+path.split('?')[0]+')');throw e}
  finally{clearTimeout(timer)}}
+// Cast to a TV (android/engine/.../cast): same calls as on the PC, served by the engine.
+async function castCall(path:string,method='POST',body?:any){
+ try{return await miwayomiFetch('/api/v1/cast/'+path,method,body)}
+ catch(e:any){const m=/ — (\{.*\})$/s.exec(String(e?.message||''));let msg='';try{msg=m?JSON.parse(m[1]).error:''}catch{}throw Error(msg||String(e?.message||e))}}
+const cast={
+ castScan:()=>castCall('scan','POST',{}),
+ castStart:(o:any)=>castCall('start','POST',o),
+ castControl:(action:string,value?:number)=>castCall('control','POST',{action,value:value??null}),
+ castStatus:()=>castCall('status','GET'),
+ castStop:()=>castCall('stop','POST',{}),
+}
 async function miwayomiStatus(){try{const health=await miwayomiFetch('/api/v1/health');return{online:true,android:true,baseUrl:ENGINE,health}}catch(e:any){return{online:false,starting:true,android:true,baseUrl:ENGINE,error:String(e?.message||e)}}}
 
 export function installAndroidBridge(version:string){
@@ -53,6 +66,8 @@ export function installAndroidBridge(version:string){
   offlineSave:offline.save,offlineGet:offline.get,offlineList:offline.list,offlineRemove:offline.remove,offlineUsage:offline.usage,offlineClear:offline.clear,
   miwayomiStatus,miwayomiFetch,
   ...createAndroidUpdater(version),
+  subsSearch,subsFetch,
+  ...cast,
   takeDeepLink:async()=>'',inviteBase:async()=>'',onDeepLink:()=>()=>{},
   sourceStatus:async()=>{const r=await fetch('https://github.com/madaratn/NovelReader-Windows/releases/download/source-status/source-status.json');return r.ok?r.json():null},
   backupAuto:async()=>({ok:false}),
