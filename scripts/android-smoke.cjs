@@ -72,6 +72,88 @@ async function connect() {
   console.log('reader text size:', JSON.stringify(ts))
   if (ts.at18[1] !== 18 || ts.at26[1] !== 26 || ts.at26[2] !== 26) { console.error('Reader text size is not applied to paragraphs in the WebView'); process.exit(1) }
 
+  // ---- Sweep: every source that works on the PC, through the phone's engine ----
+  if (process.env.SWEEP === 'true') {
+    const t0 = Date.now()
+    const status = await evaluate(async () => (await (await fetch('https://github.com/madaratn/NovelReader-Windows/releases/download/source-status/source-status.json')).json()).results.filter(x => x.state === 'ok' && !/torrent/i.test(x.name)))
+    console.log('=== SWEEP: ' + status.length + ' sources ok on the PC ===')
+    const rows = []
+    for (const s of status) {
+      if (Date.now() - t0 > 35 * 60000) { console.log('  (time budget reached)'); break }
+      const r = await evaluate(async s => {
+        const nr = window.novelReader, steps = [], t = Date.now()
+        const end = (ok, kind) => ({ ok, kind, steps, seconds: Math.round((Date.now() - t) / 1000) })
+        try {
+          for (let i = 0; i < 30; i++) { if ((await nr.miwayomiStatus()).online) break; await new Promise(r => setTimeout(r, 1000)) }
+          window.__repos = window.__repos || {}
+          window.__repos[s.repo] = window.__repos[s.repo] || await nr.miwayomiFetch('/api/v1/extensions/repo?url=' + encodeURIComponent(s.repo))
+          const e = window.__repos[s.repo].extensions.find(x => x.pkg === s.pkg)
+          if (!e) { steps.push('not in repo'); return end(false) }
+          const ins = await nr.miwayomiFetch('/api/v1/extensions/install', 'POST', { repoUrl: s.repo, apk: e.apk }).catch(e => ({ ok: false, error: String(e.message || e) }))
+          if (!ins.ok) { steps.push('install: ' + String(ins.error).slice(-200)); return end(false) }
+          try {
+            const src = (await nr.miwayomiFetch('/api/v1/sources')).anime.find(x => x.pkg === s.pkg)
+            const q = (s.detail.match(/\((.+)\)$/) || [])[1]
+            const page = q ? await nr.miwayomiFetch('/api/v1/anime/' + src.id + '/search?query=' + encodeURIComponent(q) + '&page=1').catch(() => null) : null
+            const list = (page && page.animes && page.animes.length ? page : await nr.miwayomiFetch('/api/v1/anime/' + src.id + '/popular?page=1')).animes || []
+            if (!list.length) { steps.push('no titles'); return end(false) }
+            steps.push(list.length + ' titles')
+            const er = await nr.miwayomiFetch('/api/v1/anime/' + src.id + '/episodes?url=' + encodeURIComponent(list[0].url)), eps = er.episodes || er
+            if (!eps.length) { steps.push('no episode'); return end(false) }
+            const ep = eps[eps.length - 1]
+            const vr = await nr.miwayomiFetch('/api/v1/anime/' + src.id + '/videos?url=' + encodeURIComponent(ep.url)), vids = (vr.videos || vr).filter(x => /^https?:/.test(x.videoUrl || ''))
+            if (!vids.length) { steps.push('no stream'); return end(false) }
+            steps.push(vids.length + ' streams')
+            const v = vids[0], raw = v.videoUrl, hls = /\.m3u8|\/playlist/i.test(raw)
+            const qs = 'sourceId=' + src.id + '&url=' + encodeURIComponent(raw) + '&headers=' + encodeURIComponent(Object.entries(v.headers || {}).map(([k, x]) => k + ': ' + x).join('\n'))
+            const res = await fetch('http://127.0.0.1:4567/api/v1/' + (hls ? 'hls' : 'proxy') + '?' + qs, { headers: hls ? {} : { Range: 'bytes=0-65535' } })
+            const body = hls ? await res.text() : await res.arrayBuffer(), size = hls ? body.length : body.byteLength
+            const good = res.ok && (hls ? body.includes('#EXT') : size > 1000)
+            steps.push('stream ' + res.status + (good ? ' ✓' : ' ✗'))
+            return end(good, hls ? 'hls' : /\.mpd/i.test(raw) ? 'dash' : 'file')
+          } finally { await nr.miwayomiFetch('/api/v1/extensions/uninstall', 'POST', { pkg: s.pkg }).catch(() => {}) }
+        } catch (e) { steps.push('error: ' + String(e && e.message || e).slice(0, 220)); return end(false) }
+      }, s)
+      rows.push({ s, r })
+      console.log(`  ${r.ok ? '✓' : '✗'} ${s.name} (${s.version}, ${r.seconds}s) ${r.steps.join(' → ')}`)
+    }
+    const ok = rows.filter(x => x.r.ok).length
+    console.log(`=== SWEEP: ${ok}/${rows.length} work on Android (PC: ${rows.length}) ===`)
+    require('fs').writeFileSync('shots/sweep.json', JSON.stringify(rows.map(x => ({ name: x.s.name, version: x.s.version, ok: x.r.ok, steps: x.r.steps })), null, 1))
+    console.log('=== engine errors ===')
+    console.log(require('child_process').execSync("adb logcat -d | grep -E 'miwayomi\\] (Error|error|RxJava)|LinkageError|NoSuchMethod|NoClassDefFound|ClassNotFound|VerifyError' | tail -80").toString())
+  }
+
+  // ---- Diagnosis of one source (workflow input diag_source / diag_query) ----
+  if (process.env.DIAG_SOURCE) {
+    const d = await evaluate(async ([name, query]) => {
+      const nr = window.novelReader, out = []
+      for (let i = 0; i < 60; i++) { if ((await nr.miwayomiStatus()).online) break; await new Promise(r => setTimeout(r, 1000)) }
+      const status = await (await fetch('https://github.com/madaratn/NovelReader-Windows/releases/download/source-status/source-status.json')).json()
+      const s = status.results.find(x => x.name.toLowerCase() === name.toLowerCase())
+      if (!s) return ['source not in the scan: ' + name]
+      const step = async (label, f) => { const t = Date.now(); try { const r = await f(); out.push(label + ' (' + (Date.now() - t) + ' ms): ' + JSON.stringify(r).slice(0, 1500)); return r } catch (e) { out.push(label + ' FAILED (' + (Date.now() - t) + ' ms): ' + String(e && e.message || e).slice(0, 1500)); return null } }
+      const repo = await step('repo', () => nr.miwayomiFetch('/api/v1/extensions/repo?url=' + encodeURIComponent(s.repo)))
+      const e = repo && repo.extensions.find(x => x.pkg === s.pkg)
+      await step('install', () => nr.miwayomiFetch('/api/v1/extensions/install', 'POST', { repoUrl: s.repo, apk: e.apk }))
+      const src = (await nr.miwayomiFetch('/api/v1/sources')).anime.find(x => x.pkg === s.pkg)
+      out.push('source: ' + JSON.stringify(src))
+      const res = await step('search', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/search?query=' + encodeURIComponent(query || 'naruto') + '&page=1'))
+      const a = res && (res.animes || [])[0]; if (!a) return out
+      const er = await step('episodes', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/episodes?url=' + encodeURIComponent(a.url)))
+      const eps = er && (er.episodes || er) || []
+      const ep = eps[eps.length - 1] || eps[0]; if (!ep) return out
+      out.push('episode: ' + JSON.stringify(ep).slice(0, 300))
+      await step('hosters', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/hosters?url=' + encodeURIComponent(ep.url)))
+      await step('videos', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/videos?url=' + encodeURIComponent(ep.url)))
+      return out
+    }, [process.env.DIAG_SOURCE, process.env.DIAG_QUERY || ''])
+    console.log('=== DIAG ' + process.env.DIAG_SOURCE + ' ===')
+    for (const l of d) console.log('  ' + l)
+    console.log('=== engine log ===')
+    console.log(require('child_process').execSync("adb logcat -d | grep -iE 'miwayomi|System.err|AndroidRuntime' | grep -v 'Handling local' | tail -120").toString())
+  }
+
   // ---- Videos: the engine inside the app, with real extensions ----
   const v = await evaluate(async () => {
     const nr = window.novelReader, log = [], t0 = Date.now()

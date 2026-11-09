@@ -93,7 +93,10 @@ class ExtensionManager(
         extensions[meta.pkgName]?.let { unregister(it) }
         // Android 14+ only loads code from read-only files.
         apk.setReadOnly()
-        val loader = ChildFirstDexClassLoader(apk.absolutePath, File(context.codeCacheDir, "ext").apply { mkdirs() }.absolutePath, ExtensionManager::class.java.classLoader!!)
+        // Parent first, like the PC engine: the app's Aniyomi API, Kotlin, OkHttp… win,
+        // the extension only brings what the app does not have. (Some extensions ship
+        // their own copy of Kotlin; loading theirs first breaks with a LinkageError.)
+        val loader = DexClassLoader(apk.absolutePath, File(context.codeCacheDir, "ext").apply { mkdirs() }.absolutePath, null, ExtensionManager::class.java.classLoader!!)
         val instances = mutableListOf<Any>()
         fun create(fqcn: String) {
             try {
@@ -136,24 +139,5 @@ class ExtensionManager(
         runCatching { unregister(ext) }
         runCatching { ext.apk.setWritable(true); ext.apk.delete() }
         return ext
-    }
-}
-
-/**
- * Like Aniyomi's ChildFirstPathClassLoader: the platform first, then what the
- * extension brings, then the app (Aniyomi API, OkHttp, Jsoup...).
- */
-class ChildFirstDexClassLoader(dexPath: String, optDir: String, private val app: ClassLoader) :
-    DexClassLoader(dexPath, optDir, null, app) {
-    private val system: ClassLoader? = getSystemClassLoader()
-
-    override fun loadClass(name: String, resolve: Boolean): Class<*> {
-        findLoadedClass(name)?.let { return it }
-        system?.let { s -> runCatching { return s.loadClass(name) } }
-        return try {
-            findClass(name)
-        } catch (_: ClassNotFoundException) {
-            app.loadClass(name)
-        }
     }
 }
