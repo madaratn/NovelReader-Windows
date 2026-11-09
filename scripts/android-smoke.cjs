@@ -53,8 +53,95 @@ async function connect() {
   }, MANIFEST)
   for (const l of r.log) console.log('  ' + l)
   if (r.sample) console.log('chapter sample:', r.sample)
-  ws.close()
   if (!r.ok) { console.error('No live source could be read on Android'); process.exit(1) }
+  console.log('Books OK')
+
+  // ---- Videos: the engine inside the app, with real extensions ----
+  const v = await evaluate(async () => {
+    const nr = window.novelReader, log = [], t0 = Date.now()
+    let st
+    for (let i = 0; i < 60; i++) { st = await nr.miwayomiStatus(); if (st.online) break; await new Promise(r => setTimeout(r, 1000)) }
+    if (!st.online) return { ok: 0, log: ['engine not running: ' + st.error] }
+    log.push('engine up in ' + Math.round((Date.now() - t0) / 1000) + ' s: ' + JSON.stringify(st.health))
+    // Sources that worked on the PC in the last source scan, older (14) and newer (16) extensions.
+    const status = await (await fetch('https://github.com/madaratn/NovelReader-Windows/releases/download/source-status/source-status.json')).json()
+    const ok = status.results.filter(x => x.state === 'ok' && /^(en|all)$/.test(x.lang) && !/torrent/i.test(x.name))
+    const pick = [...ok.filter(x => x.version.startsWith('14.')).slice(0, 3), ...ok.filter(x => x.version.startsWith('16.')).slice(0, 4)]
+    const repos = {}
+    const results = []
+    for (const s of pick) {
+      const row = { name: s.name, version: s.version, steps: [] }
+      results.push(row)
+      const t = Date.now()
+      try {
+        repos[s.repo] = repos[s.repo] || await nr.miwayomiFetch('/api/v1/extensions/repo?url=' + encodeURIComponent(s.repo))
+        const e = repos[s.repo].extensions.find(x => x.pkg === s.pkg)
+        if (!e) { row.steps.push('not in repo'); continue }
+        const ins = await nr.miwayomiFetch('/api/v1/extensions/install', 'POST', { repoUrl: s.repo, apk: e.apk })
+        if (!ins.ok) { row.steps.push('install failed: ' + ins.error); continue }
+        row.steps.push('installed (' + ins.anime + ' source)')
+        const src = (await nr.miwayomiFetch('/api/v1/sources')).anime.find(x => x.pkg === s.pkg)
+        const page = await nr.miwayomiFetch('/api/v1/anime/' + src.id + '/popular?page=1')
+        const a = page.animes?.[0]
+        if (!a) { row.steps.push('popular: empty'); continue }
+        row.steps.push('popular ' + page.animes.length + ' ("' + a.title.slice(0, 40) + '")')
+        const eps = await nr.miwayomiFetch('/api/v1/anime/' + src.id + '/episodes?url=' + encodeURIComponent(a.url))
+        if (!eps.length) { row.steps.push('no episode'); continue }
+        row.steps.push(eps.length + ' episodes')
+        const ep = eps[eps.length - 1]
+        const vids = await nr.miwayomiFetch('/api/v1/anime/' + src.id + '/videos?url=' + encodeURIComponent(ep.url))
+        const vid = vids.find(x => /^https?:/.test(x.videoUrl || ''))
+        if (!vid) { row.steps.push('no video link (' + vids.length + ')'); continue }
+        row.steps.push(vids.length + ' links')
+        // Through the engine's proxy, as the player does.
+        const raw = vid.videoUrl, hls = /\.m3u8|\/playlist/i.test(raw)
+        const qs = 'sourceId=' + src.id + '&url=' + encodeURIComponent(raw) + '&headers=' + encodeURIComponent(Object.entries(vid.headers || {}).map(([k, x]) => k + ': ' + x).join('\n'))
+        const r = await fetch('http://127.0.0.1:4567/api/v1/' + (hls ? 'hls' : 'proxy') + '?' + qs, { headers: hls ? {} : { Range: 'bytes=0-65535' } })
+        const body = hls ? await r.text() : await r.arrayBuffer()
+        const size = hls ? body.length : body.byteLength
+        const good = r.ok && (hls ? body.includes('#EXT') : size > 1000)
+        row.steps.push((hls ? 'HLS playlist ' : 'video bytes ') + r.status + ' ' + size + (good ? ' ✓' : ' ✗'))
+        if (good) { row.ok = true; row.play = { sourceId: src.id, sourceName: src.name, url: a.url, title: a.title, episodes: eps.length } }
+      } catch (e) { row.steps.push('error: ' + String(e && e.message || e).slice(0, 200)) }
+      row.seconds = Math.round((Date.now() - t) / 1000)
+    }
+    return { ok: results.filter(x => x.ok).length, log, results }
+  })
+  for (const l of v.log) console.log('  ' + l)
+  for (const x of v.results || []) console.log(`  ${x.ok ? '✓' : '✗'} ${x.name} (${x.version}, ${x.seconds}s): ${x.steps.join(' → ')}`)
+  console.log(`videos: ${v.ok}/${(v.results || []).length} sources stream on Android`)
+  const fs = require('fs'); fs.mkdirSync('shots', { recursive: true }); fs.writeFileSync('shots/videos.json', JSON.stringify(v, null, 1))
+
+  // Real player: the first working title, opened from the library like a person would.
+  const first = (v.results || []).find(x => x.ok)
+  let played = null
+  if (first) {
+    await evaluate(p => {
+      localStorage.setItem('onboarded', '1'); localStorage.setItem('lang', 'en')
+      localStorage.setItem('mode', 'series'); localStorage.setItem('lastPage:series', 'series')
+      localStorage.setItem('seriesLibrary', JSON.stringify([{ id: 'smoke1', name: p.title, sourceId: p.sourceId, sourceName: p.sourceName, url: p.url, thumbnail: '', episodes: p.episodes, addedAt: Date.now() }]))
+      setTimeout(() => location.reload(), 50); return true
+    }, first.play)
+    await sleep(6000)
+    played = await evaluate(async () => {
+      const wait = async (f, ms) => { for (let i = 0; i < ms / 250; i++) { const x = f(); if (x) return x; await new Promise(r => setTimeout(r, 250)) } return null }
+      const btn = await wait(() => [...document.querySelectorAll('.libcard button')].find(b => /Show episodes/.test(b.textContent)), 15000)
+      if (!btn) return { step: 'no library card', text: document.body.innerText.slice(0, 300) }
+      btn.click()
+      const go = await wait(() => document.querySelector('.media-hero .primary'), 30000)
+      if (!go) return { step: 'no play button', text: document.body.innerText.slice(0, 300) }
+      go.click()
+      const vid = await wait(() => document.querySelector('.remote-player video'), 60000)
+      if (!vid) return { step: 'no player', text: document.body.innerText.slice(0, 400) }
+      vid.muted = true; vid.play().catch(() => {})
+      const t = await wait(() => vid.currentTime > 2 && vid.currentTime, 60000)
+      return { step: t ? 'playing' : 'not advancing', currentTime: vid.currentTime, readyState: vid.readyState, error: vid.error && vid.error.message, src: vid.currentSrc.slice(0, 120) }
+    })
+    console.log('player:', JSON.stringify(played))
+  }
+  ws.close()
+  if (v.ok < 2) { console.error('Fewer than 2 video sources stream on Android'); process.exit(1) }
+  if (!played || played.step !== 'playing') { console.error('The player did not play'); process.exit(1) }
   console.log('Android smoke test OK')
   process.exit(0)
 })().catch(e => { console.error(e); process.exit(1) })
