@@ -147,7 +147,29 @@ async function connect() {
     require('child_process').execSync('adb exec-out screencap -p > shots/android-fullscreen.png')
     await evaluate(async () => { if (document.fullscreenElement) await document.exitFullscreen(); return true })
   }
+  // In-app update (native Updater plugin): download the APK of the latest release,
+  // then Android's installer must open over the app.
+  const upd = await evaluate(async () => {
+    const up = window.Capacitor?.Plugins?.Updater
+    if (!up) return { error: 'Updater plugin missing' }
+    const rels = await (await fetch('https://api.github.com/repos/madaratn/NovelReader-Windows/releases?per_page=10')).json()
+    const apk = rels.flatMap(r => r.assets || []).find(a => /^NovelReader-[\d.]+\.apk$/.test(a.name))
+    if (!apk) return { error: 'no apk in releases' }
+    const pct = []
+    up.addListener('progress', p => pct.push(p.percent))
+    const t = Date.now()
+    const d = await up.download({ url: apk.browser_download_url, size: apk.size })
+    const i = await up.install()
+    return { apk: apk.name, size: d.size, seconds: Math.round((Date.now() - t) / 1000), lastPercent: pct[pct.length - 1], install: i }
+  })
+  console.log('update:', JSON.stringify(upd))
+  await sleep(4000)
+  const top = require('child_process').execSync("adb shell dumpsys activity activities | grep -E 'topResumedActivity|mResumedActivity' | head -2").toString().trim()
+  console.log('foreground:', top)
+  require('child_process').execSync('adb exec-out screencap -p > shots/android-update.png')
+  const installerOpened = /packageinstaller|PackageInstaller/i.test(top)
   ws.close()
+  if (!installerOpened) { console.error('The update did not open Android\'s installer'); process.exit(1) }
   if (v.ok < 2) { console.error('Fewer than 2 video sources stream on Android'); process.exit(1) }
   if (!played || played.step !== 'playing') { console.error('The player did not play'); process.exit(1) }
   console.log('Android smoke test OK')

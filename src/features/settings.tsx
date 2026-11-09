@@ -111,6 +111,7 @@ export function useUiUpdate(){
   return()=>{clearInterval(iv);for(const e of['pointerdown','keydown','wheel'])window.removeEventListener(e,touch)}},[ui?.state])
  return ui
 }
+const onAndroid=()=>document.documentElement.classList.contains('android')
 export function UpdateBanner({status}:{status:UpdateStatus|null}){
  const[dismissed,setDismissed]=useState(''),[version,setVersion]=useState('')
  // "Updated to x.y.z" once, after an update installed itself.
@@ -124,17 +125,18 @@ export function UpdateBanner({status}:{status:UpdateStatus|null}){
  if(!status||status.state!=='ready'||dismissed===status.next)return null
  // The interface of this version is already running: the rest installs silently at closing.
  if(status.next&&(status.next===version||(ui&&(ui.state==='downloading'||ui.state==='ready')&&ui.version===status.next)))return null
+ if(onAndroid())return <div className="update-banner" role="status"><span>{status.needsPermission?t('Allow NovelReader to install apps on the page that opened, then come back: the update continues.'):t('NovelReader {v} is downloaded. Tap Install and confirm: your library stays.',{v:status.next||''})}</span><div><button className="primary" onClick={()=>window.novelReader.updateInstall()}>{t('Install')}</button><button onClick={()=>setDismissed(status.next||'x')}>{t('Later')}</button></div></div>
  return <div className="update-banner" role="status"><span>{t('NovelReader {v} is ready. It installs by itself when you close the app.',{v:status.next||''})}</span><div><button className="primary" onClick={()=>window.novelReader.updateInstall()}>{t('Restart now')}</button><button onClick={()=>setDismissed(status.next||'x')}>{t('Later')}</button></div></div>
 }
 export function UpdateSettings({status,version}:{status:UpdateStatus|null,version:string}){
  const[busy,setBusy]=useState(false),[autoIdle,setAutoIdle]=useState(autoIdleOn)
- const st=status?.state
- const text=st==='checking'?t('Checking for updates…'):st==='downloading'?t('Downloading version {v}… {p}%',{v:status?.next||'',p:status?.percent??0}):st==='ready'?t('Version {v} is ready: it installs when you close NovelReader.',{v:status?.next||''}):st==='installing'?t('Installing the update…'):st==='up-to-date'?t('NovelReader is up to date.'):st==='error'?t('Could not check for updates:')+' '+(status?.error||''):st==='unsupported'?t('Automatic updates work in the installed app (not in development mode).'):t('Updates are checked automatically when NovelReader starts.')
+ const st=status?.state,android=onAndroid()
+ const text=st==='checking'?t('Checking for updates…'):st==='downloading'?t('Downloading version {v}… {p}%',{v:status?.next||'',p:status?.percent??0}):st==='ready'?(android?t('Version {v} is downloaded: tap Install, Android asks you to confirm.',{v:status?.next||''}):t('Version {v} is ready: it installs when you close NovelReader.',{v:status?.next||''})):st==='installing'?t('Installing the update…'):st==='up-to-date'?t('NovelReader is up to date.'):st==='error'?t('Could not check for updates:')+' '+(status?.error||''):st==='unsupported'?t('Automatic updates work in the installed app (not in development mode).'):t('Updates are checked automatically when NovelReader starts.')
  return <section className="panel settings-block"><h2>{t('Updates')}</h2>
   <p className="settings-help">{t('Installed version: {v}',{v:version||'—'})} · {text}</p>
-  <p className="settings-help">{t('Updates download in the background and install silently: no installer to run, nothing to uninstall, your library and settings stay.')}</p>
-  <label className="settings-check"><input type="checkbox" checked={autoIdle} onChange={e=>{setAutoIdle(e.target.checked);lsSet('updateAutoIdle',e.target.checked?'1':'0');window.novelReader?.updateBusy?.({busy:false,auto:e.target.checked}).catch(()=>{})}}/> {t('Also install when the PC has been idle for 15 minutes (never during a video); NovelReader reopens by itself')}</label>
-  <div className="libraryactions">{st==='ready'?<button className="primary" onClick={()=>window.novelReader.updateInstall()}>{t('Restart now')}</button>:<button disabled={busy||st==='checking'||st==='downloading'} onClick={async()=>{setBusy(true);try{await window.novelReader.updateCheck?.()}finally{setBusy(false)}}}>{t('Check for updates')}</button>}</div>
+  <p className="settings-help">{android?t('Updates download in the background. Android asks you to confirm the install with one tap; your library and settings stay.'):t('Updates download in the background and install silently: no installer to run, nothing to uninstall, your library and settings stay.')}</p>
+  {!android&&<label className="settings-check"><input type="checkbox" checked={autoIdle} onChange={e=>{setAutoIdle(e.target.checked);lsSet('updateAutoIdle',e.target.checked?'1':'0');window.novelReader?.updateBusy?.({busy:false,auto:e.target.checked}).catch(()=>{})}}/> {t('Also install when the PC has been idle for 15 minutes (never during a video); NovelReader reopens by itself')}</label>}
+  <div className="libraryactions">{st==='ready'?<button className="primary" onClick={()=>window.novelReader.updateInstall()}>{android?t('Install'):t('Restart now')}</button>:<button disabled={busy||st==='checking'||st==='downloading'} onClick={async()=>{setBusy(true);try{await window.novelReader.updateCheck?.()}finally{setBusy(false)}}}>{t('Check for updates')}</button>}</div>
  </section>
 }
 // Windows notification for new chapters (only when the window is not in front).
