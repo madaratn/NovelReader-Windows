@@ -1,3 +1,5 @@
+import fs from 'fs'
+import path from 'path'
 import { test, expect } from '@playwright/test'
 
 // A small LNReader-style plugin, run by the in-page runtime (cheerio, @libs/fetch).
@@ -43,10 +45,34 @@ test('Android: book sources run in the app, search, open a novel, read a chapter
   await page.screenshot({ path: 'test-results/android-novel.png' })
 })
 
-test('Android: videos are announced for a next step, books one tap away', async ({ page }) => {
+// Videos: the interface talks to the engine inside the app over HTTP
+// (http://127.0.0.1:4567, like on the PC), here a scripted fake.
+test('Android: a series plays through the engine in the app', async ({ page }) => {
+  const clip = fs.readFileSync(path.join(__dirname, 'fixtures', 'clip.webm'))
+  const calls: string[] = []
+  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': '*' }
+  await page.route('http://127.0.0.1:4567/**', r => {
+    const u = new URL(r.request().url()), p = u.pathname
+    if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: cors })
+    calls.push(p)
+    const json = (b: any) => r.fulfill({ contentType: 'application/json', headers: cors, body: JSON.stringify(b) })
+    if (p === '/api/v1/proxy') return r.fulfill({ status: 200, body: clip, headers: { ...cors, 'Content-Type': 'video/webm' } })
+    if (p === '/api/v1/health') return json({ status: 'ok', service: 'miwayomi', mangaSources: 0, animeSources: 1 })
+    if (p === '/api/v1/sources') return json({ manga: [], anime: [{ id: '42', name: 'Mapple', lang: 'en', type: 'anime', pkg: 'mapple' }] })
+    if (p.endsWith('/details')) return json({ url: '/series/1', title: 'Lanterns', description: 'A mystery.', status: 2, thumbnail_url: '' })
+    if (p.endsWith('/episodes')) return json([1, 2, 3].map(n => ({ name: `S1 E${n}`, url: '/ep/' + n, episode_number: n })))
+    if (p.endsWith('/videos')) return json([{ videoUrl: 'https://cdn.test/a.mp4', videoTitle: 'Zeus - 720p', headers: {}, subtitleTracks: [], audioTracks: [], timestamps: [] }])
+    return json([])
+  })
+  await page.addInitScript(() => {
+    localStorage.setItem('mode', 'series'); localStorage.setItem('lastPage:series', 'series')
+    localStorage.setItem('seriesLibrary', JSON.stringify([{ id: 'series1', name: 'Lanterns', sourceId: '42', sourceName: 'Mapple', url: '/series/1', thumbnail: '', episodes: 3, addedAt: Date.now() }]))
+  })
   await page.goto('/')
-  await page.locator('.sidebar').getByRole('tab', { name: /Anime/ }).click()
-  await expect(page.locator('.android-soon')).toContainText('Videos are coming to the Android app in the next step')
-  await page.getByRole('button', { name: 'Go to my books' }).click()
-  await expect(page.locator('.android-soon')).toHaveCount(0)
+  await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
+  await expect(page.locator('.media-hero h1')).toHaveText('Lanterns')
+  await page.locator('.media-hero .primary').click()
+  await expect(page.locator('.remote-player video')).toHaveAttribute('src', /^http:\/\/127\.0\.0\.1:4567\/api\/v1\/proxy\?/)
+  await expect.poll(() => page.locator('.remote-player video').evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThan(0)
+  expect(calls).toContain('/api/v1/anime/42/videos')
 })

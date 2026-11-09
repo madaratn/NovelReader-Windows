@@ -9,7 +9,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.2.1'
+        classpath 'com.android.tools.build:gradle:8.10.1'
         classpath 'com.google.gms:google-services:4.4.0'
         // Video engine (engine/): Kotlin, same version as the PC engine.
         classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.0'
