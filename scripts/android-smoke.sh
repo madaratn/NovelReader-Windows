@@ -5,6 +5,8 @@ set -u
 mkdir -p shots
 adb install -r NovelReader-*.apk || exit 1
 adb logcat -c
+# The person allows it once in Android's settings; here it is set directly.
+adb shell appops set com.madaratn.novelreader REQUEST_INSTALL_PACKAGES allow
 adb shell am start -n com.madaratn.novelreader/.MainActivity
 for i in $(seq 1 30); do sock=$(adb shell cat /proc/net/unix | grep -o 'webview_devtools_remote_[0-9]*' | head -1); [ -n "$sock" ] && break; sleep 2; done
 echo "devtools socket: ${sock:-none}"

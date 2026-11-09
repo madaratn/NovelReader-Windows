@@ -3,6 +3,7 @@
 // chapters, translation) and videos (the engine in android/engine).
 import * as plugins from './plugin-runtime'
 import{offline}from'./offline-idb'
+import{createAndroidUpdater}from'./android-update'
 
 export const isAndroidApp=()=>!!(window as any).Capacitor?.isNativePlatform?.()&&(window as any).Capacitor?.getPlatform?.()==='android'
 
@@ -51,13 +52,13 @@ export function installAndroidBridge(version:string){
   appVersion:async()=>version,
   offlineSave:offline.save,offlineGet:offline.get,offlineList:offline.list,offlineRemove:offline.remove,offlineUsage:offline.usage,offlineClear:offline.clear,
   miwayomiStatus,miwayomiFetch,
-  updateStatus:async()=>({state:'unsupported'}),onUpdateStatus:()=>()=>{},updateCheck:async()=>({state:'unsupported'}),
+  ...createAndroidUpdater(version),
   takeDeepLink:async()=>'',inviteBase:async()=>'',onDeepLink:()=>()=>{},
   sourceStatus:async()=>{const r=await fetch('https://github.com/madaratn/NovelReader-Windows/releases/download/source-status/source-status.json');return r.ok?r.json():null},
   backupAuto:async()=>({ok:false}),
  }
  // Anything else (PC-only features: cast, downloads, AniList windows…) is absent, so the
  // interface hides it; direct calls give a clear message.
- const DIRECT=new Set(['importLNReader','localAddFolder','localFolders','localListVideos','localRemoveFolder','archiveSearch','archiveFiles','torrentStart','torrentStartMagnet','torrentStatus','torrentStop','backupExport','backupImport','backupListAuto','backupReadAuto','backupOpenFolder','updateInstall'])
+ const DIRECT=new Set(['importLNReader','localAddFolder','localFolders','localListVideos','localRemoveFolder','archiveSearch','archiveFiles','torrentStart','torrentStartMagnet','torrentStatus','torrentStop','backupExport','backupImport','backupListAuto','backupReadAuto','backupOpenFolder'])
  ;(window as any).novelReader=new Proxy(impl,{get:(t,p:string)=>p in t?t[p]:DIRECT.has(p)?later(p):undefined,has:(t,p:string)=>p in t})
 }

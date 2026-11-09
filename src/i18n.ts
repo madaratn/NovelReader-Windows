@@ -841,6 +841,10 @@ const FR: Record<string, string> = {
   'No source installed yet': 'Aucune source installée pour l\'instant',
   'Searching needs at least one video source. Install the recommended pack in Sources: it takes a few seconds.': 'Pour chercher, il faut au moins une source vidéo. Installez le pack recommandé dans Sources : ça prend quelques secondes.',
   'Open Sources': 'Ouvrir Sources',
+  'Allow NovelReader to install apps on the page that opened, then come back: the update continues.': 'Autorisez NovelReader à installer des applications sur la page qui s\'est ouverte, puis revenez : la mise à jour continue.',
+  'NovelReader {v} is downloaded. Tap Install and confirm: your library stays.': 'NovelReader {v} est téléchargé. Appuyez sur Installer et confirmez : votre bibliothèque est conservée.',
+  'Version {v} is downloaded: tap Install, Android asks you to confirm.': 'La version {v} est téléchargée : appuyez sur Installer, Android vous demande de confirmer.',
+  'Updates download in the background. Android asks you to confirm the install with one tap; your library and settings stay.': 'Les mises à jour se téléchargent en arrière-plan. Android demande de confirmer l\'installation d\'un appui ; votre bibliothèque et vos réglages sont conservés.',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
