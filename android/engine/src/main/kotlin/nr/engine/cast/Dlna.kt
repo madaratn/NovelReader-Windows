@@ -5,7 +5,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.net.DatagramPacket
-import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.SocketTimeoutException
 import java.net.URI
@@ -57,23 +56,29 @@ object Dlna {
     }
 
     /** M-SEARCH on the local network; calls onLocation for each answer. */
-    fun ssdpSearch(timeoutMs: Long, onLocation: (String) -> Unit) {
-        val sock = DatagramSocket()
+    fun ssdpSearch(timeoutMs: Long, log: (String) -> Unit = {}, onLocation: (String) -> Unit) {
+        // On the Wi-Fi interface: with mobile data on, it could otherwise leave there.
+        val sock = java.net.MulticastSocket(0)
+        var answers = 0
         try {
+            wifiInterface()?.let { runCatching { sock.networkInterface = it } }
+            sock.timeToLive = 4
             sock.soTimeout = 300
             val group = InetAddress.getByName("239.255.255.250")
             for (round in 0 until 2) for (st in listOf("urn:schemas-upnp-org:device:MediaRenderer:1", "urn:schemas-upnp-org:service:AVTransport:1")) {
                 val msg = "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 2\r\nST: $st\r\n\r\n".toByteArray()
-                runCatching { sock.send(DatagramPacket(msg, msg.size, group, 1900)) }
+                runCatching { sock.send(DatagramPacket(msg, msg.size, group, 1900)) }.onFailure { log("SSDP send: $it") }
             }
             val end = System.currentTimeMillis() + timeoutMs
             val buf = ByteArray(4096)
             while (System.currentTimeMillis() < end) {
                 val p = DatagramPacket(buf, buf.size)
                 try { sock.receive(p) } catch (_: SocketTimeoutException) { continue }
+                answers++
                 val text = String(p.data, 0, p.length)
                 Regex("^location:\\s*(.+)$", setOf(RegexOption.IGNORE_CASE, RegexOption.MULTILINE)).find(text)?.let { onLocation(it.groupValues[1].trim()) }
             }
+            log("SSDP: $answers answers")
         } finally { sock.close() }
     }
 }

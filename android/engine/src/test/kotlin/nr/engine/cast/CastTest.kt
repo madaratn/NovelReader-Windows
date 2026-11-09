@@ -117,6 +117,27 @@ class CastTest {
         assertTrue(calls.toString(), calls.any { it.startsWith("/rc") && it.contains("#SetVolume") && it.endsWith(" 30") })
     }
 
+    @Test fun mdnsGoogleTvAnswer() {
+        val out = java.io.ByteArrayOutputStream()
+        fun u16(v: Int) { out.write(v shr 8 and 0xFF); out.write(v and 0xFF) }
+        fun name(n: String) { for (l in n.split('.')) { val b = l.toByteArray(); out.write(b.size); out.write(b) }; out.write(0) }
+        fun rr(n: String, type: Int, data: ByteArray) { name(n); u16(type); u16(0x8001); u16(0); u16(120); u16(data.size); out.write(data) }
+        fun nameBytes(n: String) = java.io.ByteArrayOutputStream().also { o -> for (l in n.split('.')) { val b = l.toByteArray(); o.write(b.size); o.write(b) }; o.write(0) }.toByteArray()
+        u16(0); u16(0x8400); u16(0); u16(1); u16(0); u16(3)
+        val inst = "TCL-Google-TV-abc._googlecast._tcp.local"
+        rr("_googlecast._tcp.local", 12, nameBytes(inst))
+        rr(inst, 33, byteArrayOf(0, 0, 0, 0, 0x1F, 0x49) + nameBytes("abc.local"))
+        val txt = java.io.ByteArrayOutputStream().also { o -> for (kv in listOf("id=abc123", "fn=Salon TCL", "md=Google TV")) { o.write(kv.length); o.write(kv.toByteArray()) } }.toByteArray()
+        rr(inst, 16, txt)
+        rr("abc.local", 1, byteArrayOf(192.toByte(), 168.toByte(), 1, 42))
+        val recs = Mdns.parse(out.toByteArray())
+        assertEquals(4, recs.size)
+        val d = Mdns.devices(recs).single()
+        assertEquals("Salon TCL", d.name); assertEquals("192.168.1.42", d.host); assertEquals(8009, d.port); assertEquals("cast:abc123", d.id)
+        val q = Mdns.query("_googlecast._tcp.local")
+        assertEquals(12, q[q.size - 3].toInt()); assertEquals(0x80, q[q.size - 2].toInt() and 0xFF)
+    }
+
     @Test fun relayAddresses() {
         val r = CastRelay(OkHttpClient())
         val lan = r.toLan("http://127.0.0.1:4567/api/v1/hls?url=a%20b&x=1", "192.168.1.5")

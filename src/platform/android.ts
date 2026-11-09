@@ -50,6 +50,7 @@ const cast={
  castControl:(action:string,value?:number)=>castCall('control','POST',{action,value:value??null}),
  castStatus:()=>castCall('status','GET'),
  castStop:()=>castCall('stop','POST',{}),
+ castDiag:()=>miwayomiFetch('/api/v1/cast/diag').then(String).catch(()=>''),
 }
 async function miwayomiStatus(){try{const health=await miwayomiFetch('/api/v1/health');return{online:true,android:true,baseUrl:ENGINE,health}}catch(e:any){return{online:false,starting:true,android:true,baseUrl:ENGINE,error:String(e?.message||e)}}}
 
