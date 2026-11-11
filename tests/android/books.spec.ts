@@ -388,3 +388,38 @@ test('Android: notifications setting, and the list of titles checked while the a
   await box.uncheck()
   await expect.poll(() => page.evaluate(() => (window as any).__n.watch.at(-1).enabled), { timeout: 10000 }).toBe(false)
 })
+
+test('Android: engine streams are asked directly (not through the native relay), the rest is unchanged', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as any, log: string[] = []
+    w.__log = log
+    // What Capacitor installs before the app: the browser's own calls kept aside, the relayed ones in place.
+    const realOpen = XMLHttpRequest.prototype.open
+    w.CapacitorWebXMLHttpRequest = { open: function (this: any, m: string, u: string) { log.push('xhr direct ' + u); return realOpen.call(this, m, 'data:text/plain,x') } }
+    XMLHttpRequest.prototype.open = function (this: any, m: string, u: any) { (this as any)._url = u; log.push('xhr relayed ' + u); return realOpen.call(this, m, 'data:text/plain,x') } as any
+    w.CapacitorWebFetch = async (r: any) => { log.push('fetch direct ' + (typeof r === 'string' ? r : r.url)); return new Response('d') }
+    w.fetch = async (r: any) => { log.push('fetch relayed ' + (typeof r === 'string' ? r : r.url)); return new Response('r') }
+  })
+  await page.goto('/')
+  await page.waitForFunction(() => !!(window as any).novelReader)
+  const log = await page.evaluate(async () => {
+    const w = window as any; w.__log.length = 0
+    const E = 'http://127.0.0.1:4567/api/v1/'
+    for (const u of [E + 'hls?url=a', E + 'proxy?url=b', E + 'dl/file/x/v.mp4', E + 'sources', 'https://example.com/a.m3u8']) { const x = new XMLHttpRequest(); x.open('GET', u); if (u.includes('/hls?')) w.__log.push('_url=' + JSON.stringify((x as any)._url)) }
+    const p = new XMLHttpRequest(); p.open('POST', E + 'proxy?url=b')
+    await fetch(E + 'proxy?url=c'); await fetch(E + 'health'); await fetch(E + 'proxy?url=c', { method: 'POST' }); await fetch(new Request(E + 'hls?url=d'))
+    return w.__log
+  })
+  expect(log).toEqual([
+    'xhr direct http://127.0.0.1:4567/api/v1/hls?url=a', '_url=""',
+    'xhr direct http://127.0.0.1:4567/api/v1/proxy?url=b',
+    'xhr direct http://127.0.0.1:4567/api/v1/dl/file/x/v.mp4',
+    'xhr relayed http://127.0.0.1:4567/api/v1/sources',
+    'xhr relayed https://example.com/a.m3u8',
+    'xhr relayed http://127.0.0.1:4567/api/v1/proxy?url=b',
+    'fetch direct http://127.0.0.1:4567/api/v1/proxy?url=c',
+    'fetch relayed http://127.0.0.1:4567/api/v1/health',
+    'fetch relayed http://127.0.0.1:4567/api/v1/proxy?url=c',
+    'fetch direct http://127.0.0.1:4567/api/v1/hls?url=d',
+  ])
+})

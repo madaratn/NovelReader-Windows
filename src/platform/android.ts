@@ -90,8 +90,20 @@ async function sourceStatus(){
 // iPhone / iPad: the same phone interface. Apple does not let an app run the video
 // extensions (Android code), so there is no video engine in the app there: books,
 // and the sources the interface serves itself (Tunisian TV).
+// Streams of the engine are asked directly, not through Capacitor's native relay:
+// Android's WebView applies a byte range a second time to relayed answers (bytes 2-5
+// came back as bytes 4-5), which broke streams read in pieces (HLS with byte ranges).
+// The engine allows these direct requests (ApiRoutes.kt).
+const STREAM=/^http:\/\/127\.0\.0\.1:4567\/api\/v1\/(hls|proxy|dash|dl\/file)[/?]/
+export function directStreams(w:any=window){
+ const orig=w.CapacitorWebXMLHttpRequest,P=w.XMLHttpRequest?.prototype
+ if(orig?.open&&P&&!P.__nrDirect){const patched=P.open;P.__nrDirect=true
+  P.open=function(this:any,method:string,url:any,...rest:any[]){if(String(method).toUpperCase()==='GET'&&STREAM.test(String(url))){this._method='GET';this._url='';return orig.open.call(this,method,url,...rest)}return patched.call(this,method,url,...rest)}}
+ if(w.CapacitorWebFetch&&!w.__nrDirectFetch){const relayed=w.fetch;w.__nrDirectFetch=true
+  w.fetch=(r:any,o?:any)=>{const url=typeof r==='string'?r:r?.url,m=String(o?.method||(typeof r==='string'?'':r?.method)||'GET').toUpperCase();return m==='GET'&&STREAM.test(String(url))?w.CapacitorWebFetch(r,o):relayed(r,o)}}}
 export function installAndroidBridge(version:string,ios=false){
  document.documentElement.classList.add('android')
+ if(!ios)directStreams()
  if(ios){document.documentElement.classList.add('ios');engineOf=()=>{try{return localStorage.getItem('pcEngine')||''}catch{return''}}}
  const impl:Record<string,any>={
   platform:'android',
