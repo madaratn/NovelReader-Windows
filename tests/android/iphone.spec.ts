@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/plugins.min.json', r => r.fulfill({ contentType: 'application/json', body: '[]' }))
   await page.addInitScript((notes) => {
     (window as any).Capacitor = { getPlatform: () => 'ios', isNativePlatform: () => true }
-    if (!sessionStorage.getItem('__seeded')) { localStorage.clear(); localStorage.setItem('onboarded', '1'); localStorage.setItem('lang', 'en'); localStorage.setItem('whatsNewSeen', notes); sessionStorage.setItem('__seeded', '1') }
+    if (!sessionStorage.getItem('__seeded')) { localStorage.clear(); localStorage.setItem('onboarded', '1'); localStorage.setItem('lang', 'en'); localStorage.setItem('whatsNewSeen', notes); localStorage.setItem('homeAtStart', '0'); sessionStorage.setItem('__seeded', '1') }
   }, NOTES)
 })
 

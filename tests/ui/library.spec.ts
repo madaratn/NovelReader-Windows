@@ -64,3 +64,44 @@ test('empty library leads to search', async ({ page }) => {
   await page.locator('.lib-empty .primary').click()
   await expect(page.locator('main h1')).toHaveText('Find a title everywhere')
 })
+
+test('"Continue": one panel with what is in progress in every section, shown at start, straight back into the book', async ({ page }) => {
+  const { setup, novel: nv } = await import('./helpers')
+  await setup(page, {
+    library: [nv('n1', 'Mother of Learning', 100), nv('n2', 'Untouched', 10), nv('n3', 'With News', 10, { newChapters: 2 } as any)],
+    reading: { n1: { index: 41, progress: 0.5 } },                                   // 2 h ago (helper default)
+    storage: { homeAtStart: '1',
+      seriesLibrary: JSON.stringify([{ id: 'series1', name: 'Lanterns', sourceId: '42', url: '/series/1', episodes: 5 }, { id: 'series2', name: 'Finished', sourceId: '42', url: '/series/2', episodes: 3 }]),
+      'lastEpInfo:series1': JSON.stringify({ url: '/ep/3', name: 'S1 E3', n: 3, at: Date.now() - 60_000 }),
+      'mediapos:series:series1:/ep/3': JSON.stringify({ t: 300, d: 1200, at: Date.now() - 60_000 }),
+      'lastEpInfo:series2': JSON.stringify({ url: '/ep/3', name: 'S1 E3', n: 3, at: Date.now() - 30_000 }),
+      'mediapos:series:series2:/ep/3': JSON.stringify({ t: 1200, d: 1200, done: true, at: Date.now() - 30_000 }),
+      movieLibrary: JSON.stringify([{ id: 'm1', name: 'Dropped Film', sourceId: '42', url: '/m/1', shelf: 'dropped' }]),
+      'lastEpInfo:m1': JSON.stringify({ url: '/m/1', at: Date.now() - 10_000 }) } })
+  await page.goto('/')
+  const panel = page.getByRole('dialog', { name: 'Continue' })
+  await expect(panel).toBeVisible()
+  const cards = panel.locator('.home-grid').first().locator('.home-card')
+  // Most recent first; the finished series and the dropped film are not there.
+  await expect(cards).toHaveCount(2)
+  await expect(cards.nth(0)).toContainText('Series'); await expect(cards.nth(0)).toContainText('Lanterns'); await expect(cards.nth(0)).toContainText('S1 E3')
+  await expect(cards.nth(1)).toContainText('Books'); await expect(cards.nth(1)).toContainText('Mother of Learning'); await expect(cards.nth(1)).toContainText('Chapter 42')
+  expect(await cards.nth(0).locator('.libbar span').evaluate((e: HTMLElement) => e.style.width)).toBe('25%')
+  await expect(panel.locator('.home-grid').nth(1)).toContainText('With News')
+  await expect(panel.locator('.home-grid').nth(1)).toContainText('2 new chapters')
+  await cards.nth(1).click()
+  await expect(panel).toHaveCount(0)
+  await expect(page.locator('.readerpage')).toContainText('Chapter 42', { timeout: 15000 })
+  // Reopened from the sidebar; "not at start" is remembered.
+  await page.keyboard.press('Escape')
+  await page.goto('/')
+  await expect(panel).toBeVisible()
+  await panel.getByLabel('Show this when NovelReader starts').uncheck()
+  await page.keyboard.press('Escape')
+  await expect(panel).toHaveCount(0)
+  await page.reload()
+  await expect(page.locator('aside.sidebar')).toBeVisible()
+  await expect(panel).toHaveCount(0)
+  await page.locator('.sidebar .home-open').click()
+  await expect(panel).toBeVisible()
+})

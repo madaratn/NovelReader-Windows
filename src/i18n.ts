@@ -919,6 +919,15 @@ const FR: Record<string, string> = {
   'Shared directly with your phone (Phone link below). Choose a folder to also sync between PCs or away from home.': 'Partagé directement avec votre téléphone (Lien avec le téléphone, ci-dessous). Choisissez un dossier pour synchroniser aussi entre PC ou hors de la maison.',
   'Your PC is not reachable right now. Sync resumes on the home Wi-Fi, with NovelReader open on the PC.': 'Votre PC est injoignable pour le moment. La synchronisation reprendra sur le Wi-Fi de la maison, avec NovelReader ouvert sur le PC.',
   'The PC refused the code. Link it again in Settings.': 'Le PC a refusé le code. Liez-le de nouveau dans les Réglages.',
+  'Continue': 'Reprendre',
+  'Next episode after {ep}': 'Épisode suivant, après {ep}',
+  '{n} new chapter': '{n} nouveau chapitre',
+  '{n} new chapters': '{n} nouveaux chapitres',
+  '{n} new episode': '{n} nouvel épisode',
+  '{n} new episodes': '{n} nouveaux épisodes',
+  'Nothing in progress yet. What you read and watch will show up here, from every section.': 'Rien en cours pour l\'instant. Ce que vous lisez et regardez apparaîtra ici, toutes sections confondues.',
+  'New in your library': 'Nouveautés de votre bibliothèque',
+  'Show this when NovelReader starts': 'Afficher au démarrage de NovelReader',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')
