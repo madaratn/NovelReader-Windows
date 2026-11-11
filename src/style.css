@@ -990,3 +990,7 @@ html.android select{background-color:transparent;color:inherit}
 .home-start{padding:8px 18px 14px;border-top:1px solid var(--line,#2a3042)}
 .home-open{display:flex;align-items:center;gap:10px;width:100%;margin:0 0 10px;padding:9px 12px;border:1px solid #2a3042;border-radius:10px;background:transparent;color:inherit;font:inherit;font-size:14px;cursor:pointer;text-align:left}
 .home-open:hover{border-color:#8b7cff}.collapsed .home-open{justify-content:center;padding:9px 0}
+/* Television: the focused control is obvious from the sofa; a little larger text */
+html.tv{font-size:112%}
+html.tv :focus-visible,html.tv :focus{outline:3px solid #ffd54a!important;outline-offset:2px;border-radius:8px}
+html.tv video:focus{outline-offset:-3px}

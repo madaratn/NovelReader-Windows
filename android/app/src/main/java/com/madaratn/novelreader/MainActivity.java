@@ -42,6 +42,12 @@ public class MainActivity extends BridgeActivity {
         current = this;
         super.onCreate(savedInstanceState);
         // Video engine (android/engine): http://127.0.0.1:4567, like on the PC.
+        // Back (phone button, gesture, TV remote): the interface decides — close what is
+        // open, go back one screen, or leave the app (PlayerPlugin.leave).
+        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() { bridge.triggerWindowJSEvent("nrBack"); }
+        });
         // Video downloads keep going with the app in the background (DownloadService).
         final Context appContext = getApplicationContext();
         nr.engine.Engine.INSTANCE.setOnDownloadsActive(active -> DownloadService.set(appContext, active));
@@ -221,5 +227,13 @@ public class MainActivity extends BridgeActivity {
         }
 
         private void show(String text) { label.setText(text); label.setVisibility(View.VISIBLE); }
+    }
+
+    /** A television (Android TV / Google TV): no touch screen, a remote. */
+    boolean isTv() {
+        android.app.UiModeManager ui = (android.app.UiModeManager) getSystemService(Context.UI_MODE_SERVICE);
+        return (ui != null && ui.getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION)
+            || getPackageManager().hasSystemFeature("android.software.leanback")
+            || !getPackageManager().hasSystemFeature("android.hardware.touchscreen");
     }
 }

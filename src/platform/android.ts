@@ -119,6 +119,8 @@ const backup={
 export function installAndroidBridge(version:string,ios=false){
  document.documentElement.classList.add('android')
  if(!ios)directStreams()
+ // A television: remote-control navigation (platform/tv.ts).
+ if(!ios)(window as any).Capacitor?.Plugins?.Player?.device?.().then((d:any)=>{if(d?.tv)import('./tv').then(m=>m.enableTv())}).catch(()=>{})
  if(ios){document.documentElement.classList.add('ios');engineOf=()=>{try{return localStorage.getItem('pcEngine')||''}catch{return''}}}
  const impl:Record<string,any>={
   platform:'android',

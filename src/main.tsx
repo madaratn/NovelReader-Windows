@@ -1,4 +1,5 @@
 import{LangBar,useLangChoice}from'./ui/lang-bar'
+import{handleBack}from'./platform/tv'
 import{HomePanel,continueItems,homeAtStart,type HomeItem}from'./features/home'
 import{WhatsNew}from'./features/whats-new'
 import{deviceNotify,askNotifications,syncWatchlist}from'./platform/android-notify'
@@ -57,10 +58,12 @@ const merged=saved.map((r:any)=>/kohiden\.xyz/i.test(String(r?.url||''))?{...r,e
  const navStack=useRef<{mode:Mode,page:string}[]>([]),modeRef=useRef(mode),pageRef=useRef(page)
  modeRef.current=mode;pageRef.current=page
  const[homeOpen,setHomeOpen]=useState(false)
+ // Android: the Back button / gesture / TV remote (MainActivity fires "nrBack").
+ useEffect(()=>{const onBack=()=>{if(!handleBack(()=>goBackRef.current()))(window as any).Capacitor?.Plugins?.Player?.leave?.()};window.addEventListener('nrBack',onBack);return()=>window.removeEventListener('nrBack',onBack)},[])
  const[collapsed,setCollapsed]=useState(()=>lsGet('sidebarCollapsed')==='1'),[showKeys,setShowKeys]=useState(false),[qsOpen,setQsOpen]=useState(false)
  const setPage=(next:string)=>{if(next===pageRef.current)return;navStack.current.push({mode:modeRef.current,page:pageRef.current});if(navStack.current.length>50)navStack.current.shift();setPageState(next)}
  const switchMode=(m:Mode)=>{if(m===modeRef.current){setPage(startPage(m));return}navStack.current.push({mode:modeRef.current,page:pageRef.current});setModeState(m);lsSet('mode',m);setPageState(startPage(m))}
- const goBack=()=>{const prev=navStack.current.pop();if(!prev)return;if(prev.mode!==modeRef.current){setModeState(prev.mode);lsSet('mode',prev.mode)}setPageState(prev.page)}
+ const goBack=()=>{const prev=navStack.current.pop();if(!prev)return false;if(prev.mode!==modeRef.current){setModeState(prev.mode);lsSet('mode',prev.mode)}setPageState(prev.page);return true}
  const toggleSidebar=()=>setCollapsed(c=>{lsSet('sidebarCollapsed',c?'0':'1');return !c})
  useEffect(()=>{if(isTopPage(mode,page))lsSet('lastPage:'+mode,page);document.title=pageLabel(mode,page)+' · NovelReader';if(page!=='reader')window.scrollTo({top:0})},[mode,page,lang])
  useEffect(()=>{

@@ -18,4 +18,19 @@ public class PlayerPlugin extends Plugin {
             call.resolve(r);
         });
     }
+
+    /** What kind of device this is ({tv}). */
+    @PluginMethod
+    public void device(PluginCall call) {
+        MainActivity a = MainActivity.current;
+        JSObject r = new JSObject();
+        r.put("tv", a != null && a.isTv());
+        call.resolve(r);
+    }
+
+    /** Back with nothing left to go back to: the app goes to the background (as the Home button does). */
+    @PluginMethod
+    public void leave(PluginCall call) {
+        getActivity().runOnUiThread(() -> { getActivity().moveTaskToBack(true); call.resolve(); });
+    }
 }
