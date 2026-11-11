@@ -14,5 +14,10 @@
       "enabled": true
     }
   },
-  "loggingBehavior": "production"
+  "loggingBehavior": "production",
+  "ios": {
+    "contentInset": "always",
+    "allowsLinkPreview": false,
+    "scrollEnabled": true
+  }
 }

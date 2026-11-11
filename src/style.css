@@ -976,3 +976,21 @@ html.android select{background-color:transparent;color:inherit}
 @media (prefers-reduced-motion:reduce){.seek-flash{animation-duration:.01s;animation-fill-mode:none}}
 /* "What's new" after an update */
 .whats-new{padding:18px 20px;gap:10px;overflow:auto}.whats-new h2{margin:0}.whats-new ul{margin:0;padding-left:20px;display:grid;gap:8px;line-height:1.45}.whats-new .libraryactions{justify-content:flex-end}
+.pc-share-link{font-size:1.05em;user-select:all}
+/* "Continue" panel */
+.home-panel{width:min(860px,100%);max-height:84vh}
+.home-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 6px}.home-head h2{margin:0}
+.home-body{overflow:auto;padding:6px 18px 12px;display:grid;gap:12px}.home-body h3{margin:6px 0 0}
+.home-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.home-card{display:flex;gap:12px;align-items:stretch;text-align:left;padding:10px;border:1px solid var(--line,#2a3042);border-radius:12px;background:transparent;color:inherit;font:inherit;cursor:pointer;min-width:0}
+.home-card:hover,.home-card:focus-visible{border-color:#8b7cff}
+.home-card .libcover{width:54px;height:78px;flex:none;border-radius:8px;object-fit:cover}
+.home-meta{display:grid;gap:3px;min-width:0;align-content:center;flex:1}.home-meta small{opacity:.7}.home-meta b,.home-meta>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.home-meta>span{opacity:.85;font-size:.92em}
+.home-meta .libbar{display:block;height:4px;border-radius:4px;background:rgba(127,127,127,.25);overflow:hidden;margin-top:4px;opacity:1}.home-meta .libbar span{display:block;height:100%;background:#8b7cff}
+.home-start{padding:8px 18px 14px;border-top:1px solid var(--line,#2a3042)}
+.home-open{display:flex;align-items:center;gap:10px;width:100%;margin:0 0 10px;padding:9px 12px;border:1px solid #2a3042;border-radius:10px;background:transparent;color:inherit;font:inherit;font-size:14px;cursor:pointer;text-align:left}
+.home-open:hover{border-color:#8b7cff}.collapsed .home-open{justify-content:center;padding:9px 0}
+/* Television: the focused control is obvious from the sofa; a little larger text */
+html.tv{font-size:112%}
+html.tv :focus-visible,html.tv :focus{outline:3px solid #ffd54a!important;outline-offset:2px;border-radius:8px}
+html.tv video:focus{outline-offset:-3px}

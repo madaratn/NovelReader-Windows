@@ -26,14 +26,17 @@ const later=(what:string)=>async()=>{throw Error(what+': not available on Androi
 // Video engine: runs inside the app (android/engine), same API and address as on the PC.
 const ENGINE='http://127.0.0.1:4567'
 function engineTimeout(path:string){const p=String(path).split('?')[0]
- if(/\/(videos|hosters|hosterVideos)$/.test(p))return 60000
+ if(/\/(videos|hosters|hosterVideos)$/.test(p))return 90000
  if(/\/(episodes|seasons|details)$/.test(p))return 30000
  if(/\/(search|popular|latest)$/.test(p))return 20000
  if(/\/extensions\/(install|repo)/.test(p))return 90000
  if(/\/cast\/(scan|start)$/.test(p))return 45000
  return 10000}
+// iPhone: the engine of the linked PC (electron/engine-share.cjs), or none.
+let engineOf=()=>ENGINE
 async function miwayomiFetch(path:string,method='GET',body?:any){
  if(typeof path!=='string'||!path.startsWith('/'))throw Error('Invalid Miwayomi path')
+ const ENGINE=engineOf();if(!ENGINE)throw Error('Link your PC in Settings to watch anime, series and movies on this iPhone.')
  const ms=engineTimeout(path),ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),ms)
  try{const r=await fetch(ENGINE+path,{method,signal:ctl.signal,headers:{'Content-Type':'application/json'},body:body==null?undefined:JSON.stringify(body)})
   const ct=r.headers.get('content-type')||''
@@ -69,7 +72,7 @@ const downloads={
  // The engine counts its changes; the interface looks every 2 s while it is shown.
  onDownloadsChanged:(cb:()=>void)=>{let last=-1;const iv=setInterval(async()=>{if(document.visibilityState!=='visible')return;try{const v=(await dlCall('version')).version;if(last>=0&&v!==last)cb();last=v}catch{}},2000);return()=>clearInterval(iv)},
 }
-async function miwayomiStatus(){try{const health=await miwayomiFetch('/api/v1/health');return{online:true,android:true,baseUrl:ENGINE,health}}catch(e:any){return{online:false,starting:true,android:true,baseUrl:ENGINE,error:String(e?.message||e)}}}
+async function miwayomiStatus(){try{const health=await miwayomiFetch('/api/v1/health');return{online:true,android:true,baseUrl:engineOf(),health}}catch(e:any){return{online:false,starting:engineOf()===ENGINE,android:true,baseUrl:engineOf(),error:String(e?.message||e)}}}
 
 // Weekly source check: the PC scan, corrected by the phone sweep (run on an Android
 // emulator): a source that fails on a phone is shown as failing here (a time-out of
@@ -84,8 +87,41 @@ async function sourceStatus(){
  const[pc,phone]=await Promise.all([get('source-status.json'),get('source-status-android.json')])
  return mergePhoneStatus(pc,phone)}
 
-export function installAndroidBridge(version:string){
+// iPhone / iPad: the same phone interface. Apple does not let an app run the video
+// extensions (Android code), so there is no video engine in the app there: books,
+// and the sources the interface serves itself (Tunisian TV).
+// Streams of the engine are asked directly, not through Capacitor's native relay:
+// Android's WebView applies a byte range a second time to relayed answers (bytes 2-5
+// came back as bytes 4-5), which broke streams read in pieces (HLS with byte ranges).
+// The engine allows these direct requests (ApiRoutes.kt).
+const STREAM=/^http:\/\/127\.0\.0\.1:4567\/api\/v1\/(hls|proxy|dash|dl\/file)[/?]/
+export function directStreams(w:any=window){
+ const orig=w.CapacitorWebXMLHttpRequest,P=w.XMLHttpRequest?.prototype
+ if(orig?.open&&P&&!P.__nrDirect){const patched=P.open;P.__nrDirect=true
+  P.open=function(this:any,method:string,url:any,...rest:any[]){if(String(method).toUpperCase()==='GET'&&STREAM.test(String(url))){this._method='GET';this._url='';return orig.open.call(this,method,url,...rest)}return patched.call(this,method,url,...rest)}}
+ if(w.CapacitorWebFetch&&!w.__nrDirectFetch){const relayed=w.fetch;w.__nrDirectFetch=true
+  w.fetch=(r:any,o?:any)=>{const url=typeof r==='string'?r:r?.url,m=String(o?.method||(typeof r==='string'?'':r?.method)||'GET').toUpperCase();return m==='GET'&&STREAM.test(String(url))?w.CapacitorWebFetch(r,o):relayed(r,o)}}}
+// Backup file (FilesPlugin.java): saved where the person chooses, restored from a
+// file they pick. Same checks and answers as the PC (electron/backup.cjs).
+const files=()=>(window as any).Capacitor?.Plugins?.Files
+export function checkBackup(payload:any){
+ if(!payload||typeof payload!=='object'||payload.app!=='NovelReader'||payload.version!==1)throw Error('This file is not a NovelReader backup.')
+ const data=payload.data;if(!data||typeof data!=='object'||Array.isArray(data))throw Error('The backup is damaged (no data).')
+ for(const[k,v]of Object.entries(data))if(typeof k!=='string'||typeof v!=='string')throw Error('The backup is damaged (invalid entry).')
+ return{app:'NovelReader',version:1,exportedAt:Number(payload.exportedAt)||0,data}}
+const backup={
+ backupExport:async(payload:any)=>{const clean=checkBackup(payload),r=await files().save({name:'NovelReader-backup-'+new Date().toISOString().slice(0,10)+'.json',type:'application/json',text:JSON.stringify(clean,null,1)});return r?.ok?{ok:true,path:r.path||''}:{ok:false,canceled:true}},
+ backupImport:async()=>{const r=await files().open();if(!r?.ok)return{ok:false,canceled:true}
+  let x:any;try{x=JSON.parse(r.text)}catch{throw Error('This file is not a NovelReader backup.')}
+  const payload=checkBackup(x);let novels=0;try{novels=JSON.parse(payload.data.library||'[]').length}catch{}
+  return{ok:true,payload,novels,keys:Object.keys(payload.data).length,exportedAt:payload.exportedAt}},
+}
+export function installAndroidBridge(version:string,ios=false){
  document.documentElement.classList.add('android')
+ if(!ios)directStreams()
+ // A television: remote-control navigation (platform/tv.ts).
+ if(!ios)(window as any).Capacitor?.Plugins?.Player?.device?.().then((d:any)=>{if(d?.tv)import('./tv').then(m=>m.enableTv())}).catch(()=>{})
+ if(ios){document.documentElement.classList.add('ios');engineOf=()=>{try{return localStorage.getItem('pcEngine')||''}catch{return''}}}
  const impl:Record<string,any>={
   platform:'android',
   searchPlugin:(p:any,q:string)=>plugins.search(p,q),
@@ -96,17 +132,15 @@ export function installAndroidBridge(version:string){
   appVersion:async()=>version,
   offlineSave:offline.save,offlineGet:offline.get,offlineList:offline.list,offlineRemove:offline.remove,offlineUsage:offline.usage,offlineClear:offline.clear,
   miwayomiStatus,miwayomiFetch,
-  ...createAndroidUpdater(version),
-  subsSearch,subsFetch,
   ...androidSync,
-  ...downloads,
-  ...cast,
+  ...(ios?{syncChoose:undefined}:{...createAndroidUpdater(version),...downloads,...cast,...backup}),
+  subsSearch,subsFetch,
   takeDeepLink:async()=>'',inviteBase:async()=>'',onDeepLink:()=>()=>{},
-  sourceStatus,
+  sourceStatus:ios?async()=>null:sourceStatus,
   backupAuto:async()=>({ok:false}),
  }
  // Anything else (PC-only features: cast, downloads, AniList windows…) is absent, so the
  // interface hides it; direct calls give a clear message.
- const DIRECT=new Set(['importLNReader','localAddFolder','localFolders','localListVideos','localRemoveFolder','archiveSearch','archiveFiles','torrentStart','torrentStartMagnet','torrentStatus','torrentStop','backupExport','backupImport','backupListAuto','backupReadAuto','backupOpenFolder'])
+ const DIRECT=new Set(['importLNReader','localAddFolder','localFolders','localListVideos','localRemoveFolder','archiveSearch','archiveFiles','torrentStart','torrentStartMagnet','torrentStatus','torrentStop','backupListAuto','backupReadAuto','backupOpenFolder'])
  ;(window as any).novelReader=new Proxy(impl,{get:(t,p:string)=>p in t?t[p]:DIRECT.has(p)?later(p):undefined,has:(t,p:string)=>p in t})
 }

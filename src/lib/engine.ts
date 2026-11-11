@@ -14,3 +14,14 @@ export async function engineFetch(path:string,method?:string,body?:any):Promise<
  }
  return nr.miwayomiFetch(path,method,body)
 }
+
+// Where the video streams are fetched: the engine of this device, or on an iPhone
+// (which cannot run one) the engine of the linked PC (Settings › Videos through your PC).
+const LOCAL='http://127.0.0.1:4567'
+export const pcEngine=()=>{try{return localStorage.getItem('pcEngine')||''}catch{return''}}
+export const onIos=()=>typeof document!=='undefined'&&document.documentElement.classList.contains('ios')
+export const engineBase=()=>onIos()?(pcEngine()||LOCAL):LOCAL
+// "192.168.1.5:4580/abcdefghjk" as shown on the PC (spaces, http:// and capitals forgiven).
+export function parsePcLink(text:string){
+ const m=/^(?:https?:\/\/)?((?:\d{1,3}\.){3}\d{1,3}|[a-z0-9.-]+):(\d{2,5})\/(?:e\/)?([a-z0-9]{10})\/?$/i.exec(String(text||'').trim().replace(/\s+/g,''))
+ return m?'http://'+m[1].toLowerCase()+':'+m[2]+'/e/'+m[3].toLowerCase():''}

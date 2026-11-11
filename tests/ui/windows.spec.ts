@@ -144,3 +144,29 @@ test('interface update without closing: offered, applied with the button, or by 
   await page.clock.runFor(16000)
   await expect.poll(() => page.evaluate(() => (window as any).__ui.apply)).toBe(2)
 })
+
+test('settings: videos on the iPhone through this PC (turn on, link to type, new code, turn off)', async ({ page }) => {
+  await setup(page, {})
+  await page.addInitScript(() => {
+    const w = window as any, base = w.novelReader
+    const st = { enabled: false, port: 0, code: 'abcdefghjk', addresses: [] as string[], link: '', lastSeen: 0, lastFrom: '' }
+    const on = () => Object.assign(st, { enabled: true, port: 4580, addresses: ['192.168.1.5:4580'], link: '192.168.1.5:4580/' + st.code })
+    w.novelReader = { ...base,
+      shareStatus: async () => ({ ...st }),
+      shareEnable: async () => ({ ...on() }),
+      shareRenew: async () => { st.code = 'mnpqrstuvw'; return { ...on() } },
+      shareDisable: async () => ({ ...Object.assign(st, { enabled: false, port: 0, addresses: [], link: '' }) }) }
+  })
+  await page.goto('/')
+  await nav(page, 'Settings')
+  const block = page.locator('.pc-share')
+  await expect(block).toContainText('Phone link')
+  await expect(page.locator('.pc-link')).toHaveCount(0)
+  await expect(block.locator('code')).toHaveCount(0)
+  await block.getByRole('button', { name: 'Turn on the phone link' }).click()
+  await expect(block.locator('.pc-share-link')).toHaveText('192.168.1.5:4580/abcdefghjk')
+  await block.getByRole('button', { name: 'New code' }).click()
+  await expect(block.locator('.pc-share-link')).toHaveText('192.168.1.5:4580/mnpqrstuvw')
+  await block.getByRole('button', { name: 'Turn off' }).click()
+  await expect(block.getByRole('button', { name: 'Turn on the phone link' })).toBeVisible()
+})

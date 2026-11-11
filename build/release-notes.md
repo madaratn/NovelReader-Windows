@@ -1,9 +1,10 @@
-## NovelReader 0.20.0
+## NovelReader 0.21.0
 
-- **Séries tunisiennes sans clé** : plus besoin de clé YouTube. Dans **Sources › Tunisian TV**, un seul bouton **Activer**. La liste des séries est mise à jour deux fois par semaine.
-- **Android : vidéos hors connexion** : le bouton ⤓ d'un épisode le garde sur l'appareil (page **Téléchargements**). Le téléchargement continue quand l'application est en arrière-plan.
-- **Android : synchronisation avec le PC** : bibliothèque, positions de lecture et de visionnage partagées avec Windows, par le fichier que le PC écrit dans Google Drive ou OneDrive (**Réglages › Synchronisation avec votre PC**).
-- **Android : lecteur plus confortable** : deux appuis rapides à gauche ou à droite pour reculer ou avancer de 10 s ; en plein écran, glisser à droite pour le volume et à gauche pour la luminosité ; la vidéo continue dans une petite fenêtre quand on quitte l'application (bouton **Mini lecteur**).
-- **Android : notifications** de nouveaux épisodes, même application fermée (vérification toutes les 6 heures).
-- **Android : sources vérifiées sur téléphone** : la page Sources indique les sources qui ne se lisent pas sur téléphone, d'après un test hebdomadaire sur un appareil Android.
-- **Nouveautés** : après une mise à jour, l'application affiche ce qui a changé.
+- **Reprendre** : un nouvel écran réunit ce que vous lisez et regardez (livres, animes, séries, films) et les nouveautés de votre bibliothèque. Il s'ouvre au démarrage et par le bouton **Reprendre** (Ctrl+H).
+- **Synchronisation directe PC ↔ téléphone** : plus besoin de Google Drive. Sur le PC, **Réglages › Lien avec le téléphone** affiche un lien à taper une fois sur le téléphone (**Réglages › Synchronisation avec votre PC**). Marche sur le Wi-Fi de la maison, PC allumé.
+- **Android TV** : l'application s'installe sur une télé Android TV / Google TV et se pilote à la télécommande (flèches, OK, Retour).
+- **Android : bouton Retour** : il ferme ce qui est ouvert ou revient à l'écran précédent, au lieu de quitter l'application.
+- **Android : nouveaux chapitres, application fermée** : notification quand un roman de votre bibliothèque a de nouveaux chapitres (vérification toutes les 6 heures).
+- **Android : sauvegarde et restauration** dans **Réglages** (fichier enregistré où vous voulez).
+- **Android : flux vidéo lus par morceaux** : certains flux recevaient les mauvaises données et ne démarraient pas ; corrigé.
+- **Séries tunisiennes** : les séries complètes passent avant les extraits, et une entrée **Direct : chaînes tunisiennes** ouvre le direct YouTube de chaque chaîne.
