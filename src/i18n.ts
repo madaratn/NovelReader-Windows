@@ -928,6 +928,8 @@ const FR: Record<string, string> = {
   'Nothing in progress yet. What you read and watch will show up here, from every section.': 'Rien en cours pour l\'instant. Ce que vous lisez et regardez apparaîtra ici, toutes sections confondues.',
   'New in your library': 'Nouveautés de votre bibliothèque',
   'Show this when NovelReader starts': 'Afficher au démarrage de NovelReader',
+  'Live: Tunisian channels': 'Direct : chaînes tunisiennes',
+  'The channels\' own live streams on YouTube. A channel that is not broadcasting on YouTube right now shows as unavailable.': 'Les directs des chaînes sur YouTube. Une chaîne qui ne diffuse pas sur YouTube en ce moment apparaît comme indisponible.',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

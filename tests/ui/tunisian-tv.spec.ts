@@ -13,6 +13,7 @@ test('Tunisian TV: turned on in one click (no key), found in Global Search, epis
     const json = (b: any) => r.fulfill({ contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(b) })
     if (file === 'tntv-catalog.json') return json({ at: '2026-11-10T00:00:00Z', channels: [{ id: 'UC1', name: 'Elhiwar Ettounsi', file: 'tntv-1.json' }, { id: 'UC0', name: 'Télévision Tunisienne', file: 'tntv-0.json' }], playlists: [
       { id: 'PL-awled', title: 'مسلسل أولاد مفيدة - الموسم الأول', thumb: 'https://i.ytimg.com/a.jpg', channel: 'Elhiwar Ettounsi', count: 3 },
+      { id: 'PL-clips', title: 'مقاطع أولاد مفيدة', thumb: '', channel: 'Elhiwar Ettounsi', count: 50 },
       { id: 'PL-choufli', title: 'Choufli Hal - شوفلي حل', thumb: '', channel: 'Télévision Tunisienne', count: 2 }] })
     if (file === 'tntv-1.json') return json({ playlists: { 'PL-awled': [['vid22222222', 'أولاد مفيدة الحلقة 2'], ['vid11111111', 'أولاد مفيدة الحلقة 1'], ['vid33333333', 'أولاد مفيدة الحلقة 3']] } })
     return r.fulfill({ status: 404, body: '' })
@@ -37,8 +38,11 @@ test('Tunisian TV: turned on in one click (no key), found in Global Search, epis
   await page.locator('main input').first().fill('اولاد مفيده')
   await page.locator('main').getByRole('button', { name: 'Search', exact: true }).click()
   await expect(page.locator('main')).toContainText('مسلسل أولاد مفيدة - الموسم الأول', { timeout: 15000 })
-  await page.locator('.resultcard', { hasText: 'أولاد مفيدة' }).getByRole('button', { name: /Add to library/ }).click()
-  await expect(page.locator('.resultcard', { hasText: 'أولاد مفيدة' })).toContainText('In your library')
+  // The full series first, its extracts after.
+  const titles = await page.locator('.resultcard').allInnerTexts()
+  expect(titles.findIndex(x => x.includes('مسلسل أولاد مفيدة'))).toBeLessThan(titles.findIndex(x => x.includes('مقاطع')))
+  await page.locator('.resultcard', { hasText: 'مسلسل أولاد مفيدة' }).getByRole('button', { name: /Add to library/ }).click()
+  await expect(page.locator('.resultcard', { hasText: 'مسلسل أولاد مفيدة' })).toContainText('In your library')
   await page.locator('.sidebar').getByRole('button', { name: 'Series Library' }).click()
   await page.locator('.libcard', { hasText: 'أولاد مفيدة' }).getByRole('button', { name: 'Show episodes' }).click()
   // Episodes in order.
@@ -50,6 +54,15 @@ test('Tunisian TV: turned on in one click (no key), found in Global Search, epis
   const frame = page.locator('.youtube-player iframe')
   await expect(frame).toHaveAttribute('src', /^https:\/\/www\.youtube-nocookie\.com\/embed\/vid11111111\?autoplay=1/)
   await expect(page.locator('.youtube-player')).toContainText('Played by YouTube')
+  // Live: one entry with the channels, played by YouTube's live player of the channel.
+  await page.locator('.sidebar').getByRole('button', { name: 'Global Search' }).click()
+  await page.locator('main input').first().fill('live')
+  await page.locator('main').getByRole('button', { name: 'Search', exact: true }).click()
+  await page.locator('.resultcard', { hasText: 'Live: Tunisian channels' }).getByRole('button', { name: /Add to library/ }).click()
+  await page.locator('.sidebar').getByRole('button', { name: 'Series Library' }).click()
+  await page.locator('.libcard', { hasText: 'Live: Tunisian channels' }).getByRole('button', { name: 'Show episodes' }).click()
+  await page.locator('.episodecell', { hasText: 'Elhiwar Ettounsi' }).locator('.episodecard').click()
+  await expect(page.locator('.youtube-player iframe')).toHaveAttribute('src', /^https:\/\/www\.youtube\.com\/embed\/live_stream\?channel=UC1&autoplay=1/)
   // The catalog is downloaded once, and only the file of the channel that was opened.
   expect(got.filter(x => x === 'tntv-catalog.json').length).toBe(2)
   expect(got.filter(x => x === 'tntv-1.json').length).toBe(1)

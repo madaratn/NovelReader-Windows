@@ -41,18 +41,33 @@ async function videosOf(id:string):Promise<[string,string][]>{
 export const norm=(s:string)=>String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f\u064b-\u065f\u0670]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/ـ/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim()
 export function matches(title:string,query:string){const t=norm(title),words=norm(query).split(' ').filter(Boolean);return words.length>0&&words.every(w=>t.includes(w))}
 
-const page=(list:Playlist[],p:number)=>({animes:list.slice((p-1)*PAGE,p*PAGE).map(x=>({url:'pl:'+x.id,title:x.title,thumbnail_url:x.thumb,description:x.channel+' · '+x.count+' videos'})),hasNextPage:list.length>p*PAGE})
+// What a list is, from its title: a series, extracts of one ("best of", مقاطع, promos),
+// or anything else (programmes, and series whose title is only their name).
+export function kindOf(title:string):'series'|'clips'|'other'{
+ if(/مقاطع|best\s*of|extraits?|\bclips?\b|promo|bande[- ]annonce|teaser|برومو|كواليس|coulisses?|making\s*of|bêtisier/i.test(title))return'clips'
+ if(/مسلسل|سلسلة|سلسله|s[ée]rie|sitcom|feuilleton|الموسم|saison|season|سيتكوم/i.test(title))return'series'
+ return'other'}
+const shown=(list:Playlist[])=>list.filter(x=>kindOf(x.title)!=='clips')
+const LIVE='live'
+const page=(list:Playlist[],p:number)=>({animes:list.slice((p-1)*PAGE,p*PAGE).map(x=>({url:'pl:'+x.id,title:x.title,thumbnail_url:x.thumb,description:x.id===LIVE?'':x.channel+' · '+x.count+' videos'})),hasNextPage:list.length>p*PAGE})
 export const episodeNumber=(title:string,i:number)=>{const m=/(?:الحلقة|حلقة|episode|ép(?:isode)?|ep\.?)\s*(\d{1,4})/i.exec(title)||/(?:^|\D)(\d{1,3})\s*$/.exec(title.trim());return m?Number(m[1]):i+1}
 
 /** Answers the engine's API paths for this source. */
 export async function tntvFetch(path:string):Promise<any>{
  const u=new URL('http://x'+path),kind=u.pathname.split('/').pop()||'',p=Math.max(1,Number(u.searchParams.get('page'))||1),url=u.searchParams.get('url')||''
- if(kind==='popular')return page((await playlists()).slice().sort((a,b)=>b.count-a.count),p)
- if(kind==='latest')return page(await playlists(),p)
- if(kind==='search'){const q=u.searchParams.get('query')||u.searchParams.get('q')||'';return page((await playlists()).filter(x=>matches(x.title,q)),p)}
- if(kind==='details'){const id=url.replace(/^pl:/,''),x=(await playlists()).find(y=>y.id===id);return{url,title:x?.title||'',description:x?x.channel+' · '+x.count+' videos':'',thumbnail_url:x?.thumb||'',author:x?.channel||'',genre:'Tunisie',status:0}}
- if(kind==='episodes'){const list=await videosOf(url.replace(/^pl:/,''));return{episodes:list.map(([vid,name],i)=>({url:'yt:'+vid,name,date_upload:0,episode_number:episodeNumber(name,i)}))}}
- if(kind==='videos'){const id=url.replace(/^yt:/,'');return{videos:[{videoUrl:'https://www.youtube.com/watch?v='+id,videoTitle:'YouTube',headers:{},subtitleTracks:[],audioTracks:[]}]}}
+ const live:Playlist={id:LIVE,title:t('Live: Tunisian channels'),thumb:'',channel:'',count:0}
+ if(kind==='popular'){const all=shown(await playlists());return page([live,...all.filter(x=>kindOf(x.title)==='series').sort((a,b)=>b.count-a.count),...all.filter(x=>kindOf(x.title)!=='series').sort((a,b)=>b.count-a.count)],p)}
+ if(kind==='latest')return page(shown(await playlists()),p)
+ if(kind==='search'){const q=u.searchParams.get('query')||u.searchParams.get('q')||'',hits=(await playlists()).filter(x=>matches(x.title,q))
+  // Full series and programmes first; extracts ("best of", مقاطع…) only at the end.
+  return page([...(matches(live.title+' direct live مباشر',q)?[live]:[]),...shown(hits).sort((a,b)=>(kindOf(a.title)==='series'?0:1)-(kindOf(b.title)==='series'?0:1)),...hits.filter(x=>kindOf(x.title)==='clips')],p)}
+ if(kind==='details'){const id=url.replace(/^pl:/,'');if(id===LIVE)return{url,title:live.title,description:t('The channels\' own live streams on YouTube. A channel that is not broadcasting on YouTube right now shows as unavailable.'),thumbnail_url:'',author:'',genre:'Tunisie',status:0}
+  const x=(await playlists()).find(y=>y.id===id);return{url,title:x?.title||'',description:x?x.channel+' · '+x.count+' videos':'',thumbnail_url:x?.thumb||'',author:x?.channel||'',genre:'Tunisie',status:0}}
+ if(kind==='episodes'){const id=url.replace(/^pl:/,'')
+  if(id===LIVE)return{episodes:(await catalog()).channels.map((c,i)=>({url:'ytlive:'+c.id,name:c.name,date_upload:0,episode_number:i+1}))}
+  const list=await videosOf(id);return{episodes:list.map(([vid,name],i)=>({url:'yt:'+vid,name,date_upload:0,episode_number:episodeNumber(name,i)}))}}
+ if(kind==='videos'){if(url.startsWith('ytlive:'))return{videos:[{videoUrl:'https://www.youtube.com/embed/live_stream?channel='+encodeURIComponent(url.slice(7)),videoTitle:'YouTube',headers:{},subtitleTracks:[],audioTracks:[]}]}
+  const id=url.replace(/^yt:/,'');return{videos:[{videoUrl:'https://www.youtube.com/watch?v='+id,videoTitle:'YouTube',headers:{},subtitleTracks:[],audioTracks:[]}]}}
  if(kind==='hosters')return{hosters:[]}
  if(kind==='seasons')return[]
  throw Error('Not supported by '+TNTV_NAME)
