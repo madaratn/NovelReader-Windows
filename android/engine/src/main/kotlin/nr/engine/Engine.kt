@@ -31,9 +31,9 @@ import java.io.File
 object Engine {
     const val PORT = 4567
     @Volatile var state: String = "stopped"
+        private set
     /** Called when video downloads start (true) and when the last one ends (false). */
     @Volatile var onDownloadsActive: java.util.function.Consumer<Boolean>? = null
-        private set
     @Volatile var error: String? = null
         private set
     private var server: EmbeddedServer<*, *>? = null
