@@ -1,4 +1,5 @@
 import{SubtitleSettings}from'./sub-finder'
+import{PcShareSettings}from'./pc-link'
 import{deviceNotify,askNotifications,showDeviceNotification}from'../platform/android-notify'
 import{party}from'./watch-party'
 import React,{useEffect,useRef,useState}from'react'
@@ -45,7 +46,7 @@ export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onSh
  const doRestoreAuto=(name:string)=>{if(confirm!==name){setConfirm(name);return}run(async()=>{await applyBackup(await window.novelReader.backupReadAuto(name))})}
  const doBackupNow=()=>run(async()=>{const r=await window.novelReader.backupAuto(collectBackup(),true);setMsg({ok:true,text:r.saved?t('Automatic backup created.'):t('Nothing changed since the last backup.')});refresh()})
  // Android: no files to export there yet, no Windows notifications, no LNReader import.
- const android=document.documentElement.classList.contains('android')
+ const android=document.documentElement.classList.contains('android'),ios=document.documentElement.classList.contains('ios')
  return <>
   <header><div><h1>{t('Settings')}</h1><p>{t('Language, backups and updates.')}</p></div></header>
   <section className="panel settings-block"><h2>{t('Appearance')}</h2>
@@ -55,18 +56,18 @@ export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onSh
   <section className="panel settings-block"><h2>{t('Language')}</h2>
    <div className="rs-seg settings-seg" role="radiogroup" aria-label={t('Language')}>{LANGS.map(l=><button key={l.id} role="radio" aria-checked={lang===l.id} className={lang===l.id?'on':''} onClick={()=>onLang(l.id)}>{l.label}</button>)}</div>
   </section>
-  {!android&&<section className="panel settings-block"><h2>{t('Backup and restore')}</h2>
+  {(!android||typeof (window.novelReader as any).backupExport==='function')&&<section className="panel settings-block backup-block"><h2>{t('Backup and restore')}</h2>
    <p className="settings-help">{t('Your library, reading progress and preferences are stored on this PC. Export a backup file to keep them safe or to move them to another computer.')}</p>
    <div className="libraryactions"><button className="primary" disabled={busy} onClick={doExport}>{t('Export a backup…')}</button><button disabled={busy} onClick={doImport}>{t('Restore from a file…')}</button></div>
    {msg&&<div className={'anime-toast '+(msg.ok?'ok':'error')} role="status"><NoticeText text={msg.text}/><button aria-label={t('Dismiss')} onClick={()=>setMsg(null)}>×</button></div>}
-   <h3 className="settings-sub">{t('Automatic backups')}</h3>
+   {!android&&<><h3 className="settings-sub">{t('Automatic backups')}</h3>
    <p className="settings-help">{t('NovelReader keeps the last 10 versions of your data automatically. A copy of the current data is also saved before any restore.')}</p>
    {autos.length===0?<p className="settings-help">{t('No automatic backup yet.')}</p>:<div className="scanlist">{autos.map(a=><div className="scanrow settings-row" key={a.name}><span>{fmtDateTime(a.exportedAt)}</span><small>{plural(a.novels,'{n} novel','{n} novels')}</small><button className={confirm===a.name?'danger':undefined} disabled={busy} onClick={()=>doRestoreAuto(a.name)}>{confirm===a.name?t('Confirm restore'):t('Restore')}</button></div>)}</div>}
-   <div className="libraryactions"><button disabled={busy} onClick={doBackupNow}>{t('Back up now')}</button><button onClick={()=>window.novelReader.backupOpenFolder().catch(e=>setMsg({ok:false,text:String(e?.message||e)}))}>{t('Open backups folder')}</button></div>
+   <div className="libraryactions"><button disabled={busy} onClick={doBackupNow}>{t('Back up now')}</button><button onClick={()=>window.novelReader.backupOpenFolder().catch(e=>setMsg({ok:false,text:String(e?.message||e)}))}>{t('Open backups folder')}</button></div></>}
   </section>}
   <section className="panel settings-block"><h2>{t('New chapters')}</h2>
    <label className="settings-check"><input type="checkbox" checked={autoCheck} onChange={e=>{setAutoCheck(e.target.checked);lsSet('autoCheckUpdates',e.target.checked?'1':'0')}}/> {t('Check my library for new chapters when NovelReader starts (at most every 12 hours)')}</label>
-   {(!android||deviceNotify())&&<label className="settings-check"><input type="checkbox" checked={notify} onChange={e=>{setNotify(e.target.checked);lsSet('notifyNewChapters',e.target.checked?'1':'0');if(e.target.checked)askNotifications()}}/> {t('Show a Windows notification when new chapters are found')}</label>}
+   {(!android||deviceNotify())&&<label className="settings-check"><input type="checkbox" checked={notify} onChange={e=>{setNotify(e.target.checked);lsSet('notifyNewChapters',e.target.checked?'1':'0');if(e.target.checked)askNotifications();window.dispatchEvent(new Event('nr-watchlist'))}}/> {t('Show a Windows notification when new chapters are found')}</label>}
   </section>
   <section className="panel settings-block"><h2>{t('New episodes')}</h2>
    <label className="settings-check"><input type="checkbox" checked={autoEp} onChange={e=>{setAutoEp(e.target.checked);lsSet('autoCheckEpisodes',e.target.checked?'1':'0');window.dispatchEvent(new Event('nr-watchlist'))}}/> {t('Check my anime and series for new episodes in the background (every 6 hours)')}</label>
@@ -77,7 +78,7 @@ export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onSh
    <div className="libraryactions"><button className="primary" disabled={impBusy} onClick={async()=>{setImpBusy(true);setMsg(null);setImp(null);try{setImp(await onImportLNReader())}catch(e:any){setMsg({ok:false,text:t(String(e?.message||e).replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/,''))})}finally{setImpBusy(false)}}}>{impBusy?t('Importing…'):t('Import an LNReader backup…')}</button></div>
    {imp&&<div className="anime-toast ok" role="status"><span>{plural(imp.added,'{n} novel imported','{n} novels imported')}{imp.exists?' · '+plural(imp.exists,'{n} already in your library','{n} already in your library'):''}{imp.unknown.length?' · '+t('{n} skipped (source not available: {list})',{n:imp.unknown.length,list:imp.unknown.slice(0,4).join(', ')}):''}</span><button className="undo-btn" onClick={onShowLibrary}>{t('Open library')}</button></div>}
   </section>}
-  {sync&&<SyncSettings sync={sync}/>}
+  {sync&&<SyncSettings sync={sync}/>}{!android&&<PcShareSettings/>}
   <section className="panel settings-block"><h2>{t('Offline chapters')}</h2>
    <p className="settings-help">{usage&&usage.chapters?t('{chapters} for {novels} use {size} on this PC.',{chapters:plural(usage.chapters,'{n} chapter','{n} chapters'),novels:plural(usage.novels,'{n} novel','{n} novels'),size:(usage.bytes/1048576).toFixed(1)+' MB'}):t('No chapter downloaded yet. Use Download on a novel page to read without an internet connection.')}</p>
    {usage&&usage.chapters>0&&<div className="libraryactions"><button className={clearConfirm?'danger':undefined} onClick={async()=>{if(!clearConfirm){setClearConfirm(true);setTimeout(()=>setClearConfirm(false),6000);return}await window.novelReader.offlineClear?.();setClearConfirm(false);setUsage({bytes:0,chapters:0,novels:0})}}>{clearConfirm?t('Confirm: delete all downloads'):t('Delete all downloaded chapters')}</button></div>}

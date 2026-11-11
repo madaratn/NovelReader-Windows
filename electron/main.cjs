@@ -239,6 +239,16 @@ ipcMain.handle('sync:choose',plainErr(e=>folderSync.choose(BrowserWindow.fromWeb
 ipcMain.handle('sync:read',plainErr(()=>folderSync.read()))
 ipcMain.handle('sync:write',plainErr((_e,o)=>folderSync.write(o.data)))
 ipcMain.handle('sync:disable',plainErr(()=>folderSync.disable()))
+// ---- Videos on an iPhone through this PC (electron/engine-share.cjs) ---------
+const {createEngineShare}=require('./engine-share.cjs')
+const engineShare=createEngineShare({configFile:path.join(app.getPath('userData'),'engine-share.json'),log:(...a)=>console.warn('[share]',...a),sync:{read:()=>folderSync.readRaw(),write:x=>folderSync.writeRaw(x)}})
+// A linked phone syncs with this PC's sync file: the cloud folder when there is one, else a file kept here.
+ipcMain.handle('share:status',plainErr(()=>engineShare.status()))
+ipcMain.handle('share:enable',plainErr(async()=>{folderSync.setHub(true);return engineShare.enable()}))
+ipcMain.handle('share:disable',plainErr(()=>{folderSync.setHub(false);return engineShare.disable()}))
+ipcMain.handle('share:renew',plainErr(()=>engineShare.renew()))
+app.whenReady().then(()=>{if(!SMOKE_TEST)engineShare.restore().catch(()=>{})})
+app.on('will-quit',()=>engineShare.stop())
 ipcMain.handle('lnreader:import',plainErr(e=>lnImporter.importBackup(BrowserWindow.fromWebContents(e.sender))))
 // ---- Hardening ---------------------------------------------------------------------
 // The window only ever shows the app itself. Links inside chapters open in the

@@ -46,7 +46,7 @@ async function connect() {
         const text = ch ? await window.novelReader.parseChapter(p, ch.path) : ''
         const plain = String(text).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
         log.push(`${p.id}: ${res.length} results, "${novel.name}", ${novel.chapters?.length || 0} chapters, chapter text ${plain.length} chars`)
-        if (plain.length > 200) return { ok: true, log, sample: plain.slice(0, 160) }
+        if (plain.length > 200) return { ok: true, log, sample: plain.slice(0, 160), book: { source: p, path: res[0].path, name: novel.name, count: novel.chapters.length } }
       } catch (e) { log.push(p.id + ': ' + String(e?.message || e).slice(0, 160)) }
     }
     return { ok: false, log }
@@ -55,6 +55,20 @@ async function connect() {
   if (r.sample) console.log('chapter sample:', r.sample)
   if (!r.ok) { console.error('No live source could be read on Android'); process.exit(1) }
   console.log('Books OK')
+  // New chapters with the app closed: the hidden page (ChapterCheck.java) is run for
+  // real, on a library whose saved copy of that novel misses its last chapter.
+  if (r.book && r.book.count >= 2) {
+    const bg = await evaluate(async b => {
+      const keep = localStorage.getItem('library')
+      localStorage.setItem('library', JSON.stringify([{ id: 'smoke-bg', name: b.name, source: b.source, path: b.path, chapters: Array.from({ length: b.count - 1 }, (_, i) => ({ name: 'c' + i, path: '/c' + i })) }]))
+      localStorage.removeItem('bgChapterSeen')
+      try { const x = await window.Capacitor.Plugins.Notify.chaptersNow(); return { ok: x.ok, result: x.result && JSON.parse(x.result), seen: localStorage.getItem('bgChapterSeen') } }
+      catch (e) { return { error: String(e && e.message || e) } }
+      finally { if (keep == null) localStorage.removeItem('library'); else localStorage.setItem('library', keep); localStorage.removeItem('bgChapterSeen'); localStorage.removeItem('lastUpdateCheck') }
+    }, r.book)
+    console.log('closed-app chapter check:', JSON.stringify(bg))
+    if (!(bg.ok && bg.result && Array.isArray(bg.result.names) && bg.result.names.includes(r.book.name))) { console.error('The closed-app chapter check did not find the new chapter'); process.exit(1) }
+  }
   // Reader text size in Android's real WebView: a long chapter keeps the size set in
   // the reader (no "font boosting" of paragraphs), and follows a change.
   const ts = await evaluate(async () => {
@@ -80,11 +94,11 @@ async function connect() {
     const rows = []
     for (const s of status) {
       if (Date.now() - t0 > 42 * 60000) { console.log('  (time budget reached)'); break }
-      const r = await Promise.race([sleep(200000).then(() => ({ ok: false, steps: ['no answer in 200 s'], seconds: 200 })), evaluate(async s => {
+      const r = await Promise.race([sleep(260000).then(() => ({ ok: false, steps: ["no answer in 260 s"], seconds: 260 })), evaluate(async s => {
         const steps = [], t = Date.now(), raw = window.novelReader
         // Every engine call gets its own limit: one hung source must not stop the sweep.
         const limit = (p, ms, what) => Promise.race([p, new Promise((_, ko) => setTimeout(() => ko(new Error('timeout: ' + what)), ms))])
-        const nr = { miwayomiStatus: () => limit(raw.miwayomiStatus(), 8000, 'status'), miwayomiFetch: (path, m, b) => limit(raw.miwayomiFetch(path, m, b), /install|repo/.test(path) ? 60000 : /\/videos/.test(path) ? 70000 : 40000, path.split('?')[0].split('/').pop()) }
+        const nr = { miwayomiStatus: () => limit(raw.miwayomiStatus(), 8000, 'status'), miwayomiFetch: (path, m, b) => limit(raw.miwayomiFetch(path, m, b), /install|repo/.test(path) ? 60000 : /\/videos/.test(path) ? 100000 : 40000, path.split('?')[0].split('/').pop()) }
         const fetch = (u, o) => limit(window.fetch(u, o).then(async r => { const hls = /\/hls\?/.test(u); const body = hls ? await r.text() : await r.arrayBuffer(); return { ok: r.ok, status: r.status, text: async () => body, arrayBuffer: async () => body } }), 30000, 'stream')
         const end = (ok, kind) => ({ ok, kind, steps, seconds: Math.round((Date.now() - t) / 1000) })
         try {
@@ -150,14 +164,22 @@ async function connect() {
       const eps = er && (er.episodes || er) || []
       const ep = eps[eps.length - 1] || eps[0]; if (!ep) return out
       out.push('episode: ' + JSON.stringify(ep).slice(0, 300))
+      const vr = await step('videos', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/videos?url=' + encodeURIComponent(ep.url)))
+      await step('videos again', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/videos?url=' + encodeURIComponent(ep.url)).then(x => ({ count: (x.videos || x).length })))
       await step('hosters', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/hosters?url=' + encodeURIComponent(ep.url)))
-      await step('videos', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/videos?url=' + encodeURIComponent(ep.url)))
+      // The stream itself, as the player asks it (first three links): status, type, start of the answer.
+      for (const v of ((vr && (vr.videos || vr)) || []).slice(0, 3)) {
+        const raw = v.videoUrl || v.url || ''
+        const hls = /\.m3u8|\/playlist/i.test(raw)
+        const u = 'http://127.0.0.1:4567/api/v1/' + (hls ? 'hls' : 'proxy') + '?sourceId=' + src.id + '&url=' + encodeURIComponent(raw) + '&headers=' + encodeURIComponent(Object.entries(v.headers || {}).map(([k, x]) => k + ': ' + x).join('\n'))
+        await step('stream ' + (hls ? 'hls' : 'file'), async () => { const r = await fetch(u, hls ? {} : { headers: { Range: 'bytes=0-2047' } }); const b = hls || !r.ok ? await r.text() : ''; return { status: r.status, type: r.headers.get('content-type'), length: r.headers.get('content-length'), body: b.slice(0, 400), raw: raw.slice(0, 200), headers: v.headers } })
+      }
       return out
     }, [process.env.DIAG_SOURCE, process.env.DIAG_QUERY || ''])
     console.log('=== DIAG ' + process.env.DIAG_SOURCE + ' ===')
     for (const l of d) console.log('  ' + l)
     console.log('=== engine log ===')
-    console.log(require('child_process').execSync("adb logcat -d | grep -iE 'miwayomi|System.err|AndroidRuntime' | grep -v 'Handling local' | tail -120").toString())
+    console.log(require('child_process').execSync("adb logcat -d | grep -E '\\[miwayomi\\]|\\[novelreader\\]|System\\.err|AndroidRuntime' | grep -vE 'Handling local|SLF4J' | tail -200").toString())
   }
 
   // ---- Videos: the engine inside the app, with real extensions ----
@@ -310,7 +332,7 @@ async function connect() {
   } catch (e) { dl.outside = { error: String(e && e.message || e) } }
   dl.left = await evaluate(async id => { await window.novelReader.dlRemove(id); return (await window.novelReader.dlList()).length }, dl.id)
   console.log('downloads:', JSON.stringify(dl))
-  if (!(dl.item && dl.item.state === 'done' && dl.full && dl.full.same && dl.outside && dl.outside.status === 206 && dl.outside.got === dl.wantPart && dl.meta === 404 && dl.left === 0)) { console.error('Offline video downloads failed on Android'); process.exit(1) }
+  if (!(dl.item && dl.item.state === 'done' && dl.full && dl.full.same && dl.outside && dl.outside.status === 206 && dl.outside.got === dl.wantPart && dl.part && dl.part.status === 206 && dl.part.same && dl.fresh && dl.fresh.got === dl.wantPart && dl.meta === 404 && dl.left === 0)) { console.error('Offline video downloads failed on Android'); process.exit(1) }
 
   // Cast: the engine looks for TVs on the network (none on the emulator; must not fail).
   const cs = await evaluate(async () => { const t = Date.now(); try { const l = await window.novelReader.castScan(); return { ok: true, tvs: l.length, seconds: Math.round((Date.now() - t) / 1000) } } catch (e) { return { ok: false, error: String(e.message || e) } } })

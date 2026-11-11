@@ -9,6 +9,7 @@ import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.request.httpMethod
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
@@ -34,6 +35,14 @@ fun Application.registerApi() {
     }
     intercept(ApplicationCallPipeline.Plugins) {
         call.response.header("Access-Control-Allow-Origin", "*")
+        call.response.header("Access-Control-Allow-Headers", "*")
+        call.response.header("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges")
+        // The interface asks the streams directly (byte ranges): answer the browser's permission check.
+        if (call.request.httpMethod == io.ktor.http.HttpMethod.Options) {
+            call.response.header("Access-Control-Allow-Methods", "GET, POST, HEAD, OPTIONS")
+            call.respondText("", status = HttpStatusCode.NoContent)
+            finish()
+        }
     }
     install(StatusPages) {
         exception<CloudflareChallengeException> { call, cause ->

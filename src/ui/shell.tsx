@@ -24,11 +24,12 @@ export function startPage(mode:Mode){const last=lsGet('lastPage:'+mode)||'';retu
 export function pageLabel(mode:Mode,page:string){const own=NAV[mode].items.find(i=>i.page===page);if(own)return t(own.label);for(const m of MODES){const i=NAV[m].items.find(x=>x.page===page);if(i)return t(i.label)}return DETAIL_TITLES[page]?t(DETAIL_TITLES[page]):'NovelReader'}
 export const SHORTCUTS:[string,string][]=[['Ctrl+1 … 4','Switch mode (Books, Anime, Series, Movies)'],['Ctrl+K','Search everywhere'],['/','Jump to the search field of the page'],['Alt+←','Go back to the previous page (mouse back button too)'],['Ctrl+B','Collapse or expand the sidebar'],['?','Show or hide this list'],['Esc','Close this list / leave a text field']]
 export function ShortcutsDialog({onClose}:{onClose:()=>void}){const ref=useRef<HTMLDivElement>(null);useEffect(()=>{ref.current?.focus()},[]);return <div className="kbd-overlay" onClick={onClose}><div className="kbd-dialog" role="dialog" aria-modal="true" aria-labelledby="kbd-title" tabIndex={-1} ref={ref} onClick={e=>e.stopPropagation()}><h2 id="kbd-title">{t('Keyboard shortcuts')}</h2><dl>{SHORTCUTS.map(([k,v])=><React.Fragment key={k}><dt><kbd>{k}</kbd></dt><dd>{t(v)}</dd></React.Fragment>)}</dl><button className="primary" onClick={onClose}>{t('Close')}</button></div></div>}
-export function Sidebar({mode,page,collapsed,onMode,onPage,onToggle,onHelp,onSearch,extra}:{mode:Mode,page:string,collapsed:boolean,onMode:(m:Mode)=>void,onPage:(p:string)=>void,onToggle:()=>void,onHelp:()=>void,onSearch?:()=>void,extra?:React.ReactNode}){
+export function Sidebar({mode,page,collapsed,onMode,onPage,onToggle,onHelp,onSearch,onHome,extra}:{mode:Mode,page:string,collapsed:boolean,onMode:(m:Mode)=>void,onPage:(p:string)=>void,onToggle:()=>void,onHelp:()=>void,onSearch?:()=>void,onHome?:()=>void,extra?:React.ReactNode}){
  const current=isTopPage(mode,page)?page:PARENT[page],version=useAppVersion()
  return <aside className="sidebar" aria-label={t('Main navigation')}>
   <div className="brand-row"><div className="brand" aria-label="NovelReader"><span className="brand-full">NOVEL<span>READER</span></span><span className="brand-short">N<span>R</span></span></div><button className="iconbtn collapse-btn" onClick={onToggle} title={t(collapsed?'Expand sidebar':'Collapse sidebar')+' (Ctrl+B)'} aria-label={t(collapsed?'Expand sidebar':'Collapse sidebar')} aria-expanded={!collapsed}><Icon name={collapsed?'expand':'collapse'}/></button></div>
   <div className="mode-switch" role="tablist" aria-label={t('Mode')}>{MODES.map((m,i)=><button key={m} role="tab" aria-selected={mode===m} className={mode===m?'active':''} onClick={()=>onMode(m)} title={t(NAV[m].label)+' (Ctrl+'+(i+1)+')'}><Icon name={NAV[m].icon}/><span className="label">{t(NAV[m].label)}</span></button>)}</div>
+  {onHome&&<button className="home-open" onClick={onHome} title={t('Continue')+' (Ctrl+H)'} aria-label={t('Continue')}><Icon name="play"/><span className="label">{t('Continue')}</span></button>}
   {onSearch&&<button className="qs-open" onClick={onSearch} title={t('Search everywhere')+' (Ctrl+K)'}><Icon name="search"/><span className="label">{t('Search')}</span><kbd className="label">Ctrl K</kbd></button>}
   <nav className="nav-list">{navItems(mode).map(it=><button key={it.page} className={'nav-item'+(current===it.page?' active':'')} aria-current={current===it.page?'page':undefined} onClick={()=>onPage(it.page)} aria-label={t(it.label)} title={collapsed?t(it.label):undefined}><Icon name={it.icon}/><span className="label">{t(it.label)}</span></button>)}</nav>
   <div className="grow"/>
@@ -54,7 +55,7 @@ export const navItems=(mode:Mode)=>NAV[mode].items.filter(i=>!(onAndroid()&&PC_O
 const SHORT:Record<string,string>={'Anime Library':'Library','Series Library':'Library','Movie Library':'Library','Global Search':'Search','Bookmarks & notes':'Notes'}
 /** Phone: the modes on top, the 4 main pages at the bottom (thumb reach), the rest
  * under "More". Hidden while reading, which is full screen. */
-export function MobileNav({mode,page,onMode,onPage,onSearch,extra}:{mode:Mode,page:string,onMode:(m:Mode)=>void,onPage:(p:string)=>void,onSearch?:()=>void,extra?:React.ReactNode}){
+export function MobileNav({mode,page,onMode,onPage,onSearch,onHome,extra}:{mode:Mode,page:string,onMode:(m:Mode)=>void,onPage:(p:string)=>void,onSearch?:()=>void,onHome?:()=>void,extra?:React.ReactNode}){
  const[more,setMore]=useState(false)
  const current=isTopPage(mode,page)?page:PARENT[page]
  const items=navItems(mode),main=items.slice(0,4),rest=items.slice(4)
@@ -64,6 +65,7 @@ export function MobileNav({mode,page,onMode,onPage,onSearch,extra}:{mode:Mode,pa
  return <>
   <header className="m-top">
    <div className="m-modes" role="tablist" aria-label={t('Mode')}>{MODES.map(m=><button key={m} role="tab" aria-selected={mode===m} className={mode===m?'active':''} onClick={()=>onMode(m)}><Icon name={NAV[m].icon}/><span>{t(NAV[m].label)}</span></button>)}</div>
+   {onHome&&<button className="m-search m-home" onClick={onHome} aria-label={t('Continue')}><Icon name="play"/></button>}
    {onSearch&&<button className="m-search" onClick={onSearch} aria-label={t('Search everywhere')}><Icon name="search"/></button>}
   </header>
   <nav className="m-bottom" aria-label={t('Main navigation')}>

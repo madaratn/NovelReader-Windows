@@ -18,5 +18,8 @@ let timer:any=0
 export function syncWatchlist(libs:any[][]){
  const P=plugin();if(!P)return
  clearTimeout(timer);timer=setTimeout(()=>{
-  const enabled=localStorage.getItem('autoCheckEpisodes')!=='0'&&localStorage.getItem('notifyNewEpisodes')!=='0'
-  P.watch({items:JSON.stringify(watchItems(libs)),enabled}).catch(()=>{})},3000)}
+  const on=(a:string,b:string)=>localStorage.getItem(a)!=='0'&&localStorage.getItem(b)!=='0'
+  // Episodes: the list below. Chapters: the hidden page reads the library itself; it only needs the check to be scheduled.
+  const items=on('autoCheckEpisodes','notifyNewEpisodes')?watchItems(libs):[]
+  let books=0;try{books=JSON.parse(localStorage.getItem('library')||'[]').length}catch{}
+  P.watch({items:JSON.stringify(items),enabled:items.length>0||(books>0&&on('autoCheckUpdates','notifyNewChapters'))}).catch(()=>{})},3000)}

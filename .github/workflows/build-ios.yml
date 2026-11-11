@@ -1,0 +1,96 @@
+name: Build iPhone app
+# Builds the iPhone / iPad app (Capacitor, same interface as Android) on a Mac runner:
+#  - an unsigned .ipa attached to the run (installed with a signing tool such as
+#    Sideloadly or AltStore, which sign it with the person's own Apple ID);
+#  - starts it in the iPhone simulator and publishes a screenshot (branch screens/ios-…).
+# Manual run on main with "publish": also uploads NovelReader-<version>.ipa to the release.
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Upload the .ipa to the GitHub Release for the version in package.json (main only)
+        type: boolean
+        default: false
+  push:
+    branches-ignore:
+      - 'screens/**'
+      - 'catalog/**'
+    paths:
+      - 'ios/**'
+      - 'capacitor.config.json'
+      - 'src/platform/**'
+      - '.github/workflows/build-ios.yml'
+      - 'scripts/ios-*'
+permissions:
+  contents: write
+jobs:
+  ipa:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Interface
+        run: |
+          npm install --no-audit --no-fund
+          npm run build:android
+          npx cap sync ios
+      - name: Version
+        run: |
+          v=$(node -p "require('./package.json').version")
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $v" ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${GITHUB_RUN_NUMBER}" ios/App/App/Info.plist
+      - name: Build for the simulator and take a screenshot
+        run: |
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -sdk iphonesimulator -derivedDataPath build/sim -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build | tail -5
+          APP=$(find build/sim/Build/Products -name App.app -maxdepth 2 | head -1)
+          DEV=$(xcrun simctl list devices available | grep -m1 -E "iPhone 1[5-9]" | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+          echo "simulator: $DEV, app: $APP"
+          xcrun simctl boot "$DEV"
+          xcrun simctl bootstatus "$DEV" -b
+          xcrun simctl install "$DEV" "$APP"
+          xcrun simctl launch "$DEV" com.madaratn.novelreader
+          sleep 25
+          mkdir -p ../../shots
+          xcrun simctl io "$DEV" screenshot ../../shots/ios-start.png
+          # Second pass: only YouTube's embedded player (is it accepted inside the app?).
+          xcrun simctl terminate "$DEV" com.madaratn.novelreader || true
+          (cd ../.. && VITE_SELFTEST=yt npm run build:android >/dev/null && npx cap copy ios >/dev/null)
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -sdk iphonesimulator -derivedDataPath build/sim -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build | tail -2
+          xcrun simctl install "$DEV" "$APP"
+          xcrun simctl launch "$DEV" com.madaratn.novelreader
+          sleep 30
+          xcrun simctl io "$DEV" screenshot ../../shots/ios-youtube.png
+          (cd ../.. && npm run build:android >/dev/null && npx cap copy ios >/dev/null)
+          xcrun simctl spawn "$DEV" log show --last 1m --predicate 'process == "App"' --style compact 2>/dev/null | grep -iE "error|exception|capacitor" | tail -30 || true
+      - name: Build the unsigned .ipa
+        run: |
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos -archivePath build/App.xcarchive archive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | tail -5
+          mkdir -p ../../release/Payload
+          cp -R build/App.xcarchive/Products/Applications/App.app ../../release/Payload/
+          cd ../../release && zip -qry "NovelReader-$VERSION.ipa" Payload && rm -rf Payload && ls -la
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NovelReader-iPhone
+          path: release/*.ipa
+      - name: Publish the screenshot to a branch
+        if: always()
+        shell: bash
+        run: |
+          [ -d shots ] || exit 0
+          BR="screens/ios-${GITHUB_REF_NAME//\//-}"
+          cd shots && git init -q && git checkout -q -b "$BR"
+          git add . && git -c user.name=ci -c user.email=ci@local commit -qm "ios screenshot for $GITHUB_SHA"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" "$BR"
+      - name: Upload to the release
+        if: ${{ inputs.publish && github.ref == 'refs/heads/main' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "v$VERSION" >/dev/null 2>&1 || gh release create "v$VERSION" --target "$GITHUB_SHA" --title "NovelReader $VERSION" --notes-file build/release-notes.md
+          gh release upload "v$VERSION" "release/NovelReader-$VERSION.ipa" --clobber

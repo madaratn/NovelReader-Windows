@@ -21,7 +21,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://novels.test/novel/shadow', r => r.fulfill({ contentType: 'text/html', body: '<h1>Shadow Slave</h1><p class="s">A boy and his shadow.</p><a class="c" href="/c/1">Chapter 1</a><a class="c" href="/c/2">Chapter 2</a>' }))
   await page.addInitScript((notes) => {
     (window as any).Capacitor = { getPlatform: () => 'android', isNativePlatform: () => true }
-    if (!sessionStorage.getItem('__seeded')) { localStorage.clear(); localStorage.setItem('onboarded', '1'); localStorage.setItem('whatsNewSeen', notes); localStorage.setItem('lang', 'en'); localStorage.setItem('enabledPlugins', JSON.stringify(['testsrc'])); sessionStorage.setItem('__seeded', '1') }
+    if (!sessionStorage.getItem('__seeded')) { localStorage.clear(); localStorage.setItem('onboarded', '1'); localStorage.setItem('whatsNewSeen', notes); localStorage.setItem('homeAtStart', '0'); localStorage.setItem('lang', 'en'); localStorage.setItem('enabledPlugins', JSON.stringify(['testsrc'])); sessionStorage.setItem('__seeded', '1') }
   }, (/^##\s*NovelReader\s+([\d.]+)/m.exec(fs.readFileSync('build/release-notes.md', 'utf8')) || [])[1] || '')
 })
 
@@ -304,8 +304,8 @@ test('Android: sync with the PC through the file the PC wrote (library, position
   await page.evaluate(() => { localStorage.setItem('animeLibrary', JSON.stringify([{ id: 'a1', name: 'Phone Anime', sourceId: '7', sourceName: 'S', url: '/a/1', episodes: 1, addedAt: Date.now() }])) })
   await page.locator('.m-bottom').getByRole('button', { name: 'More' }).click()
   await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
+  await page.locator('.sync-file').getByRole('button', { name: 'Choose the sync file…' }).click()
   const block = page.locator('.settings-block', { hasText: 'Sync with your PC' })
-  await block.getByRole('button', { name: 'Choose the sync file…' }).click()
   await expect(block).toContainText('library-sync.json')
   await expect(block).toContainText('Last synced')
   // The PC's series arrived here; the phone's anime went into the file, signed by the phone.
@@ -320,7 +320,7 @@ test('Android: sync with the PC through the file the PC wrote (library, position
   await block.getByRole('button', { name: 'Sync now' }).click()
   await expect(block.getByRole('alert')).toContainText('not a NovelReader file')
   await block.getByRole('button', { name: 'Stop syncing' }).click()
-  await expect(block.getByRole('button', { name: 'Choose the sync file…' })).toBeVisible()
+  await expect(page.locator('.sync-file').getByRole('button', { name: 'Choose the sync file…' })).toBeVisible()
 })
 
 test('Android: videos can be kept offline (Downloads page, engine calls, wording without "PC")', async ({ page }) => {
@@ -387,4 +387,149 @@ test('Android: notifications setting, and the list of titles checked while the a
   await expect(box).toBeChecked()
   await box.uncheck()
   await expect.poll(() => page.evaluate(() => (window as any).__n.watch.at(-1).enabled), { timeout: 10000 }).toBe(false)
+})
+
+test('Android: engine streams are asked directly (not through the native relay), the rest is unchanged', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as any, log: string[] = []
+    w.__log = log
+    // What Capacitor installs before the app: the browser's own calls kept aside, the relayed ones in place.
+    const realOpen = XMLHttpRequest.prototype.open
+    w.CapacitorWebXMLHttpRequest = { open: function (this: any, m: string, u: string) { log.push('xhr direct ' + u); return realOpen.call(this, m, 'data:text/plain,x') } }
+    XMLHttpRequest.prototype.open = function (this: any, m: string, u: any) { (this as any)._url = u; log.push('xhr relayed ' + u); return realOpen.call(this, m, 'data:text/plain,x') } as any
+    w.CapacitorWebFetch = async (r: any) => { log.push('fetch direct ' + (typeof r === 'string' ? r : r.url)); return new Response('d') }
+    w.fetch = async (r: any) => { log.push('fetch relayed ' + (typeof r === 'string' ? r : r.url)); return new Response('r') }
+  })
+  await page.goto('/')
+  await page.waitForFunction(() => !!(window as any).novelReader)
+  const log = await page.evaluate(async () => {
+    const w = window as any; w.__log.length = 0
+    const E = 'http://127.0.0.1:4567/api/v1/'
+    for (const u of [E + 'hls?url=a', E + 'proxy?url=b', E + 'dl/file/x/v.mp4', E + 'sources', 'https://example.com/a.m3u8']) { const x = new XMLHttpRequest(); x.open('GET', u); if (u.includes('/hls?')) w.__log.push('_url=' + JSON.stringify((x as any)._url)) }
+    const p = new XMLHttpRequest(); p.open('POST', E + 'proxy?url=b')
+    await fetch(E + 'proxy?url=c'); await fetch(E + 'health'); await fetch(E + 'proxy?url=c', { method: 'POST' }); await fetch(new Request(E + 'hls?url=d'))
+    return w.__log
+  })
+  expect(log).toEqual([
+    'xhr direct http://127.0.0.1:4567/api/v1/hls?url=a', '_url=""',
+    'xhr direct http://127.0.0.1:4567/api/v1/proxy?url=b',
+    'xhr direct http://127.0.0.1:4567/api/v1/dl/file/x/v.mp4',
+    'xhr relayed http://127.0.0.1:4567/api/v1/sources',
+    'xhr relayed https://example.com/a.m3u8',
+    'xhr relayed http://127.0.0.1:4567/api/v1/proxy?url=b',
+    'fetch direct http://127.0.0.1:4567/api/v1/proxy?url=c',
+    'fetch relayed http://127.0.0.1:4567/api/v1/health',
+    'fetch relayed http://127.0.0.1:4567/api/v1/proxy?url=c',
+    'fetch direct http://127.0.0.1:4567/api/v1/hls?url=d',
+  ])
+})
+
+test('Android: direct sync with the PC on the home Wi-Fi (link typed once), quiet when away from home', async ({ page }) => {
+  // The PC's relay (electron/engine-share.cjs), with the file as the PC left it.
+  let file: any = { app: 'NovelReader', version: 1, at: Date.now() - 60000, deviceId: 'pc1', deviceName: 'PC-SALON', data: { seriesLibrary: JSON.stringify([{ id: 'series1', name: 'Lanterns', sourceId: '42', url: '/series/1', episodes: 2, addedAt: Date.now() - 90000 }]) } }
+  let home = true
+  const posts: any[] = []
+  await page.route('http://192.168.1.5:4580/**', r => {
+    if (!home) return r.abort('connectionrefused')
+    const u = new URL(r.request().url()), json = (b: any, status = 200) => r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(b) })
+    if (!u.pathname.startsWith('/e/abcdefghjk/')) return r.fulfill({ status: 404, body: '' })
+    const p = u.pathname.replace('/e/abcdefghjk', '')
+    if (p === '/nr/hello') return json({ app: 'NovelReader', device: 'PC-SALON', sync: true })
+    if (p === '/nr/sync' && r.request().method() === 'GET') return json(file)
+    if (p === '/nr/sync') { file = JSON.parse(r.request().postData() || '{}'); posts.push(file); return json({ at: Date.now() }) }
+    return r.fulfill({ status: 404, body: '' })
+  })
+  await page.goto('/')
+  await page.evaluate(() => { localStorage.setItem('animeLibrary', JSON.stringify([{ id: 'a1', name: 'Phone Anime', sourceId: '7', url: '/a/1', episodes: 1, addedAt: Date.now() }])) })
+  await page.locator('.m-bottom').getByRole('button', { name: 'More' }).click()
+  await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
+  const block = page.locator('.pc-link')
+  await expect(block).toContainText('Sync with your PC')
+  await block.getByLabel('Link shown on the PC').fill('192.168.1.5:4580/abcdefghjk')
+  await block.getByRole('button', { name: 'Link', exact: true }).click()
+  await expect(block.getByRole('status')).toContainText('Your library is now shared with your PC.')
+  // Both ways at once: the PC's series here, the phone's anime on the PC, signed by the phone.
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('seriesLibrary') || '[]').map((x: any) => x.name))).toEqual(['Lanterns'])
+  await expect.poll(() => posts.length).toBeGreaterThan(0)
+  expect(JSON.parse(posts.at(-1).data.animeLibrary).map((x: any) => x.name)).toEqual(['Phone Anime'])
+  expect(posts.at(-1).deviceId).not.toBe('pc1'); expect(posts.at(-1).app).toBe('NovelReader')
+  await expect(block).toContainText('Last synced')
+  await expect(page.locator('.sync-file')).toHaveCount(0)
+  // Away from home: a calm sentence, the library is untouched, nothing written.
+  home = false; const n = posts.length
+  await block.getByRole('button', { name: 'Sync now' }).click()
+  await expect(block.getByRole('alert')).toContainText('Sync resumes on the home Wi-Fi')
+  expect(posts.length).toBe(n)
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('seriesLibrary') || '[]').length)).toBe(1)
+  await block.getByRole('button', { name: 'Unlink' }).click()
+  await expect(page.locator('.sync-file')).toBeVisible()
+})
+
+test('Android: backup saved to a file the person chooses, and restored from one', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as any
+    w.__files = JSON.parse(sessionStorage.getItem('__files') || '{"saved":null,"open":""}')
+    w.Capacitor.Plugins = { ...(w.Capacitor.Plugins || {}), Files: {
+      save: async (o: any) => { w.__files.saved = o; sessionStorage.setItem('__files', JSON.stringify(w.__files)); return { ok: true, path: o.name } },
+      open: async () => w.__files.open ? { ok: true, name: 'x.json', text: w.__files.open } : { ok: false, canceled: true } } }
+    if (!localStorage.getItem('library')) localStorage.setItem('library', JSON.stringify([{ id: 'n1', name: 'Shadow Slave', pluginId: 'testsrc', path: '/novel/shadow', chapters: [] }]))
+    w.confirm = () => true
+  })
+  await page.goto('/')
+  await page.locator('.m-bottom').getByRole('button', { name: 'More' }).click()
+  await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
+  const block = page.locator('.backup-block')
+  await expect(block).toContainText('stored on this device')
+  await expect(block).not.toContainText('Automatic backups')
+  await block.getByRole('button', { name: 'Export a backup…' }).click()
+  await expect(block.getByRole('status')).toContainText(/Backup saved: NovelReader-backup-\d{4}-\d\d-\d\d\.json/)
+  const saved = await page.evaluate(() => (window as any).__files.saved)
+  const payload = JSON.parse(saved.text)
+  expect(payload.app).toBe('NovelReader'); expect(JSON.parse(payload.data.library)[0].name).toBe('Shadow Slave')
+  // A file that is not a backup: refused, nothing changes.
+  await page.evaluate(() => { (window as any).__files.open = '{"hello":1}' })
+  await block.getByRole('button', { name: 'Restore from a file…' }).click()
+  await expect(block.getByRole('status')).toContainText('not a NovelReader backup')
+  // A real backup with another library: restored.
+  payload.data.library = JSON.stringify([{ id: 'n2', name: 'Lord of the Mysteries', pluginId: 'testsrc', path: '/novel/lotm', chapters: [] }])
+  await page.evaluate(t => { const w = window as any; w.__files.open = t; sessionStorage.setItem('__files', JSON.stringify(w.__files)) }, JSON.stringify(payload))
+  await block.getByRole('button', { name: 'Restore from a file…' }).click()
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('library') || '[]').map((x: any) => x.name))).toEqual(['Lord of the Mysteries'])
+})
+
+test('Android, app closed: the hidden page finds the novels with new chapters, once, through the native bridge', async ({ page }) => {
+  // The host (ChapterCheck.java) seen from the page: web requests and the final report.
+  await page.addInitScript(() => {
+    const w = window as any, real = window.fetch.bind(window)
+    w.Capacitor = undefined
+    w.__bg = { done: null as any, http: [] as string[] }
+    w.NRBackground = {
+      http: (id: number, json: string) => { const q = JSON.parse(json); w.__bg.http.push(q.method + ' ' + q.url)
+        real(q.url, { method: q.method, headers: q.headers, body: q.body || undefined }).then(async (r: Response) => { const b = new Uint8Array(await r.arrayBuffer()); let s = ''; b.forEach(x => { s += String.fromCharCode(x) }); const h: any = {}; r.headers.forEach((v, k) => { h[k] = v }); w.__nrHttp(id, { status: r.status, headers: h, url: q.url, body: btoa(s) }) }, (e: any) => w.__nrHttp(id, { error: String(e) })) },
+      done: (json: string) => { w.__bg.done = JSON.parse(json) } }
+    const src = { id: 'testsrc', name: 'Test Source', url: 'https://plugins.test/testsrc.js', lang: 'English' }
+    if (!localStorage.getItem('library')) localStorage.setItem('library', JSON.stringify([
+      { id: 'n1', name: 'Shadow Slave', source: src, path: '/novel/shadow', chapters: [{ name: 'Chapter 1', path: '/c/1' }] },          // the site has more
+      { id: 'n2', name: 'Dropped', source: src, path: '/novel/shadow', chapters: [{ name: 'Chapter 1', path: '/c/1' }], shelf: 'dropped' },
+      { id: 'n3', name: 'Gone', source: src, path: '/novel/missing', chapters: [{ name: 'Chapter 1', path: '/c/1' }] }]))
+  })
+  await page.route('https://novels.test/novel/missing', r => r.fulfill({ status: 404, body: '' }))
+  await page.goto('/#bg-chapters')
+  await expect.poll(() => page.evaluate(() => (window as any).__bg.done), { timeout: 20000 }).not.toBeNull()
+  const first = await page.evaluate(() => (window as any).__bg)
+  expect(first.done.names).toEqual(['Shadow Slave'])
+  expect(first.http).toContain('GET https://novels.test/novel/shadow')
+  // The interface itself is not started in that page.
+  await expect(page.locator('.app')).toHaveCount(0)
+  // The app will run its own check as soon as it opens.
+  expect(await page.evaluate(() => localStorage.getItem('lastUpdateCheck'))).toBe('0')
+  // Six hours later, nothing changed on the site: nothing to announce.
+  await page.reload()
+  await expect.poll(() => page.evaluate(() => (window as any).__bg.done), { timeout: 20000 }).not.toBeNull()
+  expect(await page.evaluate(() => (window as any).__bg.done.names)).toEqual([])
+  // Turned off in Settings: no request at all.
+  await page.evaluate(() => localStorage.setItem('notifyNewChapters', '0'))
+  await page.reload()
+  await expect.poll(() => page.evaluate(() => (window as any).__bg.done), { timeout: 20000 }).not.toBeNull()
+  expect(await page.evaluate(() => (window as any).__bg)).toMatchObject({ done: { skipped: true, names: [] }, http: [] })
 })

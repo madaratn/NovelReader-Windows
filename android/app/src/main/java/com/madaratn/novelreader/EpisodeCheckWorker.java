@@ -72,41 +72,56 @@ public class EpisodeCheckWorker extends Worker {
         return names;
     }
 
+    /** "A, B, C…" */
+    static String list(List<String> names) {
+        StringBuilder body = new StringBuilder();
+        for (int i = 0; i < Math.min(3, names.size()); i++) { if (i > 0) body.append(", "); body.append(names.get(i)); }
+        if (names.size() > 3) body.append("…");
+        return body.toString();
+    }
+
+    private void episodes(Context c) throws Exception {
+        File f = NotifyPlugin.watchFile(c);
+        if (!f.exists()) return;
+        JSONArray items;
+        try (FileInputStream in = new FileInputStream(f)) { items = new JSONArray(read(in)); }
+        if (items.length() == 0) return;
+        nr.engine.Engine.INSTANCE.start((Application) c);
+        boolean up = false;
+        for (int i = 0; i < 60 && !up; i++) { try { get(ENGINE + "/api/v1/health", 3000); up = true; } catch (Exception e) { Thread.sleep(1000); } }
+        if (!up) return;
+        File seenFile = new File(c.getFilesDir(), "watchlist-seen.json");
+        JSONObject seen = new JSONObject();
+        if (seenFile.exists()) try (FileInputStream in = new FileInputStream(seenFile)) { seen = new JSONObject(read(in)); } catch (Exception ignored) {}
+        final long end = System.currentTimeMillis() + 4 * 60 * 1000;
+        List<String> names = compare(items, seen, it -> {
+            if (System.currentTimeMillis() > end || isStopped()) return null;
+            try {
+                return count(get(ENGINE + "/api/v1/anime/" + URLEncoder.encode(it.optString("sourceId"), "UTF-8") + "/episodes?url=" + URLEncoder.encode(it.optString("url"), "UTF-8"), 30000));
+            } catch (Exception e) { return null; }
+        });
+        try (FileOutputStream out = new FileOutputStream(seenFile)) { out.write(seen.toString().getBytes(StandardCharsets.UTF_8)); }
+        if (!names.isEmpty()) NotifyPlugin.post(c, 52, c.getResources().getQuantityString(R.plurals.new_episodes, names.size(), names.size()), list(names));
+    }
+
+    /** Books: the hidden page of the app does the check (ChapterCheck); not while the app itself is open. */
+    private void chapters(Context c) throws Exception {
+        if (MainActivity.current != null || isStopped()) return;
+        JSONObject r = ChapterCheck.run(c, 4 * 60 * 1000 + 30000);
+        JSONArray a = r == null ? null : r.optJSONArray("names");
+        if (a == null || a.length() == 0) return;
+        List<String> names = new ArrayList<>();
+        for (int i = 0; i < a.length(); i++) names.add(a.optString(i));
+        NotifyPlugin.post(c, 53, c.getResources().getQuantityString(R.plurals.new_chapters, names.size(), names.size()), list(names));
+    }
+
     @NonNull
     @Override
     public Result doWork() {
         Context c = getApplicationContext();
-        try {
-            File f = NotifyPlugin.watchFile(c);
-            if (!f.exists() || !NotifyPlugin.allowed(c)) return Result.success();
-            JSONArray items;
-            try (FileInputStream in = new FileInputStream(f)) { items = new JSONArray(read(in)); }
-            if (items.length() == 0) return Result.success();
-            nr.engine.Engine.INSTANCE.start((Application) c);
-            boolean up = false;
-            for (int i = 0; i < 60 && !up; i++) { try { get(ENGINE + "/api/v1/health", 3000); up = true; } catch (Exception e) { Thread.sleep(1000); } }
-            if (!up) return Result.retry();
-            File seenFile = new File(c.getFilesDir(), "watchlist-seen.json");
-            JSONObject seen = new JSONObject();
-            if (seenFile.exists()) try (FileInputStream in = new FileInputStream(seenFile)) { seen = new JSONObject(read(in)); } catch (Exception ignored) {}
-            final long end = System.currentTimeMillis() + 8 * 60 * 1000;
-            List<String> names = compare(items, seen, it -> {
-                if (System.currentTimeMillis() > end || isStopped()) return null;
-                try {
-                    return count(get(ENGINE + "/api/v1/anime/" + URLEncoder.encode(it.optString("sourceId"), "UTF-8") + "/episodes?url=" + URLEncoder.encode(it.optString("url"), "UTF-8"), 30000));
-                } catch (Exception e) { return null; }
-            });
-            try (FileOutputStream out = new FileOutputStream(seenFile)) { out.write(seen.toString().getBytes(StandardCharsets.UTF_8)); }
-            if (!names.isEmpty()) {
-                StringBuilder body = new StringBuilder();
-                for (int i = 0; i < Math.min(3, names.size()); i++) { if (i > 0) body.append(", "); body.append(names.get(i)); }
-                if (names.size() > 3) body.append("…");
-                NotifyPlugin.post(c, 52, c.getResources().getQuantityString(R.plurals.new_episodes, names.size(), names.size()), body.toString());
-            }
-            return Result.success();
-        } catch (Exception e) {
-            android.util.Log.w("NovelReader", "episode check: " + e);
-            return Result.success();
-        }
+        if (!NotifyPlugin.allowed(c)) return Result.success();
+        try { episodes(c); } catch (Exception e) { android.util.Log.w("NovelReader", "episode check: " + e); }
+        try { chapters(c); } catch (Exception e) { android.util.Log.w("NovelReader", "chapter check: " + e); }
+        return Result.success();
     }
 }

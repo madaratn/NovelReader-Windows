@@ -20,7 +20,11 @@ function createFolderSync({ app, dialog }) {
     if (!c.deviceId) { c.deviceId = crypto.randomBytes(8).toString('hex'); writeCfg(c) }
     return { deviceId: c.deviceId, deviceName: os.hostname() }
   }
-  const target = () => { const c = readCfg(); return c.folder ? path.join(c.folder, 'NovelReader', FILE) : null }
+  // The synced folder when one is chosen; otherwise, when a phone is linked directly
+  // (electron/engine-share.cjs), a file kept on this PC that the phone reads and writes.
+  const hubFile = () => require('./profiles.cjs').forApp(app).dataPath('phone-sync.json')
+  const target = () => { const c = readCfg(); return c.folder ? path.join(c.folder, 'NovelReader', FILE) : c.hub ? hubFile() : null }
+  function setHub(on) { const c = readCfg(); if (!!c.hub !== !!on) { c.hub = !!on; writeCfg(c) } }
 
   async function status() {
     const c = readCfg(), file = target()
@@ -32,7 +36,7 @@ function createFolderSync({ app, dialog }) {
         remote = { deviceName: String(head.deviceName || ''), deviceId: String(head.deviceId || ''), at: Number(head.at) || st.mtimeMs }
       } catch {}
     }
-    return { enabled: !!c.folder, folder: c.folder || null, file, remote, ...device() }
+    return { enabled: !!file, folder: c.folder || null, direct: !c.folder && !!c.hub, file, remote, ...device() }
   }
 
   async function choose(win) {
@@ -71,7 +75,22 @@ function createFolderSync({ app, dialog }) {
 
   function disable() { const c = readCfg(); delete c.folder; writeCfg(c); return status() }
 
-  return { status, choose, read, write, disable }
+  // For a linked phone: the file as it is (null when none yet), and a write of the
+  // phone's merged copy (same checks as a read; the phone signs it with its own name).
+  async function readRaw() { try { return await read() } catch { return null } }
+  async function writeRaw(x) {
+    const file = target(); if (!file) throw new Error('Sync is not set up.')
+    if (!x || x.app !== 'NovelReader' || !x.data || typeof x.data !== 'object') throw new Error('Invalid sync data.')
+    for (const [k, v] of Object.entries(x.data)) if (typeof v !== 'string') throw new Error('Invalid sync data: ' + k)
+    const payload = { app: 'NovelReader', version: 1, at: Date.now(), deviceId: String(x.deviceId || '').slice(0, 64), deviceName: String(x.deviceName || 'Phone').slice(0, 80), data: x.data }
+    await fs.promises.mkdir(path.dirname(file), { recursive: true })
+    const tmp = file + '.' + process.pid + '.phone.tmp'
+    await fs.promises.writeFile(tmp, JSON.stringify(payload), 'utf8')
+    await fs.promises.rename(tmp, file)
+    return { at: payload.at }
+  }
+
+  return { status, choose, read, write, disable, setHub, readRaw, writeRaw }
 }
 
 module.exports = { createFolderSync }
