@@ -27,6 +27,7 @@ on:
   push:
     branches-ignore:
       - 'screens/**'
+      - 'catalog/**'
     paths:
       - 'src/**'
       - 'android/**'

@@ -14,10 +14,6 @@ on:
         default: '400'
   schedule:
     - cron: '41 2 * * 2,5'
-  # TEMP (trial on the branch)
-  push:
-    branches: ['claude/reliability']
-    paths: ['scripts/tntv-catalog.py', '.github/workflows/tntv-catalog.yml']
 permissions:
   contents: write
 jobs:
@@ -44,7 +40,7 @@ jobs:
           path: tntv
       # A branch (not a release): raw.githubusercontent.com can be read by the app on the PC too.
       - name: Publish for the app
-        if: ${{ inputs.publish || github.event_name == 'schedule' || github.event_name == 'push' }}
+        if: ${{ inputs.publish || github.event_name == 'schedule' }}
         run: |
           cd tntv && git init -q && git checkout -q -b catalog/tntv
           git add . && git -c user.name=ci -c user.email=ci@local commit -qm "Tunisian TV catalog $(date -u +%F)"

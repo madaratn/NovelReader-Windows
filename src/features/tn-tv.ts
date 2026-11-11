@@ -21,12 +21,13 @@ export function setTntv(on:boolean){ls.set('tntvEnabled',on?'1':'0')
 export type Playlist={id:string,title:string,thumb:string,channel:string,count:number}
 type Catalog={at:string,channels:{id:string,name:string,file:string}[],playlists:Playlist[]}
 // Kept 12 hours; an older copy still answers when offline or when the download fails.
+// Only the list of series is saved (the files of the channels are large: memory only).
 const mem=new Map<string,any>()
 async function cached(file:string):Promise<any>{
  const k='tntv:'+file;let old:any=mem.get(k)||null
  if(!old)try{old=JSON.parse(ls.get(k)||'null')}catch{}
  if(old&&Date.now()-old.at<12*3600_000){mem.set(k,old);return old.data}
- try{const r=await fetch(TNTV_CATALOG+file);if(!r.ok)throw Error('HTTP '+r.status);const data=await r.json(),rec={at:Date.now(),data};mem.set(k,rec);ls.set(k,JSON.stringify(rec));return data}
+ try{const r=await fetch(TNTV_CATALOG+file);if(!r.ok)throw Error('HTTP '+r.status);const data=await r.json(),rec={at:Date.now(),data};mem.set(k,rec);if(file==='tntv-catalog.json')ls.set(k,JSON.stringify(rec));return data}
  catch(e){if(old)return old.data;throw Error(t('The list of Tunisian series could not be downloaded. Check the connection and try again.'))}}
 async function catalog():Promise<Catalog>{const c=await cached('tntv-catalog.json');if(!c||!Array.isArray(c.playlists))throw Error(t('The list of Tunisian series could not be downloaded. Check the connection and try again.'));return c}
 const playlists=async()=>(await catalog()).playlists
