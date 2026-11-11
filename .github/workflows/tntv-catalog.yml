@@ -1,0 +1,47 @@
+name: Tunisian TV catalog
+# Lists the series the Tunisian channels publish on their official YouTube channels
+# (public pages, no video downloaded) and publishes the catalog the app reads, so the
+# "Tunisian TV" source needs no YouTube key. Weekly, or by hand.
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the catalog for the app (release "tntv-catalog")
+        type: boolean
+        default: false
+      max_playlists:
+        description: Playlists per channel at most
+        default: '400'
+  schedule:
+    - cron: '41 2 * * 2,5'
+permissions:
+  contents: write
+jobs:
+  catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install yt-dlp
+        run: python3 -m pip install --quiet --upgrade yt-dlp
+      - name: Build the catalog
+        env:
+          TNTV_MAX_PLAYLISTS: ${{ inputs.max_playlists || '400' }}
+        run: python3 scripts/tntv-catalog.py tntv
+      - name: Summary
+        if: always()
+        run: |
+          ls -la tntv 2>/dev/null || true
+          [ -f tntv/tntv-catalog.json ] && python3 -c "import json;c=json.load(open('tntv/tntv-catalog.json'));print(json.dumps(c['channels'],ensure_ascii=False));[print(p['channel'],'|',p['count'],'|',p['title']) for p in c['playlists'][:60]]" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tntv-catalog
+          path: tntv
+      - name: Publish for the app
+        if: ${{ inputs.publish || github.event_name == 'schedule' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view tntv-catalog -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create tntv-catalog -R "$GITHUB_REPOSITORY" --title "Tunisian TV catalog" --notes "Series published by Tunisian channels on their official YouTube channels (titles and video ids), read by NovelReader. Not an app release." --latest=false --prerelease
+          gh release upload tntv-catalog tntv/*.json -R "$GITHUB_REPOSITORY" --clobber
