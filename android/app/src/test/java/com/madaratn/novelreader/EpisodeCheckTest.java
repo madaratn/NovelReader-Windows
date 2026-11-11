@@ -33,7 +33,7 @@ public class EpisodeCheckTest {
         // Same answer six hours later: nothing new to say.
         assertEquals(0, EpisodeCheckWorker.compare(items, seen, now).size());
         // One more episode later on: announced again, including the title first seen with 8.
-        List<String> later = EpisodeCheckWorker.compare(items, seen, it -> it.optString("url").equals("/s/3") ? 9 : now.apply(it));
+        List<String> later = EpisodeCheckWorker.compare(items, seen, it -> it.optString("url").equals("/s/3") ? Integer.valueOf(9) : now.apply(it));
         assertEquals(Arrays.asList("New in library"), later);
     }
 }
