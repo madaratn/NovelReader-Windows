@@ -2,4 +2,9 @@
 <resources>
     <string name="downloads_channel">Téléchargements de vidéos</string>
     <string name="downloads_running">Téléchargement des vidéos</string>
+    <string name="news_channel">Nouveaux épisodes et chapitres</string>
+    <plurals name="new_episodes">
+        <item quantity="one">%d titre a de nouveaux épisodes</item>
+        <item quantity="other">%d titres ont de nouveaux épisodes</item>
+    </plurals>
 </resources>

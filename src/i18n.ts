@@ -875,13 +875,18 @@ const FR: Record<string, string> = {
   'Change file…': 'Changer de fichier…',
   'The sync file could not be read:': 'Le fichier de synchronisation n\'a pas pu être lu :',
   'This place does not let NovelReader keep access to the file. Choose a file in Google Drive, OneDrive or on the phone.': 'Cet emplacement ne laisse pas NovelReader garder l\'accès au fichier. Choisissez un fichier dans Google Drive, OneDrive ou sur le téléphone.',
+  'What\'s new': 'Nouveautés',
+  'What\'s new in {version}': 'Nouveautés de la version {version}',
+  'The list of Tunisian series could not be downloaded. Check the connection and try again.': 'La liste des séries tunisiennes n\'a pas pu être téléchargée. Vérifiez la connexion et réessayez.',
+  'No series was found on the channels.': 'Aucune série n\'a été trouvée sur les chaînes.',
+  'Turned on': 'Activé',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')
 export function t(key: string, vars?: Record<string, string | number>): string {
   let out = lang === 'fr' ? (FR[key] ?? key) : key
   // Phone / tablet: the same sentences, without "PC".
-  if (onDevice()) out = out.replace(/\bthis PC\b/g, 'this device').replace(/\bce PC\b/g, 'cet appareil')
+  if (onDevice()) out = out.replace(/\bthis PC\b/g, 'this device').replace(/\bce PC\b/g, 'cet appareil').replace(/\ba Windows notification\b/g, 'a notification').replace(/\bune notification Windows\b/g, 'une notification')
   if (vars) out = out.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m))
   return out
 }

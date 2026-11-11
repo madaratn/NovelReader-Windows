@@ -32,7 +32,7 @@ object Engine {
     const val PORT = 4567
     @Volatile var state: String = "stopped"
     /** Called when video downloads start (true) and when the last one ends (false). */
-    @Volatile var onDownloadsActive: ((Boolean) -> Unit)? = null
+    @Volatile var onDownloadsActive: java.util.function.Consumer<Boolean>? = null
         private set
     @Volatile var error: String? = null
         private set
@@ -85,7 +85,7 @@ object Engine {
                     nr.engine.dl.VideoDownloads(
                         File(app.getExternalFilesDir(null) ?: app.filesDir, "video-downloads"),
                         okhttp3.OkHttpClient.Builder().readTimeout(java.time.Duration.ofSeconds(60)).build(),
-                    ) { active -> onDownloadsActive?.invoke(active) }
+                    ) { active -> onDownloadsActive?.accept(active) }
                 }
                 addSingletonFactory { nr.engine.cast.CastManager(app, okhttp3.OkHttpClient.Builder().readTimeout(java.time.Duration.ofSeconds(60)).build()) }
             }

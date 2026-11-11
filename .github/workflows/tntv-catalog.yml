@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: Publish the catalog for the app (release "tntv-catalog")
+        description: Publish the catalog for the app (branch catalog/tntv)
         type: boolean
         default: false
       max_playlists:
@@ -30,7 +30,7 @@ jobs:
         run: python3 -m pip install --quiet --upgrade yt-dlp
       - name: Build the catalog
         env:
-          TNTV_MAX_PLAYLISTS: ${{ inputs.max_playlists || (github.event_name == 'push' && '25') || '400' }}
+          TNTV_MAX_PLAYLISTS: ${{ inputs.max_playlists || '400' }}
         run: python3 scripts/tntv-catalog.py tntv
       - name: Summary
         if: always()
@@ -42,10 +42,10 @@ jobs:
         with:
           name: tntv-catalog
           path: tntv
+      # A branch (not a release): raw.githubusercontent.com can be read by the app on the PC too.
       - name: Publish for the app
-        if: ${{ inputs.publish || github.event_name == 'schedule' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: ${{ inputs.publish || github.event_name == 'schedule' || github.event_name == 'push' }}
         run: |
-          gh release view tntv-catalog -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create tntv-catalog -R "$GITHUB_REPOSITORY" --title "Tunisian TV catalog" --notes "Series published by Tunisian channels on their official YouTube channels (titles and video ids), read by NovelReader. Not an app release." --latest=false --prerelease
-          gh release upload tntv-catalog tntv/*.json -R "$GITHUB_REPOSITORY" --clobber
+          cd tntv && git init -q && git checkout -q -b catalog/tntv
+          git add . && git -c user.name=ci -c user.email=ci@local commit -qm "Tunisian TV catalog $(date -u +%F)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" catalog/tntv

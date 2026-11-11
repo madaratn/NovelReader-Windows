@@ -84,7 +84,7 @@ jobs:
             echo "::warning::No private key in the secrets: signed with the public test key"
           fi
           chmod +x gradlew
-          ./gradlew --no-daemon --init-script ci/mirror.init.gradle :engine:testReleaseUnitTest assembleRelease || { echo "::warning::retrying once (network)"; sleep 20; ./gradlew --no-daemon --init-script ci/mirror.init.gradle :engine:testReleaseUnitTest assembleRelease; }
+          ./gradlew --no-daemon --init-script ci/mirror.init.gradle :engine:testReleaseUnitTest :app:testReleaseUnitTest assembleRelease || { echo "::warning::retrying once (network)"; sleep 20; ./gradlew --no-daemon --init-script ci/mirror.init.gradle :engine:testReleaseUnitTest :app:testReleaseUnitTest assembleRelease; }
           v=$(node -p "require('../package.json').version")
           mkdir -p ../release
           cp app/build/outputs/apk/release/app-release.apk "../release/NovelReader-$v.apk"
