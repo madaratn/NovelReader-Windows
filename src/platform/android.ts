@@ -101,6 +101,21 @@ export function directStreams(w:any=window){
   P.open=function(this:any,method:string,url:any,...rest:any[]){if(String(method).toUpperCase()==='GET'&&STREAM.test(String(url))){this._method='GET';this._url='';return orig.open.call(this,method,url,...rest)}return patched.call(this,method,url,...rest)}}
  if(w.CapacitorWebFetch&&!w.__nrDirectFetch){const relayed=w.fetch;w.__nrDirectFetch=true
   w.fetch=(r:any,o?:any)=>{const url=typeof r==='string'?r:r?.url,m=String(o?.method||(typeof r==='string'?'':r?.method)||'GET').toUpperCase();return m==='GET'&&STREAM.test(String(url))?w.CapacitorWebFetch(r,o):relayed(r,o)}}}
+// Backup file (FilesPlugin.java): saved where the person chooses, restored from a
+// file they pick. Same checks and answers as the PC (electron/backup.cjs).
+const files=()=>(window as any).Capacitor?.Plugins?.Files
+export function checkBackup(payload:any){
+ if(!payload||typeof payload!=='object'||payload.app!=='NovelReader'||payload.version!==1)throw Error('This file is not a NovelReader backup.')
+ const data=payload.data;if(!data||typeof data!=='object'||Array.isArray(data))throw Error('The backup is damaged (no data).')
+ for(const[k,v]of Object.entries(data))if(typeof k!=='string'||typeof v!=='string')throw Error('The backup is damaged (invalid entry).')
+ return{app:'NovelReader',version:1,exportedAt:Number(payload.exportedAt)||0,data}}
+const backup={
+ backupExport:async(payload:any)=>{const clean=checkBackup(payload),r=await files().save({name:'NovelReader-backup-'+new Date().toISOString().slice(0,10)+'.json',type:'application/json',text:JSON.stringify(clean,null,1)});return r?.ok?{ok:true,path:r.path||''}:{ok:false,canceled:true}},
+ backupImport:async()=>{const r=await files().open();if(!r?.ok)return{ok:false,canceled:true}
+  let x:any;try{x=JSON.parse(r.text)}catch{throw Error('This file is not a NovelReader backup.')}
+  const payload=checkBackup(x);let novels=0;try{novels=JSON.parse(payload.data.library||'[]').length}catch{}
+  return{ok:true,payload,novels,keys:Object.keys(payload.data).length,exportedAt:payload.exportedAt}},
+}
 export function installAndroidBridge(version:string,ios=false){
  document.documentElement.classList.add('android')
  if(!ios)directStreams()
@@ -116,7 +131,7 @@ export function installAndroidBridge(version:string,ios=false){
   offlineSave:offline.save,offlineGet:offline.get,offlineList:offline.list,offlineRemove:offline.remove,offlineUsage:offline.usage,offlineClear:offline.clear,
   miwayomiStatus,miwayomiFetch,
   ...androidSync,
-  ...(ios?{syncChoose:undefined}:{...createAndroidUpdater(version),...downloads,...cast}),
+  ...(ios?{syncChoose:undefined}:{...createAndroidUpdater(version),...downloads,...cast,...backup}),
   subsSearch,subsFetch,
   takeDeepLink:async()=>'',inviteBase:async()=>'',onDeepLink:()=>()=>{},
   sourceStatus:ios?async()=>null:sourceStatus,
@@ -124,6 +139,6 @@ export function installAndroidBridge(version:string,ios=false){
  }
  // Anything else (PC-only features: cast, downloads, AniList windows…) is absent, so the
  // interface hides it; direct calls give a clear message.
- const DIRECT=new Set(['importLNReader','localAddFolder','localFolders','localListVideos','localRemoveFolder','archiveSearch','archiveFiles','torrentStart','torrentStartMagnet','torrentStatus','torrentStop','backupExport','backupImport','backupListAuto','backupReadAuto','backupOpenFolder'])
+ const DIRECT=new Set(['importLNReader','localAddFolder','localFolders','localListVideos','localRemoveFolder','archiveSearch','archiveFiles','torrentStart','torrentStartMagnet','torrentStatus','torrentStop','backupListAuto','backupReadAuto','backupOpenFolder'])
  ;(window as any).novelReader=new Proxy(impl,{get:(t,p:string)=>p in t?t[p]:DIRECT.has(p)?later(p):undefined,has:(t,p:string)=>p in t})
 }

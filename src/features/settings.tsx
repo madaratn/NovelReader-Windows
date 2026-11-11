@@ -56,14 +56,14 @@ export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onSh
   <section className="panel settings-block"><h2>{t('Language')}</h2>
    <div className="rs-seg settings-seg" role="radiogroup" aria-label={t('Language')}>{LANGS.map(l=><button key={l.id} role="radio" aria-checked={lang===l.id} className={lang===l.id?'on':''} onClick={()=>onLang(l.id)}>{l.label}</button>)}</div>
   </section>
-  {!android&&<section className="panel settings-block"><h2>{t('Backup and restore')}</h2>
+  {(!android||typeof (window.novelReader as any).backupExport==='function')&&<section className="panel settings-block backup-block"><h2>{t('Backup and restore')}</h2>
    <p className="settings-help">{t('Your library, reading progress and preferences are stored on this PC. Export a backup file to keep them safe or to move them to another computer.')}</p>
    <div className="libraryactions"><button className="primary" disabled={busy} onClick={doExport}>{t('Export a backup…')}</button><button disabled={busy} onClick={doImport}>{t('Restore from a file…')}</button></div>
    {msg&&<div className={'anime-toast '+(msg.ok?'ok':'error')} role="status"><NoticeText text={msg.text}/><button aria-label={t('Dismiss')} onClick={()=>setMsg(null)}>×</button></div>}
-   <h3 className="settings-sub">{t('Automatic backups')}</h3>
+   {!android&&<><h3 className="settings-sub">{t('Automatic backups')}</h3>
    <p className="settings-help">{t('NovelReader keeps the last 10 versions of your data automatically. A copy of the current data is also saved before any restore.')}</p>
    {autos.length===0?<p className="settings-help">{t('No automatic backup yet.')}</p>:<div className="scanlist">{autos.map(a=><div className="scanrow settings-row" key={a.name}><span>{fmtDateTime(a.exportedAt)}</span><small>{plural(a.novels,'{n} novel','{n} novels')}</small><button className={confirm===a.name?'danger':undefined} disabled={busy} onClick={()=>doRestoreAuto(a.name)}>{confirm===a.name?t('Confirm restore'):t('Restore')}</button></div>)}</div>}
-   <div className="libraryactions"><button disabled={busy} onClick={doBackupNow}>{t('Back up now')}</button><button onClick={()=>window.novelReader.backupOpenFolder().catch(e=>setMsg({ok:false,text:String(e?.message||e)}))}>{t('Open backups folder')}</button></div>
+   <div className="libraryactions"><button disabled={busy} onClick={doBackupNow}>{t('Back up now')}</button><button onClick={()=>window.novelReader.backupOpenFolder().catch(e=>setMsg({ok:false,text:String(e?.message||e)}))}>{t('Open backups folder')}</button></div></>}
   </section>}
   <section className="panel settings-block"><h2>{t('New chapters')}</h2>
    <label className="settings-check"><input type="checkbox" checked={autoCheck} onChange={e=>{setAutoCheck(e.target.checked);lsSet('autoCheckUpdates',e.target.checked?'1':'0')}}/> {t('Check my library for new chapters when NovelReader starts (at most every 12 hours)')}</label>

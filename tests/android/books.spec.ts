@@ -464,3 +464,35 @@ test('Android: direct sync with the PC on the home Wi-Fi (link typed once), quie
   await block.getByRole('button', { name: 'Unlink' }).click()
   await expect(page.locator('.sync-file')).toBeVisible()
 })
+
+test('Android: backup saved to a file the person chooses, and restored from one', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as any
+    w.__files = JSON.parse(sessionStorage.getItem('__files') || '{"saved":null,"open":""}')
+    w.Capacitor.Plugins = { ...(w.Capacitor.Plugins || {}), Files: {
+      save: async (o: any) => { w.__files.saved = o; sessionStorage.setItem('__files', JSON.stringify(w.__files)); return { ok: true, path: o.name } },
+      open: async () => w.__files.open ? { ok: true, name: 'x.json', text: w.__files.open } : { ok: false, canceled: true } } }
+    if (!localStorage.getItem('library')) localStorage.setItem('library', JSON.stringify([{ id: 'n1', name: 'Shadow Slave', pluginId: 'testsrc', path: '/novel/shadow', chapters: [] }]))
+    w.confirm = () => true
+  })
+  await page.goto('/')
+  await page.locator('.m-bottom').getByRole('button', { name: 'More' }).click()
+  await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
+  const block = page.locator('.backup-block')
+  await expect(block).toContainText('stored on this device')
+  await expect(block).not.toContainText('Automatic backups')
+  await block.getByRole('button', { name: 'Export a backup…' }).click()
+  await expect(block.getByRole('status')).toContainText(/Backup saved: NovelReader-backup-\d{4}-\d\d-\d\d\.json/)
+  const saved = await page.evaluate(() => (window as any).__files.saved)
+  const payload = JSON.parse(saved.text)
+  expect(payload.app).toBe('NovelReader'); expect(JSON.parse(payload.data.library)[0].name).toBe('Shadow Slave')
+  // A file that is not a backup: refused, nothing changes.
+  await page.evaluate(() => { (window as any).__files.open = '{"hello":1}' })
+  await block.getByRole('button', { name: 'Restore from a file…' }).click()
+  await expect(block.getByRole('status')).toContainText('not a NovelReader backup')
+  // A real backup with another library: restored.
+  payload.data.library = JSON.stringify([{ id: 'n2', name: 'Lord of the Mysteries', pluginId: 'testsrc', path: '/novel/lotm', chapters: [] }])
+  await page.evaluate(t => { const w = window as any; w.__files.open = t; sessionStorage.setItem('__files', JSON.stringify(w.__files)) }, JSON.stringify(payload))
+  await block.getByRole('button', { name: 'Restore from a file…' }).click()
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('library') || '[]').map((x: any) => x.name))).toEqual(['Lord of the Mysteries'])
+})
