@@ -1,4 +1,5 @@
 import{SubtitleSettings}from'./sub-finder'
+import{PcShareSettings,PcLinkSettings}from'./pc-link'
 import{deviceNotify,askNotifications,showDeviceNotification}from'../platform/android-notify'
 import{party}from'./watch-party'
 import React,{useEffect,useRef,useState}from'react'
@@ -45,7 +46,7 @@ export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onSh
  const doRestoreAuto=(name:string)=>{if(confirm!==name){setConfirm(name);return}run(async()=>{await applyBackup(await window.novelReader.backupReadAuto(name))})}
  const doBackupNow=()=>run(async()=>{const r=await window.novelReader.backupAuto(collectBackup(),true);setMsg({ok:true,text:r.saved?t('Automatic backup created.'):t('Nothing changed since the last backup.')});refresh()})
  // Android: no files to export there yet, no Windows notifications, no LNReader import.
- const android=document.documentElement.classList.contains('android')
+ const android=document.documentElement.classList.contains('android'),ios=document.documentElement.classList.contains('ios')
  return <>
   <header><div><h1>{t('Settings')}</h1><p>{t('Language, backups and updates.')}</p></div></header>
   <section className="panel settings-block"><h2>{t('Appearance')}</h2>
@@ -77,7 +78,7 @@ export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onSh
    <div className="libraryactions"><button className="primary" disabled={impBusy} onClick={async()=>{setImpBusy(true);setMsg(null);setImp(null);try{setImp(await onImportLNReader())}catch(e:any){setMsg({ok:false,text:t(String(e?.message||e).replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/,''))})}finally{setImpBusy(false)}}}>{impBusy?t('Importing…'):t('Import an LNReader backup…')}</button></div>
    {imp&&<div className="anime-toast ok" role="status"><span>{plural(imp.added,'{n} novel imported','{n} novels imported')}{imp.exists?' · '+plural(imp.exists,'{n} already in your library','{n} already in your library'):''}{imp.unknown.length?' · '+t('{n} skipped (source not available: {list})',{n:imp.unknown.length,list:imp.unknown.slice(0,4).join(', ')}):''}</span><button className="undo-btn" onClick={onShowLibrary}>{t('Open library')}</button></div>}
   </section>}
-  {sync&&<SyncSettings sync={sync}/>}
+  {ios&&<PcLinkSettings/>}{sync&&!ios&&<SyncSettings sync={sync}/>}{!android&&<PcShareSettings/>}
   <section className="panel settings-block"><h2>{t('Offline chapters')}</h2>
    <p className="settings-help">{usage&&usage.chapters?t('{chapters} for {novels} use {size} on this PC.',{chapters:plural(usage.chapters,'{n} chapter','{n} chapters'),novels:plural(usage.novels,'{n} novel','{n} novels'),size:(usage.bytes/1048576).toFixed(1)+' MB'}):t('No chapter downloaded yet. Use Download on a novel page to read without an internet connection.')}</p>
    {usage&&usage.chapters>0&&<div className="libraryactions"><button className={clearConfirm?'danger':undefined} onClick={async()=>{if(!clearConfirm){setClearConfirm(true);setTimeout(()=>setClearConfirm(false),6000);return}await window.novelReader.offlineClear?.();setClearConfirm(false);setUsage({bytes:0,chapters:0,novels:0})}}>{clearConfirm?t('Confirm: delete all downloads'):t('Delete all downloaded chapters')}</button></div>}

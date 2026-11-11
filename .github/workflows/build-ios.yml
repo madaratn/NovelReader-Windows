@@ -17,6 +17,8 @@ on:
       - 'catalog/**'
     paths:
       - 'ios/**'
+      - 'capacitor.config.json'
+      - 'src/platform/**'
       - '.github/workflows/build-ios.yml'
       - 'scripts/ios-*'
 permissions:
@@ -55,6 +57,15 @@ jobs:
           sleep 25
           mkdir -p ../../shots
           xcrun simctl io "$DEV" screenshot ../../shots/ios-start.png
+          # Second pass: only YouTube's embedded player (is it accepted inside the app?).
+          xcrun simctl terminate "$DEV" com.madaratn.novelreader || true
+          (cd ../.. && VITE_SELFTEST=yt npm run build:android >/dev/null && npx cap copy ios >/dev/null)
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -sdk iphonesimulator -derivedDataPath build/sim -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build | tail -2
+          xcrun simctl install "$DEV" "$APP"
+          xcrun simctl launch "$DEV" com.madaratn.novelreader
+          sleep 30
+          xcrun simctl io "$DEV" screenshot ../../shots/ios-youtube.png
+          (cd ../.. && npm run build:android >/dev/null && npx cap copy ios >/dev/null)
           xcrun simctl spawn "$DEV" log show --last 1m --predicate 'process == "App"' --style compact 2>/dev/null | grep -iE "error|exception|capacitor" | tail -30 || true
       - name: Build the unsigned .ipa
         run: |

@@ -32,8 +32,11 @@ function engineTimeout(path:string){const p=String(path).split('?')[0]
  if(/\/extensions\/(install|repo)/.test(p))return 90000
  if(/\/cast\/(scan|start)$/.test(p))return 45000
  return 10000}
+// iPhone: the engine of the linked PC (electron/engine-share.cjs), or none.
+let engineOf=()=>ENGINE
 async function miwayomiFetch(path:string,method='GET',body?:any){
  if(typeof path!=='string'||!path.startsWith('/'))throw Error('Invalid Miwayomi path')
+ const ENGINE=engineOf();if(!ENGINE)throw Error('Link your PC in Settings to watch anime, series and movies on this iPhone.')
  const ms=engineTimeout(path),ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),ms)
  try{const r=await fetch(ENGINE+path,{method,signal:ctl.signal,headers:{'Content-Type':'application/json'},body:body==null?undefined:JSON.stringify(body)})
   const ct=r.headers.get('content-type')||''
@@ -69,7 +72,7 @@ const downloads={
  // The engine counts its changes; the interface looks every 2 s while it is shown.
  onDownloadsChanged:(cb:()=>void)=>{let last=-1;const iv=setInterval(async()=>{if(document.visibilityState!=='visible')return;try{const v=(await dlCall('version')).version;if(last>=0&&v!==last)cb();last=v}catch{}},2000);return()=>clearInterval(iv)},
 }
-async function miwayomiStatus(){try{const health=await miwayomiFetch('/api/v1/health');return{online:true,android:true,baseUrl:ENGINE,health}}catch(e:any){return{online:false,starting:true,android:true,baseUrl:ENGINE,error:String(e?.message||e)}}}
+async function miwayomiStatus(){try{const health=await miwayomiFetch('/api/v1/health');return{online:true,android:true,baseUrl:engineOf(),health}}catch(e:any){return{online:false,starting:engineOf()===ENGINE,android:true,baseUrl:engineOf(),error:String(e?.message||e)}}}
 
 // Weekly source check: the PC scan, corrected by the phone sweep (run on an Android
 // emulator): a source that fails on a phone is shown as failing here (a time-out of
@@ -87,10 +90,9 @@ async function sourceStatus(){
 // iPhone / iPad: the same phone interface. Apple does not let an app run the video
 // extensions (Android code), so there is no video engine in the app there: books,
 // and the sources the interface serves itself (Tunisian TV).
-const noEngine=async()=>{throw Error('The video engine is not available on iPhone.')}
 export function installAndroidBridge(version:string,ios=false){
  document.documentElement.classList.add('android')
- if(ios)document.documentElement.classList.add('ios')
+ if(ios){document.documentElement.classList.add('ios');engineOf=()=>{try{return localStorage.getItem('pcEngine')||''}catch{return''}}}
  const impl:Record<string,any>={
   platform:'android',
   searchPlugin:(p:any,q:string)=>plugins.search(p,q),
@@ -100,8 +102,8 @@ export function installAndroidBridge(version:string,ios=false){
   translate,
   appVersion:async()=>version,
   offlineSave:offline.save,offlineGet:offline.get,offlineList:offline.list,offlineRemove:offline.remove,offlineUsage:offline.usage,offlineClear:offline.clear,
-  ...(ios?{miwayomiStatus:async()=>({online:false,ios:true,baseUrl:'',error:'The video engine is not available on iPhone.'}),miwayomiFetch:noEngine}
-   :{miwayomiStatus,miwayomiFetch,...createAndroidUpdater(version),...androidSync,...downloads,...cast}),
+  miwayomiStatus,miwayomiFetch,
+  ...(ios?{}:{...createAndroidUpdater(version),...androidSync,...downloads,...cast}),
   subsSearch,subsFetch,
   takeDeepLink:async()=>'',inviteBase:async()=>'',onDeepLink:()=>()=>{},
   sourceStatus:ios?async()=>null:sourceStatus,
