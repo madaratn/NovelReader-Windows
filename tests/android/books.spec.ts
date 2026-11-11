@@ -284,3 +284,41 @@ test('Android: a source that fails on a phone is marked as failing, whatever the
   const pc = await page.evaluate(() => (window as any).novelReader.sourceStatus())
   expect(pc.results.map((r: any) => r.state)).toEqual(['ok', 'ok', 'partial'])
 })
+
+test('Android: sync with the PC through the file the PC wrote (library, positions), and back', async ({ page }) => {
+  // The file as the PC left it in the cloud folder.
+  const pcFile = { app: 'NovelReader', version: 1, at: Date.now() - 60000, deviceId: 'pc1', deviceName: 'PC-SALON', data: {
+    seriesLibrary: JSON.stringify([{ id: 'series1', name: 'Lanterns', sourceId: '42', sourceName: 'Mapple', url: '/series/1', episodes: 2, addedAt: Date.now() - 90000 }]),
+    'reading:n1': JSON.stringify({ chapter: 3, at: Date.now() - 80000 }) } }
+  await page.addInitScript((file) => {
+    const w = window as any
+    w.__file = { picked: false, text: JSON.stringify(file), writes: 0 }
+    w.Capacitor.Plugins = { ...(w.Capacitor.Plugins || {}), Sync: {
+      status: async () => ({ enabled: w.__file.picked, file: w.__file.picked ? 'library-sync.json' : null, deviceName: 'Google Pixel 8' }),
+      choose: async () => { w.__file.picked = true; return {} },
+      read: async () => ({ text: w.__file.text }),
+      write: async ({ text }: any) => { w.__file.text = text; w.__file.writes++; return {} },
+      disable: async () => { w.__file.picked = false; return {} } } }
+  }, pcFile)
+  await page.goto('/')
+  await page.evaluate(() => { localStorage.setItem('animeLibrary', JSON.stringify([{ id: 'a1', name: 'Phone Anime', sourceId: '7', sourceName: 'S', url: '/a/1', episodes: 1, addedAt: Date.now() }])) })
+  await page.locator('.m-bottom').getByRole('button', { name: 'More' }).click()
+  await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
+  const block = page.locator('.settings-block', { hasText: 'Sync with your PC' })
+  await block.getByRole('button', { name: 'Choose the sync file…' }).click()
+  await expect(block).toContainText('library-sync.json')
+  await expect(block).toContainText('Last synced')
+  // The PC's series arrived here; the phone's anime went into the file, signed by the phone.
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('seriesLibrary') || '[]').map((x: any) => x.name))).toEqual(['Lanterns'])
+  expect(await page.evaluate(() => localStorage.getItem('reading:n1'))).toContain('"chapter":3')
+  const written = JSON.parse(await page.evaluate(() => (window as any).__file.text))
+  expect(written.app).toBe('NovelReader'); expect(written.deviceName).toBe('Google Pixel 8'); expect(written.deviceId).not.toBe('pc1')
+  expect(JSON.parse(written.data.animeLibrary).map((x: any) => x.name)).toEqual(['Phone Anime'])
+  expect(JSON.parse(written.data.seriesLibrary).map((x: any) => x.name)).toEqual(['Lanterns'])
+  // A file that is not NovelReader's is refused, nothing is overwritten.
+  await page.evaluate(() => { (window as any).__file.text = '{"hello":1}'; (window as any).__file.writes = 0 })
+  await block.getByRole('button', { name: 'Sync now' }).click()
+  await expect(block.getByRole('alert')).toContainText('not a NovelReader file')
+  await block.getByRole('button', { name: 'Stop syncing' }).click()
+  await expect(block.getByRole('button', { name: 'Choose the sync file…' })).toBeVisible()
+})

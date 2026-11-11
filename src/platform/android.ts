@@ -5,6 +5,7 @@ import * as plugins from './plugin-runtime'
 import{offline}from'./offline-idb'
 import{createAndroidUpdater}from'./android-update'
 import{subsSearch,subsFetch}from'./android-subs'
+import{androidSync}from'./android-sync'
 
 export const isAndroidApp=()=>!!(window as any).Capacitor?.isNativePlatform?.()&&(window as any).Capacitor?.getPlatform?.()==='android'
 
@@ -80,6 +81,7 @@ export function installAndroidBridge(version:string){
   miwayomiStatus,miwayomiFetch,
   ...createAndroidUpdater(version),
   subsSearch,subsFetch,
+  ...androidSync,
   ...cast,
   takeDeepLink:async()=>'',inviteBase:async()=>'',onDeepLink:()=>()=>{},
   sourceStatus,

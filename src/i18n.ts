@@ -867,6 +867,14 @@ const FR: Record<string, string> = {
   'YouTube daily quota used up: try again tomorrow.': 'Quota YouTube du jour épuisé : réessayez demain.',
   'The YouTube key is not valid.': 'La clé YouTube n\'est pas valide.',
   'does not play on a phone': 'ne se lit pas sur téléphone',
+  'Sync with your PC': 'Synchronisation avec votre PC',
+  'Your library, reading positions, notes, videos and where you stopped watching, shared between this device and your PC. On the PC, turn on sync in Settings with a Google Drive or OneDrive folder. Then choose here the file library-sync.json it wrote in the NovelReader folder.': 'Votre bibliothèque, vos positions de lecture, vos notes, vos vidéos et l\'endroit où vous vous êtes arrêté, partagés entre cet appareil et votre PC. Sur le PC, activez la synchronisation dans les Réglages avec un dossier Google Drive ou OneDrive. Choisissez ensuite ici le fichier library-sync.json qu\'il a écrit dans le dossier NovelReader.',
+  'Choose the sync file…': 'Choisir le fichier de synchronisation…',
+  'No PC yet: create the file…': 'Pas encore de PC : créer le fichier…',
+  'File:': 'Fichier :',
+  'Change file…': 'Changer de fichier…',
+  'The sync file could not be read:': 'Le fichier de synchronisation n\'a pas pu être lu :',
+  'This place does not let NovelReader keep access to the file. Choose a file in Google Drive, OneDrive or on the phone.': 'Cet emplacement ne laisse pas NovelReader garder l\'accès au fichier. Choisissez un fichier dans Google Drive, OneDrive ou sur le téléphone.',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
