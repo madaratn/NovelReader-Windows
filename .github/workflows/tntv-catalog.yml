@@ -14,6 +14,10 @@ on:
         default: '400'
   schedule:
     - cron: '41 2 * * 2,5'
+  # TEMP (trial on the branch)
+  push:
+    branches: ['claude/reliability']
+    paths: ['scripts/tntv-catalog.py', '.github/workflows/tntv-catalog.yml']
 permissions:
   contents: write
 jobs:
@@ -26,7 +30,7 @@ jobs:
         run: python3 -m pip install --quiet --upgrade yt-dlp
       - name: Build the catalog
         env:
-          TNTV_MAX_PLAYLISTS: ${{ inputs.max_playlists || '400' }}
+          TNTV_MAX_PLAYLISTS: ${{ inputs.max_playlists || (github.event_name == 'push' && '25') || '400' }}
         run: python3 scripts/tntv-catalog.py tntv
       - name: Summary
         if: always()
