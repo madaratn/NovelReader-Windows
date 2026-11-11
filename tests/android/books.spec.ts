@@ -272,7 +272,7 @@ test('Android tablet: the left menu folds and unfolds', async ({ page }) => {
 test('Android: a source that fails on a phone is marked as failing, whatever the PC check says', async ({ page }) => {
   const S = 'https://github.com/madaratn/NovelReader-Windows/releases/download/source-status/'
   await page.route(S + 'source-status.json', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ at: '2026-11-10T00:00:00Z', results: [{ name: 'Good', pkg: 'p.good', state: 'ok', detail: '' }, { name: 'PcOnly', pkg: 'p.pconly', state: 'ok', detail: '' }, { name: 'Untested', pkg: 'p.untested', state: 'partial', detail: 'x' }] }) }))
-  await page.route(S + 'source-status-android.json', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ at: '2026-11-11T00:00:00Z', tested: 2, results: [{ name: 'Good', pkg: 'p.good', state: 'ok', detail: '' }, { name: 'PcOnly', pkg: 'p.pconly', state: 'dead', detail: '12 titles → no stream' }] }) }))
+  await page.route(S + 'source-status-android.json', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ at: '2026-11-11T00:00:00Z', tested: 2, results: [{ name: 'Good', pkg: 'p.good', state: 'ok', detail: '' }, { name: 'PcOnly', pkg: 'p.pconly', state: 'dead', detail: '12 titles → no stream' }, { name: 'Untested', pkg: 'p.untested', state: 'dead', detail: '30 titles → error: timeout: videos' }] }) }))
   await page.goto('/')
   await page.waitForFunction(() => !!(window as any).novelReader?.sourceStatus)
   const st = await page.evaluate(() => (window as any).novelReader.sourceStatus())

@@ -72,12 +72,13 @@ const downloads={
 async function miwayomiStatus(){try{const health=await miwayomiFetch('/api/v1/health');return{online:true,android:true,baseUrl:ENGINE,health}}catch(e:any){return{online:false,starting:true,android:true,baseUrl:ENGINE,error:String(e?.message||e)}}}
 
 // Weekly source check: the PC scan, corrected by the phone sweep (run on an Android
-// emulator): a source that fails on a phone is shown as failing here.
+// emulator): a source that fails on a phone is shown as failing here (a time-out of
+// the test is not counted as a failure).
 const STATUS='https://github.com/madaratn/NovelReader-Windows/releases/download/source-status/'
 export function mergePhoneStatus(pc:any,phone:any){
  if(!pc||!Array.isArray(pc.results)||!phone||!Array.isArray(phone.results))return pc
  const by=new Map<string,any>(phone.results.map((x:any)=>[String(x.pkg),x]))
- return{...pc,phoneAt:phone.at,results:pc.results.map((r:any)=>{const a=by.get(String(r.pkg));return a&&a.state!=='ok'&&r.state!=='dead'?{...r,state:'dead',detail:'On Android: '+String(a.detail||'not working')}:r})}}
+ return{...pc,phoneAt:phone.at,results:pc.results.map((r:any)=>{const a=by.get(String(r.pkg));return a&&a.state!=='ok'&&r.state!=='dead'&&!/timeout|timed out|no answer/i.test(String(a.detail||''))?{...r,state:'dead',detail:'On Android: '+String(a.detail||'not working')}:r})}}
 async function sourceStatus(){
  const get=async(f:string)=>{try{const r=await fetch(STATUS+f);return r.ok?await r.json():null}catch{return null}}
  const[pc,phone]=await Promise.all([get('source-status.json'),get('source-status-android.json')])

@@ -80,11 +80,11 @@ async function connect() {
     const rows = []
     for (const s of status) {
       if (Date.now() - t0 > 42 * 60000) { console.log('  (time budget reached)'); break }
-      const r = await Promise.race([sleep(150000).then(() => ({ ok: false, steps: ['no answer in 150 s'], seconds: 150 })), evaluate(async s => {
+      const r = await Promise.race([sleep(200000).then(() => ({ ok: false, steps: ['no answer in 200 s'], seconds: 200 })), evaluate(async s => {
         const steps = [], t = Date.now(), raw = window.novelReader
         // Every engine call gets its own limit: one hung source must not stop the sweep.
         const limit = (p, ms, what) => Promise.race([p, new Promise((_, ko) => setTimeout(() => ko(new Error('timeout: ' + what)), ms))])
-        const nr = { miwayomiStatus: () => limit(raw.miwayomiStatus(), 8000, 'status'), miwayomiFetch: (path, m, b) => limit(raw.miwayomiFetch(path, m, b), /install|repo/.test(path) ? 60000 : 40000, path.split('?')[0].split('/').pop()) }
+        const nr = { miwayomiStatus: () => limit(raw.miwayomiStatus(), 8000, 'status'), miwayomiFetch: (path, m, b) => limit(raw.miwayomiFetch(path, m, b), /install|repo/.test(path) ? 60000 : /\/videos/.test(path) ? 70000 : 40000, path.split('?')[0].split('/').pop()) }
         const fetch = (u, o) => limit(window.fetch(u, o).then(async r => { const hls = /\/hls\?/.test(u); const body = hls ? await r.text() : await r.arrayBuffer(); return { ok: r.ok, status: r.status, text: async () => body, arrayBuffer: async () => body } }), 30000, 'stream')
         const end = (ok, kind) => ({ ok, kind, steps, seconds: Math.round((Date.now() - t) / 1000) })
         try {
