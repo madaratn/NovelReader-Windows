@@ -54,6 +54,18 @@ const cast={
 }
 async function miwayomiStatus(){try{const health=await miwayomiFetch('/api/v1/health');return{online:true,android:true,baseUrl:ENGINE,health}}catch(e:any){return{online:false,starting:true,android:true,baseUrl:ENGINE,error:String(e?.message||e)}}}
 
+// Weekly source check: the PC scan, corrected by the phone sweep (run on an Android
+// emulator): a source that fails on a phone is shown as failing here.
+const STATUS='https://github.com/madaratn/NovelReader-Windows/releases/download/source-status/'
+export function mergePhoneStatus(pc:any,phone:any){
+ if(!pc||!Array.isArray(pc.results)||!phone||!Array.isArray(phone.results))return pc
+ const by=new Map<string,any>(phone.results.map((x:any)=>[String(x.pkg),x]))
+ return{...pc,phoneAt:phone.at,results:pc.results.map((r:any)=>{const a=by.get(String(r.pkg));return a&&a.state!=='ok'&&r.state!=='dead'?{...r,state:'dead',detail:'On Android: '+String(a.detail||'not working')}:r})}}
+async function sourceStatus(){
+ const get=async(f:string)=>{try{const r=await fetch(STATUS+f);return r.ok?await r.json():null}catch{return null}}
+ const[pc,phone]=await Promise.all([get('source-status.json'),get('source-status-android.json')])
+ return mergePhoneStatus(pc,phone)}
+
 export function installAndroidBridge(version:string){
  document.documentElement.classList.add('android')
  const impl:Record<string,any>={
@@ -70,7 +82,7 @@ export function installAndroidBridge(version:string){
   subsSearch,subsFetch,
   ...cast,
   takeDeepLink:async()=>'',inviteBase:async()=>'',onDeepLink:()=>()=>{},
-  sourceStatus:async()=>{const r=await fetch('https://github.com/madaratn/NovelReader-Windows/releases/download/source-status/source-status.json');return r.ok?r.json():null},
+  sourceStatus,
   backupAuto:async()=>({ok:false}),
  }
  // Anything else (PC-only features: cast, downloads, AniList windows…) is absent, so the

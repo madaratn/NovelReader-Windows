@@ -79,9 +79,13 @@ async function connect() {
     console.log('=== SWEEP: ' + status.length + ' sources ok on the PC ===')
     const rows = []
     for (const s of status) {
-      if (Date.now() - t0 > 35 * 60000) { console.log('  (time budget reached)'); break }
-      const r = await evaluate(async s => {
-        const nr = window.novelReader, steps = [], t = Date.now()
+      if (Date.now() - t0 > 42 * 60000) { console.log('  (time budget reached)'); break }
+      const r = await Promise.race([sleep(150000).then(() => ({ ok: false, steps: ['no answer in 150 s'], seconds: 150 })), evaluate(async s => {
+        const steps = [], t = Date.now(), raw = window.novelReader
+        // Every engine call gets its own limit: one hung source must not stop the sweep.
+        const limit = (p, ms, what) => Promise.race([p, new Promise((_, ko) => setTimeout(() => ko(new Error('timeout: ' + what)), ms))])
+        const nr = { miwayomiStatus: () => limit(raw.miwayomiStatus(), 8000, 'status'), miwayomiFetch: (path, m, b) => limit(raw.miwayomiFetch(path, m, b), /install|repo/.test(path) ? 60000 : 40000, path.split('?')[0].split('/').pop()) }
+        const fetch = (u, o) => limit(window.fetch(u, o).then(async r => { const hls = /\/hls\?/.test(u); const body = hls ? await r.text() : await r.arrayBuffer(); return { ok: r.ok, status: r.status, text: async () => body, arrayBuffer: async () => body } }), 30000, 'stream')
         const end = (ok, kind) => ({ ok, kind, steps, seconds: Math.round((Date.now() - t) / 1000) })
         try {
           for (let i = 0; i < 30; i++) { if ((await nr.miwayomiStatus()).online) break; await new Promise(r => setTimeout(r, 1000)) }
@@ -113,12 +117,14 @@ async function connect() {
             return end(good, hls ? 'hls' : /\.mpd/i.test(raw) ? 'dash' : 'file')
           } finally { await nr.miwayomiFetch('/api/v1/extensions/uninstall', 'POST', { pkg: s.pkg }).catch(() => {}) }
         } catch (e) { steps.push('error: ' + String(e && e.message || e).slice(0, 220)); return end(false) }
-      }, s)
+      }, s)])
       rows.push({ s, r })
       console.log(`  ${r.ok ? '✓' : '✗'} ${s.name} (${s.version}, ${r.seconds}s) ${r.steps.join(' → ')}`)
     }
     const ok = rows.filter(x => x.r.ok).length
     console.log(`=== SWEEP: ${ok}/${rows.length} work on Android (PC: ${rows.length}) ===`)
+    // Read by the Android app (Sources page): what works on a phone, not only on the PC.
+    require('fs').writeFileSync('shots/source-status-android.json', JSON.stringify({ at: new Date().toISOString(), tested: rows.length, results: rows.map(x => ({ name: x.s.name, pkg: x.s.pkg, version: x.s.version, state: x.r.ok ? 'ok' : 'dead', detail: x.r.steps.join(' → ') })) }))
     require('fs').writeFileSync('shots/sweep.json', JSON.stringify(rows.map(x => ({ name: x.s.name, version: x.s.version, ok: x.r.ok, steps: x.r.steps })), null, 1))
     console.log('=== engine errors ===')
     console.log(require('child_process').execSync("adb logcat -d | grep -E 'miwayomi\\] (Error|error|RxJava)|LinkageError|NoSuchMethod|NoClassDefFound|ClassNotFound|VerifyError' | tail -80").toString())

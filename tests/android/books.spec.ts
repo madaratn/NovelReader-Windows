@@ -268,3 +268,19 @@ test('Android tablet: the left menu folds and unfolds', async ({ page }) => {
   await expect.poll(width).toBeGreaterThan(180)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
 })
+
+test('Android: a source that fails on a phone is marked as failing, whatever the PC check says', async ({ page }) => {
+  const S = 'https://github.com/madaratn/NovelReader-Windows/releases/download/source-status/'
+  await page.route(S + 'source-status.json', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ at: '2026-11-10T00:00:00Z', results: [{ name: 'Good', pkg: 'p.good', state: 'ok', detail: '' }, { name: 'PcOnly', pkg: 'p.pconly', state: 'ok', detail: '' }, { name: 'Untested', pkg: 'p.untested', state: 'partial', detail: 'x' }] }) }))
+  await page.route(S + 'source-status-android.json', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ at: '2026-11-11T00:00:00Z', tested: 2, results: [{ name: 'Good', pkg: 'p.good', state: 'ok', detail: '' }, { name: 'PcOnly', pkg: 'p.pconly', state: 'dead', detail: '12 titles → no stream' }] }) }))
+  await page.goto('/')
+  await page.waitForFunction(() => !!(window as any).novelReader?.sourceStatus)
+  const st = await page.evaluate(() => (window as any).novelReader.sourceStatus())
+  expect(st.results.map((r: any) => r.state)).toEqual(['ok', 'dead', 'partial'])
+  expect(st.results[1].detail).toBe('On Android: 12 titles → no stream')
+  // No phone sweep published yet: the PC check is used as it is.
+  await page.unroute(S + 'source-status-android.json')
+  await page.route(S + 'source-status-android.json', r => r.fulfill({ status: 404, body: '' }))
+  const pc = await page.evaluate(() => (window as any).novelReader.sourceStatus())
+  expect(pc.results.map((r: any) => r.state)).toEqual(['ok', 'ok', 'partial'])
+})

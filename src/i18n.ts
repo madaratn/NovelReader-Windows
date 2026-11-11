@@ -866,6 +866,7 @@ const FR: Record<string, string> = {
   'Add your free YouTube key in Sources › Tunisian TV.': 'Ajoutez votre clé YouTube gratuite dans Sources › TV tunisienne.',
   'YouTube daily quota used up: try again tomorrow.': 'Quota YouTube du jour épuisé : réessayez demain.',
   'The YouTube key is not valid.': 'La clé YouTube n\'est pas valide.',
+  'does not play on a phone': 'ne se lit pas sur téléphone',
 }
 
 export function t(key: string, vars?: Record<string, string | number>): string {
