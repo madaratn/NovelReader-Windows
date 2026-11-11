@@ -290,7 +290,8 @@ async function connect() {
       const full = await fetch(base + '/' + id + '/' + item.file)
       out.full = { status: full.status, same: (await full.text()) === want }
       const part = await fetch(base + '/' + id + '/' + item.file, { headers: { Range: 'bytes=2-5' } })
-      out.part = { status: part.status, same: (await part.text()) === want.slice(2, 6), range: part.headers.get('content-range') }
+      const got = await part.text()
+      out.part = { status: part.status, same: got === want.slice(2, 6), range: part.headers.get('content-range'), got: got.slice(0, 80), want: want.slice(2, 6), type: part.headers.get('content-type') }
       out.meta = (await fetch(base + '/' + id + '/meta.json')).status
       out.usage = await nr.dlUsage()
       await nr.dlRemove(id)
