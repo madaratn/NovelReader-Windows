@@ -164,8 +164,9 @@ async function connect() {
       const eps = er && (er.episodes || er) || []
       const ep = eps[eps.length - 1] || eps[0]; if (!ep) return out
       out.push('episode: ' + JSON.stringify(ep).slice(0, 300))
-      await step('hosters', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/hosters?url=' + encodeURIComponent(ep.url)))
       const vr = await step('videos', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/videos?url=' + encodeURIComponent(ep.url)))
+      await step('videos again', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/videos?url=' + encodeURIComponent(ep.url)).then(x => ({ count: (x.videos || x).length })))
+      await step('hosters', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/hosters?url=' + encodeURIComponent(ep.url)))
       // The stream itself, as the player asks it (first three links): status, type, start of the answer.
       for (const v of ((vr && (vr.videos || vr)) || []).slice(0, 3)) {
         const raw = v.videoUrl || v.url || ''

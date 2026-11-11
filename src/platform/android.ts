@@ -26,7 +26,7 @@ const later=(what:string)=>async()=>{throw Error(what+': not available on Androi
 // Video engine: runs inside the app (android/engine), same API and address as on the PC.
 const ENGINE='http://127.0.0.1:4567'
 function engineTimeout(path:string){const p=String(path).split('?')[0]
- if(/\/(videos|hosters|hosterVideos)$/.test(p))return 60000
+ if(/\/(videos|hosters|hosterVideos)$/.test(p))return 90000
  if(/\/(episodes|seasons|details)$/.test(p))return 30000
  if(/\/(search|popular|latest)$/.test(p))return 20000
  if(/\/extensions\/(install|repo)/.test(p))return 90000
