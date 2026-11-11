@@ -121,7 +121,7 @@ export function EpisodeGrid({eps,prefix,mediaId,selected,disabled,onPlay,renderE
 
 // ---- Video sources: test installed extensions and remove the dead ones ----------
 // Result of the weekly automatic check, for sources not tested on this PC.
-function WeeklyScan({pkg,name}:{pkg:string,name:string}){const[,bump]=useState(0);useEffect(()=>{const f=()=>bump(x=>x+1);window.addEventListener('nr-source-scan',f);loadScan().catch(()=>{});return()=>window.removeEventListener('nr-source-scan',f)},[]);const sc=scanFor(pkg)||scanFor(name),at=cachedScan()?.at;if(!sc)return null;return <small className={'scan-line '+sc.state}>{(sc.state==='ok'?'✓ ':sc.state==='partial'?'~ ':'✗ ')+t('Weekly check ({date}): {state}',{date:at?new Date(at).toLocaleDateString():'',state:sc.state==='ok'?t('plays videos'):sc.state==='partial'?t('partly works'):t('not responding')})}</small>}
+function WeeklyScan({pkg,name}:{pkg:string,name:string}){const[,bump]=useState(0);useEffect(()=>{const f=()=>bump(x=>x+1);window.addEventListener('nr-source-scan',f);loadScan().catch(()=>{});return()=>window.removeEventListener('nr-source-scan',f)},[]);const sc=scanFor(pkg)||scanFor(name),at=cachedScan()?.at;if(!sc)return null;return <small className={'scan-line '+sc.state}>{(sc.state==='ok'?'✓ ':sc.state==='partial'?'~ ':'✗ ')+t('Weekly check ({date}): {state}',{date:at?new Date(at).toLocaleDateString():'',state:sc.state==='ok'?t('plays videos'):sc.state==='partial'?t('partly works'):/^On Android/.test(sc.detail||'')?t('does not play on a phone'):t('not responding')})}</small>}
 // Which sections (Anime / Series / Movies) show this source; click to change.
 function SectionChips({name}:{name:string}){
  const[,bump]=useState(0),cur=sourceSections(name),custom=hasOverride(name)

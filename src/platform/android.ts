@@ -5,6 +5,7 @@ import * as plugins from './plugin-runtime'
 import{offline}from'./offline-idb'
 import{createAndroidUpdater}from'./android-update'
 import{subsSearch,subsFetch}from'./android-subs'
+import{androidSync}from'./android-sync'
 
 export const isAndroidApp=()=>!!(window as any).Capacitor?.isNativePlatform?.()&&(window as any).Capacitor?.getPlatform?.()==='android'
 
@@ -52,7 +53,36 @@ const cast={
  castStop:()=>castCall('stop','POST',{}),
  castDiag:()=>miwayomiFetch('/api/v1/cast/diag').then(String).catch(()=>''),
 }
+// Offline videos (android/engine/.../dl): same calls and answers as on the PC.
+async function dlCall(path:string,method='GET',body?:any){
+ try{return await miwayomiFetch('/api/v1/dl/'+path,method,body)}
+ catch(e:any){const m=/ — (\{.*\})$/s.exec(String(e?.message||''));let msg='';try{msg=m?JSON.parse(m[1]).error:''}catch{}throw Error(msg||String(e?.message||e))}}
+const downloads={
+ dlStart:(p:any)=>dlCall('start','POST',{...p,episodeNo:Number(p?.episodeNo)||0}),
+ dlList:()=>dlCall('list'),
+ dlCancel:(id:string)=>dlCall('cancel','POST',{id:String(id||'')}),
+ dlRemove:(id:string)=>dlCall('remove','POST',{id:String(id||'')}),
+ dlClear:()=>dlCall('clear','POST',{}),
+ dlConfigure:(o:any)=>dlCall('configure','POST',{maxHeight:Math.round(Number(o?.maxHeight)||0),limit:Math.round(Number(o?.limit)||0)}),
+ dlUsage:()=>dlCall('usage'),
+ dlBase:async()=>ENGINE+'/api/v1/dl/file',
+ // The engine counts its changes; the interface looks every 2 s while it is shown.
+ onDownloadsChanged:(cb:()=>void)=>{let last=-1;const iv=setInterval(async()=>{if(document.visibilityState!=='visible')return;try{const v=(await dlCall('version')).version;if(last>=0&&v!==last)cb();last=v}catch{}},2000);return()=>clearInterval(iv)},
+}
 async function miwayomiStatus(){try{const health=await miwayomiFetch('/api/v1/health');return{online:true,android:true,baseUrl:ENGINE,health}}catch(e:any){return{online:false,starting:true,android:true,baseUrl:ENGINE,error:String(e?.message||e)}}}
+
+// Weekly source check: the PC scan, corrected by the phone sweep (run on an Android
+// emulator): a source that fails on a phone is shown as failing here (a time-out of
+// the test is not counted as a failure).
+const STATUS='https://github.com/madaratn/NovelReader-Windows/releases/download/source-status/'
+export function mergePhoneStatus(pc:any,phone:any){
+ if(!pc||!Array.isArray(pc.results)||!phone||!Array.isArray(phone.results))return pc
+ const by=new Map<string,any>(phone.results.map((x:any)=>[String(x.pkg),x]))
+ return{...pc,phoneAt:phone.at,results:pc.results.map((r:any)=>{const a=by.get(String(r.pkg));return a&&a.state!=='ok'&&r.state!=='dead'&&!/timeout|timed out|no answer/i.test(String(a.detail||''))?{...r,state:'dead',detail:'On Android: '+String(a.detail||'not working')}:r})}}
+async function sourceStatus(){
+ const get=async(f:string)=>{try{const r=await fetch(STATUS+f);return r.ok?await r.json():null}catch{return null}}
+ const[pc,phone]=await Promise.all([get('source-status.json'),get('source-status-android.json')])
+ return mergePhoneStatus(pc,phone)}
 
 export function installAndroidBridge(version:string){
  document.documentElement.classList.add('android')
@@ -68,9 +98,11 @@ export function installAndroidBridge(version:string){
   miwayomiStatus,miwayomiFetch,
   ...createAndroidUpdater(version),
   subsSearch,subsFetch,
+  ...androidSync,
+  ...downloads,
   ...cast,
   takeDeepLink:async()=>'',inviteBase:async()=>'',onDeepLink:()=>()=>{},
-  sourceStatus:async()=>{const r=await fetch('https://github.com/madaratn/NovelReader-Windows/releases/download/source-status/source-status.json');return r.ok?r.json():null},
+  sourceStatus,
   backupAuto:async()=>({ok:false}),
  }
  // Anything else (PC-only features: cast, downloads, AniList windows…) is absent, so the

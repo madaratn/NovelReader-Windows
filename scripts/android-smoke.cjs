@@ -79,9 +79,13 @@ async function connect() {
     console.log('=== SWEEP: ' + status.length + ' sources ok on the PC ===')
     const rows = []
     for (const s of status) {
-      if (Date.now() - t0 > 35 * 60000) { console.log('  (time budget reached)'); break }
-      const r = await evaluate(async s => {
-        const nr = window.novelReader, steps = [], t = Date.now()
+      if (Date.now() - t0 > 42 * 60000) { console.log('  (time budget reached)'); break }
+      const r = await Promise.race([sleep(200000).then(() => ({ ok: false, steps: ['no answer in 200 s'], seconds: 200 })), evaluate(async s => {
+        const steps = [], t = Date.now(), raw = window.novelReader
+        // Every engine call gets its own limit: one hung source must not stop the sweep.
+        const limit = (p, ms, what) => Promise.race([p, new Promise((_, ko) => setTimeout(() => ko(new Error('timeout: ' + what)), ms))])
+        const nr = { miwayomiStatus: () => limit(raw.miwayomiStatus(), 8000, 'status'), miwayomiFetch: (path, m, b) => limit(raw.miwayomiFetch(path, m, b), /install|repo/.test(path) ? 60000 : /\/videos/.test(path) ? 70000 : 40000, path.split('?')[0].split('/').pop()) }
+        const fetch = (u, o) => limit(window.fetch(u, o).then(async r => { const hls = /\/hls\?/.test(u); const body = hls ? await r.text() : await r.arrayBuffer(); return { ok: r.ok, status: r.status, text: async () => body, arrayBuffer: async () => body } }), 30000, 'stream')
         const end = (ok, kind) => ({ ok, kind, steps, seconds: Math.round((Date.now() - t) / 1000) })
         try {
           for (let i = 0; i < 30; i++) { if ((await nr.miwayomiStatus()).online) break; await new Promise(r => setTimeout(r, 1000)) }
@@ -113,12 +117,14 @@ async function connect() {
             return end(good, hls ? 'hls' : /\.mpd/i.test(raw) ? 'dash' : 'file')
           } finally { await nr.miwayomiFetch('/api/v1/extensions/uninstall', 'POST', { pkg: s.pkg }).catch(() => {}) }
         } catch (e) { steps.push('error: ' + String(e && e.message || e).slice(0, 220)); return end(false) }
-      }, s)
+      }, s)])
       rows.push({ s, r })
       console.log(`  ${r.ok ? '✓' : '✗'} ${s.name} (${s.version}, ${r.seconds}s) ${r.steps.join(' → ')}`)
     }
     const ok = rows.filter(x => x.r.ok).length
     console.log(`=== SWEEP: ${ok}/${rows.length} work on Android (PC: ${rows.length}) ===`)
+    // Read by the Android app (Sources page): what works on a phone, not only on the PC.
+    require('fs').writeFileSync('shots/source-status-android.json', JSON.stringify({ at: new Date().toISOString(), tested: rows.length, results: rows.map(x => ({ name: x.s.name, pkg: x.s.pkg, version: x.s.version, state: x.r.ok ? 'ok' : 'dead', detail: x.r.steps.join(' → ') })) }))
     require('fs').writeFileSync('shots/sweep.json', JSON.stringify(rows.map(x => ({ name: x.s.name, version: x.s.version, ok: x.r.ok, steps: x.r.steps })), null, 1))
     console.log('=== engine errors ===')
     console.log(require('child_process').execSync("adb logcat -d | grep -E 'miwayomi\\] (Error|error|RxJava)|LinkageError|NoSuchMethod|NoClassDefFound|ClassNotFound|VerifyError' | tail -80").toString())
@@ -268,6 +274,43 @@ async function connect() {
   })
   console.log('cloudflare:', JSON.stringify(cf))
   if (!(cf.direct && cf.direct.real && cf.engine && cf.engine.real && cf.api && cf.api.body.includes('"ok":true'))) { console.error('Cloudflare solving failed on Android'); process.exit(1) }
+
+  // Offline videos (engine downloader): a small file through the engine, then read
+  // back with a byte range as the player does, listed, deleted.
+  const dl = await evaluate(async () => {
+    const nr = window.novelReader, out = {}
+    try {
+      const src = 'http://127.0.0.1:4567/api/v1/health'
+      const want = await (await fetch(src)).text()
+      const { id } = await nr.dlStart({ kind: 'series', mediaId: 'smoke', mediaName: 'Smoke', episodeUrl: '/e/1', episodeName: 'E1', episodeNo: 1, mediaKey: 'series:smoke:/e/1', candidates: [{ url: src, type: 'file', title: 'test', subtitles: [] }] })
+      let item
+      for (let i = 0; i < 40; i++) { item = (await nr.dlList()).find(x => x.id === id); if (item && (item.state === 'done' || item.state === 'error')) break; await new Promise(r => setTimeout(r, 500)) }
+      out.item = item && { state: item.state, file: item.file, size: item.size, error: item.error }
+      const base = await nr.dlBase()
+      const full = await fetch(base + '/' + id + '/' + item.file)
+      out.full = { status: full.status, same: (await full.text()) === want }
+      const part = await fetch(base + '/' + id + '/' + item.file, { headers: { Range: 'bytes=2-5' } })
+      const got = await part.text()
+      out.part = { status: part.status, same: got === want.slice(2, 6), range: part.headers.get('content-range'), got: got.slice(0, 80), want: want.slice(2, 6), type: part.headers.get('content-type') }
+      // Same range on an address the WebView has not cached, and once more from outside (adb).
+      const fresh = await fetch(base + '/' + id + '/' + item.file + '?fresh=1', { headers: { Range: 'bytes=2-5' } })
+      out.fresh = { status: fresh.status, got: (await fresh.text()).slice(0, 80) }
+      out.url = base + '/' + id + '/' + item.file
+      out.wantPart = want.slice(2, 6)
+      out.meta = (await fetch(base + '/' + id + '/meta.json')).status
+      out.usage = await nr.dlUsage()
+      out.id = id
+    } catch (e) { out.error = String(e && e.message || e) }
+    return out
+  })
+  try {
+    require('child_process').execSync('adb forward tcp:14567 tcp:4567')
+    const r = await fetch(String(dl.url).replace(':4567/', ':14567/'), { headers: { Range: 'bytes=2-5' } })
+    dl.outside = { status: r.status, got: (await r.text()).slice(0, 80), range: r.headers.get('content-range'), length: r.headers.get('content-length') }
+  } catch (e) { dl.outside = { error: String(e && e.message || e) } }
+  dl.left = await evaluate(async id => { await window.novelReader.dlRemove(id); return (await window.novelReader.dlList()).length }, dl.id)
+  console.log('downloads:', JSON.stringify(dl))
+  if (!(dl.item && dl.item.state === 'done' && dl.full && dl.full.same && dl.outside && dl.outside.status === 206 && dl.outside.got === dl.wantPart && dl.meta === 404 && dl.left === 0)) { console.error('Offline video downloads failed on Android'); process.exit(1) }
 
   // Cast: the engine looks for TVs on the network (none on the emulator; must not fail).
   const cs = await evaluate(async () => { const t = Date.now(); try { const l = await window.novelReader.castScan(); return { ok: true, tvs: l.length, seconds: Math.round((Date.now() - t) / 1000) } } catch (e) { return { ok: false, error: String(e.message || e) } } })

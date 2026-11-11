@@ -19,10 +19,10 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://plugins.test/testsrc.js', r => r.fulfill({ contentType: 'text/javascript', body: PLUGIN }))
   await page.route('https://novels.test/popular', r => r.fulfill({ contentType: 'text/html', body: '<a class="n" href="/novel/shadow">Shadow Slave</a><a class="n" href="/novel/lotm">Lord of the Mysteries</a>' }))
   await page.route('https://novels.test/novel/shadow', r => r.fulfill({ contentType: 'text/html', body: '<h1>Shadow Slave</h1><p class="s">A boy and his shadow.</p><a class="c" href="/c/1">Chapter 1</a><a class="c" href="/c/2">Chapter 2</a>' }))
-  await page.addInitScript(() => {
+  await page.addInitScript((notes) => {
     (window as any).Capacitor = { getPlatform: () => 'android', isNativePlatform: () => true }
-    if (!sessionStorage.getItem('__seeded')) { localStorage.clear(); localStorage.setItem('onboarded', '1'); localStorage.setItem('lang', 'en'); localStorage.setItem('enabledPlugins', JSON.stringify(['testsrc'])); sessionStorage.setItem('__seeded', '1') }
-  })
+    if (!sessionStorage.getItem('__seeded')) { localStorage.clear(); localStorage.setItem('onboarded', '1'); localStorage.setItem('whatsNewSeen', notes); localStorage.setItem('lang', 'en'); localStorage.setItem('enabledPlugins', JSON.stringify(['testsrc'])); sessionStorage.setItem('__seeded', '1') }
+  }, (/^##\s*NovelReader\s+([\d.]+)/m.exec(fs.readFileSync('build/release-notes.md', 'utf8')) || [])[1] || '')
 })
 
 test('Android: book sources run in the app, search, open a novel, read a chapter, keep it offline', async ({ page }) => {
@@ -204,7 +204,7 @@ test('Android: phone navigation fits the screen and gets out of the way to read'
   await expect(page.locator('.m-sheet')).toContainText('Settings')
   await expect(page.locator('.m-sheet')).not.toContainText('Local Videos')
   await expect(page.locator('.m-sheet')).not.toContainText('Internet Archive')
-  await expect(page.locator('.m-sheet')).not.toContainText('Downloads')
+  await expect(page.locator('.m-sheet')).toContainText('Downloads')
   await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
   await expect(page.locator('main')).toContainText('Like the phone')
   await expect(page.locator('main')).not.toContainText('Windows notification')
@@ -267,4 +267,124 @@ test('Android tablet: the left menu folds and unfolds', async ({ page }) => {
   await expect(side.getByText('Global Search')).toBeVisible()
   await expect.poll(width).toBeGreaterThan(180)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
+})
+
+test('Android: a source that fails on a phone is marked as failing, whatever the PC check says', async ({ page }) => {
+  const S = 'https://github.com/madaratn/NovelReader-Windows/releases/download/source-status/'
+  await page.route(S + 'source-status.json', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ at: '2026-11-10T00:00:00Z', results: [{ name: 'Good', pkg: 'p.good', state: 'ok', detail: '' }, { name: 'PcOnly', pkg: 'p.pconly', state: 'ok', detail: '' }, { name: 'Untested', pkg: 'p.untested', state: 'partial', detail: 'x' }] }) }))
+  await page.route(S + 'source-status-android.json', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ at: '2026-11-11T00:00:00Z', tested: 2, results: [{ name: 'Good', pkg: 'p.good', state: 'ok', detail: '' }, { name: 'PcOnly', pkg: 'p.pconly', state: 'dead', detail: '12 titles → no stream' }, { name: 'Untested', pkg: 'p.untested', state: 'dead', detail: '30 titles → error: timeout: videos' }] }) }))
+  await page.goto('/')
+  await page.waitForFunction(() => !!(window as any).novelReader?.sourceStatus)
+  const st = await page.evaluate(() => (window as any).novelReader.sourceStatus())
+  expect(st.results.map((r: any) => r.state)).toEqual(['ok', 'dead', 'partial'])
+  expect(st.results[1].detail).toBe('On Android: 12 titles → no stream')
+  // No phone sweep published yet: the PC check is used as it is.
+  await page.unroute(S + 'source-status-android.json')
+  await page.route(S + 'source-status-android.json', r => r.fulfill({ status: 404, body: '' }))
+  const pc = await page.evaluate(() => (window as any).novelReader.sourceStatus())
+  expect(pc.results.map((r: any) => r.state)).toEqual(['ok', 'ok', 'partial'])
+})
+
+test('Android: sync with the PC through the file the PC wrote (library, positions), and back', async ({ page }) => {
+  // The file as the PC left it in the cloud folder.
+  const pcFile = { app: 'NovelReader', version: 1, at: Date.now() - 60000, deviceId: 'pc1', deviceName: 'PC-SALON', data: {
+    seriesLibrary: JSON.stringify([{ id: 'series1', name: 'Lanterns', sourceId: '42', sourceName: 'Mapple', url: '/series/1', episodes: 2, addedAt: Date.now() - 90000 }]),
+    'reading:n1': JSON.stringify({ chapter: 3, at: Date.now() - 80000 }) } }
+  await page.addInitScript((file) => {
+    const w = window as any
+    w.__file = { picked: false, text: JSON.stringify(file), writes: 0 }
+    w.Capacitor.Plugins = { ...(w.Capacitor.Plugins || {}), Sync: {
+      status: async () => ({ enabled: w.__file.picked, file: w.__file.picked ? 'library-sync.json' : null, deviceName: 'Google Pixel 8' }),
+      choose: async () => { w.__file.picked = true; return {} },
+      read: async () => ({ text: w.__file.text }),
+      write: async ({ text }: any) => { w.__file.text = text; w.__file.writes++; return {} },
+      disable: async () => { w.__file.picked = false; return {} } } }
+  }, pcFile)
+  await page.goto('/')
+  await page.evaluate(() => { localStorage.setItem('animeLibrary', JSON.stringify([{ id: 'a1', name: 'Phone Anime', sourceId: '7', sourceName: 'S', url: '/a/1', episodes: 1, addedAt: Date.now() }])) })
+  await page.locator('.m-bottom').getByRole('button', { name: 'More' }).click()
+  await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
+  const block = page.locator('.settings-block', { hasText: 'Sync with your PC' })
+  await block.getByRole('button', { name: 'Choose the sync file…' }).click()
+  await expect(block).toContainText('library-sync.json')
+  await expect(block).toContainText('Last synced')
+  // The PC's series arrived here; the phone's anime went into the file, signed by the phone.
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('seriesLibrary') || '[]').map((x: any) => x.name))).toEqual(['Lanterns'])
+  expect(await page.evaluate(() => localStorage.getItem('reading:n1'))).toContain('"chapter":3')
+  const written = JSON.parse(await page.evaluate(() => (window as any).__file.text))
+  expect(written.app).toBe('NovelReader'); expect(written.deviceName).toBe('Google Pixel 8'); expect(written.deviceId).not.toBe('pc1')
+  expect(JSON.parse(written.data.animeLibrary).map((x: any) => x.name)).toEqual(['Phone Anime'])
+  expect(JSON.parse(written.data.seriesLibrary).map((x: any) => x.name)).toEqual(['Lanterns'])
+  // A file that is not NovelReader's is refused, nothing is overwritten.
+  await page.evaluate(() => { (window as any).__file.text = '{"hello":1}'; (window as any).__file.writes = 0 })
+  await block.getByRole('button', { name: 'Sync now' }).click()
+  await expect(block.getByRole('alert')).toContainText('not a NovelReader file')
+  await block.getByRole('button', { name: 'Stop syncing' }).click()
+  await expect(block.getByRole('button', { name: 'Choose the sync file…' })).toBeVisible()
+})
+
+test('Android: videos can be kept offline (Downloads page, engine calls, wording without "PC")', async ({ page }) => {
+  const calls: string[] = []
+  const item = { id: 'series_s1_abc', kind: 'series', mediaId: 's1', mediaName: 'Lanterns', episodeUrl: '/ep/1', episodeName: 'S1 E1', episodeNo: 1, mediaKey: 'series:s1:/ep/1', state: 'done', progress: 1, size: 52428800, type: 'hls', file: 'index.m3u8', title: '720p', subtitles: [], createdAt: 2, finishedAt: 3 }
+  const running = { ...item, id: 'series_s1_def', episodeUrl: '/ep/2', episodeName: 'S1 E2', episodeNo: 2, state: 'downloading', progress: 0.4, bytes: 1000, file: '', size: 0 }
+  let list: any[] = [item, running]
+  await page.route('http://127.0.0.1:4567/api/v1/**', async r => {
+    const u = new URL(r.request().url()), p = u.pathname.replace('/api/v1/', '')
+    calls.push(r.request().method() + ' ' + p + (r.request().postData() ? ' ' + r.request().postData() : ''))
+    const json = (b: any) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) })
+    if (p === 'dl/list') return json(list)
+    if (p === 'dl/usage') return json({ bytes: 52428800, count: 1, folder: '/x' })
+    if (p === 'dl/version') return json({ version: list.length })
+    if (p === 'dl/remove') { list = list.filter(x => x.id !== JSON.parse(r.request().postData() || '{}').id); return json({ ok: true }) }
+    if (p === 'dl/cancel') { list = list.filter(x => x.id !== JSON.parse(r.request().postData() || '{}').id); return json({ ok: true }) }
+    if (p === 'health') return json({ status: 'ok' })
+    if (p === 'sources') return json({ manga: [], anime: [] })
+    return json({})
+  })
+  await page.goto('/')
+  await page.evaluate(() => { localStorage.setItem('mode', 'series'); localStorage.setItem('lastPage:series', 'downloads') })
+  await page.reload()
+  const main = page.locator('main')
+  await expect(main).toContainText('Episodes and movies saved on this device.')
+  await expect(main).toContainText('Lanterns')
+  await expect(main).toContainText('S1 E1')
+  await expect(main).toContainText('1 video · 52.4 MB')
+  await expect(main.getByRole('button', { name: 'Open folder' })).toHaveCount(0)
+  expect(await page.evaluate(() => (window as any).novelReader.dlBase())).toBe('http://127.0.0.1:4567/api/v1/dl/file')
+  // The numbers reach the engine in the form it reads (whole numbers, episode number as a number).
+  await page.evaluate(() => (window as any).novelReader.dlConfigure({ maxHeight: 720, limit: 1048576.4 }))
+  expect(calls).toContain('POST dl/configure {"maxHeight":720,"limit":1048576}')
+  // An engine refusal is shown as its own sentence.
+  await page.unroute('http://127.0.0.1:4567/api/v1/**')
+  await page.route('http://127.0.0.1:4567/api/v1/dl/start', r => r.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'This episode has no stream that can be downloaded.' }) }))
+  const err = await page.evaluate(() => (window as any).novelReader.dlStart({ kind: 'series', mediaId: 's1', episodeUrl: '/e', candidates: [] }).then(() => '', (e: any) => e.message))
+  expect(err).toBe('This episode has no stream that can be downloaded.')
+})
+
+test('Android: notifications setting, and the list of titles checked while the app is closed', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as any
+    w.__n = { asked: 0, shown: [] as any[], watch: [] as any[] }
+    w.Capacitor.Plugins = { ...(w.Capacitor.Plugins || {}), Notify: {
+      status: async () => ({ granted: true }), request: async () => { w.__n.asked++; return { granted: true } },
+      show: async (o: any) => { w.__n.shown.push(o); return {} }, watch: async (o: any) => { w.__n.watch.push(o); return {} } } }
+    if (!localStorage.getItem('seriesLibrary')) {
+      localStorage.setItem('seriesLibrary', JSON.stringify([{ id: 's1', name: 'Lanterns', sourceId: '42', url: '/series/1', episodes: 10 }, { id: 's2', name: 'Dropped', sourceId: '42', url: '/series/2', episodes: 4, shelf: 'dropped' }, { id: 's3', name: 'Tunisian', sourceId: '777000000000000216', url: 'pl:x', episodes: 3 }]))
+      localStorage.setItem('animeLibrary', JSON.stringify([{ id: 'a1', title: 'Frieren', sourceId: '7', path: '/a/1', episodes: 28 }]))
+    }
+  })
+  await page.goto('/')
+  // The library goes to the closed-app check: no dropped title, no YouTube source; permission asked once.
+  await expect.poll(() => page.evaluate(() => (window as any).__n.watch.length), { timeout: 10000 }).toBeGreaterThan(0)
+  const w = await page.evaluate(() => (window as any).__n.watch.at(-1))
+  expect(w.enabled).toBe(true)
+  expect(JSON.parse(w.items)).toEqual([{ name: 'Frieren', sourceId: '7', url: '/a/1', episodes: 28 }, { name: 'Lanterns', sourceId: '42', url: '/series/1', episodes: 10 }])
+  expect(await page.evaluate(() => (window as any).__n.asked)).toBe(1)
+  // Settings: the choice exists on Android, without the word "Windows"; turning it off stops the check.
+  await page.locator('.m-bottom').getByRole('button', { name: 'More' }).click()
+  await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
+  const box = page.getByLabel('Show a notification when new episodes are found')
+  await expect(box).toBeChecked()
+  await box.uncheck()
+  await expect.poll(() => page.evaluate(() => (window as any).__n.watch.at(-1).enabled), { timeout: 10000 }).toBe(false)
 })

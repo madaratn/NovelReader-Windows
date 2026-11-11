@@ -65,7 +65,7 @@ export function useFolderSync({ library, onLibrary }: { library: any[], onLibrar
   const first = useRef(true)
   useEffect(() => { if (first.current) { first.current = false; return } const tm = setTimeout(() => syncRef.current(), 10_000); return () => clearTimeout(tm) }, [library])
 
-  const choose = async () => { try { const s = await api.syncChoose(); setSt(x => ({ ...x, status: s, error: '' })); if (s?.enabled) await syncRef.current() } catch (e: any) { setSt(x => ({ ...x, error: String(e?.message || e).replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/, '') })) } }
+  const choose = async (create?: any) => { try { const s = await api.syncChoose(create === true); setSt(x => ({ ...x, status: s, error: '' })); if (s?.enabled) await syncRef.current() } catch (e: any) { setSt(x => ({ ...x, error: String(e?.message || e).replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/, '') })) } }
   const disable = async () => { const s = await api.syncDisable(); setSt(x => ({ ...x, status: s })) }
   return { ...st, syncNow, choose, disable }
 }
@@ -74,6 +74,17 @@ export type FolderSync = ReturnType<typeof useFolderSync>
 
 export function SyncSettings({ sync }: { sync: FolderSync }) {
   const s = sync.status
+  // Phone / tablet: the file itself is picked (Android has no shared folders), the
+  // one the PC wrote in Google Drive or OneDrive.
+  if (document.documentElement.classList.contains('android')) return <section className="panel settings-block"><h2>{t('Sync with your PC')}</h2>
+    <p className="settings-help">{t('Your library, reading positions, notes, videos and where you stopped watching, shared between this device and your PC. On the PC, turn on sync in Settings with a Google Drive or OneDrive folder. Then choose here the file library-sync.json it wrote in the NovelReader folder.')}</p>
+    {!s?.enabled ? <div className="libraryactions"><button className="primary" onClick={() => sync.choose()}>{t('Choose the sync file…')}</button><button onClick={() => sync.choose(true)}>{t('No PC yet: create the file…')}</button></div> : <>
+      <p className="settings-help sync-line"><b>{t('File:')}</b> <code>{s.file}</code></p>
+      <p className="settings-help sync-line">{sync.running ? <><span className="spinner" aria-hidden="true" />{t('Syncing…')}</> : sync.lastAt ? t('Last synced {when}.', { when: timeAgo(sync.lastAt) }) : t('Not synced yet.')}{s.remote && s.remote.deviceId !== s.deviceId ? ' ' + t('Latest changes from {pc}, {when}.', { pc: s.remote.deviceName, when: timeAgo(s.remote.at) }) : ''}</p>
+      <div className="libraryactions"><button className="primary" disabled={sync.running} onClick={sync.syncNow}>{t('Sync now')}</button><button onClick={() => sync.choose()}>{t('Change file…')}</button><button onClick={sync.disable}>{t('Stop syncing')}</button></div>
+    </>}
+    {sync.error && <div className="anime-toast error" role="alert"><NoticeText text={t(sync.error)} /></div>}
+  </section>
   return <section className="panel settings-block"><h2>{t('Sync between PCs')}</h2>
     <p className="settings-help">{t('Choose a folder that your cloud service keeps in sync (OneDrive, Google Drive, Dropbox…). NovelReader keeps your library, reading positions, bookmarks, notes, anime, series, movies and where you stopped watching there, and merges the changes made on each PC. Preferences such as theme and language stay on each PC.')}</p>
     {!s?.enabled ? <div className="libraryactions"><button className="primary" onClick={sync.choose}>{t('Choose a synced folder…')}</button></div> : <>

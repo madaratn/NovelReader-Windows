@@ -81,3 +81,24 @@ test('cast: no TV found explains what to check', async ({ page }) => {
   await page.getByRole('button', { name: /📺 Cast/ }).click()
   await expect(page.locator('.cast-menu')).toContainText('No TV found. Check that the TV is on and on the same Wi-Fi as this PC')
 })
+
+test('touch: two quick taps on a side of the video go 10 s back or forward; one tap or the middle do nothing', async ({ page }) => {
+  await open(page)
+  await expect.poll(() => video(page).evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThan(2)
+  await video(page).evaluate((v: HTMLVideoElement) => { v.pause(); v.currentTime = 2 })
+  const tap = (fx: number, fy = 0.4) => video(page).evaluate((v: HTMLVideoElement, [fx, fy]) => {
+    const r = v.getBoundingClientRect(), t = new Touch({ identifier: 1, target: v, clientX: r.left + r.width * fx, clientY: r.top + r.height * fy })
+    v.dispatchEvent(new TouchEvent('touchend', { changedTouches: [t], bubbles: true, cancelable: true }))
+  }, [fx, fy])
+  const time = () => video(page).evaluate((v: HTMLVideoElement) => Math.round(v.currentTime))
+  await tap(0.9); await tap(0.9)
+  await expect.poll(time).toBe(12)
+  await expect(page.locator('.seek-flash.forward')).toHaveText('10 s »')
+  await tap(0.1); await tap(0.1)
+  await expect.poll(time).toBe(2)
+  await tap(0.1)                       // one tap only
+  await tap(0.5); await tap(0.5)       // middle
+  await tap(0.9, 0.95); await tap(0.9, 0.95) // seek bar strip
+  await page.waitForTimeout(200)
+  expect(await time()).toBe(2)
+})
