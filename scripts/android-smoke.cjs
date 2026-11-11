@@ -292,15 +292,25 @@ async function connect() {
       const part = await fetch(base + '/' + id + '/' + item.file, { headers: { Range: 'bytes=2-5' } })
       const got = await part.text()
       out.part = { status: part.status, same: got === want.slice(2, 6), range: part.headers.get('content-range'), got: got.slice(0, 80), want: want.slice(2, 6), type: part.headers.get('content-type') }
+      // Same range on an address the WebView has not cached, and once more from outside (adb).
+      const fresh = await fetch(base + '/' + id + '/' + item.file + '?fresh=1', { headers: { Range: 'bytes=2-5' } })
+      out.fresh = { status: fresh.status, got: (await fresh.text()).slice(0, 80) }
+      out.url = base + '/' + id + '/' + item.file
+      out.wantPart = want.slice(2, 6)
       out.meta = (await fetch(base + '/' + id + '/meta.json')).status
       out.usage = await nr.dlUsage()
-      await nr.dlRemove(id)
-      out.left = (await nr.dlList()).length
+      out.id = id
     } catch (e) { out.error = String(e && e.message || e) }
     return out
   })
+  try {
+    require('child_process').execSync('adb forward tcp:14567 tcp:4567')
+    const r = await fetch(String(dl.url).replace(':4567/', ':14567/'), { headers: { Range: 'bytes=2-5' } })
+    dl.outside = { status: r.status, got: (await r.text()).slice(0, 80), range: r.headers.get('content-range'), length: r.headers.get('content-length') }
+  } catch (e) { dl.outside = { error: String(e && e.message || e) } }
+  dl.left = await evaluate(async id => { await window.novelReader.dlRemove(id); return (await window.novelReader.dlList()).length }, dl.id)
   console.log('downloads:', JSON.stringify(dl))
-  if (!(dl.item && dl.item.state === 'done' && dl.full && dl.full.same && dl.part && dl.part.status === 206 && dl.part.same && dl.meta === 404 && dl.left === 0)) { console.error('Offline video downloads failed on Android'); process.exit(1) }
+  if (!(dl.item && dl.item.state === 'done' && dl.full && dl.full.same && dl.outside && dl.outside.status === 206 && dl.outside.got === dl.wantPart && dl.meta === 404 && dl.left === 0)) { console.error('Offline video downloads failed on Android'); process.exit(1) }
 
   // Cast: the engine looks for TVs on the network (none on the emulator; must not fail).
   const cs = await evaluate(async () => { const t = Date.now(); try { const l = await window.novelReader.castScan(); return { ok: true, tvs: l.length, seconds: Math.round((Date.now() - t) / 1000) } } catch (e) { return { ok: false, error: String(e.message || e) } } })
