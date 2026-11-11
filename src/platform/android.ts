@@ -84,8 +84,13 @@ async function sourceStatus(){
  const[pc,phone]=await Promise.all([get('source-status.json'),get('source-status-android.json')])
  return mergePhoneStatus(pc,phone)}
 
-export function installAndroidBridge(version:string){
+// iPhone / iPad: the same phone interface. Apple does not let an app run the video
+// extensions (Android code), so there is no video engine in the app there: books,
+// and the sources the interface serves itself (Tunisian TV).
+const noEngine=async()=>{throw Error('The video engine is not available on iPhone.')}
+export function installAndroidBridge(version:string,ios=false){
  document.documentElement.classList.add('android')
+ if(ios)document.documentElement.classList.add('ios')
  const impl:Record<string,any>={
   platform:'android',
   searchPlugin:(p:any,q:string)=>plugins.search(p,q),
@@ -95,14 +100,11 @@ export function installAndroidBridge(version:string){
   translate,
   appVersion:async()=>version,
   offlineSave:offline.save,offlineGet:offline.get,offlineList:offline.list,offlineRemove:offline.remove,offlineUsage:offline.usage,offlineClear:offline.clear,
-  miwayomiStatus,miwayomiFetch,
-  ...createAndroidUpdater(version),
+  ...(ios?{miwayomiStatus:async()=>({online:false,ios:true,baseUrl:'',error:'The video engine is not available on iPhone.'}),miwayomiFetch:noEngine}
+   :{miwayomiStatus,miwayomiFetch,...createAndroidUpdater(version),...androidSync,...downloads,...cast}),
   subsSearch,subsFetch,
-  ...androidSync,
-  ...downloads,
-  ...cast,
   takeDeepLink:async()=>'',inviteBase:async()=>'',onDeepLink:()=>()=>{},
-  sourceStatus,
+  sourceStatus:ios?async()=>null:sourceStatus,
   backupAuto:async()=>({ok:false}),
  }
  // Anything else (PC-only features: cast, downloads, AniList windows…) is absent, so the

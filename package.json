@@ -23,6 +23,7 @@
     "apk": "npm run build:android && python3 scripts/android-engine.py && npx cap sync android && cd android && ./gradlew assembleRelease"
   },
   "dependencies": {
+    "@capacitor/ios": "^6.2.3",
     "castv2-client": "^1.2.0",
     "cheerio": "^1.1.2",
     "dayjs": "^1.11.13",

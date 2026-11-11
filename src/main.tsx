@@ -368,9 +368,9 @@ const installAnimeSource=async(src:any)=>{setAnimeNotice(null);try{const pkg=src
 }
 // Android, step 1: videos are not there yet.
 // Android (Capacitor): the PC side is replaced by src/platform/android.ts.
-const IS_ANDROID=(window as any).Capacitor?.getPlatform?.()==='android'
+const DEVICE=(window as any).Capacitor?.isNativePlatform?.()?(window as any).Capacitor?.getPlatform?.():''
 ;(async()=>{
- if(IS_ANDROID){const m=await import('./platform/android');m.installAndroidBridge(__APP_VERSION__)}
+ if(DEVICE==='android'||DEVICE==='ios'){const m=await import('./platform/android');m.installAndroidBridge(__APP_VERSION__,DEVICE==='ios')}
  captureUiLogs()
  createRoot(document.getElementById('root')!).render(<ErrorBoundary full><App/></ErrorBoundary>)
 })()
