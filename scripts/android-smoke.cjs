@@ -178,7 +178,7 @@ async function connect() {
     console.log('=== DIAG ' + process.env.DIAG_SOURCE + ' ===')
     for (const l of d) console.log('  ' + l)
     console.log('=== engine log ===')
-    console.log(require('child_process').execSync("adb logcat -d | grep -iE 'miwayomi|System.err|AndroidRuntime' | grep -v 'Handling local' | tail -120").toString())
+    console.log(require('child_process').execSync("adb logcat -d | grep -E '\\[miwayomi\\]|\\[novelreader\\]|System\\.err|AndroidRuntime' | grep -vE 'Handling local|SLF4J' | tail -200").toString())
   }
 
   // ---- Videos: the engine inside the app, with real extensions ----
