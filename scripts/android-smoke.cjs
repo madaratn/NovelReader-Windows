@@ -275,6 +275,32 @@ async function connect() {
   console.log('cloudflare:', JSON.stringify(cf))
   if (!(cf.direct && cf.direct.real && cf.engine && cf.engine.real && cf.api && cf.api.body.includes('"ok":true'))) { console.error('Cloudflare solving failed on Android'); process.exit(1) }
 
+  // Offline videos (engine downloader): a small file through the engine, then read
+  // back with a byte range as the player does, listed, deleted.
+  const dl = await evaluate(async () => {
+    const nr = window.novelReader, out = {}
+    try {
+      const src = 'http://127.0.0.1:4567/api/v1/health'
+      const want = await (await fetch(src)).text()
+      const { id } = await nr.dlStart({ kind: 'series', mediaId: 'smoke', mediaName: 'Smoke', episodeUrl: '/e/1', episodeName: 'E1', episodeNo: 1, mediaKey: 'series:smoke:/e/1', candidates: [{ url: src, type: 'file', title: 'test', subtitles: [] }] })
+      let item
+      for (let i = 0; i < 40; i++) { item = (await nr.dlList()).find(x => x.id === id); if (item && (item.state === 'done' || item.state === 'error')) break; await new Promise(r => setTimeout(r, 500)) }
+      out.item = item && { state: item.state, file: item.file, size: item.size, error: item.error }
+      const base = await nr.dlBase()
+      const full = await fetch(base + '/' + id + '/' + item.file)
+      out.full = { status: full.status, same: (await full.text()) === want }
+      const part = await fetch(base + '/' + id + '/' + item.file, { headers: { Range: 'bytes=2-5' } })
+      out.part = { status: part.status, same: (await part.text()) === want.slice(2, 6), range: part.headers.get('content-range') }
+      out.meta = (await fetch(base + '/' + id + '/meta.json')).status
+      out.usage = await nr.dlUsage()
+      await nr.dlRemove(id)
+      out.left = (await nr.dlList()).length
+    } catch (e) { out.error = String(e && e.message || e) }
+    return out
+  })
+  console.log('downloads:', JSON.stringify(dl))
+  if (!(dl.item && dl.item.state === 'done' && dl.full && dl.full.same && dl.part && dl.part.status === 206 && dl.part.same && dl.meta === 404 && dl.left === 0)) { console.error('Offline video downloads failed on Android'); process.exit(1) }
+
   // Cast: the engine looks for TVs on the network (none on the emulator; must not fail).
   const cs = await evaluate(async () => { const t = Date.now(); try { const l = await window.novelReader.castScan(); return { ok: true, tvs: l.length, seconds: Math.round((Date.now() - t) / 1000) } } catch (e) { return { ok: false, error: String(e.message || e) } } })
   console.log('cast scan:', JSON.stringify(cs))
