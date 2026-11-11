@@ -360,3 +360,31 @@ test('Android: videos can be kept offline (Downloads page, engine calls, wording
   const err = await page.evaluate(() => (window as any).novelReader.dlStart({ kind: 'series', mediaId: 's1', episodeUrl: '/e', candidates: [] }).then(() => '', (e: any) => e.message))
   expect(err).toBe('This episode has no stream that can be downloaded.')
 })
+
+test('Android: notifications setting, and the list of titles checked while the app is closed', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as any
+    w.__n = { asked: 0, shown: [] as any[], watch: [] as any[] }
+    w.Capacitor.Plugins = { ...(w.Capacitor.Plugins || {}), Notify: {
+      status: async () => ({ granted: true }), request: async () => { w.__n.asked++; return { granted: true } },
+      show: async (o: any) => { w.__n.shown.push(o); return {} }, watch: async (o: any) => { w.__n.watch.push(o); return {} } } }
+    if (!localStorage.getItem('seriesLibrary')) {
+      localStorage.setItem('seriesLibrary', JSON.stringify([{ id: 's1', name: 'Lanterns', sourceId: '42', url: '/series/1', episodes: 10 }, { id: 's2', name: 'Dropped', sourceId: '42', url: '/series/2', episodes: 4, shelf: 'dropped' }, { id: 's3', name: 'Tunisian', sourceId: '777000000000000216', url: 'pl:x', episodes: 3 }]))
+      localStorage.setItem('animeLibrary', JSON.stringify([{ id: 'a1', title: 'Frieren', sourceId: '7', path: '/a/1', episodes: 28 }]))
+    }
+  })
+  await page.goto('/')
+  // The library goes to the closed-app check: no dropped title, no YouTube source; permission asked once.
+  await expect.poll(() => page.evaluate(() => (window as any).__n.watch.length), { timeout: 10000 }).toBeGreaterThan(0)
+  const w = await page.evaluate(() => (window as any).__n.watch.at(-1))
+  expect(w.enabled).toBe(true)
+  expect(JSON.parse(w.items)).toEqual([{ name: 'Frieren', sourceId: '7', url: '/a/1', episodes: 28 }, { name: 'Lanterns', sourceId: '42', url: '/series/1', episodes: 10 }])
+  expect(await page.evaluate(() => (window as any).__n.asked)).toBe(1)
+  // Settings: the choice exists on Android, without the word "Windows"; turning it off stops the check.
+  await page.locator('.m-bottom').getByRole('button', { name: 'More' }).click()
+  await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
+  const box = page.getByLabel('Show a notification when new episodes are found')
+  await expect(box).toBeChecked()
+  await box.uncheck()
+  await expect.poll(() => page.evaluate(() => (window as any).__n.watch.at(-1).enabled), { timeout: 10000 }).toBe(false)
+})
