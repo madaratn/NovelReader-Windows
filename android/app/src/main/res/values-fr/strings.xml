@@ -7,4 +7,8 @@
         <item quantity="one">%d titre a de nouveaux épisodes</item>
         <item quantity="other">%d titres ont de nouveaux épisodes</item>
     </plurals>
+    <plurals name="new_chapters">
+        <item quantity="one">%d roman a de nouveaux chapitres</item>
+        <item quantity="other">%d romans ont de nouveaux chapitres</item>
+    </plurals>
 </resources>

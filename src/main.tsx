@@ -254,8 +254,8 @@ useEffect(()=>{const load=(k:string)=>{try{return JSON.parse(localStorage.getIte
 // Android: the titles to check for new episodes while the app is closed (and Android's
 // permission, asked once the library has something to watch).
 useEffect(()=>{if(!deviceNotify())return;const push=()=>syncWatchlist([animeLibrary,seriesLibrary]);push()
- if((animeLibrary.length||seriesLibrary.length)&&lsGet('notifyNewEpisodes')!=='0'&&!lsGet('notifyAsked')){lsSet('notifyAsked','1');askNotifications()}
- window.addEventListener('nr-watchlist',push);return()=>window.removeEventListener('nr-watchlist',push)},[animeLibrary,seriesLibrary])
+ if((animeLibrary.length&&lsGet('notifyNewEpisodes')!=='0'||seriesLibrary.length&&lsGet('notifyNewEpisodes')!=='0'||library.length&&lsGet('notifyNewChapters')!=='0')&&!lsGet('notifyAsked')){lsSet('notifyAsked','1');askNotifications()}
+ window.addEventListener('nr-watchlist',push);return()=>window.removeEventListener('nr-watchlist',push)},[animeLibrary,seriesLibrary,library.length])
 // Waits for the video engine; respects the setting; notifies only when NovelReader is in the background.
 const videoLibsRef=useRef<{anime:any[],series:any[]}>({anime:[],series:[]});videoLibsRef.current={anime:animeLibrary,series:seriesLibrary}
 useEffect(()=>{let stopped=false,timer:any
@@ -381,6 +381,8 @@ const installAnimeSource=async(src:any)=>{setAnimeNotice(null);try{const pkg=src
 // Android (Capacitor): the PC side is replaced by src/platform/android.ts.
 const DEVICE=(window as any).Capacitor?.isNativePlatform?.()?(window as any).Capacitor?.getPlatform?.():''
 ;(async()=>{
+ // Android, app closed: the hidden page that looks for new chapters (ChapterCheck.java).
+ if(location.hash==='#bg-chapters'&&(window as any).NRBackground){(await import('./platform/bg-chapters')).runBackgroundChapters();return}
  if(DEVICE==='android'||DEVICE==='ios'){const m=await import('./platform/android');m.installAndroidBridge(__APP_VERSION__,DEVICE==='ios')}
  captureUiLogs()
  // Build-time self-test (CI, iPhone simulator): only YouTube's player, to see on a

@@ -77,6 +77,18 @@ public class NotifyPlugin extends Plugin {
         call.resolve(state());
     }
 
+    /** Runs the closed-app chapter check now and returns what it found (tests, "check now"). */
+    @PluginMethod
+    public void chaptersNow(PluginCall call) {
+        new Thread(() -> {
+            org.json.JSONObject r = ChapterCheck.run(getContext(), 3 * 60 * 1000);
+            JSObject out = new JSObject();
+            out.put("ok", r != null);
+            out.put("result", r == null ? null : r.toString());
+            call.resolve(out);
+        }).start();
+    }
+
     /** The titles to check while the app is closed ([] or enabled=false stops the check). */
     @PluginMethod
     public void watch(PluginCall call) {
@@ -85,7 +97,7 @@ public class NotifyPlugin extends Plugin {
         try (FileOutputStream out = new FileOutputStream(watchFile(getContext()))) { out.write(items.getBytes(StandardCharsets.UTF_8)); }
         catch (Exception e) { call.reject(String.valueOf(e.getMessage())); return; }
         WorkManager wm = WorkManager.getInstance(getContext());
-        if (!enabled || items.length() < 5) wm.cancelUniqueWork(WORK);
+        if (!enabled) wm.cancelUniqueWork(WORK);
         else wm.enqueueUniquePeriodicWork(WORK, ExistingPeriodicWorkPolicy.KEEP,
             new PeriodicWorkRequest.Builder(EpisodeCheckWorker.class, 6, TimeUnit.HOURS)
                 .setInitialDelay(6, TimeUnit.HOURS)

@@ -67,7 +67,7 @@ export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onSh
   </section>}
   <section className="panel settings-block"><h2>{t('New chapters')}</h2>
    <label className="settings-check"><input type="checkbox" checked={autoCheck} onChange={e=>{setAutoCheck(e.target.checked);lsSet('autoCheckUpdates',e.target.checked?'1':'0')}}/> {t('Check my library for new chapters when NovelReader starts (at most every 12 hours)')}</label>
-   {(!android||deviceNotify())&&<label className="settings-check"><input type="checkbox" checked={notify} onChange={e=>{setNotify(e.target.checked);lsSet('notifyNewChapters',e.target.checked?'1':'0');if(e.target.checked)askNotifications()}}/> {t('Show a Windows notification when new chapters are found')}</label>}
+   {(!android||deviceNotify())&&<label className="settings-check"><input type="checkbox" checked={notify} onChange={e=>{setNotify(e.target.checked);lsSet('notifyNewChapters',e.target.checked?'1':'0');if(e.target.checked)askNotifications();window.dispatchEvent(new Event('nr-watchlist'))}}/> {t('Show a Windows notification when new chapters are found')}</label>}
   </section>
   <section className="panel settings-block"><h2>{t('New episodes')}</h2>
    <label className="settings-check"><input type="checkbox" checked={autoEp} onChange={e=>{setAutoEp(e.target.checked);lsSet('autoCheckEpisodes',e.target.checked?'1':'0');window.dispatchEvent(new Event('nr-watchlist'))}}/> {t('Check my anime and series for new episodes in the background (every 6 hours)')}</label>

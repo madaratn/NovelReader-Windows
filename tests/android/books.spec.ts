@@ -496,3 +496,40 @@ test('Android: backup saved to a file the person chooses, and restored from one'
   await block.getByRole('button', { name: 'Restore from a file…' }).click()
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('library') || '[]').map((x: any) => x.name))).toEqual(['Lord of the Mysteries'])
 })
+
+test('Android, app closed: the hidden page finds the novels with new chapters, once, through the native bridge', async ({ page }) => {
+  // The host (ChapterCheck.java) seen from the page: web requests and the final report.
+  await page.addInitScript(() => {
+    const w = window as any, real = window.fetch.bind(window)
+    w.Capacitor = undefined
+    w.__bg = { done: null as any, http: [] as string[] }
+    w.NRBackground = {
+      http: (id: number, json: string) => { const q = JSON.parse(json); w.__bg.http.push(q.method + ' ' + q.url)
+        real(q.url, { method: q.method, headers: q.headers, body: q.body || undefined }).then(async (r: Response) => { const b = new Uint8Array(await r.arrayBuffer()); let s = ''; b.forEach(x => { s += String.fromCharCode(x) }); const h: any = {}; r.headers.forEach((v, k) => { h[k] = v }); w.__nrHttp(id, { status: r.status, headers: h, url: q.url, body: btoa(s) }) }, (e: any) => w.__nrHttp(id, { error: String(e) })) },
+      done: (json: string) => { w.__bg.done = JSON.parse(json) } }
+    const src = { id: 'testsrc', name: 'Test Source', url: 'https://plugins.test/testsrc.js', lang: 'English' }
+    if (!localStorage.getItem('library')) localStorage.setItem('library', JSON.stringify([
+      { id: 'n1', name: 'Shadow Slave', source: src, path: '/novel/shadow', chapters: [{ name: 'Chapter 1', path: '/c/1' }] },          // the site has more
+      { id: 'n2', name: 'Dropped', source: src, path: '/novel/shadow', chapters: [{ name: 'Chapter 1', path: '/c/1' }], shelf: 'dropped' },
+      { id: 'n3', name: 'Gone', source: src, path: '/novel/missing', chapters: [{ name: 'Chapter 1', path: '/c/1' }] }]))
+  })
+  await page.route('https://novels.test/novel/missing', r => r.fulfill({ status: 404, body: '' }))
+  await page.goto('/#bg-chapters')
+  await expect.poll(() => page.evaluate(() => (window as any).__bg.done), { timeout: 20000 }).not.toBeNull()
+  const first = await page.evaluate(() => (window as any).__bg)
+  expect(first.done.names).toEqual(['Shadow Slave'])
+  expect(first.http).toContain('GET https://novels.test/novel/shadow')
+  // The interface itself is not started in that page.
+  await expect(page.locator('.app')).toHaveCount(0)
+  // The app will run its own check as soon as it opens.
+  expect(await page.evaluate(() => localStorage.getItem('lastUpdateCheck'))).toBe('0')
+  // Six hours later, nothing changed on the site: nothing to announce.
+  await page.reload()
+  await expect.poll(() => page.evaluate(() => (window as any).__bg.done), { timeout: 20000 }).not.toBeNull()
+  expect(await page.evaluate(() => (window as any).__bg.done.names)).toEqual([])
+  // Turned off in Settings: no request at all.
+  await page.evaluate(() => localStorage.setItem('notifyNewChapters', '0'))
+  await page.reload()
+  await expect.poll(() => page.evaluate(() => (window as any).__bg.done), { timeout: 20000 }).not.toBeNull()
+  expect(await page.evaluate(() => (window as any).__bg)).toMatchObject({ done: { skipped: true, names: [] }, http: [] })
+})

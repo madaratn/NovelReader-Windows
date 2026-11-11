@@ -46,7 +46,7 @@ async function connect() {
         const text = ch ? await window.novelReader.parseChapter(p, ch.path) : ''
         const plain = String(text).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
         log.push(`${p.id}: ${res.length} results, "${novel.name}", ${novel.chapters?.length || 0} chapters, chapter text ${plain.length} chars`)
-        if (plain.length > 200) return { ok: true, log, sample: plain.slice(0, 160) }
+        if (plain.length > 200) return { ok: true, log, sample: plain.slice(0, 160), book: { source: p, path: res[0].path, name: novel.name, count: novel.chapters.length } }
       } catch (e) { log.push(p.id + ': ' + String(e?.message || e).slice(0, 160)) }
     }
     return { ok: false, log }
@@ -55,6 +55,20 @@ async function connect() {
   if (r.sample) console.log('chapter sample:', r.sample)
   if (!r.ok) { console.error('No live source could be read on Android'); process.exit(1) }
   console.log('Books OK')
+  // New chapters with the app closed: the hidden page (ChapterCheck.java) is run for
+  // real, on a library whose saved copy of that novel misses its last chapter.
+  if (r.book && r.book.count >= 2) {
+    const bg = await evaluate(async b => {
+      const keep = localStorage.getItem('library')
+      localStorage.setItem('library', JSON.stringify([{ id: 'smoke-bg', name: b.name, source: b.source, path: b.path, chapters: Array.from({ length: b.count - 1 }, (_, i) => ({ name: 'c' + i, path: '/c' + i })) }]))
+      localStorage.removeItem('bgChapterSeen')
+      try { const x = await window.Capacitor.Plugins.Notify.chaptersNow(); return { ok: x.ok, result: x.result && JSON.parse(x.result), seen: localStorage.getItem('bgChapterSeen') } }
+      catch (e) { return { error: String(e && e.message || e) } }
+      finally { if (keep == null) localStorage.removeItem('library'); else localStorage.setItem('library', keep); localStorage.removeItem('bgChapterSeen'); localStorage.removeItem('lastUpdateCheck') }
+    }, r.book)
+    console.log('closed-app chapter check:', JSON.stringify(bg))
+    if (!(bg.ok && bg.result && Array.isArray(bg.result.names) && bg.result.names.includes(r.book.name))) { console.error('The closed-app chapter check did not find the new chapter'); process.exit(1) }
+  }
   // Reader text size in Android's real WebView: a long chapter keeps the size set in
   // the reader (no "font boosting" of paragraphs), and follows a change.
   const ts = await evaluate(async () => {
@@ -151,7 +165,14 @@ async function connect() {
       const ep = eps[eps.length - 1] || eps[0]; if (!ep) return out
       out.push('episode: ' + JSON.stringify(ep).slice(0, 300))
       await step('hosters', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/hosters?url=' + encodeURIComponent(ep.url)))
-      await step('videos', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/videos?url=' + encodeURIComponent(ep.url)))
+      const vr = await step('videos', () => nr.miwayomiFetch('/api/v1/anime/' + src.id + '/videos?url=' + encodeURIComponent(ep.url)))
+      // The stream itself, as the player asks it (first three links): status, type, start of the answer.
+      for (const v of ((vr && (vr.videos || vr)) || []).slice(0, 3)) {
+        const raw = v.videoUrl || v.url || ''
+        const hls = /\.m3u8|\/playlist/i.test(raw)
+        const u = 'http://127.0.0.1:4567/api/v1/' + (hls ? 'hls' : 'proxy') + '?sourceId=' + src.id + '&url=' + encodeURIComponent(raw) + '&headers=' + encodeURIComponent(Object.entries(v.headers || {}).map(([k, x]) => k + ': ' + x).join('\n'))
+        await step('stream ' + (hls ? 'hls' : 'file'), async () => { const r = await fetch(u, hls ? {} : { headers: { Range: 'bytes=0-2047' } }); const b = hls || !r.ok ? await r.text() : ''; return { status: r.status, type: r.headers.get('content-type'), length: r.headers.get('content-length'), body: b.slice(0, 400), raw: raw.slice(0, 200), headers: v.headers } })
+      }
       return out
     }, [process.env.DIAG_SOURCE, process.env.DIAG_QUERY || ''])
     console.log('=== DIAG ' + process.env.DIAG_SOURCE + ' ===')
