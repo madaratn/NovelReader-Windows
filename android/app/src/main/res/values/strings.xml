@@ -4,4 +4,11 @@
     <string name="title_activity_main">NovelReader</string>
     <string name="package_name">com.madaratn.novelreader</string>
     <string name="custom_url_scheme">com.madaratn.novelreader</string>
+    <string name="downloads_channel">Video downloads</string>
+    <string name="downloads_running">Downloading videos</string>
+    <string name="news_channel">New episodes and chapters</string>
+    <plurals name="new_episodes">
+        <item quantity="one">%d title has new episodes</item>
+        <item quantity="other">%d titles have new episodes</item>
+    </plurals>
 </resources>

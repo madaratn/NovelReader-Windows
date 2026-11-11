@@ -1,7 +1,9 @@
-## NovelReader 0.19.0
+## NovelReader 0.20.0
 
-- **Séries tunisiennes (nouvelle source « Tunisian TV »)** : les séries publiées par les chaînes tunisiennes sur leurs chaînes YouTube officielles (Télévision Tunisienne, Elhiwar Ettounsi, Attessia, Carthage+, Nessma, Tunisna). Elles apparaissent dans la Recherche globale et Découvrir (langue العربية), avec les épisodes dans l'ordre. Lecture dans le lecteur YouTube intégré. À activer dans **Sources › Tunisian TV** avec une clé YouTube gratuite.
-- **Pack arabe** : un bouton dans Sources installe en une fois les sites de films et séries en arabe (Arab Seed, FaselHD, Tuktuk Cinema, Cimaleek, Egy Dead).
-- **Android : sites protégés par Cloudflare** : la vérification « Just a moment… » est maintenant passée automatiquement dans le téléphone (comme FlareSolverr sur PC).
-- La Recherche globale trouve maintenant les titres écrits en arabe (et dans les autres alphabets non latins), même avec une orthographe un peu différente (أ / ا, ة / ه).
-- Android : la mise à jour se propose toute seule dans l'application (bouton **Installer**).
+- **Séries tunisiennes sans clé** : plus besoin de clé YouTube. Dans **Sources › Tunisian TV**, un seul bouton **Activer**. La liste des séries est mise à jour deux fois par semaine.
+- **Android : vidéos hors connexion** : le bouton ⤓ d'un épisode le garde sur l'appareil (page **Téléchargements**). Le téléchargement continue quand l'application est en arrière-plan.
+- **Android : synchronisation avec le PC** : bibliothèque, positions de lecture et de visionnage partagées avec Windows, par le fichier que le PC écrit dans Google Drive ou OneDrive (**Réglages › Synchronisation avec votre PC**).
+- **Android : lecteur plus confortable** : deux appuis rapides à gauche ou à droite pour reculer ou avancer de 10 s ; en plein écran, glisser à droite pour le volume et à gauche pour la luminosité ; la vidéo continue dans une petite fenêtre quand on quitte l'application (bouton **Mini lecteur**).
+- **Android : notifications** de nouveaux épisodes, même application fermée (vérification toutes les 6 heures).
+- **Android : sources vérifiées sur téléphone** : la page Sources indique les sources qui ne se lisent pas sur téléphone, d'après un test hebdomadaire sur un appareil Android.
+- **Nouveautés** : après une mise à jour, l'application affiche ce qui a changé.

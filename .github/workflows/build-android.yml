@@ -21,9 +21,13 @@ on:
         description: 'Emulator: title to search with that source'
         type: string
         default: ''
+  # Weekly: which sources work on a phone (emulator sweep), published for the app.
+  schedule:
+    - cron: '17 3 * * 3'
   push:
     branches-ignore:
       - 'screens/**'
+      - 'catalog/**'
     paths:
       - 'src/**'
       - 'android/**'
@@ -81,7 +85,7 @@ jobs:
             echo "::warning::No private key in the secrets: signed with the public test key"
           fi
           chmod +x gradlew
-          ./gradlew --no-daemon --init-script ci/mirror.init.gradle :engine:testReleaseUnitTest assembleRelease || { echo "::warning::retrying once (network)"; sleep 20; ./gradlew --no-daemon --init-script ci/mirror.init.gradle :engine:testReleaseUnitTest assembleRelease; }
+          ./gradlew --no-daemon --init-script ci/mirror.init.gradle :engine:testReleaseUnitTest :app:testReleaseUnitTest assembleRelease || { echo "::warning::retrying once (network)"; sleep 20; ./gradlew --no-daemon --init-script ci/mirror.init.gradle :engine:testReleaseUnitTest :app:testReleaseUnitTest assembleRelease; }
           v=$(node -p "require('../package.json').version")
           mkdir -p ../release
           cp app/build/outputs/apk/release/app-release.apk "../release/NovelReader-$v.apk"
@@ -133,7 +137,17 @@ jobs:
           arch: x86_64
           target: google_apis
           disable-animations: true
-          script: SWEEP='${{ inputs.sweep }}' DIAG_SOURCE='${{ inputs.diag_source }}' DIAG_QUERY='${{ inputs.diag_query }}' bash scripts/android-smoke.sh
+          script: SWEEP='${{ inputs.sweep || github.event_name == 'schedule' }}' DIAG_SOURCE='${{ inputs.diag_source }}' DIAG_QUERY='${{ inputs.diag_query }}' bash scripts/android-smoke.sh
+      - name: Publish what works on Android (for the app)
+        if: ${{ (inputs.sweep || github.event_name == 'schedule') && always() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          [ -s shots/source-status-android.json ] || exit 0
+          n=$(node -p "require('./shots/source-status-android.json').tested")
+          [ "$n" -ge 10 ] || { echo "only $n sources tested: not published"; exit 0; }
+          gh release view source-status -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || exit 0
+          gh release upload source-status shots/source-status-android.json -R "$GITHUB_REPOSITORY" --clobber
       # Screenshot readable without downloading the artifact.
       - name: Publish the screenshot to a branch
         if: always()

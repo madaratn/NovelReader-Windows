@@ -1,4 +1,5 @@
 import{SubtitleSettings}from'./sub-finder'
+import{deviceNotify,askNotifications,showDeviceNotification}from'../platform/android-notify'
 import{party}from'./watch-party'
 import React,{useEffect,useRef,useState}from'react'
 import{SyncSettings}from'./sync'
@@ -65,18 +66,18 @@ export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onSh
   </section>}
   <section className="panel settings-block"><h2>{t('New chapters')}</h2>
    <label className="settings-check"><input type="checkbox" checked={autoCheck} onChange={e=>{setAutoCheck(e.target.checked);lsSet('autoCheckUpdates',e.target.checked?'1':'0')}}/> {t('Check my library for new chapters when NovelReader starts (at most every 12 hours)')}</label>
-   {!android&&<label className="settings-check"><input type="checkbox" checked={notify} onChange={e=>{setNotify(e.target.checked);lsSet('notifyNewChapters',e.target.checked?'1':'0')}}/> {t('Show a Windows notification when new chapters are found')}</label>}
+   {(!android||deviceNotify())&&<label className="settings-check"><input type="checkbox" checked={notify} onChange={e=>{setNotify(e.target.checked);lsSet('notifyNewChapters',e.target.checked?'1':'0');if(e.target.checked)askNotifications()}}/> {t('Show a Windows notification when new chapters are found')}</label>}
   </section>
   <section className="panel settings-block"><h2>{t('New episodes')}</h2>
-   <label className="settings-check"><input type="checkbox" checked={autoEp} onChange={e=>{setAutoEp(e.target.checked);lsSet('autoCheckEpisodes',e.target.checked?'1':'0')}}/> {t('Check my anime and series for new episodes in the background (every 6 hours)')}</label>
-   {!android&&<label className="settings-check"><input type="checkbox" checked={notifyEp} onChange={e=>{setNotifyEp(e.target.checked);lsSet('notifyNewEpisodes',e.target.checked?'1':'0')}}/> {t('Show a Windows notification when new episodes are found')}</label>}
+   <label className="settings-check"><input type="checkbox" checked={autoEp} onChange={e=>{setAutoEp(e.target.checked);lsSet('autoCheckEpisodes',e.target.checked?'1':'0');window.dispatchEvent(new Event('nr-watchlist'))}}/> {t('Check my anime and series for new episodes in the background (every 6 hours)')}</label>
+   {(!android||deviceNotify())&&<label className="settings-check"><input type="checkbox" checked={notifyEp} onChange={e=>{setNotifyEp(e.target.checked);lsSet('notifyNewEpisodes',e.target.checked?'1':'0');if(e.target.checked)askNotifications();window.dispatchEvent(new Event('nr-watchlist'))}}/> {t('Show a Windows notification when new episodes are found')}</label>}
   </section>
   {!android&&<section className="panel settings-block"><h2>{t('Import from LNReader (Android)')}</h2>
    <p className="settings-help">{t('In the LNReader app, open More > Backup and restore > Create backup, copy the .zip file to this PC, then import it here. Your novels and where you stopped reading are added to your library.')}</p>
    <div className="libraryactions"><button className="primary" disabled={impBusy} onClick={async()=>{setImpBusy(true);setMsg(null);setImp(null);try{setImp(await onImportLNReader())}catch(e:any){setMsg({ok:false,text:t(String(e?.message||e).replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/,''))})}finally{setImpBusy(false)}}}>{impBusy?t('Importing…'):t('Import an LNReader backup…')}</button></div>
    {imp&&<div className="anime-toast ok" role="status"><span>{plural(imp.added,'{n} novel imported','{n} novels imported')}{imp.exists?' · '+plural(imp.exists,'{n} already in your library','{n} already in your library'):''}{imp.unknown.length?' · '+t('{n} skipped (source not available: {list})',{n:imp.unknown.length,list:imp.unknown.slice(0,4).join(', ')}):''}</span><button className="undo-btn" onClick={onShowLibrary}>{t('Open library')}</button></div>}
   </section>}
-  {sync&&!android&&<SyncSettings sync={sync}/>}
+  {sync&&<SyncSettings sync={sync}/>}
   <section className="panel settings-block"><h2>{t('Offline chapters')}</h2>
    <p className="settings-help">{usage&&usage.chapters?t('{chapters} for {novels} use {size} on this PC.',{chapters:plural(usage.chapters,'{n} chapter','{n} chapters'),novels:plural(usage.novels,'{n} novel','{n} novels'),size:(usage.bytes/1048576).toFixed(1)+' MB'}):t('No chapter downloaded yet. Use Download on a novel page to read without an internet connection.')}</p>
    {usage&&usage.chapters>0&&<div className="libraryactions"><button className={clearConfirm?'danger':undefined} onClick={async()=>{if(!clearConfirm){setClearConfirm(true);setTimeout(()=>setClearConfirm(false),6000);return}await window.novelReader.offlineClear?.();setClearConfirm(false);setUsage({bytes:0,chapters:0,novels:0})}}>{clearConfirm?t('Confirm: delete all downloads'):t('Delete all downloaded chapters')}</button></div>}
@@ -143,12 +144,16 @@ export function UpdateSettings({status,version}:{status:UpdateStatus|null,versio
 }
 // Windows notification for new chapters (only when the window is not in front).
 export function notifyNewEpisodes(found:number,names:string[],onClick:()=>void){
- if(lsGet('notifyNewEpisodes')==='0'||typeof Notification==='undefined')return
+ if(lsGet('notifyNewEpisodes')==='0')return
+ if(showDeviceNotification(52,plural(found,'{n} title has new episodes.','{n} titles have new episodes.'),names.filter(Boolean).slice(0,3).join(', ')+(names.length>3?'…':'')))return
+ if(typeof Notification==='undefined')return
  if(document.hasFocus())return
  try{const n=new Notification(plural(found,'{n} title has new episodes.','{n} titles have new episodes.'),{body:names.filter(Boolean).slice(0,3).join(', ')+(names.length>3?'…':''),silent:false});n.onclick=()=>{window.novelReader.focusWindow?.();onClick()}}catch{}
 }
 export function notifyNewChapters(found:number,names:string[],onClick:()=>void){
- if(lsGet('notifyNewChapters')==='0'||typeof Notification==='undefined')return
+ if(lsGet('notifyNewChapters')==='0')return
+ if(showDeviceNotification(53,plural(found,'{n} novel has new chapters.','{n} novels have new chapters.'),names.slice(0,3).join(', ')+(names.length>3?'…':'')))return
+ if(typeof Notification==='undefined')return
  if(document.hasFocus())return
  try{const n=new Notification(plural(found,'{n} novel has new chapters.','{n} novels have new chapters.'),{body:names.slice(0,3).join(', ')+(names.length>3?'…':''),silent:false});n.onclick=()=>{window.novelReader.focusWindow?.();onClick()}}catch{}
 }

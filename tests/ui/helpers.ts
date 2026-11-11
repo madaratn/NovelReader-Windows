@@ -1,4 +1,7 @@
 import { expect, type Page } from '@playwright/test'
+import fs from 'node:fs'
+// The version whose notes are packed in the interface: "What's new" stays closed in the tests.
+export const NOTES_VERSION = (/^##\s*NovelReader\s+([\d.]+)/m.exec(fs.readFileSync('build/release-notes.md', 'utf8')) || [])[1] || ''
 
 // ---------------------------------------------------------------------------
 // Fake Electron bridge (window.novelReader) and test data.
@@ -41,6 +44,7 @@ export async function setup(page: Page, s: Setup = {}) {
   const storage: Record<string, string> = { ...(s.storage || {}) }
   if (s.onboarded !== false) storage.onboarded = '1'
   storage.lang = s.lang || 'en'
+  if (storage.whatsNewSeen == null) storage.whatsNewSeen = NOTES_VERSION
   if (s.library) storage.library = JSON.stringify(s.library)
   for (const [id, r] of Object.entries(s.reading || {})) storage['reading:' + id] = JSON.stringify({ path: 'ch-' + (r.index + 1), at: Date.now() - 2 * 3600_000, ...r })
   await page.addInitScript(([storage, newChapters, videos, slow]) => {
