@@ -204,7 +204,7 @@ test('Android: phone navigation fits the screen and gets out of the way to read'
   await expect(page.locator('.m-sheet')).toContainText('Settings')
   await expect(page.locator('.m-sheet')).not.toContainText('Local Videos')
   await expect(page.locator('.m-sheet')).not.toContainText('Internet Archive')
-  await expect(page.locator('.m-sheet')).not.toContainText('Downloads')
+  await expect(page.locator('.m-sheet')).toContainText('Downloads')
   await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
   await expect(page.locator('main')).toContainText('Like the phone')
   await expect(page.locator('main')).not.toContainText('Windows notification')
@@ -321,4 +321,42 @@ test('Android: sync with the PC through the file the PC wrote (library, position
   await expect(block.getByRole('alert')).toContainText('not a NovelReader file')
   await block.getByRole('button', { name: 'Stop syncing' }).click()
   await expect(block.getByRole('button', { name: 'Choose the sync file…' })).toBeVisible()
+})
+
+test('Android: videos can be kept offline (Downloads page, engine calls, wording without "PC")', async ({ page }) => {
+  const calls: string[] = []
+  const item = { id: 'series_s1_abc', kind: 'series', mediaId: 's1', mediaName: 'Lanterns', episodeUrl: '/ep/1', episodeName: 'S1 E1', episodeNo: 1, mediaKey: 'series:s1:/ep/1', state: 'done', progress: 1, size: 52428800, type: 'hls', file: 'index.m3u8', title: '720p', subtitles: [], createdAt: 2, finishedAt: 3 }
+  const running = { ...item, id: 'series_s1_def', episodeUrl: '/ep/2', episodeName: 'S1 E2', episodeNo: 2, state: 'downloading', progress: 0.4, bytes: 1000, file: '', size: 0 }
+  let list: any[] = [item, running]
+  await page.route('http://127.0.0.1:4567/api/v1/**', async r => {
+    const u = new URL(r.request().url()), p = u.pathname.replace('/api/v1/', '')
+    calls.push(r.request().method() + ' ' + p + (r.request().postData() ? ' ' + r.request().postData() : ''))
+    const json = (b: any) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) })
+    if (p === 'dl/list') return json(list)
+    if (p === 'dl/usage') return json({ bytes: 52428800, count: 1, folder: '/x' })
+    if (p === 'dl/version') return json({ version: list.length })
+    if (p === 'dl/remove') { list = list.filter(x => x.id !== JSON.parse(r.request().postData() || '{}').id); return json({ ok: true }) }
+    if (p === 'dl/cancel') { list = list.filter(x => x.id !== JSON.parse(r.request().postData() || '{}').id); return json({ ok: true }) }
+    if (p === 'health') return json({ status: 'ok' })
+    if (p === 'sources') return json({ manga: [], anime: [] })
+    return json({})
+  })
+  await page.goto('/')
+  await page.evaluate(() => { localStorage.setItem('mode', 'series'); localStorage.setItem('lastPage:series', 'downloads') })
+  await page.reload()
+  const main = page.locator('main')
+  await expect(main).toContainText('Episodes and movies saved on this device.')
+  await expect(main).toContainText('Lanterns')
+  await expect(main).toContainText('S1 E1')
+  await expect(main).toContainText('1 video · 52.4 MB')
+  await expect(main.getByRole('button', { name: 'Open folder' })).toHaveCount(0)
+  expect(await page.evaluate(() => (window as any).novelReader.dlBase())).toBe('http://127.0.0.1:4567/api/v1/dl/file')
+  // The numbers reach the engine in the form it reads (whole numbers, episode number as a number).
+  await page.evaluate(() => (window as any).novelReader.dlConfigure({ maxHeight: 720, limit: 1048576.4 }))
+  expect(calls).toContain('POST dl/configure {"maxHeight":720,"limit":1048576}')
+  // An engine refusal is shown as its own sentence.
+  await page.unroute('http://127.0.0.1:4567/api/v1/**')
+  await page.route('http://127.0.0.1:4567/api/v1/dl/start', r => r.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'This episode has no stream that can be downloaded.' }) }))
+  const err = await page.evaluate(() => (window as any).novelReader.dlStart({ kind: 'series', mediaId: 's1', episodeUrl: '/e', candidates: [] }).then(() => '', (e: any) => e.message))
+  expect(err).toBe('This episode has no stream that can be downloaded.')
 })

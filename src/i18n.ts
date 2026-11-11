@@ -877,8 +877,11 @@ const FR: Record<string, string> = {
   'This place does not let NovelReader keep access to the file. Choose a file in Google Drive, OneDrive or on the phone.': 'Cet emplacement ne laisse pas NovelReader garder l\'accès au fichier. Choisissez un fichier dans Google Drive, OneDrive ou sur le téléphone.',
 }
 
+const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')
 export function t(key: string, vars?: Record<string, string | number>): string {
   let out = lang === 'fr' ? (FR[key] ?? key) : key
+  // Phone / tablet: the same sentences, without "PC".
+  if (onDevice()) out = out.replace(/\bthis PC\b/g, 'this device').replace(/\bce PC\b/g, 'cet appareil')
   if (vars) out = out.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m))
   return out
 }

@@ -40,6 +40,9 @@ public class MainActivity extends BridgeActivity {
         current = this;
         super.onCreate(savedInstanceState);
         // Video engine (android/engine): http://127.0.0.1:4567, like on the PC.
+        // Video downloads keep going with the app in the background (DownloadService).
+        final Context appContext = getApplicationContext();
+        nr.engine.Engine.INSTANCE.setOnDownloadsActive(active -> { DownloadService.set(appContext, active); return kotlin.Unit.INSTANCE; });
         nr.engine.Engine.INSTANCE.start(getApplication());
         // Capacitor closes full-screen video at once; the player needs it.
         bridge.getWebView().setWebChromeClient(new FullscreenClient(bridge));

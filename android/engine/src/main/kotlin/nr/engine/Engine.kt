@@ -31,6 +31,8 @@ import java.io.File
 object Engine {
     const val PORT = 4567
     @Volatile var state: String = "stopped"
+    /** Called when video downloads start (true) and when the last one ends (false). */
+    @Volatile var onDownloadsActive: ((Boolean) -> Unit)? = null
         private set
     @Volatile var error: String? = null
         private set
@@ -78,6 +80,13 @@ object Engine {
                 addSingletonFactory { AnimeSourceManager() }
                 addSingletonFactory { ExtensionManager(app, config.extensionsDir, get(), get()) }
                 // Cast: plain client (the engine's has interceptors for the sources).
+                // Offline videos: kept in the app's own storage, fetched through the engine's stream relay.
+                addSingletonFactory {
+                    nr.engine.dl.VideoDownloads(
+                        File(app.getExternalFilesDir(null) ?: app.filesDir, "video-downloads"),
+                        okhttp3.OkHttpClient.Builder().readTimeout(java.time.Duration.ofSeconds(60)).build(),
+                    ) { active -> onDownloadsActive?.invoke(active) }
+                }
                 addSingletonFactory { nr.engine.cast.CastManager(app, okhttp3.OkHttpClient.Builder().readTimeout(java.time.Duration.ofSeconds(60)).build()) }
             }
         })

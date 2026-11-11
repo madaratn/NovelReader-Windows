@@ -53,6 +53,22 @@ const cast={
  castStop:()=>castCall('stop','POST',{}),
  castDiag:()=>miwayomiFetch('/api/v1/cast/diag').then(String).catch(()=>''),
 }
+// Offline videos (android/engine/.../dl): same calls and answers as on the PC.
+async function dlCall(path:string,method='GET',body?:any){
+ try{return await miwayomiFetch('/api/v1/dl/'+path,method,body)}
+ catch(e:any){const m=/ — (\{.*\})$/s.exec(String(e?.message||''));let msg='';try{msg=m?JSON.parse(m[1]).error:''}catch{}throw Error(msg||String(e?.message||e))}}
+const downloads={
+ dlStart:(p:any)=>dlCall('start','POST',{...p,episodeNo:Number(p?.episodeNo)||0}),
+ dlList:()=>dlCall('list'),
+ dlCancel:(id:string)=>dlCall('cancel','POST',{id:String(id||'')}),
+ dlRemove:(id:string)=>dlCall('remove','POST',{id:String(id||'')}),
+ dlClear:()=>dlCall('clear','POST',{}),
+ dlConfigure:(o:any)=>dlCall('configure','POST',{maxHeight:Math.round(Number(o?.maxHeight)||0),limit:Math.round(Number(o?.limit)||0)}),
+ dlUsage:()=>dlCall('usage'),
+ dlBase:async()=>ENGINE+'/api/v1/dl/file',
+ // The engine counts its changes; the interface looks every 2 s while it is shown.
+ onDownloadsChanged:(cb:()=>void)=>{let last=-1;const iv=setInterval(async()=>{if(document.visibilityState!=='visible')return;try{const v=(await dlCall('version')).version;if(last>=0&&v!==last)cb();last=v}catch{}},2000);return()=>clearInterval(iv)},
+}
 async function miwayomiStatus(){try{const health=await miwayomiFetch('/api/v1/health');return{online:true,android:true,baseUrl:ENGINE,health}}catch(e:any){return{online:false,starting:true,android:true,baseUrl:ENGINE,error:String(e?.message||e)}}}
 
 // Weekly source check: the PC scan, corrected by the phone sweep (run on an Android
@@ -82,6 +98,7 @@ export function installAndroidBridge(version:string){
   ...createAndroidUpdater(version),
   subsSearch,subsFetch,
   ...androidSync,
+  ...downloads,
   ...cast,
   takeDeepLink:async()=>'',inviteBase:async()=>'',onDeepLink:()=>()=>{},
   sourceStatus,
