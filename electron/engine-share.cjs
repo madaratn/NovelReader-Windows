@@ -12,12 +12,13 @@ const path=require('path')
 const crypto=require('crypto')
 
 const DEFAULT_PORT=4580
+const MAX_SYNC=50*1024*1024
 const ALPHABET='abcdefghjkmnpqrstuvwxyz23456789' // no look-alikes (0/o, 1/l/i)
 const newCode=()=>Array.from(crypto.randomBytes(10),b=>ALPHABET[b%ALPHABET.length]).join('')
 function lanAddresses(){const all=[];for(const list of Object.values(os.networkInterfaces()))for(const a of list||[])if(a.family==='IPv4'&&!a.internal)all.push(a.address)
  return all.sort((a,b)=>(/^(192\.168|10\.|172\.(1[6-9]|2\d|3[01]))/.test(b)?1:0)-(/^(192\.168|10\.|172\.(1[6-9]|2\d|3[01]))/.test(a)?1:0))}
 
-function createEngineShare({configFile,enginePort=4567,engineHost='127.0.0.1',port=DEFAULT_PORT,addresses=lanAddresses,log=()=>{}}){
+function createEngineShare({configFile,enginePort=4567,engineHost='127.0.0.1',port=DEFAULT_PORT,addresses=lanAddresses,log=()=>{},sync=null,name=os.hostname()}){
  const readCfg=()=>{try{return JSON.parse(fs.readFileSync(configFile,'utf8'))||{}}catch{return {}}}
  const writeCfg=c=>{fs.mkdirSync(path.dirname(configFile),{recursive:true});fs.writeFileSync(configFile,JSON.stringify(c))}
  let server=null,listening=0,lastSeen=0,lastFrom=''
@@ -28,8 +29,17 @@ function createEngineShare({configFile,enginePort=4567,engineHost='127.0.0.1',po
   if(req.method==='OPTIONS'){res.writeHead(204);res.end();return}
   const m=/^\/e\/([a-z0-9]+)(\/.*)$/.exec(req.url||'')
   // Same answer for a wrong code and a wrong address: nothing to learn from outside.
-  if(!m||m[1].length!==code().length||!crypto.timingSafeEqual(Buffer.from(m[1]),Buffer.from(code()))||!m[2].startsWith('/api/v1/')){res.writeHead(404);res.end();return}
+  if(!m||m[1].length!==code().length||!crypto.timingSafeEqual(Buffer.from(m[1]),Buffer.from(code()))||!(m[2].startsWith('/api/v1/')||m[2].startsWith('/nr/'))){res.writeHead(404);res.end();return}
   lastSeen=Date.now();lastFrom=String(req.socket.remoteAddress||'').replace(/^::ffff:/,'')
+  // The app's own answers: who this is, and the library sync file (direct sync with a phone).
+  if(m[2].startsWith('/nr/')){
+   const json=(status,body)=>{const out=JSON.stringify(body);res.writeHead(status,{'Content-Type':'application/json','Content-Length':Buffer.byteLength(out)});res.end(out)}
+   if(m[2]==='/nr/hello'&&req.method==='GET')return json(200,{app:'NovelReader',device:name,sync:!!sync})
+   if(m[2]==='/nr/sync'&&sync&&req.method==='GET'){sync.read().then(x=>json(200,x||null),e=>json(500,{error:String(e&&e.message||e)}));return}
+   if(m[2]==='/nr/sync'&&sync&&req.method==='POST'){const chunks=[];let size=0
+    req.on('data',d=>{size+=d.length;if(size>MAX_SYNC){req.destroy();return}chunks.push(d)})
+    req.on('end',()=>{let x;try{x=JSON.parse(Buffer.concat(chunks).toString('utf8'))}catch{return json(400,{error:'Invalid sync data.'})}sync.write(x).then(r=>json(200,r),e=>json(400,{error:String(e&&e.message||e)}))});return}
+   res.writeHead(404);res.end();return}
   const headers={};for(const k of['range','content-type','content-length','accept'])if(req.headers[k])headers[k]=req.headers[k]
   const up=http.request({host:engineHost,port:enginePort,path:m[2],method:req.method,headers},r=>{
    const type=String(r.headers['content-type']||'')

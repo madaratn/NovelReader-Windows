@@ -902,6 +902,23 @@ const FR: Record<string, string> = {
   'Link shown on the PC': 'Lien affiché sur le PC',
   'Link': 'Lier',
   'Link your PC in Settings to watch anime, series and movies on this iPhone.': 'Liez votre PC dans les Réglages pour regarder les animes, séries et films sur cet iPhone.',
+  'The PC could not be reached. Check that it is on, that NovelReader is open on it, and that this device is on the same Wi-Fi.': 'Le PC est injoignable. Vérifiez qu\'il est allumé, que NovelReader y est ouvert et que cet appareil est sur le même Wi-Fi.',
+  'Linked. Anime, series and movies now go through your PC, and your library is shared with it.': 'Lié. Les animes, séries et films passent maintenant par votre PC, et votre bibliothèque est partagée avec lui.',
+  'Linked. Your library is now shared with your PC.': 'Lié. Votre bibliothèque est maintenant partagée avec votre PC.',
+  'Videos and sync through your PC': 'Vidéos et synchronisation par votre PC',
+  'Books and Tunisian TV work on the iPhone alone. Anime, series and movies use NovelReader on your PC, and your library is shared with it, on the same Wi-Fi: on the PC, open Settings › Phone link, turn it on, and type the link shown there.': 'Les livres et Tunisian TV marchent sur l\'iPhone seul. Les animes, séries et films utilisent NovelReader sur votre PC, et votre bibliothèque est partagée avec lui, sur le même Wi-Fi : sur le PC, ouvrez Réglages › Lien avec le téléphone, activez, puis tapez ici le lien affiché.',
+  'Your library, reading positions, notes, videos and where you stopped watching, shared with your PC on the home Wi-Fi. On the PC, open Settings › Phone link, turn it on, and type the link shown there.': 'Votre bibliothèque, vos positions de lecture, vos notes, vos vidéos et l\'endroit où vous vous êtes arrêté, partagés avec votre PC sur le Wi-Fi de la maison. Sur le PC, ouvrez Réglages › Lien avec le téléphone, activez, puis tapez ici le lien affiché.',
+  'Phone link': 'Lien avec le téléphone',
+  'Links NovelReader on your phone or tablet to this PC, on the home Wi-Fi: your library and positions are shared directly (no cloud folder needed), and an iPhone uses this PC to find and play anime, series and movies. This PC must be on, with NovelReader open.': 'Relie NovelReader sur votre téléphone ou tablette à ce PC, sur le Wi-Fi de la maison : votre bibliothèque et vos positions sont partagées directement (sans dossier cloud), et un iPhone passe par ce PC pour trouver et lire les animes, séries et films. Ce PC doit être allumé, avec NovelReader ouvert.',
+  'Turn on the phone link': 'Activer le lien avec le téléphone',
+  'Link to type on the phone:': 'Lien à taper sur le téléphone :',
+  'On the phone: Settings › Sync with your PC. Windows may ask to allow NovelReader on the network: choose Allow (private networks).': 'Sur le téléphone : Réglages › Synchronisation avec votre PC. Windows peut demander d\'autoriser NovelReader sur le réseau : choisissez Autoriser (réseaux privés).',
+  'a phone': 'un téléphone',
+  'Or through Google Drive / OneDrive': 'Ou par Google Drive / OneDrive',
+  'Works away from home too. On the PC, turn on sync in Settings with a Google Drive or OneDrive folder. Then choose here the file library-sync.json it wrote in the NovelReader folder.': 'Marche aussi hors de la maison. Sur le PC, activez la synchronisation dans les Réglages avec un dossier Google Drive ou OneDrive. Choisissez ensuite ici le fichier library-sync.json qu\'il a écrit dans le dossier NovelReader.',
+  'Shared directly with your phone (Phone link below). Choose a folder to also sync between PCs or away from home.': 'Partagé directement avec votre téléphone (Lien avec le téléphone, ci-dessous). Choisissez un dossier pour synchroniser aussi entre PC ou hors de la maison.',
+  'Your PC is not reachable right now. Sync resumes on the home Wi-Fi, with NovelReader open on the PC.': 'Votre PC est injoignable pour le moment. La synchronisation reprendra sur le Wi-Fi de la maison, avec NovelReader ouvert sur le PC.',
+  'The PC refused the code. Link it again in Settings.': 'Le PC a refusé le code. Liez-le de nouveau dans les Réglages.',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

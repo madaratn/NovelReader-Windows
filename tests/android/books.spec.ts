@@ -304,8 +304,8 @@ test('Android: sync with the PC through the file the PC wrote (library, position
   await page.evaluate(() => { localStorage.setItem('animeLibrary', JSON.stringify([{ id: 'a1', name: 'Phone Anime', sourceId: '7', sourceName: 'S', url: '/a/1', episodes: 1, addedAt: Date.now() }])) })
   await page.locator('.m-bottom').getByRole('button', { name: 'More' }).click()
   await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
+  await page.locator('.sync-file').getByRole('button', { name: 'Choose the sync file…' }).click()
   const block = page.locator('.settings-block', { hasText: 'Sync with your PC' })
-  await block.getByRole('button', { name: 'Choose the sync file…' }).click()
   await expect(block).toContainText('library-sync.json')
   await expect(block).toContainText('Last synced')
   // The PC's series arrived here; the phone's anime went into the file, signed by the phone.
@@ -320,7 +320,7 @@ test('Android: sync with the PC through the file the PC wrote (library, position
   await block.getByRole('button', { name: 'Sync now' }).click()
   await expect(block.getByRole('alert')).toContainText('not a NovelReader file')
   await block.getByRole('button', { name: 'Stop syncing' }).click()
-  await expect(block.getByRole('button', { name: 'Choose the sync file…' })).toBeVisible()
+  await expect(page.locator('.sync-file').getByRole('button', { name: 'Choose the sync file…' })).toBeVisible()
 })
 
 test('Android: videos can be kept offline (Downloads page, engine calls, wording without "PC")', async ({ page }) => {
@@ -422,4 +422,45 @@ test('Android: engine streams are asked directly (not through the native relay),
     'fetch relayed http://127.0.0.1:4567/api/v1/proxy?url=c',
     'fetch direct http://127.0.0.1:4567/api/v1/hls?url=d',
   ])
+})
+
+test('Android: direct sync with the PC on the home Wi-Fi (link typed once), quiet when away from home', async ({ page }) => {
+  // The PC's relay (electron/engine-share.cjs), with the file as the PC left it.
+  let file: any = { app: 'NovelReader', version: 1, at: Date.now() - 60000, deviceId: 'pc1', deviceName: 'PC-SALON', data: { seriesLibrary: JSON.stringify([{ id: 'series1', name: 'Lanterns', sourceId: '42', url: '/series/1', episodes: 2, addedAt: Date.now() - 90000 }]) } }
+  let home = true
+  const posts: any[] = []
+  await page.route('http://192.168.1.5:4580/**', r => {
+    if (!home) return r.abort('connectionrefused')
+    const u = new URL(r.request().url()), json = (b: any, status = 200) => r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(b) })
+    if (!u.pathname.startsWith('/e/abcdefghjk/')) return r.fulfill({ status: 404, body: '' })
+    const p = u.pathname.replace('/e/abcdefghjk', '')
+    if (p === '/nr/hello') return json({ app: 'NovelReader', device: 'PC-SALON', sync: true })
+    if (p === '/nr/sync' && r.request().method() === 'GET') return json(file)
+    if (p === '/nr/sync') { file = JSON.parse(r.request().postData() || '{}'); posts.push(file); return json({ at: Date.now() }) }
+    return r.fulfill({ status: 404, body: '' })
+  })
+  await page.goto('/')
+  await page.evaluate(() => { localStorage.setItem('animeLibrary', JSON.stringify([{ id: 'a1', name: 'Phone Anime', sourceId: '7', url: '/a/1', episodes: 1, addedAt: Date.now() }])) })
+  await page.locator('.m-bottom').getByRole('button', { name: 'More' }).click()
+  await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
+  const block = page.locator('.pc-link')
+  await expect(block).toContainText('Sync with your PC')
+  await block.getByLabel('Link shown on the PC').fill('192.168.1.5:4580/abcdefghjk')
+  await block.getByRole('button', { name: 'Link', exact: true }).click()
+  await expect(block.getByRole('status')).toContainText('Your library is now shared with your PC.')
+  // Both ways at once: the PC's series here, the phone's anime on the PC, signed by the phone.
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('seriesLibrary') || '[]').map((x: any) => x.name))).toEqual(['Lanterns'])
+  await expect.poll(() => posts.length).toBeGreaterThan(0)
+  expect(JSON.parse(posts.at(-1).data.animeLibrary).map((x: any) => x.name)).toEqual(['Phone Anime'])
+  expect(posts.at(-1).deviceId).not.toBe('pc1'); expect(posts.at(-1).app).toBe('NovelReader')
+  await expect(block).toContainText('Last synced')
+  await expect(page.locator('.sync-file')).toHaveCount(0)
+  // Away from home: a calm sentence, the library is untouched, nothing written.
+  home = false; const n = posts.length
+  await block.getByRole('button', { name: 'Sync now' }).click()
+  await expect(block.getByRole('alert')).toContainText('Sync resumes on the home Wi-Fi')
+  expect(posts.length).toBe(n)
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('seriesLibrary') || '[]').length)).toBe(1)
+  await block.getByRole('button', { name: 'Unlink' }).click()
+  await expect(page.locator('.sync-file')).toBeVisible()
 })
