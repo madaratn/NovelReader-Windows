@@ -2,6 +2,7 @@
 // PC they run in the main process, electron/plugin-runner.cjs). Same small set of
 // libraries; network requests go through the native HTTP layer (CapacitorHttp
 // patches fetch, so there is no CORS limit and any header can be sent).
+import {fetchTrustedBookPlugin} from '../lib/book-plugin-policy'
 import * as cheerio from 'cheerio'
 import dayjs from 'dayjs'
 import * as htmlparser2 from 'htmlparser2'
@@ -24,7 +25,7 @@ function runtimeRequire(name:string):any{
 }
 const cache=new Map<string,Promise<any>>()
 export function loadPlugin(url:string){
- if(!cache.has(url))cache.set(url,(async()=>{const r=await fetch(url);if(!r.ok)throw Error('Plugin download HTTP '+r.status);const code=await r.text();const module:any={exports:{}}
+ if(!cache.has(url))cache.set(url,(async()=>{const code=await fetchTrustedBookPlugin(url);const module:any={exports:{}}
   // eslint-disable-next-line no-new-func
   new Function('module','exports','require',code)(module,module.exports,runtimeRequire);return module.exports.default||module.exports})().catch(e=>{cache.delete(url);throw e}))
  return cache.get(url)!
