@@ -71,6 +71,6 @@ contextBridge.exposeInMainWorld('novelReader',{
  syncRead:()=>ipcRenderer.invoke('sync:read'),
  syncWrite:(data)=>ipcRenderer.invoke('sync:write',{data}),
  syncDisable:()=>ipcRenderer.invoke('sync:disable'),
- shareStatus:()=>ipcRenderer.invoke('share:status'),shareEnable:()=>ipcRenderer.invoke('share:enable'),shareDisable:()=>ipcRenderer.invoke('share:disable'),shareRenew:()=>ipcRenderer.invoke('share:renew'),
+ shareStatus:()=>ipcRenderer.invoke('share:status'),shareEnable:()=>ipcRenderer.invoke('share:enable'),shareDisable:()=>ipcRenderer.invoke('share:disable'),shareRenew:()=>ipcRenderer.invoke('share:renew'),shareSend:item=>ipcRenderer.invoke('share:send',item),
  onUpdateStatus:(cb)=>{const h=(_e,s)=>{try{cb(s)}catch{}};ipcRenderer.on('update:status',h);return()=>ipcRenderer.removeListener('update:status',h)}
 })

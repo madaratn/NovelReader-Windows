@@ -21,7 +21,7 @@ function lanAddresses(){const all=[];for(const list of Object.values(os.networkI
 function createEngineShare({configFile,enginePort=4567,engineHost='127.0.0.1',port=DEFAULT_PORT,addresses=lanAddresses,log=()=>{},sync=null,name=os.hostname()}){
  const readCfg=()=>{try{return JSON.parse(fs.readFileSync(configFile,'utf8'))||{}}catch{return {}}}
  const writeCfg=c=>{fs.mkdirSync(path.dirname(configFile),{recursive:true});fs.writeFileSync(configFile,JSON.stringify(c))}
- let server=null,listening=0,lastSeen=0,lastFrom=''
+ let server=null,listening=0,lastSeen=0,lastFrom='',inbox=[]
  const code=()=>{const c=readCfg();if(!/^[a-z0-9]{10}$/.test(c.code||'')){c.code=newCode();writeCfg(c)}return c.code}
 
  function handle(req,res){
@@ -35,6 +35,8 @@ function createEngineShare({configFile,enginePort=4567,engineHost='127.0.0.1',po
   if(m[2].startsWith('/nr/')){
    const json=(status,body)=>{const out=JSON.stringify(body);res.writeHead(status,{'Content-Type':'application/json','Content-Length':Buffer.byteLength(out)});res.end(out)}
    if(m[2]==='/nr/hello'&&req.method==='GET')return json(200,{app:'NovelReader',device:name,sync:!!sync})
+   // What the PC sent to the phone ("Continue on my phone"): the phone asks every few seconds while it is open.
+   if(m[2].startsWith('/nr/inbox')&&req.method==='GET'){const after=Number(new URL(req.url,'http://x').searchParams.get('after'))||0;return json(200,{now:Date.now(),items:inbox.filter(x=>x.at>after)})}
    if(m[2]==='/nr/sync'&&sync&&req.method==='GET'){sync.read().then(x=>json(200,x||null),e=>json(500,{error:String(e&&e.message||e)}));return}
    if(m[2]==='/nr/sync'&&sync&&req.method==='POST'){const chunks=[];let size=0
     req.on('data',d=>{size+=d.length;if(size>MAX_SYNC){req.destroy();return}chunks.push(d)})
@@ -70,7 +72,15 @@ function createEngineShare({configFile,enginePort=4567,engineHost='127.0.0.1',po
  function renew(){const c=readCfg();c.code=newCode();writeCfg(c);return status()}
  // At app start: back on if it was on.
  async function restore(){if(readCfg().enabled){try{await start()}catch(e){log('share not started',e.message)}}return status()}
- return{status,enable,disable,renew,restore,stop}
+ // Kept 10 minutes, a handful at most: a phone that opens later does not get old requests.
+ function send(item){
+  if(!server)throw new Error('Turn on the phone link first (Settings).')
+  if(!item||typeof item!=='object'||!['books','anime','series','movies'].includes(item.kind)||!item.id)throw new Error('Nothing to send.')
+  const now=Date.now(),x={at:now,kind:item.kind,id:String(item.id).slice(0,400),name:String(item.name||'').slice(0,300),sub:String(item.sub||'').slice(0,300),url:String(item.url||'').slice(0,2000),next:!!item.next}
+  inbox=[...inbox.filter(y=>now-y.at<10*60*1000),x].slice(-5)
+  return{ok:true,at:now,phoneSeen:lastSeen}
+ }
+ return{status,enable,disable,renew,restore,stop,send}
 }
 // "192.168.1.5:4580/abcdefghjk" (as shown on the PC; spaces, http:// and capitals forgiven) -> base address.
 function parseLink(text){

@@ -947,6 +947,13 @@ const FR: Record<string, string> = {
   'Show the whole history': 'Afficher tout l\'historique',
   'Today': 'Aujourd\'hui',
   'Yesterday': 'Hier',
+  'Sent. Open NovelReader on the phone: it offers to continue "{name}".': 'Envoyé. Ouvrez NovelReader sur le téléphone : il propose de reprendre « {name} ».',
+  'Sent. The phone has not been seen on the Wi-Fi lately: open NovelReader on it within 10 minutes.': 'Envoyé. Le téléphone n\'a pas été vu sur le Wi-Fi récemment : ouvrez NovelReader dessus dans les 10 minutes.',
+  'Continue on my phone': 'Reprendre sur mon téléphone',
+  'It is not in the library of this device yet. Sync, then try again.': 'Ce titre n\'est pas encore dans la bibliothèque de cet appareil. Synchronisez, puis réessayez.',
+  'Sent from your PC': 'Envoyé depuis votre PC',
+  'Turn on the phone link first (Settings).': 'Activez d\'abord le lien avec le téléphone (Réglages).',
+  'Nothing to send.': 'Rien à envoyer.',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

@@ -45,13 +45,18 @@ export function HomePanel({libs,onClose,onContinue,onOpen}:{libs:Record<QuickKin
  const find=(x:HistoryLine)=>(libs[x.kind]||[]).find((a:any)=>String(x.kind==='books'?a.id:(a.id||a.url||a.name))===x.id)
  const dayLabel=(day:string)=>day===dayOf(Date.now())?t('Today'):day===dayOf(Date.now()-86400e3)?t('Yesterday'):new Date(day+'T12:00:00').toLocaleDateString(getLang(),{weekday:'long',day:'numeric',month:'long'})
  useEffect(()=>{box.current?.focus()},[])
- const card=(x:HomeItem,act:(x:HomeItem)=>void,i:number)=><button key={x.kind+idOf(x.item)+i} className="home-card" onClick={()=>{act(x);onClose()}}>
+ // PC with the phone link on: a card can be sent to the phone ("continue there").
+ const api=(window as any).novelReader,[canSend,setCanSend]=React.useState(false),[sent,setSent]=React.useState('')
+ useEffect(()=>{api?.shareStatus?.().then((st:any)=>setCanSend(!!st?.enabled)).catch(()=>{})},[])
+ const send=async(x:HomeItem)=>{try{const r=await api.shareSend({kind:x.kind,id:idOf(x.item),name:x.name,sub:x.sub,url:x.resume?.url||'',next:!!x.resume?.next});setSent(r?.phoneSeen&&Date.now()-r.phoneSeen<10*60*1000?t('Sent. Open NovelReader on the phone: it offers to continue "{name}".',{name:x.name}):t('Sent. The phone has not been seen on the Wi-Fi lately: open NovelReader on it within 10 minutes.'))}catch(e:any){setSent(String(e?.message||e).replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/,''))}}
+ const card=(x:HomeItem,act:(x:HomeItem)=>void,i:number)=><div key={x.kind+idOf(x.item)+i} className="home-cardwrap"><button className="home-card" onClick={()=>{act(x);onClose()}}>
   <Cover src={x.cover} name={x.name}/>
-  <span className="home-meta"><small>{t(KIND[x.kind])}{x.at?' · '+timeAgo(x.at):''}</small><b>{x.name}</b><span>{x.sub}</span>{x.progress>0&&<span className="libbar"><span style={{width:Math.round(x.progress*100)+'%'}}/></span>}</span></button>
+  <span className="home-meta"><small>{t(KIND[x.kind])}{x.at?' · '+timeAgo(x.at):''}</small><b>{x.name}</b><span>{x.sub}</span>{x.progress>0&&<span className="libbar"><span style={{width:Math.round(x.progress*100)+'%'}}/></span>}</span></button>{canSend&&act===onContinue&&<button className="home-send" onClick={()=>send(x)} title={t('Continue on my phone')} aria-label={t('Continue on my phone')+': '+x.name}>📱</button>}</div>
  return <div className="qs-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><div className="qs home-panel" role="dialog" aria-modal="true" aria-label={t('Continue')} tabIndex={-1} ref={box} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();onClose()}}}>
   <div className="home-head"><h2>{t('Continue')}</h2><button className="iconbtn" onClick={onClose} aria-label={t('Close')}>×</button></div>
   <div className="home-body">
    {going.length===0&&fresh.length===0&&days.length===0&&<p className="settings-help">{t('Nothing in progress yet. What you read and watch will show up here, from every section.')}</p>}
+   {sent&&<div className="anime-toast ok" role="status"><span>{sent}</span><button onClick={()=>setSent('')}>×</button></div>}
    {going.length>0&&<div className="home-grid">{going.map((x,i)=>card(x,onContinue,i))}</div>}
    {fresh.length>0&&<><h3>{t('New in your library')}</h3><div className="home-grid">{fresh.map((x,i)=>card(x,onOpen,i))}</div></>}
    {days.length>0&&<><h3 className="home-history-head">{t('History')}<button className="linkbtn" onClick={()=>{if(window.confirm(t('Clear the whole history? This cannot be undone.'))){clearHistory();setDays([])}}}>{t('Clear')}</button></h3>
@@ -60,3 +65,18 @@ export function HomePanel({libs,onClose,onContinue,onOpen}:{libs:Record<QuickKin
   </div>
   <label className="settings-check home-start"><input type="checkbox" checked={atStart} onChange={e=>{setAtStart(e.target.checked);localStorage.setItem('homeAtStart',e.target.checked?'1':'0')}}/> {t('Show this when NovelReader starts')}</label>
  </div></div>}
+
+// ---- On the phone: what the PC sent ("Continue on my phone") ------------------
+export type Incoming={at:number,kind:QuickKind,id:string,name:string,sub:string,url:string,next:boolean}
+/** Asks the linked PC every few seconds (app visible) and hands over what it sent since the last look. */
+export function usePcInbox(onItem:(x:Incoming)=>void){
+ useEffect(()=>{if(!document.documentElement.classList.contains('android'))return
+  let busy=false
+  const look=async()=>{const pc=localStorage.getItem('pcEngine');if(!pc||busy||document.visibilityState!=='visible')return;busy=true
+   try{const after=Number(localStorage.getItem('pcInboxAt'))||0,ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),4000)
+    const r=await fetch(pc+'/nr/inbox?after='+after,{signal:ctl.signal}).finally(()=>clearTimeout(tm));if(!r.ok)return
+    const box=await r.json(),items:Incoming[]=Array.isArray(box?.items)?box.items:[]
+    // First look after linking: only remember the PC's clock (nothing old is offered).
+    localStorage.setItem('pcInboxAt',String(items.length?Math.max(...items.map(x=>x.at)):after||Number(box?.now)||0))
+    if(after&&items.length)onItem(items[items.length-1])}catch{}finally{busy=false}}
+  look();const iv=setInterval(look,6000);return()=>clearInterval(iv)},[])}

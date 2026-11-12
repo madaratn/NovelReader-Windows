@@ -110,3 +110,16 @@ test('"Continue": one panel with what is in progress in every section, shown at 
   await page.locator('.sidebar .home-open').click()
   await expect(panel).toBeVisible()
 })
+
+test('"Continue on my phone": a card of the Continue panel is sent through the phone link', async ({ page }) => {
+  const { setup, novel: nv } = await import('./helpers')
+  await setup(page, { library: [nv('n1', 'Mother of Learning', 100)], reading: { n1: { index: 41, progress: 0.5 } }, storage: { homeAtStart: '1' } })
+  await page.addInitScript(() => { const w = window as any, base = w.novelReader; w.__sent = []
+    w.novelReader = { ...base, shareStatus: async () => ({ enabled: true, link: '192.168.1.5:4580/abcdefghjk' }), shareSend: async (x: any) => { w.__sent.push(x); return { ok: true, at: Date.now(), phoneSeen: Date.now() - 5000 } } } })
+  await page.goto('/')
+  const panel = page.getByRole('dialog', { name: 'Continue' })
+  await panel.getByRole('button', { name: 'Continue on my phone: Mother of Learning' }).click()
+  await expect(panel.getByRole('status')).toContainText('Open NovelReader on the phone')
+  expect(await page.evaluate(() => (window as any).__sent)).toEqual([{ kind: 'books', id: 'n1', name: 'Mother of Learning', sub: 'Chapter 42', url: '', next: false }])
+  await expect(panel).toBeVisible() // sending does not open the book here
+})

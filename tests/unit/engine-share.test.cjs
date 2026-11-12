@@ -30,6 +30,13 @@ test('PC share: off by default, then the phone reaches the engine with the code 
   assert.equal(part.status,206);assert.equal(part.headers.get('content-range'),'bytes 990-999/1000');assert.equal((await part.arrayBuffer()).byteLength,10)
   // Playlists: the segments come back through the relay, at the address the phone used.
   assert.equal(await (await fetch(base+'/api/v1/hls?url=x')).text(),`#EXTM3U\n#EXTINF:4,\n${base}/api/v1/proxy?url=seg1\n`)
+  // "Continue on my phone": the phone gets what was sent after its last look, once.
+  assert.deepEqual((await (await fetch(base+'/nr/inbox')).json()).items,[])
+  assert.throws(()=>share.send({kind:'nope',id:'x'}),/Nothing to send/)
+  const sent=share.send({kind:'series',id:'series1',name:'Lanterns',sub:'S1 E3',url:'/ep/3',next:false,extra:'dropped'})
+  const box=await (await fetch(base+'/nr/inbox?after=0')).json()
+  assert.deepEqual(box.items,[{at:sent.at,kind:'series',id:'series1',name:'Lanterns',sub:'S1 E3',url:'/ep/3',next:false}])
+  assert.deepEqual((await (await fetch(base+'/nr/inbox?after='+sent.at)).json()).items,[])
   // Wrong code, no code, or something that is not the engine's API: nothing.
   for(const u of['http://127.0.0.1:'+st.port+'/e/aaaaaaaaaa/api/v1/health','http://127.0.0.1:'+st.port+'/api/v1/health',base+'/other','http://127.0.0.1:'+st.port+'/'])assert.equal((await fetch(u)).status,404)
   assert.ok(share.status().lastSeen>0)

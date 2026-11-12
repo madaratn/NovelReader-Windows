@@ -549,3 +549,35 @@ test('Android, app closed: the hidden page finds the novels with new chapters, o
   await expect.poll(() => page.evaluate(() => (window as any).__bg.done), { timeout: 20000 }).not.toBeNull()
   expect(await page.evaluate(() => (window as any).__bg)).toMatchObject({ done: { skipped: true, names: [] }, http: [] })
 })
+
+test('Android: "Continue on my phone" sent from the PC is offered here and opens the book at its chapter', async ({ page }) => {
+  let items: any[] = []
+  const t0 = Date.now()
+  await page.route('http://192.168.1.5:4580/**', r => {
+    const u = new URL(r.request().url()), p = u.pathname.replace('/e/abcdefghjk', ''), json = (b: any) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) })
+    if (p === '/nr/inbox') return json({ now: t0, items: items.filter(x => x.at > Number(u.searchParams.get('after') || 0)) })
+    if (p === '/nr/sync') return json(null)
+    return json({})
+  })
+  await page.addInitScript(() => {
+    if (localStorage.getItem('pcEngine')) return
+    localStorage.setItem('pcEngine', 'http://192.168.1.5:4580/e/abcdefghjk')
+    const src = { id: 'testsrc', name: 'Test Source', url: 'https://plugins.test/testsrc.js', lang: 'English' }
+    localStorage.setItem('library', JSON.stringify([{ id: 'n1', name: 'Shadow Slave', source: src, path: '/novel/shadow', chapters: [{ name: 'Chapter 1', path: '/novel/shadow/1' }, { name: 'Chapter 2', path: '/novel/shadow/2' }] }]))
+    localStorage.setItem('reading:n1', JSON.stringify({ index: 1, progress: 0, at: Date.now() }))
+  })
+  await page.goto('/')
+  // The first look only sets the clock; nothing sent before is offered.
+  await expect.poll(() => page.evaluate(() => Number(localStorage.getItem('pcInboxAt')))).toBe(t0)
+  await expect(page.locator('.incoming-toast')).toHaveCount(0)
+  items = [{ at: t0 + 5000, kind: 'books', id: 'n1', name: 'Shadow Slave', sub: 'Chapter 2', url: '', next: false }]
+  const toast = page.locator('.incoming-toast')
+  await expect(toast).toContainText('Sent from your PC', { timeout: 15000 })
+  await expect(toast).toContainText('Shadow Slave')
+  await toast.getByRole('button', { name: 'Continue' }).click()
+  await expect(toast).toHaveCount(0)
+  await expect(page.locator('.readerpage')).toContainText('Chapter 2', { timeout: 15000 })
+  // Offered once.
+  await page.waitForTimeout(7000)
+  await expect(page.locator('.incoming-toast')).toHaveCount(0)
+})

@@ -1003,3 +1003,8 @@ html.tv video:focus{outline-offset:-3px}
 .home-history h4{margin:8px 0 4px;opacity:.75;font-size:.9em;text-transform:capitalize}.home-history ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
 .home-history li{display:flex;gap:10px;align-items:baseline;min-width:0}.home-history li small{opacity:.65;flex:none;min-width:110px}.home-history li span{opacity:.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .home-history .linkbtn{font-weight:700;text-align:left}
+/* PC: send a card to the phone. Phone: what the PC sent. */
+.home-cardwrap{position:relative;display:flex;min-width:0}.home-cardwrap .home-card{flex:1}
+.home-send{position:absolute;right:6px;bottom:6px;border:1px solid var(--line,#2a3042);border-radius:999px;background:rgba(0,0,0,.25);padding:2px 8px;cursor:pointer;font-size:15px}
+.incoming-toast{position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:60;display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:#1b1f2e;color:#f2f3f7;border:1px solid #8b7cff;box-shadow:0 10px 30px rgba(0,0,0,.45);max-width:560px;margin:0 auto}
+.incoming-toast span{display:grid;min-width:0;flex:1}.incoming-toast small{opacity:.7}.incoming-toast b,.incoming-toast em{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-style:normal}.incoming-toast em{opacity:.85}
