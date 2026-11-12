@@ -1,8 +1,8 @@
 {
   "name": "novel-reader-windows",
-  "version": "0.24.3",
+  "version": "0.25.0",
   "private": true,
-  "description": "NovelReader for Windows",
+  "description": "NovelReader — read web novels and watch your videos, on Windows and Android",
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
@@ -77,7 +77,8 @@
         "nsis"
       ],
       "artifactName": "NovelReader-Setup-${version}.${ext}",
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "legalTrademarks": "NovelReader"
     },
     "nsis": {
       "oneClick": false,
@@ -86,7 +87,8 @@
       "createStartMenuShortcut": true,
       "shortcutName": "NovelReader",
       "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico"
+      "uninstallerIcon": "build/icon.ico",
+      "perMachine": false
     },
     "extraResources": [
       {
@@ -112,6 +114,8 @@
           "novelreader"
         ]
       }
-    ]
-  }
+    ],
+    "copyright": "Copyright © 2026 Ali Mezghenni"
+  },
+  "homepage": "https://github.com/madaratn/NovelReader-Windows"
 }

@@ -1,3 +1,16 @@
+## NovelReader 0.25.0
+
+- **Premier lancement guidé** : trois étapes courtes — la langue, par quoi commencer (livres, animes, séries, films), puis les sources recommandées en un clic.
+- **Messages d'erreur clairs** : au lieu du message technique, l'application dit ce qui s'est passé et quoi faire (« Ce site vérifie que tu n'es pas un robot », « Ce site n'existe plus, utilise une autre source »…). Le détail technique reste disponible.
+- **Écrans vides utiles** : une bibliothèque, une recherche ou des téléchargements vides affichent une phrase et un seul bouton pour la prochaine étape.
+- **Textes d'aide plus courts** : une phrase sous chaque réglage ; « Plus » ouvre le reste.
+- **Mêmes cartes partout** : livres, animes, séries, films, Découvrir et résultats de recherche partagent la même carte, les mêmes tailles et la même marque verte « Dans ta bibliothèque ».
+- **Téléphone plus compact** : titres, marges et blocs resserrés pour voir plus de contenu par écran ; les onglets d'étagères défilent sur une seule ligne.
+- **Mêmes mots partout** : « Reprendre », « Retirer », « Sources »… un seul terme par action, sur PC et sur téléphone.
+- **Confiance (antivirus, SmartScreen)** : les trois outils téléchargés sur Windows (ffmpeg, whisper, FlareSolverr) sont vérifiés par leur empreinte avant d'être lancés ; chaque version publie ses empreintes SHA-256 et une preuve de construction ; la signature Windows s'active dès qu'un certificat est ajouté au dépôt. Détails et limites (Google Play) dans docs/TRUST.md.
+
+---
+
 ## NovelReader 0.24.3
 
 - **Watch party : « Aucune soirée avec ce code »** — le PC qui crée la soirée reste maintenant inscrit sur le serveur de connexion : si ce lien tombe (coupure Wi-Fi, PC qui sort de veille, redémarrage du serveur), il se réinscrit tout seul avec le même code. Avant, la soirée continuait mais plus personne ne pouvait la rejoindre.

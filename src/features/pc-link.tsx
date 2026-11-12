@@ -6,7 +6,7 @@ import React,{useEffect,useState}from'react'
 import{t}from'../i18n'
 import{timeAgo}from'../lib/util'
 import{parsePcLink,pcEngine,onIos}from'../lib/engine'
-import{NoticeText}from'../ui/common'
+import{Help,NoticeText}from'../ui/common'
 import{QrCode,QrScanner}from'./qr'
 
 type Share={enabled:boolean,port:number,code:string,addresses:string[],link:string,lastSeen:number,lastFrom:string}
@@ -18,9 +18,9 @@ export function PcShareSettings(){
  if(!api?.shareStatus)return null
  const run=(f:()=>Promise<Share>)=>async()=>{setBusy(true);setErr('');try{setSt(await f())}catch(e){setErr(clean(e))}finally{setBusy(false)}}
  return <section className="panel settings-block pc-share"><h2>{t('Phone link')}</h2>
-  <p className="settings-help">{t('Links NovelReader on your phone or tablet to this PC, on the home Wi-Fi: your library and positions are shared directly (no cloud folder needed), and an iPhone uses this PC to find and play anime, series and movies. This PC must be on, with NovelReader open.')}</p>
+  <Help text={t('Links NovelReader on your phone or tablet to this PC, on the home Wi-Fi: your library and positions are shared directly (no cloud folder needed), and an iPhone uses this PC to find and play anime, series and movies. This PC must be on, with NovelReader open.')}/>
   {!st?.enabled?<div className="libraryactions"><button className="primary" disabled={busy} onClick={run(api.shareEnable)}>{t('Turn on the phone link')}</button></div>:<>
-   {st.link&&<div className="pc-share-qr"><QrCode text={st.link} label={t('QR code of the phone link')}/><p className="settings-help">{t('On the phone: Settings › Sync with your PC › Scan the QR code.')}</p></div>}
+   {st.link&&<div className="pc-share-qr"><QrCode text={st.link} label={t('QR code of the phone link')}/><Help text={t('On the phone: Settings › Sync with your PC › Scan the QR code.')}/></div>}
    <p className="settings-help sync-line"><b>{t('Or type this link on the phone:')}</b> <code className="pc-share-link">{st.link||t('No network found')}</code></p>
    <p className="settings-help">{t('On the phone: Settings › Sync with your PC. Windows may ask to allow NovelReader on the network: choose Allow (private networks).')}{st.lastSeen?' '+t('Last used by {device}, {when}.',{device:st.lastFrom||t('a phone'),when:timeAgo(st.lastSeen)}):''}</p>
    <div className="libraryactions"><button disabled={busy} onClick={run(api.shareRenew)}>{t('New code')}</button><button disabled={busy} onClick={run(api.shareDisable)}>{t('Turn off')}</button></div>

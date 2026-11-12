@@ -12,7 +12,11 @@ const { spawn, execFile } = require('child_process')
 
 const PORT = 8191
 const URL_BASE = 'http://127.0.0.1:' + PORT
-const RELEASES = 'https://api.github.com/repos/FlareSolverr/FlareSolverr/releases/latest'
+// One exact release, checked against its fingerprint (SHA-256) before it is unpacked
+// and run: the app never executes a file it cannot recognise.
+const FS_VERSION = 'v3.5.0'
+const FS_ZIP = 'https://github.com/FlareSolverr/FlareSolverr/releases/download/' + FS_VERSION + '/flaresolverr_windows_x64.zip'
+const FS_SHA256 = '76a6c3e43af7de3827b2ea1badf2bb607f664caa445cef3f14d624b421f7e01e'
 
 function createFlareSolverr({ app }) {
   const root = path.join(app.getPath('userData'), 'flaresolverr')
@@ -86,12 +90,11 @@ function createFlareSolverr({ app }) {
     if (state.installing) return status()
     state = { installing: true, progress: 0, error: null }
     try {
-      const rel = await getJson(RELEASES)
-      const asset = (rel.assets || []).find(a => /windows.*x64.*\.zip$/i.test(a.name)) || (rel.assets || []).find(a => /windows.*\.zip$/i.test(a.name))
-      if (!asset) throw new Error('No Windows build found in the latest FlareSolverr release.')
       fs.mkdirSync(root, { recursive: true })
       const zip = path.join(root, 'flaresolverr.zip')
-      await download(asset.browser_download_url, zip, p => { state.progress = Math.round(p * 90) })
+      await download(FS_ZIP, zip, p => { state.progress = Math.round(p * 88) })
+      const got = await new Promise((resolve, reject) => { const h = require('crypto').createHash('sha256'); fs.createReadStream(zip).on('data', d => h.update(d)).on('end', () => resolve(h.digest('hex'))).on('error', reject) })
+      if (got !== FS_SHA256) { fs.rmSync(zip, { force: true }); throw new Error('The FlareSolverr download does not match the expected file; it was not installed.') }
       state.progress = 92
       await expand(zip, root)
       fs.rmSync(zip, { force: true })

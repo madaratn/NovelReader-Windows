@@ -9,7 +9,7 @@ import React,{useEffect,useRef,useState}from'react'
 import Hls from'hls.js'
 import{t,plural}from'../i18n'
 import{lsGet,lsSet}from'../lib/util'
-import{NoticeText,Icon,MoreMenu}from'../ui/common'
+import{Help,NoticeText,Icon,MoreMenu}from'../ui/common'
 import{playerKeys,rememberVolume,restoreVolume,useVideoShortcuts}from'./videos'
 import{translateVtt}from'../lib/subtitles'
 import{TRANSLATE_LANGS,translateTarget}from'./translate'
@@ -62,7 +62,7 @@ function YouTubeVideo({video,onNext,onPrev,onPlaying}:PlayerProps){
  const src=id.startsWith('live:')?'https://www.youtube.com/embed/live_stream?channel='+encodeURIComponent(id.slice(5))+'&autoplay=1&playsinline=1&origin='+origin:'https://www.youtube-nocookie.com/embed/'+encodeURIComponent(id)+'?autoplay=1&rel=0&playsinline=1&enablejsapi=1&origin='+origin
  return <div className="remote-player youtube-player">
   <div className="player-stage"><iframe ref={frame} src={src} title={String(video.videoTitle||'YouTube')} allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" onLoad={listen} style={{width:'100%',aspectRatio:'16/9',border:0,background:'#000',display:'block'}}/></div>
-  <p className="settings-help">{t('Played by YouTube (the channel\'s own video): casting and Watch together are not available for it.')}</p>
+  <Help text={t('Played by YouTube (the channel\'s own video): casting and Watch together are not available for it.')}/>
   <div className="player-actions"><button disabled={!onPrev} onClick={()=>onPrev?.()}>{'← '+t('Previous')}</button><button className={ended?'primary':''} disabled={!onNext} onClick={()=>onNext?.()}>{t('Next')+' →'}</button></div>
  </div>
 }

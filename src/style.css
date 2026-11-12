@@ -1176,6 +1176,62 @@ main header+h2.sources-block{margin-top:4px}
 .media-detail-page>.media-player-top{order:1}
 /* Phone: the update banner stays under the top bar, not behind it */
 .app.phone .update-banner{top:calc(var(--m-top-h,0px) + 6px)}
+/* Welcome guide: section choice and one-click sources */
+.welcome-choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.welcome-choices button{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:36px 1fr;column-gap:12px;row-gap:2px;align-items:center;padding:14px;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--bg-raised)}
+.welcome-choices button .icon{grid-row:1/3;width:36px;height:36px;padding:8px;border-radius:var(--radius-md);background:var(--bg-accent-soft);color:var(--text-accent)}
+.welcome-choices button b{color:var(--text-strong);font-size:var(--fs-lg)}
+.welcome-choices button span{color:var(--text-3);font-size:var(--fs-sm);line-height:1.35}
+.welcome-choices button:hover{border-color:var(--line-strong)}
+.welcome-choices button.on{border-color:var(--line-accent-solid);background:var(--bg-accent-soft)}
+.welcome-choices button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.welcome-install{display:grid;gap:10px;justify-items:start}
+.welcome-ok{display:flex;align-items:center;gap:8px;color:var(--text-ok);margin:0}
+.welcome-err{color:var(--text-warn);margin:0;font-size:var(--fs-md)}
+@media (max-width:600px){.welcome-choices{grid-template-columns:1fr}}
+/* ---- Phone: tighter pages (more content per screen, same rhythm as the PC) ---- */
+@media (max-width:600px){
+ .m-modes button{font-size:var(--fs-sm)!important;padding:0 2px;letter-spacing:-.01em}
+ .m-modes button span{text-overflow:clip}
+ main>header,main header:first-child{margin:0 0 12px!important;padding-top:0!important}
+ main>header h1,main header>div>h1{font-size:var(--fs-3xl)!important;line-height:1.15;margin:0 0 4px}
+ /* The line under a page title: short on a phone (two lines at most). */
+ main>header p,main header>div>p{font-size:var(--fs-md);line-height:1.4;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+ /* Shelf and state tabs: one row that scrolls sideways instead of three wrapped rows. */
+ .shelftabs,.season-chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+ .shelftabs::-webkit-scrollbar,.season-chips::-webkit-scrollbar{display:none}
+ .shelftabs>*,.season-chips>*{flex:0 0 auto;white-space:nowrap}
+ .panel{padding:14px!important;border-radius:var(--radius-md)}
+ .settings-panel{gap:12px}
+ .settings-help,.panel>p{font-size:var(--fs-md);line-height:1.45}
+ .sources-actions{gap:8px;margin-bottom:12px}
+ .sources-actions>button{flex:1 1 auto}
+ main h2.sources-block{margin:20px 0 10px}
+ .libgrid{gap:10px}
+}
+.help-more{all:unset;cursor:pointer;color:var(--text-accent);font-weight:600;font-size:inherit;white-space:nowrap}
+.help-more:hover{text-decoration:underline}
+.help-more:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
+/* Empty pages: icon, one sentence, one button — centred, the same everywhere */
+.empty-state{align-items:center!important;text-align:center;gap:8px!important;padding:36px 20px!important;min-height:0!important;background:var(--bg-surface)!important}
+.empty-state .empty-icon{display:grid;place-items:center;width:52px;height:52px;border-radius:var(--radius-pill);background:var(--bg-accent-soft);color:var(--text-accent);margin-bottom:4px}
+.empty-state .empty-icon .icon{width:24px;height:24px}
+.empty-state h2{margin:0;font-size:var(--fs-xl)}
+.empty-state p{margin:0;color:var(--text-3);max-width:46ch}
+.empty-state .primary{margin-top:10px}
+/* ---- One card for every list: libraries (books, anime, series, films), Discover
+   and search results share the grid, the cover size, the padding and the hover ---- */
+.libgrid,.resultgrid,.media-page .libgrid,.media-page.books-ui .libgrid,.media-resultgrid{grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+.libcard,.resultcard,.media-page .libcard,.media-page.books-ui .libcard{grid-template-columns:88px minmax(0,1fr);gap:14px;padding:14px;min-height:0;border-radius:var(--radius-lg);transition:border-color var(--speed) var(--ease),box-shadow var(--speed) var(--ease)}
+.libcard:hover,.resultcard:hover,.media-page .libcard:hover{transform:none;border-color:var(--line-accent);box-shadow:0 8px 22px rgba(0,0,0,.18)}
+.libcard .libcover,.resultcard .libcover,.media-page .libcard-cover .libcover,.media-page.books-ui .libcard-cover .libcover{width:88px;height:124px;object-fit:cover;border-radius:var(--radius-md);transform:none!important}
+.libcard .libcover.placeholder,.resultcard .libcover.placeholder{font-size:22px}
+.libcard-meta h2,.media-page .libcard-meta h2,.resultcard h3{font-size:var(--fs-lg);font-weight:700;line-height:1.3;margin:0 0 2px}
+.libcard-meta p,.media-page .libcard-meta p,.resultcard p{color:var(--text-2);font-size:var(--fs-md);margin:0 0 4px}
+/* "In your library": the same green mark in Discover and in search results. */
+.inlib,.inlib.linkbtn{display:inline-flex;align-items:center;gap:6px;color:var(--text-ok);font-size:var(--fs-md);font-weight:600;background:none;border:0;padding:0;min-height:var(--h-md)}
+@media (max-width:760px){.libgrid,.resultgrid,.media-page .libgrid,.media-page.books-ui .libgrid,.media-resultgrid{grid-template-columns:1fr}}
+html.tv .libcard .libcover{width:100%!important;height:auto!important}
 /* Camera bubble while no picture has arrived yet (instead of a black circle) */
 .cam-wait{position:absolute;inset:0;display:grid;place-items:center;background:var(--bg-sunken);color:var(--text-2)}
 .cam-wait b{font-size:var(--fs-3xl);font-weight:700}

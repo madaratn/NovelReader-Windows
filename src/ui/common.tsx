@@ -6,7 +6,27 @@ import{hueOf,initials}from'../lib/util'
 // ---- Readable error messages -------------------------------------------
 // Engine errors can carry hundreds of lines of Java stack trace. Show one
 // readable sentence; keep the raw text in a collapsible panel for debugging.
-export function splitError(raw:string){let t=String(raw||'').replace(/Error invoking remote method '[^']+':\s*(Error:\s*)?/g,'').trim();const cut=t.search(/\s(Engine:|Caused by|\d{4}-\d\d-\d\dT\d\d:\d\d|at [a-z][\w$]*\.[\w$.]+\()|\s—\s|\s\|\s|\n/);let summary=(cut>0?t.slice(0,cut):t).trim();if(summary.length>240)summary=summary.slice(0,237)+'…';return{summary,details:summary===t?'':t}}
+// Technical errors said plainly: what happened and what to do. The original text
+// stays under "Technical details".
+const FRIENDLY:[RegExp,string][]=[
+ [/address not allowed/i,'This source tried to reach something that is not a web site, and was stopped.'],
+ [/cloudflare|just a moment|captcha|webview|challenge|bot check|not a bot|ddos-guard|\b403\b/i,'This site is checking that you are not a robot. Try again in a moment, or use another source.'],
+ [/enotfound|err_name_not_resolved|unknownhost|name or service not known|no address associated|name resolution/i,'This site no longer exists or has moved. Use another source.'],
+ [/err_internet_disconnected|network ?error|failed to fetch|fetch failed|econnrefused|econnreset|err_connection|unable to resolve host/i,'No answer from the site. Check your internet connection, then try again.'],
+ [/timeout|timed out|etimedout/i,'This site is too slow to answer. Try again, or use another source.'],
+ [/certificate|cert_|\b(ssl|tls)\b/i,'The security certificate of this site is not valid. Use another source.'],
+ [/unexpected token|json|cannot read propert|is not a function|nullpointer|nosuchmethod|missingfield|lateinit/i,'This source no longer understands its site (it needs an update). Use another source.'],
+ [/user token|enter the token|api key|log ?in to|logged in|extension settings/i,'This source needs an account or a key. Use another source.'],
+ [/\b(50\d|52\d|530)\b/,'This site is down for now. Try again later, or use another source.'],
+ [/\b(404|410)\b|not found/i,'This page no longer exists on the site. Use another source.'],
+]
+export function friendlyError(raw:string):string{const x=String(raw||'');for(const[re,msg]of FRIENDLY)if(re.test(x))return t(msg);return''}
+export function splitError(raw:string){const plain=splitErrorRaw(raw);
+ // Only for messages that carry a technical tail ("Could not load video: fetch failed").
+ const m=/^([^:]{3,60}:)\s+(.+)$/s.exec(plain.summary);const tail=m?m[2]+' '+plain.details:'';const nice=m&&/[a-z_]{3,}|\d{3}/i.test(m[2])?friendlyError(tail):''
+ if(nice&&nice!==m![2])return{summary:m![1]+' '+nice,details:(plain.details||plain.summary)}
+ return plain}
+function splitErrorRaw(raw:string){let t=String(raw||'').replace(/Error invoking remote method '[^']+':\s*(Error:\s*)?/g,'').trim();const cut=t.search(/\s(Engine:|Caused by|\d{4}-\d\d-\d\dT\d\d:\d\d|at [a-z][\w$]*\.[\w$.]+\()|\s—\s|\s\|\s|\n/);let summary=(cut>0?t.slice(0,cut):t).trim();if(summary.length>240)summary=summary.slice(0,237)+'…';return{summary,details:summary===t?'':t}}
 export function NoticeText({text}:{text:string}){const{summary,details}=splitError(text);const[copied,setCopied]=useState(false);return <div className="notice-text"><span>{summary}</span>{details&&<details className="notice-details"><summary>{t('Technical details')}</summary><pre>{details.replace(/\s\|\s/g,'\n')}</pre><button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(details);setCopied(true);setTimeout(()=>setCopied(false),1500)}catch{}}}>{copied?t('Copied'):t('Copy details')}</button></details>}</div>}
 export const ICONS:Record<string,string>={
  phone:'M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM11 18h2',
@@ -25,6 +45,7 @@ export const ICONS:Record<string,string>={
  minimize:'M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3',
  playsolid:'M7 4.5v15l12-7.5z',
  pause:'M7 4h3v16H7zM14 4h3v16h-3z',
+ check:'M5 12.5l4.5 4.5L19 7.5',
  trash:'M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3',
  more:'M4 12a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M10.8 12a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M17.6 12a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0',
  book:'M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zm0 15A1.5 1.5 0 0 0 6.5 21H19',
@@ -73,3 +94,17 @@ export function MoreMenu({label,children,className='',up=false}:{label?:string,c
  React.useEffect(()=>{if(!open)return;const out=(e:MouseEvent)=>{if(ref.current&&!ref.current.contains(e.target as Node))setOpen(false)};const esc=(e:KeyboardEvent)=>{if(e.key==='Escape'){e.stopPropagation();setOpen(false)}};document.addEventListener('mousedown',out);document.addEventListener('keydown',esc,true);return()=>{document.removeEventListener('mousedown',out);document.removeEventListener('keydown',esc,true)}},[open])
  return <div ref={ref} className={'more-menu'+(open?' open':'')+(up?' up':'')+(className?' '+className:'')}><button type="button" className="more-btn" aria-haspopup="menu" aria-expanded={open} aria-label={label||t('More actions')} title={label||t('More actions')} onClick={()=>setOpen(o=>!o)}><Icon name="more"/></button>{open&&<div className="more-pop" role="menu" onClick={e=>{if((e.target as HTMLElement).closest('button'))setOpen(false)}}>{children}</div>}</div>
 }
+
+// Help text: one plain sentence; when the text is long, the rest opens on demand
+// ("More"), so a page stays short to read.
+export function splitHelp(text:string):[string,string]{
+ const s=String(text||'');if(s.length<=150)return[s,'']
+ const m=/^(.{40,}?[.!?…])\s+(?=\S)/.exec(s);if(!m||s.length-m[1].length<30)return[s,'']
+ return[m[1],s.slice(m[0].length)]}
+export function Help({text,className='settings-help'}:{text:string,className?:string}){
+ const[open,setOpen]=React.useState(false),[first,rest]=splitHelp(text)
+ return <p className={className+(rest?' has-more':'')}>{first}{rest&&open?' '+rest:''}{rest&&<>{' '}<button type="button" className="help-more" aria-expanded={open} onClick={()=>setOpen(o=>!o)}>{open?t('Less'):t('More')}</button></>}</p>}
+
+// An empty page says what is missing in one sentence and offers the one next step.
+export function EmptyState({icon='search',title,text,action,onAction,className=''}:{icon?:string,title:string,text?:string,action?:string,onAction?:()=>void,className?:string}){
+ return <section className={'panel lib-empty empty-state'+(className?' '+className:'')}><span className="empty-icon" aria-hidden="true"><Icon name={icon}/></span><h2>{title}</h2>{text&&<p>{text}</p>}{action&&onAction&&<button className="primary" onClick={onAction}>{action}</button>}</section>}
