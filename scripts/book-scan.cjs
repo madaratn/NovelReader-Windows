@@ -7,7 +7,7 @@ const runner = require('../electron/plugin-runner.cjs')
 const MANIFEST = 'https://raw.githubusercontent.com/lnreader/lnreader-plugins/plugins/v3.0.0/.dist/plugins.min.json'
 const [, , OUT = 'book-scan.json', LANGS = 'all', ONLY = ''] = process.argv
 const limit = (p, ms, what) => Promise.race([p, new Promise((_, ko) => setTimeout(() => ko(new Error('timeout ' + what)), ms))])
-const short = e => String(e && (e.stack || e.message) || e).split('\n').slice(0, 2).join(' | ').slice(0, 220)
+const short = e => (String(e && e.message || e) + ' @ ' + String(e && e.stack || '').split('\n').slice(1, 2).join('').trim()).slice(0, 240)
 async function check(plugin) {
   const t = Date.now(), r = { name: plugin.name, id: plugin.id, lang: plugin.lang, version: plugin.version, site: plugin.site, step: '', error: '' }
   try {
