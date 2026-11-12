@@ -61,19 +61,28 @@ const merged=saved.map((r:any)=>/kohiden\.xyz/i.test(String(r?.url||''))?{...r,e
  // Language (re-renders the whole tree; strings are looked up at render time).
  const[lang,setLangState]=useState<Lang>(getLang())
  const changeLang=(l:Lang)=>{setLang(l);setLangState(l)}
- const navStack=useRef<{mode:Mode,page:string}[]>([]),modeRef=useRef(mode),pageRef=useRef(page)
+ const navStack=useRef<{mode:Mode,page:string,y:number}[]>([]),restoreY=useRef<number|null>(null),modeRef=useRef(mode),pageRef=useRef(page)
  modeRef.current=mode;pageRef.current=page
  const[homeOpen,setHomeOpen]=useState(false)
  // Android: the Back button / gesture / TV remote (MainActivity fires "nrBack").
  useEffect(()=>{const onBack=()=>{if(!handleBack(()=>goBackRef.current()))(window as any).Capacitor?.Plugins?.Player?.leave?.()};window.addEventListener('nrBack',onBack);return()=>window.removeEventListener('nrBack',onBack)},[])
  const[collapsed,setCollapsed]=useState(()=>lsGet('sidebarCollapsed')==='1'),[showKeys,setShowKeys]=useState(false),[qsOpen,setQsOpen]=useState(false)
- const setPage=(next:string)=>{if(next===pageRef.current)return;navStack.current.push({mode:modeRef.current,page:pageRef.current});if(navStack.current.length>50)navStack.current.shift();setPageState(next)}
- const switchMode=(m:Mode)=>{if(m===modeRef.current){setPage(startPage(m));return}navStack.current.push({mode:modeRef.current,page:pageRef.current});setModeState(m);lsSet('mode',m);setPageState(startPage(m))}
- const goBack=()=>{const prev=navStack.current.pop();if(!prev)return false;if(prev.mode!==modeRef.current){setModeState(prev.mode);lsSet('mode',prev.mode)}setPageState(prev.page);return true}
+ // Each step remembers how far the page was scrolled: going back returns to the same
+ // place in the list, not to its top. Choosing the page you are already on goes to its top.
+ const here=()=>({mode:modeRef.current,page:pageRef.current,y:window.scrollY||0})
+ const setPage=(next:string)=>{if(next===pageRef.current){window.scrollTo({top:0,behavior:'smooth'});return}navStack.current.push(here());if(navStack.current.length>50)navStack.current.shift();setPageState(next)}
+ const switchMode=(m:Mode)=>{if(m===modeRef.current){setPage(startPage(m));return}navStack.current.push(here());setModeState(m);lsSet('mode',m);setPageState(startPage(m))}
+ const goBack=()=>{const prev=navStack.current.pop();if(!prev)return false;restoreY.current=prev.y;if(prev.mode!==modeRef.current){setModeState(prev.mode);lsSet('mode',prev.mode)}setPageState(prev.page);return true}
  const toggleSidebar=()=>setCollapsed(c=>{lsSet('sidebarCollapsed',c?'0':'1');return !c})
  // Choosing an episode further down the page brings the video (at the top) into view.
  useEffect(()=>{if(selectedEpisode&&['animeDetail','seriesDetail','movieDetail'].includes(page))window.scrollTo({top:0})},[selectedEpisode])
- useEffect(()=>{if(isTopPage(mode,page))lsSet('lastPage:'+mode,page);document.title=pageLabel(mode,page)+' · NovelReader';if(page!=='reader')window.scrollTo({top:0})},[mode,page,lang])
+ useEffect(()=>{if(isTopPage(mode,page))lsSet('lastPage:'+mode,page);document.title=pageLabel(mode,page)+' · NovelReader';if(page==='reader')return
+  const y=restoreY.current;restoreY.current=null
+  if(!y){window.scrollTo({top:0});return}
+  // Back: the list may still be filling in, so the place is looked for during a short while.
+  let tries=0,stop=false;const go=()=>{if(stop)return;window.scrollTo({top:y});if(Math.abs((window.scrollY||0)-y)>4&&++tries<20)setTimeout(go,60)};go()
+  const cancel=()=>{stop=true};window.addEventListener('wheel',cancel,{once:true,passive:true});window.addEventListener('touchstart',cancel,{once:true,passive:true})
+  return()=>{stop=true;window.removeEventListener('wheel',cancel);window.removeEventListener('touchstart',cancel)}},[mode,page,lang])
  useEffect(()=>{
   const onKey=(e:KeyboardEvent)=>{
    const typing=isTyping(e.target),ctrl=e.ctrlKey||e.metaKey
