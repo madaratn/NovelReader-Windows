@@ -1,6 +1,9 @@
 import fs from 'fs'
 import path from 'path'
 import { test, expect } from '@playwright/test'
+import qrcode from 'qrcode-generator'
+// The QR code of the phone link as the PC draws it (features/qr.tsx).
+const QR_CELLS = (() => { const q = (qrcode as any)(0, 'M'); q.addData('192.168.1.5:4580/abcdefghjk'); q.make(); const n = q.getModuleCount(); return Array.from({ length: n }, (_, r) => Array.from({ length: n }, (_, c) => q.isDark(r, c))) })()
 
 // A small LNReader-style plugin, run by the in-page runtime (cheerio, @libs/fetch).
 const PLUGIN = `
@@ -445,8 +448,21 @@ test('Android: direct sync with the PC on the home Wi-Fi (link typed once), quie
   await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
   const block = page.locator('.pc-link')
   await expect(block).toContainText('Sync with your PC')
-  await block.getByLabel('Link shown on the PC').fill('192.168.1.5:4580/abcdefghjk')
-  await block.getByRole('button', { name: 'Link', exact: true }).click()
+  // The camera (faked: a picture of the PC's QR code) reads the link: nothing to type.
+  await page.evaluate(() => {
+    const c = document.createElement('canvas'); c.width = c.height = 400; (window as any).__qrCanvas = c
+    navigator.mediaDevices.getUserMedia = async () => (c as any).captureStream(10)
+  })
+  await block.getByRole('button', { name: 'Scan the QR code' }).click()
+  const scanner = page.getByRole('dialog', { name: 'Scan the QR code' })
+  await expect(scanner.locator('video')).toBeVisible()
+  // Draw the QR code the PC would show (same generator), then keep the picture moving so frames are produced.
+  await page.evaluate((cells) => {
+    const c = (window as any).__qrCanvas as HTMLCanvasElement, x = c.getContext('2d')!, n = cells.length, q = 4, s = 400 / (n + q * 2)
+    const draw = () => { x.fillStyle = '#fff'; x.fillRect(0, 0, 400, 400); x.fillStyle = '#000'; cells.forEach((row: boolean[], r: number) => row.forEach((on, col) => { if (on) x.fillRect(Math.floor((col + q) * s), Math.floor((r + q) * s), Math.ceil(s), Math.ceil(s)) })) }
+    draw(); (window as any).__qrTimer = setInterval(draw, 100)
+  }, QR_CELLS)
+  await expect(scanner).toHaveCount(0, { timeout: 15000 })
   await expect(block.getByRole('status')).toContainText('Your library is now shared with your PC.')
   // Both ways at once: the PC's series here, the phone's anime on the PC, signed by the phone.
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('seriesLibrary') || '[]').map((x: any) => x.name))).toEqual(['Lanterns'])

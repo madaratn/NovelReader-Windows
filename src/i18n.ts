@@ -930,6 +930,13 @@ const FR: Record<string, string> = {
   'Show this when NovelReader starts': 'Afficher au démarrage de NovelReader',
   'Live: Tunisian channels': 'Direct : chaînes tunisiennes',
   'The channels\' own live streams on YouTube. A channel that is not broadcasting on YouTube right now shows as unavailable.': 'Les directs des chaînes sur YouTube. Une chaîne qui ne diffuse pas sur YouTube en ce moment apparaît comme indisponible.',
+  'The camera is not allowed for NovelReader. Allow it in the phone settings, or type the link instead.': 'L\'appareil photo n\'est pas autorisé pour NovelReader. Autorisez-le dans les réglages du téléphone, ou tapez le lien.',
+  'The camera could not be opened. Type the link instead.': 'L\'appareil photo n\'a pas pu être ouvert. Tapez le lien à la place.',
+  'Scan the QR code': 'Scanner le QR code',
+  'Point the camera at the QR code shown on the PC (Settings › Phone link).': 'Visez le QR code affiché sur le PC (Réglages › Lien avec le téléphone).',
+  'QR code of the phone link': 'QR code du lien avec le téléphone',
+  'On the phone: Settings › Sync with your PC › Scan the QR code.': 'Sur le téléphone : Réglages › Synchronisation avec votre PC › Scanner le QR code.',
+  'Or type this link on the phone:': 'Ou tapez ce lien sur le téléphone :',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

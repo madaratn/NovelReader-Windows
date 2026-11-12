@@ -50,6 +50,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>NovelReader uses the camera only to scan the QR code that links it to your PC.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>NovelReader uses your PC on the home Wi-Fi to find and play videos.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>

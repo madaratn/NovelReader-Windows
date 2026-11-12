@@ -994,3 +994,6 @@ html.android select{background-color:transparent;color:inherit}
 html.tv{font-size:112%}
 html.tv :focus-visible,html.tv :focus{outline:3px solid #ffd54a!important;outline-offset:2px;border-radius:8px}
 html.tv video:focus{outline-offset:-3px}
+/* QR code of the phone link, and its scanner */
+.pc-share-qr{display:flex;gap:16px;align-items:center;flex-wrap:wrap}.pc-share-qr .qr{border-radius:8px;flex:none}
+.qr-scan{padding:16px 18px;gap:10px}.qr-scan h2{margin:0}.qr-scan video{width:100%;max-height:52vh;border-radius:12px;background:#000;object-fit:cover}
