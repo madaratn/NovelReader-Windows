@@ -16,29 +16,67 @@ export type PartyMedia={kind:'anime'|'series'|'movie',sourceId:string,sourceName
 export type PartyOpen={media:PartyMedia,episodeUrl:string,episodeName:string,episodeNumber?:number}
 export type PartyState={media:PartyMedia|null,episodeUrl:string,episodeName:string,episodeNumber?:number,playing:boolean,time:number,rate:number,by:string}
 type Member={id:string,name:string,voice?:boolean,muted?:boolean,cam?:boolean}
-type Msg={t:'hello',name:string}|{t:'members',list:Member[]}|{t:'state',s:PartyState}|{t:'chat',name:string,text:string,at:number}|{t:'voice',on:boolean,muted:boolean,cam?:boolean}|{t:'buffer',on:boolean,time:number}|{t:'react',emoji:string,name:string}|{t:'wait',list:{id:string,name:string}[]}|{t:'bye',end?:boolean,next?:string}|{t:'ping'}
+type Msg={t:'hello',name:string}|{t:'members',list:Member[]}|{t:'state',s:PartyState}|{t:'chat',name:string,text:string,at:number}|{t:'voice',on:boolean,muted:boolean,cam?:boolean}|{t:'camfix',to:string,from:string,n:number}|{t:'buffer',on:boolean,time:number}|{t:'react',emoji:string,name:string}|{t:'wait',list:{id:string,name:string}[]}|{t:'bye',end?:boolean,next?:string}|{t:'ping'}
 type Conn={id:string,send:(m:Msg)=>void,onMessage:(cb:(m:Msg)=>void)=>void,onClose:(cb:()=>void)=>void,close:()=>void}
-type Call={peer:string,kind:'voice'|'cam',limit:(bps:number)=>void,answer:(s:MediaStream)=>void,onStream:(cb:(s:MediaStream)=>void)=>void,onClose:(cb:()=>void)=>void,close:()=>void}
-type Transport={host:(code:string,onConn:(c:Conn)=>void)=>Promise<void>,join:(code:string)=>Promise<Conn>,destroy:()=>void,selfId:()=>string,call:(peer:string,s:MediaStream,kind?:'voice'|'cam')=>Call,onCall:(cb:(c:Call)=>void)=>void}
+type CallStats={state:string,inBytes:number,inFrames:number,outBytes:number,outFrames:number}
+type Call={peer:string,kind:'voice'|'cam',stats:()=>Promise<CallStats|null>,limit:(bps:number)=>void,answer:(s:MediaStream)=>void,onStream:(cb:(s:MediaStream)=>void)=>void,onClose:(cb:()=>void)=>void,close:()=>void}
+type Transport={host:(code:string,onConn:(c:Conn)=>void)=>Promise<void>,join:(code:string)=>Promise<Conn>,destroy:()=>void,selfId:()=>string,call:(peer:string,s:MediaStream,kind?:'voice'|'cam',codec?:string)=>Call,onCall:(cb:(c:Call)=>void)=>void}
 
 // ---- Transports ------------------------------------------------------------------
 // Camera bubbles stay light so the film keeps the bandwidth.
 function capBitrate(pc:()=>RTCPeerConnection|undefined,bps:number){let n=0;const go=()=>{const p=pc();const ss=p?.getSenders().filter(x=>x.track?.kind==='video')||[];if(!ss.length){if(++n<20)setTimeout(go,500);return}for(const sd of ss){try{const prm=sd.getParameters();if(!prm.encodings||!prm.encodings.length)prm.encodings=[{}];prm.encodings[0].maxBitrate=bps;(prm as any).degradationPreference='maintain-framerate';sd.setParameters(prm).catch(()=>{})}catch{}}};go()}
+// What flows on a call: used to notice a camera that connects but shows nothing.
+async function callStats(pc:RTCPeerConnection|undefined):Promise<CallStats|null>{
+ if(!pc)return null
+ const out:CallStats={state:pc.connectionState,inBytes:0,inFrames:0,outBytes:0,outFrames:0}
+ try{(await pc.getStats()).forEach((r:any)=>{if(r.kind!=='video'&&r.mediaType!=='video')return;if(r.type==='inbound-rtp'){out.inBytes+=r.bytesReceived||0;out.inFrames+=r.framesDecoded||0}else if(r.type==='outbound-rtp'){out.outBytes+=r.bytesSent||0;out.outFrames+=r.framesEncoded||0}})}catch{return null}
+ return out}
+// Puts one video format first in a call offer (VP8, H264, VP9): when a camera shows
+// black with one (an encoder or decoder of that PC), the next try uses another.
+export function preferVideoCodec(sdp:string,codec:string):string{
+ const lines=sdp.split('\r\n'),mi=lines.findIndex(l=>l.startsWith('m=video'));if(mi<0||!codec)return sdp
+ const want=new Set<string>();for(const l of lines){const m=/^a=rtpmap:(\d+) ([A-Za-z0-9]+)\//.exec(l);if(m&&m[2].toUpperCase()===codec.toUpperCase())want.add(m[1])}
+ if(!want.size)return sdp
+ // The retransmission formats (rtx) of the chosen ones follow them.
+ for(const l of lines){const m=/^a=fmtp:(\d+) apt=(\d+)/.exec(l);if(m&&want.has(m[2]))want.add(m[1])}
+ const parts=lines[mi].split(' '),head=parts.slice(0,3),pts=parts.slice(3)
+ lines[mi]=[...head,...pts.filter(x=>want.has(x)),...pts.filter(x=>!want.has(x))].join(' ')
+ return lines.join('\r\n')}
+const CAM_CODECS=['H264','VP9','VP8']
+// Tests shorten the wait.
+const CAM_WAIT=Number((globalThis as any).__partyCamWait)||7000,CAM_CHECKS=4
 const PREFIX='novelreader-wp-'
 async function peerTransport():Promise<Transport>{
  const{default:Peer}=await import('peerjs')
  let peer:any=null
+ // The code only works while this PC is registered on the connection server. That
+ // link drops now and then (server restart, Wi-Fi hiccup, PC waking up); without
+ // this, the party kept running between those already in it but nobody could join
+ // any more ("No watch party with this code"). Registered again, with the same code.
+ const stayRegistered=(p:any)=>{let timer:any=null
+  const again=()=>{clearTimeout(timer);timer=setTimeout(()=>{if(p!==peer||p.destroyed)return;if(p.disconnected){try{p.reconnect()}catch{}again()}},2500)}
+  p.on('disconnected',again)
+  // Belt and braces: checked every 20 s, and when the PC comes back online or wakes up.
+  const check=()=>{if(p!==peer||p.destroyed){clearInterval(iv);window.removeEventListener('online',check);return}if(p.disconnected)again()}
+  const iv=setInterval(check,20000);window.addEventListener('online',check)
+  if((window as any).__partyDebug)(window as any).__partyPeer=p}
  const wrap=(c:any):Conn=>({id:String(c.peer),send:m=>{try{c.open&&c.send(m)}catch{}},onMessage:cb=>c.on('data',(d:any)=>cb(d as Msg)),onClose:cb=>{c.on('close',cb);c.on('error',cb)},close:()=>{try{c.close()}catch{}}})
  const failure=(e:any)=>new Error(e?.type==='peer-unavailable'?t('No watch party with this code. Check the code with your friend.'):e?.type==='unavailable-id'?'taken':e?.type==='network'||e?.type==='server-error'||e?.type==='socket-error'?t('Could not reach the connection server. Check your internet connection.'):String(e?.message||e))
  return{
-  host:(code,onConn)=>new Promise((res,rej)=>{peer=new Peer(PREFIX+code.toLowerCase(),{debug:0});peer.on('open',()=>res());peer.on('error',(e:any)=>rej(failure(e)));peer.on('connection',(c:any)=>c.on('open',()=>onConn(wrap(c))))}),
-  join:code=>new Promise((res,rej)=>{peer=new Peer({debug:0});peer.on('error',(e:any)=>rej(failure(e)));peer.on('open',()=>{const c=peer.connect(PREFIX+code.toLowerCase(),{reliable:true});c.on('open',()=>res(wrap(c)));setTimeout(()=>rej(new Error(t('No answer from this watch party. Check the code with your friend.'))),15000)})}),
+  host:(code,onConn)=>new Promise((res,rej)=>{peer=new Peer(PREFIX+code.toLowerCase(),{debug:0});stayRegistered(peer);peer.on('open',()=>res());peer.on('error',(e:any)=>rej(failure(e)));peer.on('connection',(c:any)=>c.on('open',()=>onConn(wrap(c))))}),
+  // The host may be re-registering at this very moment (its link to the server
+  // dropped for a few seconds): "no such party" is only believed after four tries.
+  join:code=>new Promise((res,rej)=>{peer=new Peer({debug:0});stayRegistered(peer);let tries=0,done=false
+   const attempt=()=>{if(done||!peer||peer.destroyed)return;tries++;const c=peer.connect(PREFIX+code.toLowerCase(),{reliable:true});c.on('open',()=>{done=true;res(wrap(c))})}
+   peer.on('error',(e:any)=>{if(done)return;if(e?.type==='peer-unavailable'&&tries<4){setTimeout(attempt,3000);return}if(e?.type==='network'||e?.type==='disconnected'||e?.type==='socket-closed')return;done=true;rej(failure(e))})
+   peer.on('open',()=>{if(!tries)attempt()})
+   setTimeout(()=>{if(!done){done=true;rej(new Error(t('No answer from this watch party. Check the code with your friend.')))}},25000)}),
   destroy:()=>{try{peer?.destroy()}catch{}peer=null},
   selfId:()=>String(peer?.id||''),
-  call:(id,stream,kind='voice')=>wrapCall(peer.call(id,stream,{metadata:{kind}})),
+  call:(id,stream,kind='voice',codec='')=>wrapCall(peer.call(id,stream,{metadata:{kind},...(codec?{sdpTransform:(sdp:string)=>preferVideoCodec(sdp,codec)}:{})})),
   onCall:cb=>{peer.on('call',(mc:any)=>cb(wrapCall(mc)))}
  }
- function wrapCall(mc:any):Call{return{peer:String(mc.peer),kind:mc.metadata?.kind==='cam'?'cam':'voice',limit:bps=>capBitrate(()=>mc.peerConnection,bps),answer:st=>mc.answer(st&&st.getTracks().length?st:undefined),onStream:cb=>mc.on('stream',cb),onClose:cb=>{mc.on('close',cb);mc.on('error',cb)},close:()=>{try{mc.close()}catch{}}}}
+ function wrapCall(mc:any):Call{return{peer:String(mc.peer),kind:mc.metadata?.kind==='cam'?'cam':'voice',stats:()=>callStats(mc.peerConnection),limit:bps=>capBitrate(()=>mc.peerConnection,bps),answer:st=>mc.answer(st&&st.getTracks().length?st:undefined),onStream:cb=>mc.on('stream',cb),onClose:cb=>{mc.on('close',cb);mc.on('error',cb)},close:()=>{try{mc.close()}catch{}}}}
 }
 // Tests: two windows of the same browser talk through a BroadcastChannel.
 function fakeTransport():Transport{
@@ -47,7 +85,7 @@ function fakeTransport():Transport{
  const sig=new BroadcastChannel('wp-voice');chans.push(sig)
  const pcs=new Map<string,RTCPeerConnection>();let onCallCb:(c:Call)=>void=()=>{}
  const mkCall=(peer:string,id:string,pc:RTCPeerConnection,incoming?:RTCSessionDescriptionInit,kind:'voice'|'cam'='voice'):Call=>{let onS:(s:MediaStream)=>void=()=>{},onC:()=>void=()=>{};pc.ontrack=e=>onS(e.streams[0]);pc.onicecandidate=e=>{if(e.candidate)sig.postMessage({to:peer,from:me,id,ice:e.candidate.toJSON()})};pc.onconnectionstatechange=()=>{if(['closed','failed'].includes(pc.connectionState))onC()}
-  return{peer,kind,limit:bps=>capBitrate(()=>pc,bps),answer:async st=>{for(const tr of st.getTracks())pc.addTrack(tr,st);await pc.setRemoteDescription(incoming!);const a=await pc.createAnswer();await pc.setLocalDescription(a);sig.postMessage({to:peer,from:me,id,answer:a})},onStream:cb=>{onS=cb},onClose:cb=>{onC=cb},close:()=>{pc.close();sig.postMessage({to:peer,from:me,id,bye:1});onC()}}}
+  return{peer,kind,stats:()=>(window as any).__partyCamBlack?.(peer,kind)?Promise.resolve({state:'connected',inBytes:0,inFrames:0,outBytes:1,outFrames:1}):callStats(pc),limit:bps=>capBitrate(()=>pc,bps),answer:async st=>{for(const tr of st.getTracks())pc.addTrack(tr,st);await pc.setRemoteDescription(incoming!);const a=await pc.createAnswer();await pc.setLocalDescription(a);sig.postMessage({to:peer,from:me,id,answer:a})},onStream:cb=>{onS=cb},onClose:cb=>{onC=cb},close:()=>{pc.close();sig.postMessage({to:peer,from:me,id,bye:1});onC()}}}
  sig.onmessage=async e=>{const d=e.data;if(d.to!==me)return;const pc=pcs.get(d.id)
   if(d.offer){const p2=new RTCPeerConnection();pcs.set(d.id,p2);onCallCb(mkCall(d.from,d.id,p2,d.offer,d.kind==='cam'?'cam':'voice'))}
   else if(d.answer&&pc)await pc.setRemoteDescription(d.answer)
@@ -59,14 +97,14 @@ function fakeTransport():Transport{
   join:code=>new Promise((res,rej)=>{const lobby=new BroadcastChannel('wp-'+code);chans.push(lobby);const tm=setTimeout(()=>rej(new Error(t('No watch party with this code. Check the code with your friend.'))),1500);lobby.onmessage=e=>{if(e.data?.welcome===me){clearTimeout(tm);res(pipe('wp-'+code+'-'+me,'host'))}};lobby.postMessage({knock:me})}),
   destroy:()=>{for(const p of pcs.values())p.close();pcs.clear();for(const c of chans)try{c.close()}catch{}chans=[]},
   selfId:()=>me,
-  call:(peer,stream,kind='voice')=>{const id=Math.random().toString(36).slice(2);const pc=new RTCPeerConnection();pcs.set(id,pc);const c=mkCall(peer,id,pc,undefined,kind);for(const tr of stream.getTracks())pc.addTrack(tr,stream);pc.createOffer().then(async o=>{await pc.setLocalDescription(o);sig.postMessage({to:peer,from:me,id,offer:o,kind})});return c},
+  call:(peer,stream,kind='voice',codec='')=>{const id=Math.random().toString(36).slice(2);const pc=new RTCPeerConnection();pcs.set(id,pc);const c=mkCall(peer,id,pc,undefined,kind);if(kind==='cam')((window as any).__partyCamCalls=(window as any).__partyCamCalls||[]).push(codec);for(const tr of stream.getTracks())pc.addTrack(tr,stream);pc.createOffer().then(async o=>{if(codec&&o.sdp)o={type:o.type,sdp:preferVideoCodec(o.sdp,codec)};await pc.setLocalDescription(o);sig.postMessage({to:peer,from:me,id,offer:o,kind})});return c},
   onCall:cb=>{onCallCb=cb}
  }
 }
 
 // ---- Party (one per window, survives page changes) -------------------------------
 type Chat={name:string,text:string,at:number,mine?:boolean,system?:boolean}
-type Snapshot={role:''|'host'|'guest',code:string,status:'idle'|'connecting'|'ready'|'error',error:string,members:Member[],chat:Chat[],unread:number,state:PartyState|null,stateAt:number,voice:'off'|'joining'|'on',muted:boolean,speaking:string[],voiceError:string,selfId:string,waiting:{id:string,name:string}[],missing:PartyMedia|null,missingState:''|'installing'|'error',missingError:string,reconnecting:boolean,ptt:boolean,talking:boolean,cam:'off'|'starting'|'on',camError:string,camLocal:MediaStream|null,cams:{id:string,stream:MediaStream}[]}
+type Snapshot={role:''|'host'|'guest',code:string,status:'idle'|'connecting'|'ready'|'error',error:string,members:Member[],chat:Chat[],unread:number,state:PartyState|null,stateAt:number,voice:'off'|'joining'|'on',muted:boolean,speaking:string[],voiceError:string,selfId:string,waiting:{id:string,name:string}[],missing:PartyMedia|null,missingState:''|'installing'|'error',missingError:string,reconnecting:boolean,ptt:boolean,talking:boolean,cam:'off'|'starting'|'on',camError:string,camLocal:MediaStream|null,cams:{id:string,stream:MediaStream,live?:boolean}[]}
 export const REACTIONS=['😂','❤️','😮','😱','🔥','👏','😢']
 const CODE_CHARS='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const newCode=()=>Array.from({length:6},()=>CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)]).join('')
@@ -148,6 +186,7 @@ class Party{
   else if(m.t==='bye'&&this.snap.role==='guest'){if(m.next){const host=this.snap.members[0]?.name||'';const nn=this.snap.members.find(x=>x.id===m.next)?.name||'';this.system(t('{host} left; {name} is now the host.',{host,name:nn}));this.lost(String(m.next))}else this.leave(t('The host closed the watch party.'))}
   else if(m.t==='members'){this.set({members:m.list});this.syncCalls();this.syncCams()}
   else if(m.t==='voice'&&this.snap.role==='host'){this.voiceOf.set(from.id,{on:!!m.on,muted:!!m.muted,cam:!!m.cam});if(!m.on)this.hangUp(from.id);this.sendMembers();this.syncCalls()}
+  else if(m.t==='camfix'){if(m.to===this.snap.selfId){if(this.snap.cam==='on'&&Number(m.n)>(this.camTry.get(String(m.from))||0)&&Number(m.n)<=3)this.camAgain(String(m.from),Number(m.n))}else if(this.snap.role==='host'){const k=this.conns.find(x=>x.id===m.to);k?.send(m)}}
   else if(m.t==='chat'){this.addChat({name:m.name,text:String(m.text).slice(0,500),at:m.at});if(this.snap.role==='host')this.relay(m,from)}
   else if(m.t==='react'){if(REACTIONS.includes(m.emoji)){this.emitReact(m.emoji,String(m.name||'').slice(0,30));if(this.snap.role==='host')this.relay(m,from)}}
   else if(m.t==='buffer'&&this.snap.role==='host')this.noteBuffer(from.id,!!m.on,Number(m.time)||0)
@@ -233,18 +272,39 @@ class Party{
   catch(e:any){const n=String(e?.name||e);this.set({cam:'off',camError:/NotAllowed|Permission/i.test(n)?t('The camera is not allowed. Check Windows Settings › Privacy › Camera.'):/NotFound|Overconstrained/i.test(n)?t('No camera found.'):/NotReadable|TrackStart/i.test(n)?t('The camera is used by another app.'):String(e?.message||e)});return}
   this.set({cam:'on',camLocal:st});this.voiceMsg();this.syncCams()
  }
- camStop(silent=false){for(const c of this.camOut.values()){try{c.close()}catch{}}this.camOut.clear();this.snap.camLocal?.getTracks().forEach(tr=>tr.stop());const was=this.snap.cam==='on';this.set({cam:'off',camLocal:null});if(was&&!silent)this.voiceMsg()}
+ camStop(silent=false){for(const c of this.camOut.values()){try{c.close()}catch{}}this.camOut.clear();this.camTry.clear();this.snap.camLocal?.getTracks().forEach(tr=>tr.stop());const was=this.snap.cam==='on';this.set({cam:'off',camLocal:null});if(was&&!silent)this.voiceMsg()}
  private syncCams(){
   const self=this.snap.selfId;if(!this.transport)return
   const ids=new Set(this.snap.members.filter(m=>m.id!==self).map(m=>m.id))
   // Mine to everyone (newcomers included).
-  if(this.snap.cam==='on'&&this.snap.camLocal){for(const id of ids)if(!this.camOut.has(id)){const c=this.transport.call(id,this.snap.camLocal,'cam');this.camOut.set(id,c);c.limit(250000);c.onClose(()=>{if(this.camOut.get(id)===c)this.camOut.delete(id)})}}
-  for(const[id,c]of[...this.camOut])if(!ids.has(id)){try{c.close()}catch{}this.camOut.delete(id)}
+  if(this.snap.cam==='on'&&this.snap.camLocal){for(const id of ids)if(!this.camOut.has(id)){const n=this.camTry.get(id)||0;const c=this.transport.call(id,this.snap.camLocal,'cam',n?CAM_CODECS[(n-1)%CAM_CODECS.length]:'');this.camOut.set(id,c);c.limit(250000);c.onClose(()=>{if(this.camOut.get(id)===c)this.camOut.delete(id)});this.watchCamOut(id,c)}}
+  for(const[id,c]of[...this.camOut])if(!ids.has(id)){try{c.close()}catch{}this.camOut.delete(id);this.camTry.delete(id)}
   // Theirs: dropped when they turn it off or leave.
   const on=new Set(this.snap.members.filter(m=>m.cam).map(m=>m.id))
   for(const[id,c]of[...this.camIn])if(!on.has(id)){try{c.close()}catch{}this.dropCam(id)}
  }
- private camIncoming(c:Call){const old=this.camIn.get(c.peer);if(old){try{old.close()}catch{}}this.camIn.set(c.peer,c);c.answer(new MediaStream());c.onStream(st=>this.set({cams:[...this.snap.cams.filter(x=>x.id!==c.peer),{id:c.peer,stream:st}]}));c.onClose(()=>{if(this.camIn.get(c.peer)===c)this.dropCam(c.peer)})}
+ private camIncoming(c:Call){const old=this.camIn.get(c.peer);if(old){try{old.close()}catch{}}this.camIn.set(c.peer,c);c.answer(new MediaStream());c.onStream(st=>{const was=this.snap.cams.find(x=>x.id===c.peer);this.set({cams:[...this.snap.cams.filter(x=>x.id!==c.peer),{id:c.peer,stream:st,live:false}]});if(!was||was.stream!==st)this.watchCamIn(c)});c.onClose(()=>{if(this.camIn.get(c.peer)===c)this.dropCam(c.peer)})}
+ // ---- A camera that connects but shows nothing (black) ----
+ // The viewer checks that pictures really arrive. If none after a few seconds, it
+ // asks the sender to call again, which then uses another video format (VP8, H264,
+ // VP9 in turn): a black picture usually comes from one PC's encoder or decoder for
+ // one format. The sender also checks by itself that its pictures leave. Three tries.
+ private camTry=new Map<string,number>()
+ private camAsked=new Map<string,number>()
+ private watchCamIn(c:Call){
+  const id=c.peer;let checks=0
+  const tick=async()=>{
+   if(this.camIn.get(id)!==c)return
+   const st=await c.stats();if(this.camIn.get(id)!==c)return
+   if(st&&st.inFrames>0){this.camAsked.delete(id);if(this.snap.cams.some(x=>x.id===id&&!x.live))this.set({cams:this.snap.cams.map(x=>x.id===id?{...x,live:true}:x)});return}
+   // Still nothing: ask once for this call, then keep looking (the picture may come late).
+   if(++checks===CAM_CHECKS){const n=(this.camAsked.get(id)||0)+1;if(n<=3){this.camAsked.set(id,n);const m:Msg={t:'camfix',to:id,from:this.snap.selfId,n};for(const k of this.conns)k.send(m)}}
+   setTimeout(tick,checks<CAM_CHECKS?CAM_WAIT/CAM_CHECKS:3000)}
+  setTimeout(tick,CAM_WAIT/CAM_CHECKS)}
+ private watchCamOut(id:string,c:Call){
+  setTimeout(async()=>{if(this.camOut.get(id)!==c)return;const st=await c.stats();if(this.camOut.get(id)!==c||!st)return
+   if(st.outFrames===0&&(this.camTry.get(id)||0)<3)this.camAgain(id,(this.camTry.get(id)||0)+1)},CAM_WAIT+2000)}
+ private camAgain(id:string,n:number){const c=this.camOut.get(id);if(c){this.camOut.delete(id);try{c.close()}catch{}}this.camTry.set(id,Math.min(n,3));setTimeout(()=>this.syncCams(),400)}
  private dropCam(id:string){this.camIn.delete(id);if(this.snap.cams.some(x=>x.id===id))this.set({cams:this.snap.cams.filter(x=>x.id!==id)})}
  // Who is speaking: audio level of each voice (and mine), checked 6 times a second.
  private ctx:AudioContext|null=null
@@ -522,7 +582,7 @@ export function PartyCams(){
  const up=()=>{const d=drag.current;drag.current=null;dragged.current=!!d?.moved;if(d?.moved)lsSet('partyCamsPos',JSON.stringify(pos))}
  const node=<div className={'party-cams'+(fs?' in-full':'')} style={style} onPointerDown={down} onPointerMove={move} onPointerUp={up} aria-label={t('Cameras')}>
   {list.map(c=><figure key={c.id} className={'cam-bubble'+(big===c.id?' big':'')+(snap.speaking.includes(c.id)?' speaking':'')} onClick={()=>{if(dragged.current){dragged.current=false;return}setBig(b=>b===c.id?'':c.id)}} title={c.me?t('You'):name(c.id)}>
-   <CamVideo stream={c.stream} mirror={c.me}/><figcaption>{c.me?t('You'):name(c.id)}</figcaption></figure>)}
+   <CamVideo stream={c.stream} mirror={c.me}/>{!c.me&&c.live===false&&<span className="cam-wait" role="status" title={t('Waiting for the picture…')}><b>{(name(c.id)||'?').slice(0,1).toUpperCase()}</b><span className="spinner" aria-hidden="true"/></span>}<figcaption>{c.me?t('You'):name(c.id)}</figcaption></figure>)}
  </div>
  return createPortal(node,(fs as HTMLElement)||document.body)
 }
