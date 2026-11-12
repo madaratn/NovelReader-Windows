@@ -1,10 +1,16 @@
-## NovelReader 0.22.0
+## NovelReader 0.22.1 — Bêta familiale Android
 
-- **Lier le téléphone par QR code** : sur le PC, **Réglages › Lien avec le téléphone** affiche un QR code ; sur le téléphone, **Réglages › Synchronisation avec votre PC › Scanner le QR code**. Plus de lien à taper.
-- **Reprendre sur mon téléphone** : dans le panneau **Reprendre** du PC, le bouton 📱 envoie un titre au téléphone lié, qui propose de continuer au même endroit.
-- **Historique** : le panneau **Reprendre** liste ce que vous avez lu et regardé, jour par jour.
-- **Sources en panne mises de côté** : une source que la vérification hebdomadaire trouve en panne depuis plus de 10 jours ne ralentit plus les recherches. Elle revient toute seule quand elle remarche (ou par **Utiliser quand même** dans Sources).
-- **Android : lecture à voix haute** des livres avec les voix du téléphone, y compris écran éteint (bouton **Arrêter** dans la notification).
-- **Android : vidéos du téléphone** : la page **Vidéos locales** lit les vidéos d'un dossier du téléphone choisi une fois.
-- **Android TV** : interface agrandie et bibliothèques en rangées d'affiches.
-- **Android : démarrage plus rapide** quand beaucoup de sources sont installées (elles sont ouvertes quatre par quatre).
+Cette version est destinée aux premiers tests sur téléphone Android, avant une distribution plus large.
+
+### Corrections et sécurité
+- **Stabilité Windows et Android** : contrôles des traductions, de TypeScript et des tests avant la création de l'installeur Windows ; publication de l'APK seulement si le démarrage sur émulateur fonctionne.
+- **Continuer sur téléphone** : deux envois quasi simultanés du PC ne font plus perdre le deuxième.
+- **Sous-titres Windows** : évite les doublons quand les dossiers « Subs » et « subs » sont le même dossier.
+- **Sources de romans LNReader** : les téléchargements de scripts sont limités au dépôt officiel LNReader et à 2 Mo ; les URL douteuses et les redirections vers des sources externes sont refusées.
+- **Tests automatiques** renforcés pour vérifier ces protections.
+
+### À savoir
+- **Bêta, pas une sandbox complète** : une extension officielle compromise pourrait toujours présenter un risque. N'installez pas de sources non fiables.
+- La sécurité des extensions vidéo Aniyomi et l'isolation complète du moteur LNReader restent à renforcer.
+- Installez l'APK **par-dessus** l'ancienne version : ne désinstallez pas NovelReader. Faites une sauvegarde des bibliothèques dans les réglages avant de tester.
+- Cette publication est marquée « préversion » pour ne pas imposer cette bêta aux proches recevant les mises à jour Android habituelles.
