@@ -1,0 +1,36 @@
+name: Book source scan
+# Checks every LNReader book source as the PC app runs them (popular list, a novel,
+# its first chapter), with the app's user agent and with a browser one.
+on:
+  workflow_dispatch:
+    inputs:
+      langs:
+        description: Languages (LNReader names, comma separated, or all)
+        default: all
+      only:
+        description: Only these sources (comma separated names)
+        default: ''
+  push:
+    branches: ['claude/cleanup']
+    paths: ['scripts/book-scan.cjs', '.github/workflows/book-scan.yml']
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund --ignore-scripts
+      - name: App user agent
+        run: node scripts/book-scan.cjs app.json "${{ inputs.langs || 'all' }}" "${{ inputs.only }}"
+      - name: Browser user agent
+        env:
+          NR_BOOK_UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36
+        run: node scripts/book-scan.cjs browser.json "${{ inputs.langs || 'all' }}" "${{ inputs.only }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: book-scan
+          path: '*.json'

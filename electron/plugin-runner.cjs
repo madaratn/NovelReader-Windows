@@ -5,7 +5,9 @@ const dayjs=require('dayjs')
 const htmlparser2=require('htmlparser2')
 const urlencode=require('urlencode')
 
-async function fetchApi(url,init={}){return fetch(url,{...init,headers:{'User-Agent':'Mozilla/5.0 NovelReader/0.2','Accept':'*/*','Accept-Language':'*',...(init.headers||{})}})}
+// User agent sent to the sites (overridable for the source check: NR_BOOK_UA).
+const UA=process.env.NR_BOOK_UA||'Mozilla/5.0 NovelReader/0.2'
+async function fetchApi(url,init={}){return fetch(url,{...init,headers:{'User-Agent':UA,'Accept':'*/*','Accept-Language':'*',...(init.headers||{})}})}
 async function fetchText(url,init,encoding){try{const r=await fetchApi(url,init);if(!r.ok)return '';const b=Buffer.from(await r.arrayBuffer());return new TextDecoder(encoding||'utf-8').decode(b)}catch{return ''}}
 function runtimeRequire(name){
  if(name==='cheerio')return cheerio;if(name==='dayjs')return dayjs;if(name==='htmlparser2')return htmlparser2;if(name==='urlencode')return urlencode;
