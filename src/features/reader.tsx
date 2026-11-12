@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState}from'react'
 import{t,getLang}from'../i18n'
 import{markActivity}from'../features/stats'
 import{clamp,lsGet,lsSet}from'../lib/util'
+import{Icon}from'../ui/common'
 
 // ---- Novel reader preferences ---------------------------------------------
 export type ReaderTheme='dark'|'sepia'|'light'|'black'
@@ -83,7 +84,7 @@ export function ReaderTTS({rootRef,chapterKey,hasNext,onNext,onClose}:{rootRef:R
   {!supported?<span>{t('Read aloud is not available on this system.')}</span>:<>
    <div className="tts-main">
     <button className="tts-btn" onClick={()=>jump(-1)} aria-label={t('Previous paragraph')} title={t('Previous paragraph')}>⏮</button>
-    <button className="tts-btn tts-play" onClick={playing?pause:play} aria-label={playing?t('Pause'):t('Read aloud')}>{playing?'❚❚':'▶'}</button>
+    <button className="tts-btn tts-play" onClick={playing?pause:play} aria-label={playing?t('Pause'):t('Read aloud')}><Icon name={playing?'pause':'playsolid'}/></button>
     <button className="tts-btn" onClick={()=>jump(1)} aria-label={t('Next paragraph')} title={t('Next paragraph')}>⏭</button>
     <small className="tts-pos">{t('Paragraph {n} of {total}',{n:Math.min(idx+1,Math.max(total,1)),total:Math.max(total,1)})}</small>
    </div>

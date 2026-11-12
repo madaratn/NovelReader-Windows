@@ -9,7 +9,7 @@ import React,{useEffect,useRef,useState}from'react'
 import Hls from'hls.js'
 import{t,plural}from'../i18n'
 import{lsGet,lsSet}from'../lib/util'
-import{NoticeText}from'../ui/common'
+import{NoticeText,Icon}from'../ui/common'
 import{playerKeys,rememberVolume,restoreVolume,useVideoShortcuts}from'./videos'
 import{translateVtt}from'../lib/subtitles'
 import{TRANSLATE_LANGS,translateTarget}from'./translate'
@@ -191,7 +191,7 @@ function RemoteVideo({video,mediaKey,onNext,onPrev,onUnsupported,variants,onVari
   {nextIn!=null&&<div className="player-next" role="status"><span>{t('Next episode in {n} s',{n:nextIn})}</span><button className="primary" onClick={()=>{setNextIn(null);onNext?.()}}>{t('Play now')}</button><button onClick={()=>setNextIn(null)}>{t('Cancel')}</button></div>}</div>
   {playError&&<div className="anime-toast error"><NoticeText text={playError}/><button onClick={()=>setPlayError('')}>×</button></div>}
   {adNotice&&<div className="anime-toast error" role="status"><NoticeText text={adNotice}/><button onClick={()=>setAdNotice('')}>×</button></div>}
-  <div className="player-row"><div className="libraryactions"><button disabled={!onPrev} onClick={()=>onPrev?.()}>{'← '+t('Previous')}</button><button disabled={!onNext} onClick={()=>onNext?.()}>{t('Next')+' →'}</button><button onClick={reportAdvertisement} title={t('If an ad replaces the episode, try the next stream')}>{'⚠ '+t('Ad instead of episode?')}</button></div><small className="player-hint">{playerKeys()} · {t('N/P next/previous')}</small></div>
+  <div className="player-row"><div className="libraryactions"><button disabled={!onPrev} onClick={()=>onPrev?.()}>{'← '+t('Previous')}</button><button disabled={!onNext} onClick={()=>onNext?.()}>{t('Next')+' →'}</button><button onClick={reportAdvertisement} title={t('If an ad replaces the episode, try the next stream')}><><Icon name="alert" inline/>{t('Ad instead of episode?')}</></button></div><small className="player-hint">{playerKeys()} · {t('N/P next/previous')}</small></div>
  </div>
 }
 

@@ -7,6 +7,7 @@
 import React,{useEffect,useRef,useState}from'react'
 import{t}from'../i18n'
 import{lsGet,lsSet}from'../lib/util'
+import{Icon}from'../ui/common'
 
 type Stream={index:number,lang:string,codec:string,channels:string,title:string,default:boolean}
 const nr=()=>window.novelReader as any
@@ -70,10 +71,10 @@ export function useAudioFix(ref:React.RefObject<HTMLVideoElement|null>,streamUrl
  const choose=(i:number)=>{setTrack(i);const s=streams[i];if(s)lsSet('audioFixLang',s.lang||s.title);restart(i)}
  const label=(s:Stream)=>[s.title,s.lang&&s.lang.toUpperCase(),s.codec.toUpperCase(),s.channels].filter(Boolean).join(' · ')
  const node=state==='off'?null:<div className={'audio-fix-note'+(state==='error'||state==='none'?' warn':'')} role="status">
-  {state==='loading'&&<span>🔊 {progress>0&&progress<1?t('This video has a sound format the player cannot read (Dolby / DTS). Downloading the sound converter (once, about 30 MB)… {p}%',{p:Math.round(progress*100)}):t('This video has a sound format the player cannot read (Dolby / DTS). Converting the sound…')}</span>}
-  {state==='on'&&<><span>🔊 {t('Sound converted live (the file uses Dolby / DTS sound).')}</span><label title={t('Volume')}>🔉<input type="range" min={0} max={1} step={0.05} defaultValue={ref.current?.volume??1} aria-label={t('Volume')} onChange={e=>{const v=ref.current;if(v){v.volume=Number(e.target.value);v.muted=false}}}/></label>{streams.length>1&&<label>{t('Sound track')}<select value={track} onChange={e=>choose(Number(e.target.value))}>{streams.map((s,i)=><option key={i} value={i}>{label(s)}</option>)}</select></label>}</>}
-  {state==='none'&&<span>🔇 {t('This file has no sound track. Pick another quality.')}</span>}
-  {state==='error'&&<span>🔇 {t('The sound of this file could not be converted: {e}. Pick another quality.',{e:error})}</span>}
+  {state==='loading'&&<span><Icon name="volume" inline/>{progress>0&&progress<1?t('This video has a sound format the player cannot read (Dolby / DTS). Downloading the sound converter (once, about 30 MB)… {p}%',{p:Math.round(progress*100)}):t('This video has a sound format the player cannot read (Dolby / DTS). Converting the sound…')}</span>}
+  {state==='on'&&<><span><Icon name="volume" inline/>{t('Sound converted live (the file uses Dolby / DTS sound).')}</span><label title={t('Volume')}><Icon name="volume" inline/><input type="range" min={0} max={1} step={0.05} defaultValue={ref.current?.volume??1} aria-label={t('Volume')} onChange={e=>{const v=ref.current;if(v){v.volume=Number(e.target.value);v.muted=false}}}/></label>{streams.length>1&&<label>{t('Sound track')}<select value={track} onChange={e=>choose(Number(e.target.value))}>{streams.map((s,i)=><option key={i} value={i}>{label(s)}</option>)}</select></label>}</>}
+  {state==='none'&&<span><Icon name="mute" inline/>{t('This file has no sound track. Pick another quality.')}</span>}
+  {state==='error'&&<span><Icon name="mute" inline/>{t('The sound of this file could not be converted: {e}. Pick another quality.',{e:error})}</span>}
  </div>
  return{node,state}
 }
