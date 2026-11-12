@@ -1016,6 +1016,7 @@ const FR: Record<string, string> = {
   'This site is down for now. Try again later, or use another source.': 'Ce site est en panne pour l\'instant. Réessaie plus tard, ou utilise une autre source.',
   'This page no longer exists on the site. Use another source.': 'Cette page n\'existe plus sur le site. Utilise une autre source.',
   'This source no longer understands its site (it needs an update). Use another source.': 'Cette source ne comprend plus son site (elle a besoin d\'une mise à jour). Utilise une autre source.',
+  'Waiting for the picture…': 'En attente de l’image…',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

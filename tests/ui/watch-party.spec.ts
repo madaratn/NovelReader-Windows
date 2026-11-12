@@ -6,6 +6,7 @@ import fs from 'fs'
 const series = (i: number, name: string) => ({ id: 'series' + i, name, sourceId: '42', sourceName: 'Mapple', url: '/series/' + i, thumbnail: '', episodes: 4, addedAt: Date.now() })
 async function pc(context: BrowserContext, library: any[]) {
   const page = await context.newPage()
+  if (process.env.PARTY_REAL) await page.addInitScript(() => { (window as any).__REAL = true; (window as any).__partyDebug = true })
   await setup(page, { storage: { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify(library), welcomeDone: '1' } })
   // The stream, with byte ranges so the video can seek.
   const clip = fs.readFileSync('tests/ui/fixtures/clip.webm')
@@ -17,7 +18,8 @@ async function pc(context: BrowserContext, library: any[]) {
   })
   await page.addInitScript(() => {
     const w = window as any
-    w.__partyFake = true
+    w.__partyFake = !w.__REAL // PARTY_REAL=1: through the real connection server
+    w.__partyCamWait = 1600 // camera checks: short wait in tests
     const eps = Array.from({ length: 4 }, (_, i) => ({ name: `S1 E${i + 1} - Chapter ${i + 1}`, url: '/ep/' + (i + 1), episode_number: i + 1 }))
     const base = w.novelReader
     w.novelReader = {
@@ -236,4 +238,70 @@ test('invitation link without a name yet: code filled in, name asked', async ({ 
   await b.goto('/')
   await expect(b.locator('.wp-join input')).toHaveValue('ABC234')
   await expect(b.locator('.wp-field input')).toBeFocused()
+})
+
+// Real connection server only (PARTY_REAL=1, workflow "Watch party check"): the host's
+// link to the server drops after the party is created; the code must still work.
+test('watch party (real server): the code still works after the host lost its link to the server', async ({ context }) => {
+  test.skip(!process.env.PARTY_REAL, 'needs the real connection server')
+  test.setTimeout(90_000)
+  const a = await pc(context, [series(1, 'Lanterns')])
+  const b = await pc(context, [])
+  await a.locator('.wp-open').click()
+  await a.locator('.wp-field input').fill('Ali')
+  await a.getByRole('button', { name: 'Start a watch party' }).click()
+  const code = (await a.locator('.wp-code b').innerText()).trim()
+  // The link drops (what a server restart or a Wi-Fi hiccup does).
+  await a.evaluate(() => (window as any).__partyPeer.disconnect())
+  expect(await a.evaluate(() => (window as any).__partyPeer.disconnected)).toBe(true)
+  await b.locator('.wp-open').click()
+  await b.locator('.wp-field input').fill('Sara')
+  await b.locator('.wp-join input').fill(code)
+  await b.getByRole('button', { name: 'Join' }).click()
+  await expect(a.locator('.wp-member')).toHaveText(['Ali (you)', 'Sara'], { timeout: 40_000 })
+  await expect(b.locator('.wp-member')).toHaveText(['Ali', 'Sara (you)'])
+  expect(await a.evaluate(() => (window as any).__partyPeer.disconnected)).toBe(false)
+})
+
+async function together(context: BrowserContext) {
+  const a = await pc(context, [series(1, 'Lanterns')]), b = await pc(context, [])
+  await a.locator('.wp-open').click()
+  await a.locator('.wp-field input').fill('Ali')
+  await a.getByRole('button', { name: 'Start a watch party' }).click()
+  const code = (await a.locator('.wp-code b').innerText()).trim()
+  await b.locator('.wp-open').click()
+  await b.locator('.wp-field input').fill('Sara')
+  await b.locator('.wp-join input').fill(code)
+  await b.getByRole('button', { name: 'Join' }).click()
+  await expect(a.locator('.wp-member')).toHaveText(['Ali (you)', 'Sara'])
+  return { a, b }
+}
+
+test('watch party camera: the other PC gets the picture (a letter while it is not there yet)', async ({ context }) => {
+  const { a, b } = await together(context)
+  await a.getByRole('button', { name: 'Turn my camera on' }).click()
+  await expect(a.locator('.cam-bubble')).toHaveCount(1) // my own preview
+  const bubble = b.locator('.cam-bubble')
+  await expect(bubble).toHaveCount(1)
+  await expect(bubble.locator('.cam-wait')).toHaveCount(0, { timeout: 15_000 })
+  await expect.poll(() => bubble.locator('video').evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0)
+  expect(await a.evaluate(() => (window as any).__partyCamCalls)).toEqual(['']) // first call, default format: nothing to fix
+})
+
+test('watch party camera: a picture that stays black is called again with another video format', async ({ context }) => {
+  const { a, b } = await together(context)
+  // On the viewer's PC no picture is decoded (what a faulty decoder or encoder does).
+  await b.evaluate(() => { (window as any).__partyCamBlack = (_peer: string, kind: string) => kind === 'cam' && (window as any).__black !== false })
+  await a.getByRole('button', { name: 'Turn my camera on' }).click()
+  const bubble = b.locator('.cam-bubble')
+  await expect(bubble.locator('.cam-wait')).toBeVisible() // a letter, not a black circle
+  await expect(bubble.locator('.cam-wait b')).toHaveText('A')
+  // The viewer asks, the sender calls again: H264, then VP9.
+  await expect.poll(() => a.evaluate(() => (window as any).__partyCamCalls), { timeout: 20_000 }).toEqual(['', 'H264'])
+  await expect.poll(() => a.evaluate(() => (window as any).__partyCamCalls), { timeout: 20_000 }).toEqual(['', 'H264', 'VP9'])
+  // This one works: the picture is shown.
+  await b.evaluate(() => { (window as any).__black = false })
+  await expect(bubble.locator('.cam-wait')).toHaveCount(0, { timeout: 15_000 })
+  await expect.poll(() => bubble.locator('video').evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0)
+  await expect(b.locator('.cam-bubble')).toHaveCount(1)
 })

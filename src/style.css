@@ -1232,3 +1232,7 @@ main header+h2.sources-block{margin-top:4px}
 .inlib,.inlib.linkbtn{display:inline-flex;align-items:center;gap:6px;color:var(--text-ok);font-size:var(--fs-md);font-weight:600;background:none;border:0;padding:0;min-height:var(--h-md)}
 @media (max-width:760px){.libgrid,.resultgrid,.media-page .libgrid,.media-page.books-ui .libgrid,.media-resultgrid{grid-template-columns:1fr}}
 html.tv .libcard .libcover{width:100%!important;height:auto!important}
+/* Camera bubble while no picture has arrived yet (instead of a black circle) */
+.cam-wait{position:absolute;inset:0;display:grid;place-items:center;background:var(--bg-sunken);color:var(--text-2)}
+.cam-wait b{font-size:var(--fs-3xl);font-weight:700}
+.cam-wait .spinner{position:absolute;bottom:14px;width:14px;height:14px}
