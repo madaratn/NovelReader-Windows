@@ -37,7 +37,7 @@ export function tvKey(e:KeyboardEvent){
  e.preventDefault();next.focus({preventScroll:true});next.scrollIntoView({block:'nearest',inline:'nearest'})}
 export function enableTv(){
  const root=document.documentElement;if(root.classList.contains('tv'))return
- root.classList.add('tv')
+ root.classList.add('tv','tv-mode') // tv-mode: the larger interface of the PC's TV mode (style.css)
  document.addEventListener('keydown',tvKey,true)
  // OK on a video: play / pause. Always something focused, so the first arrow press does something.
  document.addEventListener('keydown',e=>{const v=document.activeElement as any;if(e.key==='Enter'&&v?.tagName==='VIDEO'){e.preventDefault();v.paused?v.play():v.pause()}},true)

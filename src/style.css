@@ -991,7 +991,6 @@ html.android select{background-color:transparent;color:inherit}
 .home-open{display:flex;align-items:center;gap:10px;width:100%;margin:0 0 10px;padding:9px 12px;border:1px solid #2a3042;border-radius:10px;background:transparent;color:inherit;font:inherit;font-size:14px;cursor:pointer;text-align:left}
 .home-open:hover{border-color:#8b7cff}.collapsed .home-open{justify-content:center;padding:9px 0}
 /* Television: the focused control is obvious from the sofa; a little larger text */
-html.tv{font-size:112%}
 html.tv :focus-visible,html.tv :focus{outline:3px solid #ffd54a!important;outline-offset:2px;border-radius:8px}
 html.tv video:focus{outline-offset:-3px}
 /* QR code of the phone link, and its scanner */
@@ -1008,3 +1007,13 @@ html.tv video:focus{outline-offset:-3px}
 .home-send{position:absolute;right:6px;bottom:6px;border:1px solid var(--line,#2a3042);border-radius:999px;background:rgba(0,0,0,.25);padding:2px 8px;cursor:pointer;font-size:15px}
 .incoming-toast{position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:60;display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:#1b1f2e;color:#f2f3f7;border:1px solid #8b7cff;box-shadow:0 10px 30px rgba(0,0,0,.45);max-width:560px;margin:0 auto}
 .incoming-toast span{display:grid;min-width:0;flex:1}.incoming-toast small{opacity:.7}.incoming-toast b,.incoming-toast em{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-style:normal}.incoming-toast em{opacity:.85}
+/* Television: libraries as rows of posters. One press on a poster opens the title;
+   the shelf menu and "Remove" stay on the phone and the PC. */
+html.tv .libgrid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))!important;gap:16px}
+html.tv .libcard{grid-template-columns:1fr!important;gap:8px;padding:8px}
+html.tv .libcard-cover{width:100%}
+html.tv .libcard-meta h2{font-size:15px}
+html.tv .libcard-meta p,html.tv .libcard .libraryactions select,html.tv .libcard .libraryactions .danger,html.tv .libcard .libraryactions button:not(.primary){display:none}
+html.tv .libcard .libraryactions{grid-template-columns:1fr!important}
+html.tv .libcard-cover:focus{outline-offset:-3px}
+html.tv .libcard-cover .libcover{width:100%!important;height:auto!important;aspect-ratio:2/3}
