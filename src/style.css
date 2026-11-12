@@ -1160,3 +1160,7 @@ main header+h2.sources-block{margin-top:4px}
 .more-field select{width:100%}
 .libcard .libraryactions{display:flex;align-items:center;gap:8px}
 .libcard .libraryactions>.primary{flex:1}
+.player-trackbar .player-more{margin-left:auto}
+.player-trackbar .player-more .more-btn{height:var(--h-sm);width:var(--h-sm)}
+.player-more .more-pop b{min-width:20px;display:inline-block;text-align:center}
+.libcard{cursor:pointer}

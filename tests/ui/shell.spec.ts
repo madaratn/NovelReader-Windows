@@ -108,7 +108,8 @@ test('TV mode: arrows move between buttons; a game controller moves, opens and g
   // Keyboard (TV remote): focus moves between buttons, Enter opens
   await page.locator('.libcard').first().locator('.primary').focus()
   const before = await page.evaluate(() => document.activeElement?.closest('.libcard')?.querySelector('h3, h2, b')?.textContent)
-  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('ArrowRight') // the card's ⋯ menu
+  await page.keyboard.press('ArrowRight') // the next card
   const after = await page.evaluate(() => document.activeElement?.closest('.libcard')?.querySelector('h3, h2, b')?.textContent)
   expect(after).not.toBe(before)
   await expect(page.locator('html.kbd-nav')).toHaveCount(1)

@@ -976,6 +976,7 @@ const FR: Record<string, string> = {
   'Manage repositories': 'Gérer les dépôts',
   'More actions': 'Plus d’actions',
   'Remove from the library': 'Retirer de la bibliothèque',
+  'More player options': 'Plus d’options du lecteur',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

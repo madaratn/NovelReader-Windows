@@ -31,6 +31,7 @@ test('a novel removed here does not come back from the other PC', async ({ page 
   await page.locator('button', { hasText: 'Choose a synced folder' }).click()
   await expect(page.locator('.settings-block', { hasText: 'Sync between PCs' })).toContainText('Last synced')
   await nav(page, 'Library')
+  await page.locator('.libcard', { hasText: 'Beware of Chicken' }).locator('.more-btn').click()
   await page.locator('.libcard', { hasText: 'Beware of Chicken' }).locator('.removebtn').click()
   // The other PC still lists it in an older copy.
   await page.evaluate(remote => sessionStorage.setItem('__syncFile', JSON.stringify(remote)), otherPc({

@@ -72,10 +72,13 @@ test('library cards keep their actions tidy (no stray wrapped button)', async ({
   await open(page, { library: [novel('mol', 'Mother of Learning', 108)], reading: { mol: { index: 3 } } })
   const card = page.locator('.libcard').first()
   const primary = await card.locator('.libraryactions .primary').boundingBox()
-  const select = await card.locator('.shelfselect').boundingBox()
-  const remove = await card.locator('.removebtn').boundingBox()
-  expect(Math.abs(select!.y - remove!.y)).toBeLessThan(2)       // shelf + remove on one row
-  expect(select!.y).toBeGreaterThan(primary!.y + primary!.height - 1) // under the main action
+  // One main button and a "⋯" menu on the same row; shelf and Remove are inside the menu.
+  const more = await card.locator('.more-btn').boundingBox()
+  expect(Math.abs((more!.y + more!.height / 2) - (primary!.y + primary!.height / 2))).toBeLessThan(3)
+  await expect(card.locator('.shelfselect')).toHaveCount(0)
+  await card.locator('.more-btn').click()
+  await expect(card.locator('.shelfselect')).toBeVisible()
+  await expect(card.locator('.removebtn')).toBeVisible()
 })
 
 test('profiles: switcher in the sidebar, create, rename, switch and remove in Settings', async ({ page }) => {
