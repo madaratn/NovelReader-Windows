@@ -133,6 +133,7 @@ ipcMain.handle('profile:remove',async(_e,id)=>{const part=profiles.partition(Str
 // Switching opens a new window on the other profile's storage and closes this one.
 ipcMain.handle('profile:switch',(_e,id)=>{profiles.select(String(id));const old=mainWindow;setTimeout(()=>{createWindow();if(old&&!old.isDestroyed())old.close()},50);return true})
 // Weekly source check published by .github/workflows/source-scan.yml.
+ipcMain.handle('books:status',async()=>{const r=await fetch('https://github.com/madaratn/NovelReader-Windows/releases/download/source-status/book-status.json',{redirect:'follow'});if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
 ipcMain.handle('sources:status',async()=>{const r=await fetch('https://github.com/madaratn/NovelReader-Windows/releases/download/source-status/source-status.json',{redirect:'follow'});if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
 ipcMain.handle('deeplink:take',()=>{const u=pendingDeepLink;pendingDeepLink='';return u})
 // The web invitation page (docs/party, GitHub Pages) when it is online, so links are clickable everywhere.

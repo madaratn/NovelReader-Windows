@@ -1164,3 +1164,7 @@ main header+h2.sources-block{margin-top:4px}
 .player-trackbar .player-more .more-btn{height:var(--h-sm);width:var(--h-sm)}
 .player-more .more-pop b{min-width:20px;display:inline-block;text-align:center}
 .libcard{cursor:pointer}
+.book-aside>summary{cursor:pointer;display:grid;gap:4px}
+.book-aside>summary small{color:var(--text-3);font-size:var(--fs-sm)}
+.book-aside[open]>summary{margin-bottom:12px}
+.set-aside-item small{color:var(--text-3);margin:0 8px}

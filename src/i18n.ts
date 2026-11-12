@@ -977,6 +977,9 @@ const FR: Record<string, string> = {
   'More actions': 'Plus d’actions',
   'Remove from the library': 'Retirer de la bibliothèque',
   'More player options': 'Plus d’options du lecteur',
+  'Checked automatically: sources that stopped working are left out of search and Discover, and come back by themselves when they work again.': 'Vérifié automatiquement : les sources qui ne marchent plus sont retirées de la recherche et de Découvrir, et reviennent toutes seules quand elles remarchent.',
+  'down for {n} days or more': 'en panne depuis {n} jours ou plus',
+  'failed here several days in a row': 'en échec ici plusieurs jours de suite',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

@@ -30,7 +30,7 @@ on:
         default: false
   # Every Monday: the app reads the published results (Sources pages, recommended pack).
   schedule:
-    - cron: '17 3 * * 1'
+    - cron: '17 3 * * 1,4'
 permissions:
   contents: write
   actions: read

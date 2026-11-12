@@ -53,3 +53,24 @@ test('sources page: health from searches and manual test', async ({ page }) => {
   await expect(page.locator('.shelftab', { hasText: 'Not tested yet' })).toContainText('7')
   await expect(page.locator('.sourcerow button', { hasText: 'Install' })).toHaveCount(0)
 })
+
+test('automatic check: book sources that stay down are set aside from search, listed in Sources, used anyway on demand', async ({ page }) => {
+  const day = 86400e3
+  // src1: down for 12 days in the published check. src2: failed here on 3 different days. src3: down since yesterday only.
+  await open(page, { library: [], storage: {
+    bookDead: JSON.stringify({ src1: Date.now() - 12 * day, src3: Date.now() - day }),
+    bookFails: JSON.stringify({ src2: { n: 3, at: Date.now() - day } }) } })
+  await page.locator('.qs-open').click().then(()=>page.locator('.qs-all').click())
+  await expect(page.locator('.langcount')).toHaveText('12 sources selected')
+  await page.fill('.search-main input', 'shadow slave')
+  await page.locator('.search-main button').click()
+  await expect(page.locator('.searchstatus:not(.running)')).toContainText('12 sources checked', { timeout: 15_000 })
+  const searched = await page.evaluate(() => (window as any).__calls.search as string[])
+  expect(searched).not.toContain('src1'); expect(searched).not.toContain('src2'); expect(searched).toContain('src3')
+  await nav(page, 'Sources')
+  const box = page.locator('.book-aside')
+  await expect(box).toContainText('2 sources set aside')
+  await box.locator('summary').click()
+  await box.locator('.set-aside-item').first().getByRole('button', { name: 'Use anyway' }).click()
+  await expect(box).toContainText('1 source set aside')
+})

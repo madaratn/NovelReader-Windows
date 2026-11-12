@@ -3,6 +3,7 @@ import{t,plural,getLang}from'../i18n'
 import type{Plugin}from'../lib/types'
 import{lsGet,lsSet,timeAgo}from'../lib/util'
 import{Cover,NoticeText}from'../ui/common'
+import{BOOK_DEAD_DAYS,bookAsideReason,bookSetAside,keepBookSource,loadBookStatus,noteBookResult}from'../lib/book-status'
 
 // ---- Global search (novels, manhwa, manhua, manga) ------------------------------
 export type SearchHit={plugin:Plugin,novel:any}
@@ -95,11 +96,13 @@ export function NovelSearch({query,setQuery,plugins,ensurePlugins,library,onAdd,
 export type Health={ok:boolean,at:number,ms?:number}
 export function readHealth():Record<string,Health>{try{return JSON.parse(lsGet('sourceHealth')||'{}')||{}}catch{return{}}}
 export let healthCache:Record<string,Health>|null=null,healthTimer:any=null
-export function recordHealth(id:string,ok:boolean,ms?:number){healthCache=healthCache||readHealth();healthCache[id]={ok,at:Date.now(),ms};clearTimeout(healthTimer);healthTimer=setTimeout(()=>{lsSet('sourceHealth',JSON.stringify(healthCache));healthCache=null},300)}
+export function recordHealth(id:string,ok:boolean,ms?:number){noteBookResult(id,ok);healthCache=healthCache||readHealth();healthCache[id]={ok,at:Date.now(),ms};clearTimeout(healthTimer);healthTimer=setTimeout(()=>{lsSet('sourceHealth',JSON.stringify(healthCache));healthCache=null},300)}
 export async function probeSource(plugin:Plugin):Promise<Health>{const t0=Date.now();try{await Promise.race([window.novelReader.searchPlugin(plugin,'the'),new Promise((_,rej)=>setTimeout(()=>rej(Error('timeout')),15000))]);const h={ok:true,at:Date.now(),ms:Date.now()-t0};recordHealth(plugin.id,true,h.ms);return h}catch{recordHealth(plugin.id,false);return{ok:false,at:Date.now()}}}
 export function SourcesPage({plugins,ensurePlugins,onRefresh,refreshing,error}:{plugins:Plugin[],ensurePlugins:()=>Promise<Plugin[]>,onRefresh:()=>void,refreshing:boolean,error:string}){
  const[filter,setFilter]=useState(''),[state,setState]=useState<'all'|'ok'|'bad'|'untested'>('all'),[health,setHealth]=useState<Record<string,Health>>(readHealth),[testing,setTesting]=useState<Record<string,boolean>>({}),[bulk,setBulk]=useState<{done:number,total:number}|null>(null)
- const cancel=useRef(0)
+ const cancel=useRef(0),[,bumpAside]=useState(0)
+ useEffect(()=>{const f=()=>bumpAside(x=>x+1);window.addEventListener('nr-book-scan',f);loadBookStatus().catch(()=>{});return()=>window.removeEventListener('nr-book-scan',f)},[])
+ const aside=plugins.filter(p=>bookSetAside(p.id))
  useEffect(()=>{if(!plugins.length)ensurePlugins().catch(()=>{});const iv=setInterval(()=>setHealth(readHealth()),2000);return()=>{clearInterval(iv);cancel.current++}},[])
  const statusOf=(p:Plugin)=>{const h=health[p.id];return !h?'untested':h.ok?'ok':'bad'}
  const myLangs:string[]=(()=>{try{const x=JSON.parse(lsGet('searchLangs')||'null');if(Array.isArray(x))return x}catch{}return [...new Set(plugins.map(p=>String(p.lang||'?')))].filter(preferredLang)})()
@@ -118,6 +121,8 @@ export function SourcesPage({plugins,ensurePlugins,onRefresh,refreshing,error}:{
    <button onClick={onRefresh} disabled={refreshing}>{refreshing?t('Refreshing…'):t('Refresh the list')}</button>
    <small>{t('Official LNReader repository · {n} sources loaded',{n:plugins.length||'—'})}</small>
   </div>
+  {aside.length>0&&<details className="panel set-aside book-aside"><summary><b>{plural(aside.length,'{n} source set aside','{n} sources set aside')}</b><small>{t('Checked automatically: sources that stopped working are left out of search and Discover, and come back by themselves when they work again.')}</small></summary>
+   <div className="set-aside-list">{aside.slice(0,300).map(p=><span key={p.id} className="set-aside-item"><b>{p.name}</b><small>{bookAsideReason(p.id)==='check'?t('down for {n} days or more',{n:BOOK_DEAD_DAYS}):t('failed here several days in a row')}</small><button onClick={()=>keepBookSource(p.id)}>{t('Use anyway')}</button></span>)}</div></details>}
   {bulk&&<div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner" aria-hidden="true"/>{t('Testing {done} / {total} sources…',{done:bulk.done,total:bulk.total})}</div><div className="libbar"><span style={{width:(bulk.total?bulk.done/bulk.total*100:0)+'%'}}/></div></div>}
   <div className="lib-toolbar"><div className="searchbar"><input placeholder={t('Filter sources or language…')} value={filter} onChange={e=>setFilter(e.target.value)} aria-label={t('Filter sources or language…')}/></div></div>
   <div className="shelftabs" role="tablist">{([['all',t('All'),plugins.length],['ok',t('Working'),counts.ok],['bad',t('Failing'),counts.bad],['untested',t('Not tested yet'),counts.untested]] as [any,string,number][]).map(([id,label,n])=><button key={id} role="tab" aria-selected={state===id} className={'shelftab'+(state===id?' on':'')} onClick={()=>setState(id)}>{label} <small>{n}</small></button>)}</div>

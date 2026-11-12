@@ -11,6 +11,17 @@ const IN_ELECTRON = !!process.versions.electron
 const [OUT = 'book-scan.json', LANGS = 'all', ONLY = ''] = process.argv.slice(IN_ELECTRON ? 1 : 2).filter(a => !a.startsWith('--') && !/book-scan\.cjs$/.test(a))
 const limit = (p, ms, what) => Promise.race([p, new Promise((_, ko) => setTimeout(() => ko(new Error('timeout ' + what)), ms))])
 const short = e => (String(e && e.message || e) + ' @ ' + String(e && e.stack || '').split('\n').slice(1, 2).join('').trim()).slice(0, 240)
+// What the app is told (release asset book-status.json):
+//  ok      the list works (a first chapter that is only pictures is not a failure);
+//  blocked the site refuses this checker (Cloudflare, captcha, 403, too slow): it may
+//          well work at home, the app never sets it aside for that;
+//  dead    gone, expired certificate, error page, or the source no longer reads the site.
+const BLOCKED = /just a moment|captcha|webview|cloudflare|ddos|security check|bot check|not a bot|\b(401|403|429)\b|timeout|timed out|check not passed|Attention Required/i
+function verdict(r) {
+  if (r.state === 'ok' || r.step === 'novel' || r.step === 'chapter') return 'ok'
+  const all = [r.error, r.popularError || '', ...(r.trace || [])].join(' | ')
+  return BLOCKED.test(all) ? 'blocked' : 'dead'
+}
 async function check(plugin) {
   const t = Date.now(), r = { name: plugin.name, id: plugin.id, lang: plugin.lang, version: plugin.version, site: plugin.site, step: '', error: '' }
   try {
@@ -31,6 +42,7 @@ async function check(plugin) {
     if (text.length < 200) throw new Error('chapter text too short (' + text.length + ')')
     r.state = 'ok'
   } catch (e) { r.state = 'dead'; r.error = short(e); r.trace = runner.traceOf ? runner.traceOf(plugin.url) : [] }
+  r.verdict = verdict(r)
   r.seconds = Math.round((Date.now() - t) / 1000)
   return r
 }
@@ -52,6 +64,8 @@ async function ready() {
   await Promise.all(Array.from({ length: 10 }, async () => { while (queue.length) { const p = queue.shift(); const r = await check(p); out.push(r); console.log((r.state === 'ok' ? '✓' : '✗') + ' ' + p.lang.padEnd(10) + ' ' + p.name.padEnd(28) + ' ' + (r.state === 'ok' ? r.titles + ' titles, ' + r.chapters + ' chapters, ' + r.textLength + ' chars' : r.step + ': ' + r.error + (r.popularError ? '\n      popular: ' + r.popularError : '') + (r.trace && r.trace.length ? '\n      ' + r.trace.slice(-3).join('\n      ') : ''))) } }))
   const ok = out.filter(r => r.state === 'ok').length
   console.log('SUMMARY ok', ok, 'of', out.length)
+  const count = v => out.filter(r => r.verdict === v).length
+  console.log('VERDICT ok', count('ok'), 'blocked', count('blocked'), 'dead', count('dead'))
   fs.writeFileSync(OUT, JSON.stringify({ at: new Date().toISOString(), ua: process.env.NR_BOOK_UA || '', results: out.sort((a, b) => a.name.localeCompare(b.name)) }))
   process.exit(0)
 })()
