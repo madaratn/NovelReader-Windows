@@ -56,6 +56,20 @@ async function checkSource(src) {
   return out
 }
 
+// The engine's log (ENGINE_LOG): the lines written while one source was checked.
+import { statSync, openSync, readSync, closeSync } from 'node:fs'
+const ENGINE_LOG = process.env.ENGINE_LOG || ''
+function logSize() { try { return ENGINE_LOG ? statSync(ENGINE_LOG).size : 0 } catch { return 0 } }
+function engineLines(from) {
+  if (!ENGINE_LOG) return []
+  try {
+    const end = logSize(), n = Math.min(end - from, 400000); if (n <= 0) return []
+    const fd = openSync(ENGINE_LOG, 'r'), buf = Buffer.alloc(n); readSync(fd, buf, 0, n, from); closeSync(fd)
+    const seen = new Set()
+    return buf.toString('utf8').split('\n').filter(l => /exception|error|caused by|hoster|video-probe|extractor|no video|failed/i.test(l) && !/^\s+at /.test(l))
+      .map(l => l.replace(/^.*?(\[|[A-Za-z]+\.)/, '$1').replace(/https?:\/\/\S{60,}/g, m => m.slice(0, 60) + '…').slice(0, 220)).filter(l => !seen.has(l) && seen.add(l)).slice(0, 8)
+  } catch { return [] }
+}
 const results = []
 for (const repoUrl of repos) {
   let exts
@@ -66,7 +80,7 @@ for (const repoUrl of repos) {
   const todo = exts.filter(x => (ONLY.length || !x.nsfw) && !x.torrent && LANGS.includes(String(x.lang)) && (!ONLY.length || ONLY.some(o => clean(x.name).toLowerCase().includes(o))))
   console.log(`\n### ${repoUrl}: ${todo.length} extensions to test`)
   for (const x of todo) {
-    const name = clean(x.name), started = Date.now()
+    const name = clean(x.name), started = Date.now(), logFrom = logSize()
     const row = { repo: repoUrl, name, pkg: x.pkg, lang: x.lang, version: x.version, state: 'dead', detail: '', sources: [] }
     try {
       await api('/api/v1/extensions/install', { method: 'POST', body: { repoUrl, apk: x.apk }, timeout: 120000 })
@@ -85,6 +99,8 @@ for (const repoUrl of repos) {
     } catch (e) { row.detail = e.message.slice(0, 160) }
     try { await api('/api/v1/extensions/uninstall', { method: 'POST', body: { pkg: x.pkg }, timeout: 30000 }) } catch {}
     console.log(`${row.state.padEnd(7)} ${String(x.lang).padEnd(4)} ${name.padEnd(28)} ${((Date.now() - started) / 1000).toFixed(0)}s  ${row.detail}`)
+    // What the engine said while this source was checked (why there was no stream).
+    if (row.state !== 'ok') { row.engine = engineLines(logFrom); for (const l of row.engine) console.log('        ' + l) }
     results.push(row)
   }
 }

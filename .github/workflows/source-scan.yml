@@ -74,6 +74,7 @@ jobs:
           LANGS: ${{ inputs.langs || 'all,en,fr,es' }}
           ONLY: ${{ inputs.only || '' }}
           QUERY: ${{ inputs.query || '' }}
+          ENGINE_LOG: engine.log
         run: node scripts/source-scan.mjs ${{ inputs.repos || 'https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json https://raw.githubusercontent.com/salmanbappi/extensions-repo/main/index.min.json https://raw.githubusercontent.com/msrofficial/anime-repo/repo/index.min.json' }}
       - name: Engine errors
         if: always()
