@@ -31,6 +31,20 @@ function createBookWeb({ session, BrowserWindow, showWhenStuck = true, log = () 
     for (const k of Object.keys(h)) if (k.toLowerCase().startsWith(HIDDEN)) { const name = k.slice(HIDDEN.length); if (name.toLowerCase() !== 'host') h[name] = h[k]; delete h[k] }
     cb({ requestHeaders: h })
   })
+  // session.fetch gives no final address (response.url is empty), and many sources
+  // read it (Madara sites check which domain they ended on): redirects are noted here.
+  const redirects = new Map()
+  ses.webRequest.onBeforeRedirect(d => { redirects.set(d.url, d.redirectURL); setTimeout(() => redirects.delete(d.url), 60000) })
+  const finalUrl = u => { let x = u; for (let i = 0; i < 10 && redirects.has(x); i++) x = redirects.get(x); return x }
+  // The answer is read once and handed over as an ordinary Response, with its address.
+  const settle = async (r, url) => {
+    const nobody = [101, 204, 205, 304].includes(r.status)
+    const body = nobody ? null : Buffer.from(await r.arrayBuffer())
+    const out = new Response(body, { status: r.status, statusText: r.statusText, headers: r.headers })
+    Object.defineProperty(out, 'url', { value: finalUrl(url) })
+    Object.defineProperty(out, 'redirected', { value: finalUrl(url) !== url })
+    return out
+  }
   const prepare = headers => {
     const out = new Headers()
     new Headers(headers || {}).forEach((v, k) => { if (/^(origin|host|sec-|connection$|content-length$)/i.test(k)) { if (!/^(host|connection|content-length)$/i.test(k)) out.set(HIDDEN + k, v) } else out.set(k, v) })
@@ -67,7 +81,7 @@ function createBookWeb({ session, BrowserWindow, showWhenStuck = true, log = () 
 
   async function fetchBook(url, init = {}) {
     const headers = prepare(init.headers)
-    const go = () => ses.fetch(url, { ...init, headers, credentials: 'include' })
+    const go = async () => settle(await ses.fetch(url, { ...init, headers, credentials: 'include' }), String(url))
     let r = await go()
     if ([403, 429, 503].includes(r.status) || r.headers.get('cf-mitigated')) {
       let text = ''
@@ -81,7 +95,7 @@ function createBookWeb({ session, BrowserWindow, showWhenStuck = true, log = () 
     return r
   }
 
-  return { fetch: fetchBook, solve, userAgent: ua, partition: PARTITION }
+  return { fetch: fetchBook, solve, solving: () => solving.size, userAgent: ua, partition: PARTITION }
 }
 
 module.exports = { createBookWeb, isChallenge, PARTITION }
