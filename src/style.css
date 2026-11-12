@@ -999,3 +999,7 @@ html.tv video:focus{outline-offset:-3px}
 .qr-scan{padding:16px 18px;gap:10px}.qr-scan h2{margin:0}.qr-scan video{width:100%;max-height:52vh;border-radius:12px;background:#000;object-fit:cover}
 /* Sources set aside by the weekly check */
 .set-aside h2{margin:0 0 4px;font-size:1.05em}.set-aside-list{display:flex;flex-wrap:wrap;gap:8px}.set-aside-item{display:inline-flex;align-items:center;gap:8px;padding:4px 6px 4px 12px;border:1px solid var(--line,#2a3042);border-radius:999px}
+.home-history-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.home-history h4{margin:8px 0 4px;opacity:.75;font-size:.9em;text-transform:capitalize}.home-history ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.home-history li{display:flex;gap:10px;align-items:baseline;min-width:0}.home-history li small{opacity:.65;flex:none;min-width:110px}.home-history li span{opacity:.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.home-history .linkbtn{font-weight:700;text-align:left}

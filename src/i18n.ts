@@ -941,6 +941,12 @@ const FR: Record<string, string> = {
   '{n} sources set aside': '{n} sources mises de côté',
   'The weekly check has found these sources not working for more than {n} days. They are left out of searches and Discover so results come faster; they come back by themselves when they work again.': 'La vérification hebdomadaire trouve ces sources en panne depuis plus de {n} jours. Elles sont laissées hors des recherches et de Découvrir pour que les résultats arrivent plus vite ; elles reviennent toutes seules quand elles remarchent.',
   'Use anyway': 'Utiliser quand même',
+  'History': 'Historique',
+  'Clear the whole history? This cannot be undone.': 'Effacer tout l\'historique ? Cette action est définitive.',
+  'Clear': 'Effacer',
+  'Show the whole history': 'Afficher tout l\'historique',
+  'Today': 'Aujourd\'hui',
+  'Yesterday': 'Hier',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

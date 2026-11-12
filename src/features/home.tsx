@@ -2,7 +2,8 @@
 // series, movies) and what is new in the libraries. Opened from the sidebar / the top
 // bar, and shown once at start when there is something to continue.
 import React,{useEffect,useMemo,useRef}from'react'
-import{t,plural}from'../i18n'
+import{t,plural,getLang}from'../i18n'
+import{historyDays,clearHistory,dayOf,type HistoryLine}from'../lib/history'
 import{Cover}from'../ui/common'
 import{mediaCover,readMediaPos}from'../lib/media'
 import{timeAgo}from'../lib/util'
@@ -40,6 +41,9 @@ export const homeAtStart=()=>{try{return localStorage.getItem('homeAtStart')!=='
 export function HomePanel({libs,onClose,onContinue,onOpen}:{libs:Record<QuickKind,any[]>,onClose:()=>void,onContinue:(x:HomeItem)=>void,onOpen:(x:HomeItem)=>void}){
  const going=useMemo(()=>continueItems(libs),[libs]),fresh=useMemo(()=>newItems(libs),[libs]),box=useRef<HTMLDivElement>(null)
  const[atStart,setAtStart]=React.useState(homeAtStart)
+ const[days,setDays]=React.useState(()=>historyDays()),[showAll,setShowAll]=React.useState(false)
+ const find=(x:HistoryLine)=>(libs[x.kind]||[]).find((a:any)=>String(x.kind==='books'?a.id:(a.id||a.url||a.name))===x.id)
+ const dayLabel=(day:string)=>day===dayOf(Date.now())?t('Today'):day===dayOf(Date.now()-86400e3)?t('Yesterday'):new Date(day+'T12:00:00').toLocaleDateString(getLang(),{weekday:'long',day:'numeric',month:'long'})
  useEffect(()=>{box.current?.focus()},[])
  const card=(x:HomeItem,act:(x:HomeItem)=>void,i:number)=><button key={x.kind+idOf(x.item)+i} className="home-card" onClick={()=>{act(x);onClose()}}>
   <Cover src={x.cover} name={x.name}/>
@@ -47,9 +51,12 @@ export function HomePanel({libs,onClose,onContinue,onOpen}:{libs:Record<QuickKin
  return <div className="qs-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><div className="qs home-panel" role="dialog" aria-modal="true" aria-label={t('Continue')} tabIndex={-1} ref={box} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();onClose()}}}>
   <div className="home-head"><h2>{t('Continue')}</h2><button className="iconbtn" onClick={onClose} aria-label={t('Close')}>×</button></div>
   <div className="home-body">
-   {going.length===0&&fresh.length===0&&<p className="settings-help">{t('Nothing in progress yet. What you read and watch will show up here, from every section.')}</p>}
+   {going.length===0&&fresh.length===0&&days.length===0&&<p className="settings-help">{t('Nothing in progress yet. What you read and watch will show up here, from every section.')}</p>}
    {going.length>0&&<div className="home-grid">{going.map((x,i)=>card(x,onContinue,i))}</div>}
    {fresh.length>0&&<><h3>{t('New in your library')}</h3><div className="home-grid">{fresh.map((x,i)=>card(x,onOpen,i))}</div></>}
+   {days.length>0&&<><h3 className="home-history-head">{t('History')}<button className="linkbtn" onClick={()=>{if(window.confirm(t('Clear the whole history? This cannot be undone.'))){clearHistory();setDays([])}}}>{t('Clear')}</button></h3>
+    <div className="home-history">{days.slice(0,showAll?999:3).map(d=><div key={d.day}><h4>{dayLabel(d.day)}</h4><ul>{d.lines.map((x,i)=>{const item=find(x);return <li key={i}><small>{new Date(x.at).toLocaleTimeString(getLang(),{hour:'2-digit',minute:'2-digit'})} · {t(KIND[x.kind])}</small>{item?<button className="linkbtn" onClick={()=>{onOpen({kind:x.kind,item,name:x.name,sub:x.sub,at:x.at,progress:0,cover:''});onClose()}}>{x.name}</button>:<b>{x.name}</b>}{x.sub&&<span>{x.sub}</span>}</li>})}</ul></div>)}
+     {!showAll&&days.length>3&&<button onClick={()=>setShowAll(true)}>{t('Show the whole history')}</button>}</div></>}
   </div>
   <label className="settings-check home-start"><input type="checkbox" checked={atStart} onChange={e=>{setAtStart(e.target.checked);localStorage.setItem('homeAtStart',e.target.checked?'1':'0')}}/> {t('Show this when NovelReader starts')}</label>
  </div></div>}

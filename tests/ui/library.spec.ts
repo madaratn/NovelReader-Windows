@@ -96,6 +96,11 @@ test('"Continue": one panel with what is in progress in every section, shown at 
   await page.keyboard.press('Escape')
   await page.goto('/')
   await expect(panel).toBeVisible()
+  // History: the chapter just opened, under today.
+  await expect(panel.locator('.home-history')).toContainText('Today')
+  await expect(panel.locator('.home-history li').first()).toContainText('Mother of Learning')
+  await expect(panel.locator('.home-history li').first()).toContainText('Chapter 42')
+  await expect(panel.locator('.home-history li')).toHaveCount(1)
   await panel.getByLabel('Show this when NovelReader starts').uncheck()
   await page.keyboard.press('Escape')
   await expect(panel).toHaveCount(0)
