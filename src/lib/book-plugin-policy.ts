@@ -20,6 +20,10 @@ export function trustedBookPluginUrl(raw: unknown): string {
   return raw
 }
 
+export function isTrustedBookPluginUrl(raw: unknown): boolean {
+  try { trustedBookPluginUrl(raw); return true } catch { return false }
+}
+
 export async function fetchTrustedBookPlugin(raw: unknown, fetcher: typeof fetch = fetch): Promise<string> {
   const url = trustedBookPluginUrl(raw)
   const response = await fetcher(url, { credentials: 'omit', redirect: 'follow' })
