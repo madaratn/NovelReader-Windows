@@ -46,6 +46,10 @@ const relLum = ({ r, g, b }) => { const f = v => { v /= 255; return v <= 0.03928
 const contrastOnWhite = c => 1.05 / (relLum(c) + 0.05)
 
 function role(prop) {
+  // Design tokens (top of style.css) are named after their role.
+  if (/^--text-/.test(prop) || prop === '--text') return 'text'
+  if (/^--line(-|$)/.test(prop)) return 'border'
+  if (/^--bg-/.test(prop)) return 'bg'
   if (/^(color|fill|accent-color|--muted|--focus|caret-color|text-decoration-color)$/.test(prop)) return 'text'
   if (/^(border|outline)|^--side-border|^--media-line|border-top-color|border-color/.test(prop)) return 'border'
   if (/box-shadow|text-shadow/.test(prop)) return 'shadow'
