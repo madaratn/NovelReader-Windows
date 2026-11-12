@@ -59,7 +59,7 @@ test('series library: statuses, resume banner and new episodes badge', async ({ 
   await page.locator('.shelftab', { hasText: 'Completed' }).click()
   await expect(page.locator('.libcard h2')).toHaveText(['Dune Prophecy'])
   await page.locator('.shelftab', { hasText: 'All' }).click()
-  await page.locator('.libcard', { hasText: 'The Bear' }).locator('.shelfselect').selectOption('dropped')
+  await page.locator('.libcard', { hasText: 'The Bear' }).locator('.more-btn').click().then(()=>page.locator('.libcard', { hasText: 'The Bear' }).locator('.shelfselect').selectOption('dropped'))
   await expect(page.locator('.shelftab', { hasText: 'Dropped' })).toHaveText('Dropped 1')
   // New episodes: the source now has 10 episodes instead of 8
   await page.evaluate(() => { (window as any).__engine.episodes = 10 })

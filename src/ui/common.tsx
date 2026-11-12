@@ -25,6 +25,7 @@ export const ICONS:Record<string,string>={
  minimize:'M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3',
  playsolid:'M7 4.5v15l12-7.5z',
  pause:'M7 4h3v16H7zM14 4h3v16h-3z',
+ trash:'M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3',
  more:'M4 12a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M10.8 12a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M17.6 12a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0',
  book:'M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zm0 15A1.5 1.5 0 0 0 6.5 21H19',
  play:'M4 5h16v14H4zM10 9l5 3-5 3z',
@@ -64,4 +65,11 @@ export class ErrorBoundary extends React.Component<{children:React.ReactNode,res
    <div className="crash-detail"><NoticeText text={t('Error:')+' '+String(e?.message||e)+' | '+detail}/></div>
   </section></div>
  }
+}
+
+// "⋯" button with a small menu of less frequent actions (library cards, player).
+export function MoreMenu({label,children,className='',up=false}:{label?:string,children:React.ReactNode,className?:string,up?:boolean}){
+ const[open,setOpen]=React.useState(false),ref=React.useRef<HTMLDivElement>(null)
+ React.useEffect(()=>{if(!open)return;const out=(e:MouseEvent)=>{if(ref.current&&!ref.current.contains(e.target as Node))setOpen(false)};const esc=(e:KeyboardEvent)=>{if(e.key==='Escape'){e.stopPropagation();setOpen(false)}};document.addEventListener('mousedown',out);document.addEventListener('keydown',esc,true);return()=>{document.removeEventListener('mousedown',out);document.removeEventListener('keydown',esc,true)}},[open])
+ return <div ref={ref} className={'more-menu'+(open?' open':'')+(up?' up':'')+(className?' '+className:'')}><button type="button" className="more-btn" aria-haspopup="menu" aria-expanded={open} aria-label={label||t('More actions')} title={label||t('More actions')} onClick={()=>setOpen(o=>!o)}><Icon name="more"/></button>{open&&<div className="more-pop" role="menu" onClick={e=>{if((e.target as HTMLElement).closest('button'))setOpen(false)}}>{children}</div>}</div>
 }

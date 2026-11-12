@@ -974,6 +974,8 @@ const FR: Record<string, string> = {
   'Video engine, Cloudflare, extension repositories': 'Moteur vidéo, Cloudflare, dépôts d\'extensions',
   'Shared by Anime, Series and Movies.': 'Partagés par Animes, Séries et Films.',
   'Manage repositories': 'Gérer les dépôts',
+  'More actions': 'Plus d’actions',
+  'Remove from the library': 'Retirer de la bibliothèque',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')
