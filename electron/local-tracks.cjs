@@ -357,8 +357,10 @@ async function externalSubtitleFiles(videoFile) {
     await scan(p, true)
     await scan(path.join(p, base), false) // Subs/<video name>/2_English.srt
   }
+  // On Windows, 'Subs' and 'subs' can point to the same directory. Deduplicate
+  // by a case-insensitive file key or one subtitle appears twice.
   const seen = new Set()
-  return found.filter(f => !seen.has(f.id) && seen.add(f.id))
+  return found.filter(f => { const key = process.platform === 'win32' ? f.id.toLowerCase() : f.id; if (seen.has(key)) return false; seen.add(key); return true })
 }
 
 async function readExternal(videoFile, rel) {
