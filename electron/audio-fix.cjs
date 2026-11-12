@@ -10,6 +10,9 @@ const zlib=require('zlib')
 const {spawn}=require('child_process')
 
 const FFMPEG_TAG='b6.1.1'
+// The downloaded program is checked against the known fingerprint (SHA-256) of that
+// exact release before it is ever run: nothing unexpected gets executed.
+const FFMPEG_SHA256={'win32-x64':'8883a3dffbd0a16cf4ef95206ea05283f78908dbfb118f73c83f4951dcc06d77','linux-x64':'bfe8a8fc511530457b528c48d77b5737527b504a3797a9bc4866aeca69c2dffa','darwin-x64':'929b375c1182d956c51f7ac25e0b2b0411fb01f6f407aa15c9758efeb4242106','darwin-arm64':'8923876afa8db5585022d7860ec7e589af192f441c56793971276d450ed3bbfa'}
 const FFMPEG_URL=(platform,arch)=>`https://github.com/eugeneware/ffmpeg-static/releases/download/${FFMPEG_TAG}/ffmpeg-${platform}-${arch}.gz`
 // Only local streams (the video engine, the torrent server) can be converted.
 const LOCAL_SRC=/^http:\/\/(127\.0\.0\.1|localhost):\d+\//i
@@ -33,13 +36,16 @@ function createAudioFix({app,log=console,fetchImpl=globalThis.fetch,spawnImpl=sp
    if(!r.ok||!r.body)throw new Error('ffmpeg download failed (HTTP '+r.status+')')
    const total=Number(r.headers.get('content-length'))||0,part=exe()+'.part'
    let got=0
+   const hash=require('crypto').createHash('sha256')
    await new Promise((resolve,reject)=>{
     const out=fs.createWriteStream(part,{mode:0o755}),gunzip=zlib.createGunzip()
     gunzip.on('error',reject);out.on('error',reject);out.on('finish',resolve)
     gunzip.pipe(out)
-    ;(async()=>{try{const reader=r.body.getReader();for(;;){const{done,value}=await reader.read();if(done)break;got+=value.length;onProgress&&onProgress(total?got/total:0);if(!gunzip.write(Buffer.from(value)))await new Promise(x=>gunzip.once('drain',x))}gunzip.end()}catch(e){reject(e)}})()
+    ;(async()=>{try{const reader=r.body.getReader();for(;;){const{done,value}=await reader.read();if(done)break;got+=value.length;hash.update(value);onProgress&&onProgress(total?got/total:0);if(!gunzip.write(Buffer.from(value)))await new Promise(x=>gunzip.once('drain',x))}gunzip.end()}catch(e){reject(e)}})()
    })
    if(fs.statSync(part).size<5e6)throw new Error('ffmpeg download incomplete')
+   const want=FFMPEG_SHA256[platform+'-'+arch],got256=hash.digest('hex')
+   if(!want||got256!==want){try{fs.unlinkSync(part)}catch{}throw new Error('ffmpeg download does not match the expected file; it was not installed')}
    fs.renameSync(part,exe())
    if(!await works(exe())){try{fs.unlinkSync(exe())}catch{}throw new Error('ffmpeg does not start on this PC')}
    return bin=exe()

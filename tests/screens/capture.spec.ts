@@ -81,8 +81,8 @@ test('capture all sections', async ({ page }) => {
   await navTo(page, 'Sources'); await shot(page, '13-anime-sources')
   await page.getByRole('button', { name: 'Tester mes sources' }).click().catch(() => {})
   await page.waitForTimeout(800); await shot(page, '13b-anime-sources-test')
-  await navTo(page, 'Vidéos locales'); await shot(page, '14-anime-videos-locales')
-  await navTo(page, 'Internet Archive'); await shot(page, '15-anime-archive')
+  await navTo(page, 'Fichiers'); await page.locator('.files-tabs [role=tab]', { hasText: 'Vidéos locales' }).click(); await shot(page, '14-anime-videos-locales')
+  await page.locator('.files-tabs [role=tab]', { hasText: 'Internet Archive' }).click(); await shot(page, '15-anime-archive')
   // Series
   await mode(page, 3); await navTo(page, 'Bibliothèque séries'); await shot(page, '20-series-bibliotheque')
   await page.locator('main').getByText('Lanterns').first().click().catch(() => {})
