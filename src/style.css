@@ -1110,3 +1110,6 @@ main>header p,main header>div>p{color:var(--text-3)}
 .search-main input,.search-main button{height:var(--h-lg)}
 /* Pack buttons in Sources: one line, beside their text */
 .engine-row>button,.engine-row>.primary,.engine-row>div>button{white-space:nowrap;flex-shrink:0}
+/* Cards answer the pointer the same way */
+.libcard,.resultcard,.sourcerow,.home-card,.localcard{transition:border-color var(--speed) var(--ease),background-color var(--speed) var(--ease)}
+.libcard:hover,.resultcard:hover,.sourcerow:hover,.localcard:hover{border-color:var(--line-strong)}

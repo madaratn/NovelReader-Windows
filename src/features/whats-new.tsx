@@ -5,7 +5,9 @@ import{t}from'../i18n'
 import notes from'../../build/release-notes.md?raw'
 export function parseNotes(md:string){
  const version=(/^##\s*NovelReader\s+([\d.]+)/m.exec(md)||[])[1]||''
- const items=md.split(/\r?\n/).filter(l=>/^\s*-\s+/.test(l)).map(l=>l.replace(/^\s*-\s+/,'').trim())
+ // Only the newest version (the file keeps the earlier ones below it).
+ const first=md.split(/\r?\n(?=##\s*NovelReader\s)|\r?\n---\s*(?:\r?\n|$)/).find(x=>/^##\s*NovelReader\s/m.test(x))||md
+ const items=first.split(/\r?\n/).filter(l=>/^\s*-\s+/.test(l)).map(l=>l.replace(/^\s*-\s+/,'').trim())
  return{version,items}}
 // **bold** only (the notes use nothing else).
 const rich=(s:string)=>s.split(/\*\*(.+?)\*\*/g).map((p,i)=>i%2?<b key={i}>{p}</b>:<React.Fragment key={i}>{p}</React.Fragment>)
