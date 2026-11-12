@@ -34,6 +34,7 @@ test('import an LNReader (Android) backup', async ({ page }) => {
   })
   await open(page, { library: [] })
   await nav(page, 'Settings')
+  await page.locator('.settings-tabs').getByRole('tab', { name: 'Library & sync' }).click()
   await page.locator('button', { hasText: 'Import an LNReader backup' }).click()
   await expect(page.locator('.settings-block .anime-toast.ok')).toContainText('2 novels imported · 1 skipped (source not available: gone.plugin)')
   await page.locator('.settings-block .undo-btn', { hasText: 'Open library' }).click()
@@ -41,6 +42,7 @@ test('import an LNReader (Android) backup', async ({ page }) => {
   await expect(page.locator('.lib-resume .primary')).toHaveText('Continue · Ch. 5')
   // A second import does not duplicate anything.
   await nav(page, 'Settings')
+  await page.locator('.settings-tabs').getByRole('tab', { name: 'Library & sync' }).click()
   await page.locator('button', { hasText: 'Import an LNReader backup' }).click()
   await expect(page.locator('.settings-block .anime-toast.ok')).toContainText('0 novels imported · 2 already in your library')
 })

@@ -34,7 +34,7 @@ test('Tunisian TV: turned on in one click (no key), found in Global Search, epis
   await expect(row).toContainText('Turned on')
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('mediaLangs:Series')!))).toEqual(['en', 'ar'])
   // Search with another spelling (no hamza): found.
-  await page.locator('.sidebar').getByRole('button', { name: 'Global Search' }).click()
+  await page.locator('.qs-open').click().then(()=>page.locator('.qs-all').click())
   await page.locator('main input').first().fill('اولاد مفيده')
   await page.locator('main').getByRole('button', { name: 'Search', exact: true }).click()
   await expect(page.locator('main')).toContainText('مسلسل أولاد مفيدة - الموسم الأول', { timeout: 15000 })
@@ -55,7 +55,7 @@ test('Tunisian TV: turned on in one click (no key), found in Global Search, epis
   await expect(frame).toHaveAttribute('src', /^https:\/\/www\.youtube-nocookie\.com\/embed\/vid11111111\?autoplay=1/)
   await expect(page.locator('.youtube-player')).toContainText('Played by YouTube')
   // Live: one entry with the channels, played by YouTube's live player of the channel.
-  await page.locator('.sidebar').getByRole('button', { name: 'Global Search' }).click()
+  await page.locator('.qs-open').click().then(()=>page.locator('.qs-all').click())
   await page.locator('main input').first().fill('live')
   await page.locator('main').getByRole('button', { name: 'Search', exact: true }).click()
   await page.locator('.resultcard', { hasText: 'Live: Tunisian channels' }).getByRole('button', { name: /Add to library/ }).click()

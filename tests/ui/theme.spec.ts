@@ -27,7 +27,7 @@ for (const theme of ['light', 'dark'] as const) {
     expect(await lowContrast(page)).toEqual([])
     await page.locator('.libcard').first().locator('.libtitle').click()
     expect(await lowContrast(page)).toEqual([])
-    await nav(page, 'Global Search'); await page.fill('.search-main input', 'shadow slave'); await page.locator('.search-main button').click()
+    await page.locator('.qs-open').click().then(()=>page.locator('.qs-all').click()); await page.fill('.search-main input', 'shadow slave'); await page.locator('.search-main button').click()
     await expect(page.locator('.resultcard').first()).toBeVisible()
     expect(await lowContrast(page)).toEqual([])
     await nav(page, 'Sources'); expect(await lowContrast(page)).toEqual([])

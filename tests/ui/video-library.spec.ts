@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { setup } from './helpers'
+import { setup, nav } from './helpers'
 
 // Anime / Series / Movies: libraries, statuses, resume banner, new episodes,
 // detail page, remembered server, skip intro and installed source health.
@@ -59,7 +59,7 @@ test('series library: statuses, resume banner and new episodes badge', async ({ 
   await page.locator('.shelftab', { hasText: 'Completed' }).click()
   await expect(page.locator('.libcard h2')).toHaveText(['Dune Prophecy'])
   await page.locator('.shelftab', { hasText: 'All' }).click()
-  await page.locator('.libcard', { hasText: 'The Bear' }).locator('.shelfselect').selectOption('dropped')
+  await page.locator('.libcard', { hasText: 'The Bear' }).locator('.more-btn').click().then(()=>page.locator('.libcard', { hasText: 'The Bear' }).locator('.shelfselect').selectOption('dropped'))
   await expect(page.locator('.shelftab', { hasText: 'Dropped' })).toHaveText('Dropped 1')
   // New episodes: the source now has 10 episodes instead of 8
   await page.evaluate(() => { (window as any).__engine.episodes = 10 })
@@ -267,7 +267,7 @@ test('offline downloads: download an episode, play it from this PC, manage it in
   await expect(page.locator('.remote-player video')).toHaveAttribute('src', 'http://127.0.0.1:9/series_1/video.mp4')
   expect(await page.evaluate(() => (window as any).__engine.calls.filter((c: string) => c.includes('/videos')).length)).toBe(before)
   // Downloads page: grouped by title, size, play and delete
-  await page.locator('.sidebar .nav-item', { hasText: 'Downloads' }).click()
+  await nav(page, 'Downloads')
   await expect(page.locator('.dl-group h2')).toHaveText('Lanterns')
   await expect(page.locator('.dl-group')).toContainText('1 video · 320 MB')
   await expect(page.locator('.dl-group .dl-row')).toContainText('1 subtitle')
@@ -332,7 +332,7 @@ test('report a problem: versions, sources and logs copied from Settings and from
       reportSave: async () => 'C:/Users/x/Desktop/report.txt'
     }
   })
-  await openVideo(page, { mode: 'anime', 'lastPage:anime': 'settings' })
+  await openVideo(page, { mode: 'anime', 'lastPage:anime': 'settings', settingsTab: 'about' })
   await page.evaluate(() => { Object.assign((window as any).novelReader, (window as any).__reportPatch); console.warn('player stalled at C:\\Users\\ali\\x') })
   await page.locator('.sidebar .nav-item', { hasText: 'Library' }).first().click()
   await page.locator('.sidebar').getByText('Settings').click()
@@ -379,6 +379,7 @@ test('AniList: finished episode updates the AniList progress; the AniList list l
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('animeLibrary') || '[]')[0].anilistId)).toBe(5)
   // Settings: the AniList list, and a title searched in the sources
   await page.locator('.sidebar').getByText('Settings').click()
+  await page.locator('.settings-tabs').getByRole('tab', { name: 'Library & sync' }).click()
   const panel = page.locator('.anilist-panel')
   await expect(panel).toContainText('Connected to AniList')
   await expect(panel).toContainText('AniList: Lanterns → episode 3')
@@ -416,6 +417,7 @@ test('MyAnimeList: finished episode updates the MAL progress; the MAL list leads
   await expect.poll(() => page.evaluate(() => (window as any).__mal.length)).toBe(5)
   expect(await page.evaluate(() => (window as any).__mal[3].name)).toBe('entry')
   await page.locator('.sidebar').getByText('Settings').click()
+  await page.locator('.settings-tabs').getByRole('tab', { name: 'Library & sync' }).click()
   const panel = page.locator('.mal-panel')
   await expect(panel).toContainText('Connected to MyAnimeList')
   await expect(panel).toContainText('MyAnimeList: Lanterns → episode 3')
@@ -430,6 +432,7 @@ test('MyAnimeList: sign-in steps shown when not connected', async ({ page }) => 
   await openVideo(page, { mode: 'anime', 'lastPage:anime': 'anime' })
   await page.evaluate(() => Object.assign((window as any).novelReader, (window as any).__malPatch))
   await page.locator('.sidebar').getByText('Settings').click()
+  await page.locator('.settings-tabs').getByRole('tab', { name: 'Library & sync' }).click()
   const panel = page.locator('.mal-panel')
   await expect(panel).toContainText('http://localhost/novelreader-mal')
   const btn = panel.getByRole('button', { name: 'Sign in with MyAnimeList' })
@@ -483,7 +486,7 @@ test('languages for videos, as in Books: search only the chosen languages', asyn
   })
   // Reopen the page so the chips load the sources above
   await page.locator('.sidebar').getByText('Anime Library').click()
-  await page.locator('.sidebar').getByText('Global Search').click()
+  await page.locator('.qs-open').click().then(()=>page.locator('.qs-all').click())
   const bar = page.locator('.langbar')
   await expect(bar.getByRole('button', { name: /English/ })).toHaveAttribute('aria-pressed', 'true')
   await expect(bar.getByRole('button', { name: /Multi/ })).toHaveAttribute('aria-pressed', 'true')
@@ -507,6 +510,8 @@ test('video source catalog: language chips like Books', async ({ page }) => {
   ]
   await page.route('**/index.min.json', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify(index) }))
   await openVideo(page, { mode: 'anime', 'lastPage:anime': 'animeSources', animeRepos: JSON.stringify([{ name: 'Test repo', url: 'https://raw.githubusercontent.com/test/anime-repo/repo/index.min.json', enabled: true }]) })
+  // Repositories and their catalogue are in the closed "Advanced" block.
+  await page.locator('.sources-advanced summary').click()
   await page.getByRole('button', { name: 'Load all sources' }).click()
   const bar = page.locator('.langbar')
   await expect(bar).toContainText('2 sources shown')
@@ -609,7 +614,7 @@ test('sources broken for more than 10 days are set aside from searches, listed i
   await expect(page.locator('.set-aside')).not.toContainText('AnimeFLV')
   const tracked = await page.evaluate(() => JSON.parse(localStorage.getItem('deadSources') || '{}'))
   expect(Object.keys(tracked).sort()).toEqual(['animeflv', 'vostfree'])
-  await page.locator('.sidebar').getByText('Global Search').click()
+  await page.locator('.qs-open').click().then(()=>page.locator('.qs-all').click())
   await page.locator('.search-main input').fill('Naruto')
   await page.locator('.search-main input').press('Enter')
   await expect(page.locator('.resultcard')).toHaveCount(1)
@@ -618,7 +623,7 @@ test('sources broken for more than 10 days are set aside from searches, listed i
   await page.locator('.sidebar').getByText('Sources', { exact: true }).click()
   await page.locator('.set-aside').getByRole('button', { name: 'Use anyway' }).click()
   await expect(page.locator('.set-aside')).toHaveCount(0)
-  await page.locator('.sidebar').getByText('Global Search').click()
+  await page.locator('.qs-open').click().then(()=>page.locator('.qs-all').click())
   await page.evaluate(() => { (window as any).__searched = [] })
   await page.locator('.search-main input').fill('Naruto')
   await page.locator('.search-main input').press('Enter')

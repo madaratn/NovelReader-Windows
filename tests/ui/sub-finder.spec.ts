@@ -69,6 +69,7 @@ test('settings: Wyzie key and AI options', async ({ page }) => {
   await setup(page, {})
   await page.goto('/')
   await page.locator('.sidebar').getByText('Settings').click()
+  await page.locator('.settings-tabs').getByRole('tab', { name: 'Video' }).click()
   const block = page.locator('.sub-settings')
   await block.getByLabel('Wyzie Subs key').fill('abc123')
   await block.getByRole('button', { name: 'Save' }).click()

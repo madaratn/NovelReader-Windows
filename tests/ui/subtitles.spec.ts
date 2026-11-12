@@ -29,6 +29,7 @@ const cues = (page: any) => page.evaluate(() => { const v = document.querySelect
 
 test('translate the subtitles of an episode; timings and line breaks kept', async ({ page }) => {
   await open(page)
+  await page.locator('.player-more .more-btn').click()
   await page.getByTitle('Subtitle style').click()
   await page.getByRole('button', { name: 'Translate into English' }).click()
   await expect(page.locator('.sub-translate')).toContainText('Translated subtitles shown')
@@ -44,6 +45,7 @@ test('automatic translation when no subtitle is in the chosen language', async (
 
 test('choose the subtitle language (French, English, Arabic…) for the translation', async ({ page }) => {
   await open(page)
+  await page.locator('.player-more .more-btn').click()
   await page.getByTitle('Subtitle style').click()
   await page.locator('.sub-translate select').selectOption('ar')
   await page.getByRole('button', { name: 'Translate into العربية' }).click()

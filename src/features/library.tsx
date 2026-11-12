@@ -2,7 +2,7 @@ import React,{useEffect,useRef,useState}from'react'
 import{t,plural}from'../i18n'
 import{ReadingStats}from'../features/stats'
 import{lsGet,lsSet,timeAgo}from'../lib/util'
-import{Cover,Icon}from'../ui/common'
+import{Cover,Icon,MoreMenu}from'../ui/common'
 import{useAnnotations}from'./annotations'
 
 // ---- Novel library ----------------------------------------------------------
@@ -38,7 +38,7 @@ export function NovelLibrary({library,updates,onCheckUpdates,onOpen,onDetails,on
     <button className="lib-update" disabled={updates.running} onClick={onCheckUpdates} title={updates.at?t('Last check: {when}',{when:timeAgo(updates.at)}):undefined}>{updates.running?t('Checking {done}/{total}…',{done:updates.done,total:updates.total}):t('Check for new chapters')}</button>
     <label className="lib-sort">{t('Sort')}<select value={sort} onChange={e=>{const v=e.target.value as LibSort;setSort(v);lsSet('librarySort',v)}}><option value="recent">{t('Recently read')}</option><option value="added">{t('Recently added')}</option><option value="title">{t('Title A–Z')}</option><option value="unread">{t('Most unread')}</option></select></label></div>
    {!updates.running&&updates.at>0&&updates.total>0&&<p className="lib-update-status" role="status">{updates.found?plural(updates.found,'{n} novel has new chapters.','{n} novels have new chapters.'):t('Everything is up to date.')}{updates.failed?' '+plural(updates.failed,'{n} source did not answer.','{n} sources did not answer.'):''}</p>}
-   {shown.length===0?<section className="panel"><p>{q?t('No novel matches “{q}”.',{q:filter}):t('No novel on this shelf yet.')}</p></section>:<section className="libgrid">{shown.map(({n,r,total,done,left,shelf:sh})=><article className="libcard" key={n.id}>
+   {shown.length===0?<section className="panel"><p>{q?t('No novel matches “{q}”.',{q:filter}):t('No novel on this shelf yet.')}</p></section>:<section className="libgrid">{shown.map(({n,r,total,done,left,shelf:sh})=><article className="libcard" key={n.id} onClick={e=>{if(!(e.target as HTMLElement).closest('button,select,a,label,.more-menu'))onDetails(n)}}>
     <button className="libcard-cover" onClick={()=>onDetails(n)} aria-label={t('Chapters of {name}',{name:n.name})} title={t('Show chapters')}><Cover src={n.cover} name={n.name}/></button>
     <div className="libcard-meta">
      <h2 title={n.name}><button className="libtitle" onClick={()=>onDetails(n)}>{n.name}</button></h2>
@@ -46,7 +46,7 @@ export function NovelLibrary({library,updates,onCheckUpdates,onOpen,onDetails,on
      <p>{[n.author,n.source?.name].filter(Boolean).join(' · ')}</p>
      <div className="libbar" title={t('{done} of {total} chapters',{done,total})}><span style={{width:(total?Math.min(100,done/total*100):0)+'%'}}/></div>
      <small>{r?`${done} / ${total} · ${t('{n} left',{n:left})}${r.at?' · '+timeAgo(r.at):''}`:plural(total,'{n} chapter','{n} chapters')+' · '+t('not started')}</small>
-     <div className="libraryactions"><button className="primary" onClick={()=>onOpen(n)}>{r?t('Continue · Ch. {n}',{n:r.index+1}):t('Start reading')}</button><select className="shelfselect" value={sh} aria-label={t('Shelf')} title={t('Shelf')} onChange={e=>onShelf(n,e.target.value as Shelf)}>{SHELVES.map(x=><option key={x.id} value={x.id}>{t(x.label)}</option>)}</select><button className="removebtn" onClick={()=>setUndo(onRemove(n))}>{t('Remove')}</button></div>
+     <div className="libraryactions"><button className="primary" onClick={()=>onOpen(n)}>{r?t('Continue · Ch. {n}',{n:r.index+1}):t('Start reading')}</button><MoreMenu><label className="more-field"><span>{t('Shelf')}</span><select className="shelfselect" value={sh} aria-label={t('Shelf')} onChange={e=>onShelf(n,e.target.value as Shelf)}>{SHELVES.map(x=><option key={x.id} value={x.id}>{t(x.label)}</option>)}</select></label><button className="removebtn" role="menuitem" onClick={()=>setUndo(onRemove(n))}><Icon name="trash" inline/>{t('Remove from the library')}</button></MoreMenu></div>
     </div></article>)}</section>}
   </>}
   {undo&&<div className="anime-toast ok lib-undo" role="status"><span>{t('Removed “{name}”.',{name:undo.novel.name})}</span><div><button className="undo-btn" onClick={()=>{onRestore(undo);setUndo(null)}}>{t('Undo')}</button><button aria-label={t('Dismiss')} onClick={()=>setUndo(null)}>×</button></div></div>}
