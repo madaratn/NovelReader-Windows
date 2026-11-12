@@ -22,6 +22,20 @@ function createBookWeb({ session, BrowserWindow, showWhenStuck = true, log = () 
   // A plain Chrome user agent (no "Electron/…"): the clearance cookie is tied to it.
   const ua = ses.getUserAgent().replace(/\s*Electron\/\S+/, '').replace(/\s*NovelReader\/\S+/i, '')
   ses.setUserAgent(ua)
+  // Chromium refuses some headers from fetch (Origin, Sec-…, Host) that the sources
+  // send like the LNReader app does: they travel under another name and are put
+  // back just before the request leaves.
+  const HIDDEN = 'x-nr-h-'
+  ses.webRequest.onBeforeSendHeaders((details, cb) => {
+    const h = details.requestHeaders || {}
+    for (const k of Object.keys(h)) if (k.toLowerCase().startsWith(HIDDEN)) { const name = k.slice(HIDDEN.length); if (name.toLowerCase() !== 'host') h[name] = h[k]; delete h[k] }
+    cb({ requestHeaders: h })
+  })
+  const prepare = headers => {
+    const out = new Headers()
+    new Headers(headers || {}).forEach((v, k) => { if (/^(origin|host|sec-|connection$|content-length$)/i.test(k)) { if (!/^(host|connection|content-length)$/i.test(k)) out.set(HIDDEN + k, v) } else out.set(k, v) })
+    return out
+  }
   const solving = new Map()
 
   function solve(url) {
@@ -52,7 +66,8 @@ function createBookWeb({ session, BrowserWindow, showWhenStuck = true, log = () 
   }
 
   async function fetchBook(url, init = {}) {
-    const go = () => ses.fetch(url, { ...init, credentials: 'include' })
+    const headers = prepare(init.headers)
+    const go = () => ses.fetch(url, { ...init, headers, credentials: 'include' })
     let r = await go()
     if ([403, 429, 503].includes(r.status) || r.headers.get('cf-mitigated')) {
       let text = ''
