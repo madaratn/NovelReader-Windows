@@ -31,7 +31,10 @@ export async function applyBackup(payload:BackupPayload){
 }
 
 export type ImportResult={added:number,exists:number,skipped:number,unknown:string[]}
-export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onShowLibrary,sync}:{lang:Lang,onLang:(l:Lang)=>void,onWelcome:()=>void,update:UpdateStatus|null,onImportLNReader:()=>Promise<ImportResult|null>,onShowLibrary:()=>void,sync?:FolderSync}){
+// Settings in five tabs (one shown at a time). The last tab opened is kept.
+export const SETTINGS_TABS=[{id:'general',label:'General'},{id:'library',label:'Library & sync'},{id:'notifications',label:'Notifications'},{id:'video',label:'Video'},{id:'about',label:'About'}] as const
+export type SettingsTab=typeof SETTINGS_TABS[number]['id']
+export function SettingsPage({lang,onLang,onWelcome,onShortcuts,update,onImportLNReader,onShowLibrary,sync}:{lang:Lang,onLang:(l:Lang)=>void,onWelcome:()=>void,onShortcuts?:()=>void,update:UpdateStatus|null,onImportLNReader:()=>Promise<ImportResult|null>,onShowLibrary:()=>void,sync?:FolderSync}){
  const[imp,setImp]=useState<ImportResult|null>(null),[impBusy,setImpBusy]=useState(false),[usage,setUsage]=useState<{bytes:number,chapters:number,novels:number}|null>(null),[clearConfirm,setClearConfirm]=useState(false)
  useEffect(()=>{window.novelReader.offlineUsage?.().then(setUsage).catch(()=>{})},[])
  const[theme,setTheme]=useState<ThemePref>(getThemePref),version=useAppVersion(),[notify,setNotify]=useState(()=>lsGet('notifyNewChapters')!=='0'),[autoEp,setAutoEp]=useState(()=>lsGet('autoCheckEpisodes')!=='0'),[notifyEp,setNotifyEp]=useState(()=>lsGet('notifyNewEpisodes')!=='0')
@@ -47,8 +50,17 @@ export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onSh
  const doBackupNow=()=>run(async()=>{const r=await window.novelReader.backupAuto(collectBackup(),true);setMsg({ok:true,text:r.saved?t('Automatic backup created.'):t('Nothing changed since the last backup.')});refresh()})
  // Android: no files to export there yet, no Windows notifications, no LNReader import.
  const android=document.documentElement.classList.contains('android'),ios=document.documentElement.classList.contains('ios')
+ const[tab,setTabState]=useState<SettingsTab>(()=>{const v=lsGet('settingsTab');return(SETTINGS_TABS.some(x=>x.id===v)?v:'general') as SettingsTab})
+ const setTab=(v:SettingsTab)=>{setTabState(v);lsSet('settingsTab',v)}
+ // Another part of the app can open a tab directly (e.g. "Settings › Sync with your PC").
+ useEffect(()=>{const go=(e:Event)=>{const v=(e as CustomEvent).detail;if(SETTINGS_TABS.some(x=>x.id===v))setTab(v)};window.addEventListener('nr-settings-tab',go);return()=>window.removeEventListener('nr-settings-tab',go)},[])
+ const on=(v:SettingsTab)=>tab===v
  return <>
-  <header><div><h1>{t('Settings')}</h1><p>{t('Language, backups and updates.')}</p></div></header>
+  <header><div><h1>{t('Settings')}</h1></div></header>
+  <div className="settings-layout">
+  <nav className="settings-tabs" role="tablist" aria-label={t('Settings')}>{SETTINGS_TABS.map(x=><button key={x.id} role="tab" id={'stab-'+x.id} aria-selected={on(x.id)} aria-controls="settings-panel" className={on(x.id)?'on':''} onClick={()=>setTab(x.id)}>{t(x.label)}</button>)}</nav>
+  <div className="settings-panel" id="settings-panel" role="tabpanel" aria-labelledby={'stab-'+tab}>
+  {on('general')&&<>
   <section className="panel settings-block"><h2>{t('Appearance')}</h2>
    <div className="rs-seg settings-seg" role="radiogroup" aria-label={t('Appearance')}>{(['system','dark','light'] as ThemePref[]).map(v=><button key={v} role="radio" aria-checked={theme===v} className={theme===v?'on':''} onClick={()=>{setThemePref(v);setTheme(v)}}>{v==='system'?(android?t('Like the phone'):t('Like Windows')):v==='dark'?t('Dark'):t('Light')}</button>)}</div>
    <p className="settings-help">{t('The reader has its own themes: open Aa while reading.')}</p>
@@ -56,6 +68,11 @@ export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onSh
   <section className="panel settings-block"><h2>{t('Language')}</h2>
    <div className="rs-seg settings-seg" role="radiogroup" aria-label={t('Language')}>{LANGS.map(l=><button key={l.id} role="radio" aria-checked={lang===l.id} className={lang===l.id?'on':''} onClick={()=>onLang(l.id)}>{l.label}</button>)}</div>
   </section>
+  <UpdateSettings status={update} version={version}/>
+  <ProfilesPanel/>
+  <TvSettings/>
+  </>}
+  {on('library')&&<>
   {(!android||typeof (window.novelReader as any).backupExport==='function')&&<section className="panel settings-block backup-block"><h2>{t('Backup and restore')}</h2>
    <p className="settings-help">{t('Your library, reading progress and preferences are stored on this PC. Export a backup file to keep them safe or to move them to another computer.')}</p>
    <div className="libraryactions"><button className="primary" disabled={busy} onClick={doExport}>{t('Export a backup…')}</button><button disabled={busy} onClick={doImport}>{t('Restore from a file…')}</button></div>
@@ -65,14 +82,6 @@ export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onSh
    {autos.length===0?<p className="settings-help">{t('No automatic backup yet.')}</p>:<div className="scanlist">{autos.map(a=><div className="scanrow settings-row" key={a.name}><span>{fmtDateTime(a.exportedAt)}</span><small>{plural(a.novels,'{n} novel','{n} novels')}</small><button className={confirm===a.name?'danger':undefined} disabled={busy} onClick={()=>doRestoreAuto(a.name)}>{confirm===a.name?t('Confirm restore'):t('Restore')}</button></div>)}</div>}
    <div className="libraryactions"><button disabled={busy} onClick={doBackupNow}>{t('Back up now')}</button><button onClick={()=>window.novelReader.backupOpenFolder().catch(e=>setMsg({ok:false,text:String(e?.message||e)}))}>{t('Open backups folder')}</button></div></>}
   </section>}
-  <section className="panel settings-block"><h2>{t('New chapters')}</h2>
-   <label className="settings-check"><input type="checkbox" checked={autoCheck} onChange={e=>{setAutoCheck(e.target.checked);lsSet('autoCheckUpdates',e.target.checked?'1':'0')}}/> {t('Check my library for new chapters when NovelReader starts (at most every 12 hours)')}</label>
-   {(!android||deviceNotify())&&<label className="settings-check"><input type="checkbox" checked={notify} onChange={e=>{setNotify(e.target.checked);lsSet('notifyNewChapters',e.target.checked?'1':'0');if(e.target.checked)askNotifications();window.dispatchEvent(new Event('nr-watchlist'))}}/> {t('Show a Windows notification when new chapters are found')}</label>}
-  </section>
-  <section className="panel settings-block"><h2>{t('New episodes')}</h2>
-   <label className="settings-check"><input type="checkbox" checked={autoEp} onChange={e=>{setAutoEp(e.target.checked);lsSet('autoCheckEpisodes',e.target.checked?'1':'0');window.dispatchEvent(new Event('nr-watchlist'))}}/> {t('Check my anime and series for new episodes in the background (every 6 hours)')}</label>
-   {(!android||deviceNotify())&&<label className="settings-check"><input type="checkbox" checked={notifyEp} onChange={e=>{setNotifyEp(e.target.checked);lsSet('notifyNewEpisodes',e.target.checked?'1':'0');if(e.target.checked)askNotifications();window.dispatchEvent(new Event('nr-watchlist'))}}/> {t('Show a Windows notification when new episodes are found')}</label>}
-  </section>
   {!android&&<section className="panel settings-block"><h2>{t('Import from LNReader (Android)')}</h2>
    <p className="settings-help">{t('In the LNReader app, open More > Backup and restore > Create backup, copy the .zip file to this PC, then import it here. Your novels and where you stopped reading are added to your library.')}</p>
    <div className="libraryactions"><button className="primary" disabled={impBusy} onClick={async()=>{setImpBusy(true);setMsg(null);setImp(null);try{setImp(await onImportLNReader())}catch(e:any){setMsg({ok:false,text:t(String(e?.message||e).replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/,''))})}finally{setImpBusy(false)}}}>{impBusy?t('Importing…'):t('Import an LNReader backup…')}</button></div>
@@ -83,14 +92,23 @@ export function SettingsPage({lang,onLang,onWelcome,update,onImportLNReader,onSh
    <p className="settings-help">{usage&&usage.chapters?t('{chapters} for {novels} use {size} on this PC.',{chapters:plural(usage.chapters,'{n} chapter','{n} chapters'),novels:plural(usage.novels,'{n} novel','{n} novels'),size:(usage.bytes/1048576).toFixed(1)+' MB'}):t('No chapter downloaded yet. Use Download on a novel page to read without an internet connection.')}</p>
    {usage&&usage.chapters>0&&<div className="libraryactions"><button className={clearConfirm?'danger':undefined} onClick={async()=>{if(!clearConfirm){setClearConfirm(true);setTimeout(()=>setClearConfirm(false),6000);return}await window.novelReader.offlineClear?.();setClearConfirm(false);setUsage({bytes:0,chapters:0,novels:0})}}>{clearConfirm?t('Confirm: delete all downloads'):t('Delete all downloaded chapters')}</button></div>}
   </section>
-  <UpdateSettings status={update} version={version}/>
   <AniListPanel onSearch={q=>window.dispatchEvent(new CustomEvent('nr-search-anime',{detail:q}))}/>
   <MALPanel onSearch={q=>window.dispatchEvent(new CustomEvent('nr-search-anime',{detail:q}))}/>
-  <SubtitleSettings/>
-  <ProfilesPanel/>
-  <TvSettings/>
+  </>}
+  {on('notifications')&&<section className="panel settings-block"><h2>{t('New chapters and episodes')}</h2>
+   <h3 className="settings-sub">{t('Books')}</h3>
+   <label className="settings-check"><input type="checkbox" checked={autoCheck} onChange={e=>{setAutoCheck(e.target.checked);lsSet('autoCheckUpdates',e.target.checked?'1':'0')}}/> {t('Check my library for new chapters when NovelReader starts (at most every 12 hours)')}</label>
+   {(!android||deviceNotify())&&<label className="settings-check"><input type="checkbox" checked={notify} onChange={e=>{setNotify(e.target.checked);lsSet('notifyNewChapters',e.target.checked?'1':'0');if(e.target.checked)askNotifications();window.dispatchEvent(new Event('nr-watchlist'))}}/> {t('Show a Windows notification when new chapters are found')}</label>}
+   <h3 className="settings-sub">{t('Anime and series')}</h3>
+   <label className="settings-check"><input type="checkbox" checked={autoEp} onChange={e=>{setAutoEp(e.target.checked);lsSet('autoCheckEpisodes',e.target.checked?'1':'0');window.dispatchEvent(new Event('nr-watchlist'))}}/> {t('Check my anime and series for new episodes in the background (every 6 hours)')}</label>
+   {(!android||deviceNotify())&&<label className="settings-check"><input type="checkbox" checked={notifyEp} onChange={e=>{setNotifyEp(e.target.checked);lsSet('notifyNewEpisodes',e.target.checked?'1':'0');if(e.target.checked)askNotifications();window.dispatchEvent(new Event('nr-watchlist'))}}/> {t('Show a Windows notification when new episodes are found')}</label>}
+  </section>}
+  {on('video')&&<SubtitleSettings/>}
+  {on('about')&&<>
+  <section className="panel settings-block"><h2>{t('About')}</h2><p className="settings-help">NovelReader · {android?(document.documentElement.classList.contains('ios')?'iPhone':'Android'):'Windows'} · {version?'v'+version:''}</p><div className="libraryactions"><button onClick={onWelcome}>{t('Show the welcome guide again')}</button>{onShortcuts&&!android&&<button onClick={onShortcuts}>{t('Keyboard shortcuts')+' (?)'}</button>}</div></section>
   <ReportPanel/>
-  <section className="panel settings-block"><h2>{t('About')}</h2><p className="settings-help">NovelReader · Windows · {version?'v'+version:''}</p><button onClick={onWelcome}>{t('Show the welcome guide again')}</button></section>
+  </>}
+  </div></div>
  </>
 }
 

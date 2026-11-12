@@ -149,6 +149,7 @@ export function installAndroidBridge(version:string,ios=false){
   subsSearch,subsFetch,
   takeDeepLink:async()=>'',inviteBase:async()=>'',onDeepLink:()=>()=>{},
   sourceStatus:ios?async()=>null:sourceStatus,
+  bookStatus:async()=>{const r=await fetch(STATUS+'book-status.json');return r.ok?r.json():null},
   backupAuto:async()=>({ok:false}),
  }
  // Anything else (PC-only features: cast, downloads, AniList windows…) is absent, so the

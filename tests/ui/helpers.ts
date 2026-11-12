@@ -152,4 +152,12 @@ export async function fakeSpeech(page: Page) {
   })
 }
 
-export const nav = (page: Page, label: string) => page.locator('.sidebar .nav-item', { hasText: label }).click()
+// Downloads, Local Videos and Internet Archive are tabs of the "Files" entry when a mode has several.
+export const nav = async (page: Page, label: string) => {
+  const item = page.locator('.sidebar .nav-item', { hasText: label })
+  if (['Downloads', 'Local Videos', 'Internet Archive'].includes(label) && !(await item.count())) {
+    await page.locator('.sidebar .nav-item', { hasText: 'Files' }).click()
+    return page.locator('.files-tabs [role=tab]', { hasText: label }).click()
+  }
+  return item.click()
+}

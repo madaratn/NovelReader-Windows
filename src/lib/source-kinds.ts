@@ -86,7 +86,7 @@ export function scanFor(pkgOrName:string):ScanRow|null{
 // The weekly check says "not working" for a source: the day it is first seen that way
 // is kept. After DEAD_DAYS it is left out of searches and Discover (it stays installed
 // and listed in Sources, where "Use anyway" brings it back). Working again = forgotten.
-export const DEAD_DAYS=10
+export const DEAD_DAYS=5
 const readJson=(k:string,d:any)=>{try{return JSON.parse(localStorage.getItem(k)||'null')??d}catch{return d}}
 export function trackDead(s:ScanStatus,now=Date.now()){
  const seen:Record<string,number>=readJson('deadSources',{}),state=new Map<string,boolean>()
