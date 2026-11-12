@@ -6,26 +6,29 @@ import {fetchTrustedBookPlugin} from '../lib/book-plugin-policy'
 import * as cheerio from 'cheerio'
 import dayjs from 'dayjs'
 import * as htmlparser2 from 'htmlparser2'
+import{FilterTypes,NovelStatus,makeStorage}from'./plugin-libs'
 
 const UA='Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36 NovelReader'
 async function fetchApi(url:string,init:any={}){return fetch(url,{...init,headers:{'User-Agent':UA,Accept:'*/*','Accept-Language':'*',...(init.headers||{})}})}
 async function fetchText(url:string,init?:any,encoding?:string){try{const r=await fetchApi(url,init);if(!r.ok)return'';return new TextDecoder(encoding||'utf-8').decode(await r.arrayBuffer())}catch{return''}}
 const urlencode={encode:(s:string)=>encodeURIComponent(s),decode:(s:string)=>decodeURIComponent(s),parse:(s:string)=>Object.fromEntries(new URLSearchParams(s)),stringify:(o:any)=>new URLSearchParams(o).toString()}
-const noStore={getItem:()=>null,setItem:()=>{}}
+// Each source keeps its own store for as long as the app runs.
+const stores=new Map<string,any>();let currentPlugin=''
+const storageFor=(u:string)=>{if(!stores.has(u))stores.set(u,makeStorage());return stores.get(u)}
 function runtimeRequire(name:string):any{
  if(name==='cheerio')return cheerio;if(name==='dayjs')return dayjs;if(name==='htmlparser2')return htmlparser2;if(name==='urlencode')return urlencode
  if(name==='@libs/fetch')return{fetchApi,fetchText,fetchProto:async()=>{throw Error('fetchProto unsupported')}}
  if(name==='@libs/defaultCover')return{defaultCover:''}
- if(name==='@libs/novelStatus')return{NovelStatus:{Unknown:0,Ongoing:1,Completed:2,Licensed:3,PublishingFinished:4,Cancelled:5,OnHiatus:6}}
- if(name==='@libs/filterInputs')return{Filters:{}}
+ if(name==='@libs/novelStatus')return{NovelStatus}
+ if(name==='@libs/filterInputs')return{FilterTypes,Filters:{}}
  if(name==='@libs/isAbsoluteUrl')return{isUrlAbsolute:(u:string)=>/^https?:\/\//i.test(u)}
- if(name==='@libs/storage')return{storage:{getItem:async()=>null,setItem:async()=>{}},localStorage:noStore,sessionStorage:noStore}
+ if(name==='@libs/storage')return storageFor(currentPlugin)
  if(name==='@/types/plugin')return{Plugin:{}}
  throw Error('Unsupported plugin dependency: '+name)
 }
 const cache=new Map<string,Promise<any>>()
 export function loadPlugin(url:string){
- if(!cache.has(url))cache.set(url,(async()=>{const code=await fetchTrustedBookPlugin(url);const module:any={exports:{}}
+ if(!cache.has(url))cache.set(url,(async()=>{const code=await fetchTrustedBookPlugin(url);currentPlugin=url;const module:any={exports:{}}
   // eslint-disable-next-line no-new-func
   new Function('module','exports','require',code)(module,module.exports,runtimeRequire);return module.exports.default||module.exports})().catch(e=>{cache.delete(url);throw e}))
  return cache.get(url)!
