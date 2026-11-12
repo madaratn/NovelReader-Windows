@@ -205,7 +205,7 @@ test('Android: phone navigation fits the screen and gets out of the way to read'
   await page.locator('.m-top').getByRole('tab', { name: 'Anime' }).click()
   await page.locator('.m-bottom').getByRole('button', { name: 'More' }).click()
   await expect(page.locator('.m-sheet')).toContainText('Settings')
-  await expect(page.locator('.m-sheet')).not.toContainText('Local Videos')
+  await expect(page.locator('.m-sheet')).toContainText('Local Videos')
   await expect(page.locator('.m-sheet')).not.toContainText('Internet Archive')
   await expect(page.locator('.m-sheet')).toContainText('Downloads')
   await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
