@@ -956,6 +956,9 @@ const FR: Record<string, string> = {
   'Sent from your PC': 'Envoyé depuis votre PC',
   'Turn on the phone link first (Settings).': 'Activez d\'abord le lien avec le téléphone (Réglages).',
   'Nothing to send.': 'Rien à envoyer.',
+  'Ad instead of episode?': 'Publicité à la place de l’épisode ?',
+  'If an ad replaces the episode, try the next stream': 'Si une publicité remplace l’épisode, essayer le flux suivant',
+  'This server is showing an advertisement instead of the episode. No other stream is available here. Try a different video source.': 'Ce serveur diffuse une publicité à la place de l’épisode. Aucun autre flux n’est disponible ici. Essaie une autre source vidéo.',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')
