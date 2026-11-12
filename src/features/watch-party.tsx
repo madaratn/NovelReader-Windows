@@ -28,11 +28,28 @@ const PREFIX='novelreader-wp-'
 async function peerTransport():Promise<Transport>{
  const{default:Peer}=await import('peerjs')
  let peer:any=null
+ // The code only works while this PC is registered on the connection server. That
+ // link drops now and then (server restart, Wi-Fi hiccup, PC waking up); without
+ // this, the party kept running between those already in it but nobody could join
+ // any more ("No watch party with this code"). Registered again, with the same code.
+ const stayRegistered=(p:any)=>{let timer:any=null
+  const again=()=>{clearTimeout(timer);timer=setTimeout(()=>{if(p!==peer||p.destroyed)return;if(p.disconnected){try{p.reconnect()}catch{}again()}},2500)}
+  p.on('disconnected',again)
+  // Belt and braces: checked every 20 s, and when the PC comes back online or wakes up.
+  const check=()=>{if(p!==peer||p.destroyed){clearInterval(iv);window.removeEventListener('online',check);return}if(p.disconnected)again()}
+  const iv=setInterval(check,20000);window.addEventListener('online',check)
+  if((window as any).__partyDebug)(window as any).__partyPeer=p}
  const wrap=(c:any):Conn=>({id:String(c.peer),send:m=>{try{c.open&&c.send(m)}catch{}},onMessage:cb=>c.on('data',(d:any)=>cb(d as Msg)),onClose:cb=>{c.on('close',cb);c.on('error',cb)},close:()=>{try{c.close()}catch{}}})
  const failure=(e:any)=>new Error(e?.type==='peer-unavailable'?t('No watch party with this code. Check the code with your friend.'):e?.type==='unavailable-id'?'taken':e?.type==='network'||e?.type==='server-error'||e?.type==='socket-error'?t('Could not reach the connection server. Check your internet connection.'):String(e?.message||e))
  return{
-  host:(code,onConn)=>new Promise((res,rej)=>{peer=new Peer(PREFIX+code.toLowerCase(),{debug:0});peer.on('open',()=>res());peer.on('error',(e:any)=>rej(failure(e)));peer.on('connection',(c:any)=>c.on('open',()=>onConn(wrap(c))))}),
-  join:code=>new Promise((res,rej)=>{peer=new Peer({debug:0});peer.on('error',(e:any)=>rej(failure(e)));peer.on('open',()=>{const c=peer.connect(PREFIX+code.toLowerCase(),{reliable:true});c.on('open',()=>res(wrap(c)));setTimeout(()=>rej(new Error(t('No answer from this watch party. Check the code with your friend.'))),15000)})}),
+  host:(code,onConn)=>new Promise((res,rej)=>{peer=new Peer(PREFIX+code.toLowerCase(),{debug:0});stayRegistered(peer);peer.on('open',()=>res());peer.on('error',(e:any)=>rej(failure(e)));peer.on('connection',(c:any)=>c.on('open',()=>onConn(wrap(c))))}),
+  // The host may be re-registering at this very moment (its link to the server
+  // dropped for a few seconds): "no such party" is only believed after four tries.
+  join:code=>new Promise((res,rej)=>{peer=new Peer({debug:0});stayRegistered(peer);let tries=0,done=false
+   const attempt=()=>{if(done||!peer||peer.destroyed)return;tries++;const c=peer.connect(PREFIX+code.toLowerCase(),{reliable:true});c.on('open',()=>{done=true;res(wrap(c))})}
+   peer.on('error',(e:any)=>{if(done)return;if(e?.type==='peer-unavailable'&&tries<4){setTimeout(attempt,3000);return}if(e?.type==='network'||e?.type==='disconnected'||e?.type==='socket-closed')return;done=true;rej(failure(e))})
+   peer.on('open',()=>{if(!tries)attempt()})
+   setTimeout(()=>{if(!done){done=true;rej(new Error(t('No answer from this watch party. Check the code with your friend.')))}},25000)}),
   destroy:()=>{try{peer?.destroy()}catch{}peer=null},
   selfId:()=>String(peer?.id||''),
   call:(id,stream,kind='voice')=>wrapCall(peer.call(id,stream,{metadata:{kind}})),
