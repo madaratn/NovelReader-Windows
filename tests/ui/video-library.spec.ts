@@ -86,6 +86,10 @@ test('series detail: Books-style hero, clean facts, remembered server, skip intr
   // The server that worked last time is selected first
   await expect(page.locator('.player-trackbar select').first().locator('option:checked')).toHaveText('Hermes - 1080p')
   await expect(page.locator('.player-skip')).toHaveText('Skip intro ⏭')
+  // While it plays, the video is the first block of the page (above the poster and the facts), in view.
+  const playerBox = await page.locator('.media-player-top').boundingBox(), heroBox = await page.locator('.media-hero').boundingBox()
+  expect(playerBox!.y).toBeLessThan(heroBox!.y)
+  await expect(page.locator('.media-player-top .remote-player')).toBeInViewport()
   await page.locator('.player-skip').click()
   await expect.poll(() => page.locator('.remote-player video').evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThanOrEqual(0)
 })
