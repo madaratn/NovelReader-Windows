@@ -1,3 +1,13 @@
+## NovelReader 0.25.1
+
+- **Retour au même endroit** : quand on ouvre un titre depuis une liste puis qu'on revient en arrière (bouton Retour, Alt+←, bouton Précédent de la souris, geste Retour du téléphone), la liste réapparaît là où on l'avait laissée, plus tout en haut.
+- **Toucher l'onglet où l'on est déjà** remonte en haut de la page.
+- **Le nom NovelReader** en haut du menu ramène à la bibliothèque de la section.
+- **Bouton pour replier le menu** : l'icône « < » ressemblait à un bouton Retour ; c'est maintenant une icône de panneau.
+- **Téléphone** : le menu « Plus » a des lignes toutes identiques ; dans la bibliothèque, « Vérifier les nouveautés » et le tri tiennent sur une ligne, les titres arrivent plus haut ; le bouton de fermeture des panneaux est un vrai bouton rond.
+
+---
+
 ## NovelReader 0.25.0
 
 - **Premier lancement guidé** : trois étapes courtes — la langue, par quoi commencer (livres, animes, séries, films), puis les sources recommandées en un clic.

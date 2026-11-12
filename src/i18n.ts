@@ -1017,6 +1017,8 @@ const FR: Record<string, string> = {
   'This page no longer exists on the site. Use another source.': 'Cette page n\'existe plus sur le site. Utilise une autre source.',
   'This source no longer understands its site (it needs an update). Use another source.': 'Cette source ne comprend plus son site (elle a besoin d\'une mise à jour). Utilise une autre source.',
   'Waiting for the picture…': 'En attente de l’image…',
+  'NovelReader: back to the library': 'NovelReader : retour à la bibliothèque',
+  'Back to the library': 'Retour à la bibliothèque',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

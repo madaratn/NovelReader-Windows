@@ -147,3 +147,29 @@ test("what's new: shown once after an update, never on a first install", async (
   await expect(dlg).toHaveCount(0)
   expect(await page.evaluate(() => localStorage.getItem('whatsNewSeen'))).toBe(NOTES_VERSION)
 })
+
+test('navigation: going back returns to the same place in the list; the current tab and the app name lead to the top / the library', async ({ page }) => {
+  const many = Array.from({ length: 40 }, (_, i) => novel('n' + i, 'Novel number ' + String(i + 1).padStart(2, '0'), 100))
+  await open(page, { library: many })
+  await expect(page.locator('.libcard')).toHaveCount(40)
+  // Far down the list, open a title…
+  const card = page.locator('.libcard', { hasText: 'Novel number 34' })
+  await card.scrollIntoViewIfNeeded()
+  const before = await page.evaluate(() => window.scrollY)
+  expect(before).toBeGreaterThan(300)
+  await card.locator('h2').click()
+  await expect(page.locator('.backbtn, .novel-back, main button', { hasText: 'Library' }).first()).toBeVisible()
+  expect(await page.evaluate(() => window.scrollY)).toBeLessThan(50) // a new page starts at its top
+  // …and come back (Alt+Left, the mouse's Back button and Android's Back do the same): same place.
+  await page.keyboard.press('Alt+ArrowLeft')
+  await expect(page.locator('.libcard')).toHaveCount(40)
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before - 60)
+  await expect(card).toBeInViewport()
+  // Choosing the page you are already on goes back to its top.
+  await nav(page, 'Library')
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(5)
+  // The app name leads to the library of the section.
+  await nav(page, 'Sources')
+  await page.locator('.sidebar .brand').click()
+  await expect(page.locator('.nav-item[aria-current=page]')).toHaveText('Library')
+})
