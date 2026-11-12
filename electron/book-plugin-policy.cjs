@@ -24,7 +24,10 @@ async function fetchTrustedBookPlugin(raw, fetcher=fetch) {
   const url = trustedBookPluginUrl(raw)
   const response = await fetcher(url, { credentials: 'omit', redirect: 'follow' })
   if (!response.ok) throw Error('Book plugin download HTTP ' + response.status)
-  if (response.url && response.url !== url) throw Error('Book plugin redirect blocked.')
+  // Chromium/Android can percent-encode square brackets in LNReader bundle names.
+  // Accept only that harmless canonical spelling difference, never another host/path.
+  if (response.url && response.url.replace(/%5B/gi, '[').replace(/%5D/gi, ']') !== url)
+    throw Error('Book plugin redirect blocked: ' + String(response.url).slice(0, 300))
   const declared = Number(response.headers.get('content-length') || 0)
   if (declared > MAX_BOOK_PLUGIN_BYTES) throw Error('Book plugin is too large.')
   const bytes = await response.arrayBuffer()
