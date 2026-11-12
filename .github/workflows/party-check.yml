@@ -5,8 +5,6 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '41 5 * * 1'
-  push:
-    branches: ['claude/party-fix']
 jobs:
   check:
     runs-on: ubuntu-latest

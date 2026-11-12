@@ -1,3 +1,10 @@
+## NovelReader 0.24.3
+
+- **Watch party : « Aucune soirée avec ce code »** — le PC qui crée la soirée reste maintenant inscrit sur le serveur de connexion : si ce lien tombe (coupure Wi-Fi, PC qui sort de veille, redémarrage du serveur), il se réinscrit tout seul avec le même code. Avant, la soirée continuait mais plus personne ne pouvait la rejoindre.
+- **Rejoindre une soirée** : le code est essayé plusieurs fois pendant une dizaine de secondes avant d'annoncer qu'il est inconnu.
+
+---
+
 ## NovelReader 0.24.2
 
 - **La vidéo en haut de la page** : quand on clique sur « Continuer » (ou sur un épisode) pour une série, un anime ou un film, le lecteur est maintenant le premier bloc de la page, juste sous le bouton Retour. L'affiche, les informations et la liste des épisodes suivent.
