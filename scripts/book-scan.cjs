@@ -5,7 +5,10 @@
 const fs = require('fs')
 const runner = require('../electron/plugin-runner.cjs')
 const MANIFEST = 'https://raw.githubusercontent.com/lnreader/lnreader-plugins/plugins/v3.0.0/.dist/plugins.min.json'
-const [, , OUT = 'book-scan.json', LANGS = 'all', ONLY = ''] = process.argv
+// Also runs inside Electron (electron scripts/book-scan.cjs …) to check the sources
+// the way the PC app really fetches them (Chromium network + Cloudflare checks).
+const IN_ELECTRON = !!process.versions.electron
+const [OUT = 'book-scan.json', LANGS = 'all', ONLY = ''] = process.argv.slice(IN_ELECTRON ? 1 : 2).filter(a => !a.startsWith('--') && !/book-scan\.cjs$/.test(a))
 const limit = (p, ms, what) => Promise.race([p, new Promise((_, ko) => setTimeout(() => ko(new Error('timeout ' + what)), ms))])
 const short = e => (String(e && e.message || e) + ' @ ' + String(e && e.stack || '').split('\n').slice(1, 2).join('').trim()).slice(0, 240)
 async function check(plugin) {
@@ -31,11 +34,20 @@ async function check(plugin) {
   r.seconds = Math.round((Date.now() - t) / 1000)
   return r
 }
+async function ready() {
+  if (!IN_ELECTRON) return
+  const { app, session, BrowserWindow } = require('electron')
+  app.commandLine.appendSwitch('no-sandbox'); app.disableHardwareAcceleration()
+  app.on('window-all-closed', () => {})
+  await app.whenReady()
+  runner.configure(require('../electron/book-web.cjs').createBookWeb({ session, BrowserWindow, showWhenStuck: false, log: m => console.log('   ', m) }))
+}
 ;(async () => {
+  await ready()
   let list = await (await fetch(MANIFEST)).json()
   if (LANGS !== 'all') { const want = LANGS.split(',').map(x => x.trim().toLowerCase()); list = list.filter(p => want.includes(String(p.lang).toLowerCase())) }
   if (ONLY) { const want = ONLY.split(',').map(x => x.trim().toLowerCase()); list = list.filter(p => want.includes(p.name.toLowerCase())) }
-  console.log('checking', list.length, 'book sources, UA:', process.env.NR_BOOK_UA || '(app default)')
+  console.log('checking', list.length, 'book sources,', IN_ELECTRON ? 'through Chromium (as the PC app)' : 'UA: ' + (process.env.NR_BOOK_UA || '(app default)'))
   const out = [], queue = [...list]
   await Promise.all(Array.from({ length: 10 }, async () => { while (queue.length) { const p = queue.shift(); const r = await check(p); out.push(r); console.log((r.state === 'ok' ? '✓' : '✗') + ' ' + p.lang.padEnd(10) + ' ' + p.name.padEnd(28) + ' ' + (r.state === 'ok' ? r.titles + ' titles, ' + r.chapters + ' chapters, ' + r.textLength + ' chars' : r.step + ': ' + r.error + (r.popularError ? '\n      popular: ' + r.popularError : '') + (r.trace && r.trace.length ? '\n      ' + r.trace.slice(-3).join('\n      ') : ''))) } }))
   const ok = out.filter(r => r.state === 'ok').length

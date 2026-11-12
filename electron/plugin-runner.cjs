@@ -16,13 +16,16 @@ const jars=new Map();const jarFor=u=>{if(!jars.has(u))jars.set(u,new Map());retu
 // Optional trace of what each source received (used by the source check).
 const traces=new Map();const traceOn=!!process.env.NR_BOOK_TRACE
 function hostOf(u){try{return new URL(u).host}catch{return ''}}
+// On the PC app the requests go through Chromium (electron/book-web.cjs); plain Node otherwise.
+let web=null
+function configure(o){web=o||null;loaded.clear()}
 function makeFetch(pluginUrl){
  const jar=jarFor(pluginUrl)
  return async function fetchApi(url,init={}){
-  const h=new Headers({'User-Agent':UA,...BASE_HEADERS});new Headers(init.headers||{}).forEach((v,k)=>h.set(k,v))
-  const host=hostOf(String(url));const c=jar.get(host);if(c&&c.size&&!h.has('cookie'))h.set('Cookie',[...c].map(([k,v])=>k+'='+v).join('; '))
+  const h=new Headers({'User-Agent':web&&web.userAgent||UA,...BASE_HEADERS});new Headers(init.headers||{}).forEach((v,k)=>h.set(k,v))
+  const host=hostOf(String(url));const c=jar.get(host);if(!web&&c&&c.size&&!h.has('cookie'))h.set('Cookie',[...c].map(([k,v])=>k+'='+v).join('; '))
   let r
-  try{r=await fetch(url,{...init,headers:h})}
+  try{r=web?await web.fetch(String(url),{...init,headers:h}):await fetch(url,{...init,headers:h})}
   catch(e){if(traceOn)push(pluginUrl,String(url).slice(0,120)+' -> '+(e&&e.cause&&(e.cause.code||e.cause.message)||e.message));throw e}
   try{const set=typeof r.headers.getSetCookie==='function'?r.headers.getSetCookie():[];if(set.length){const m=jar.get(host)||new Map();for(const line of set){const kv=line.split(';')[0];const i=kv.indexOf('=');if(i>0)m.set(kv.slice(0,i).trim(),kv.slice(i+1).trim())}jar.set(host,m)}}catch{}
   if(traceOn){let snip='';try{const t=await r.clone().text();const title=(t.match(/<title[^>]*>([^<]{0,80})/i)||[])[1];snip=(title?'title='+title.trim():t.slice(0,80).replace(/\s+/g,' '))+' len='+t.length}catch{}push(pluginUrl,String(url).slice(0,120)+' -> '+r.status+' '+snip)}
@@ -50,4 +53,4 @@ async function search(plugin,query){const p=await loadPlugin(plugin.url);if(!p||
 async function popular(plugin,{page=1,latest=false}={}){const p=await loadPlugin(plugin.url);if(!p||typeof p.popularNovels!=='function')throw Error('popularNovels unavailable');const filters={};for(const [k,f] of Object.entries(p.filters||{}))if(f&&typeof f==='object')filters[k]={type:f.type,value:f.value};const results=await Promise.race([p.popularNovels(Number(page)||1,{showLatestNovels:!!latest,filters}),new Promise((_,rej)=>setTimeout(()=>rej(Error('Timeout')),15000))]);return (results||[]).map(x=>({name:x.name,path:x.path,cover:x.cover,sourceId:plugin.id,sourceName:plugin.name,lang:plugin.lang}))}
 async function parseNovel(plugin,path){const p=await loadPlugin(plugin.url);return p.parseNovel(path)}
 async function parseChapter(plugin,path){const p=await loadPlugin(plugin.url);if(!p||typeof p.parseChapter!=='function')throw Error('parseChapter unavailable');return Promise.race([p.parseChapter(path),new Promise((_,rej)=>setTimeout(()=>rej(Error('Chapter timeout')),15000))])}
-module.exports={search,popular,parseNovel,parseChapter,traceOf:u=>traces.get(u)||[]}
+module.exports={search,popular,parseNovel,parseChapter,configure,traceOf:u=>traces.get(u)||[]}

@@ -7,6 +7,7 @@ const {spawn}=require('child_process')
 const fs=require('fs')
 const path=require('path')
 const runner=require('./plugin-runner.cjs')
+const {createBookWeb}=require('./book-web.cjs')
 const archive=require('./archive.cjs')
 const {createTorrentManager}=require('./torrent-manager.cjs')
 const {createBackupManager}=require('./backup.cjs')
@@ -351,6 +352,6 @@ async function runSmokeTest(win){
  app.exit(result.ok?0:1)
 }
 
-app.whenReady().then(()=>{registerLocalProtocol();if(SMOKE_TEST){runSmokeTest(createWindow());return}splash.start();try{flareApi().start()}catch{}startMiwayomi();createWindow();updater.start()})
+app.whenReady().then(()=>{try{runner.configure(createBookWeb({session,BrowserWindow,log:m=>console.log(m)}))}catch(e){console.warn('[books] web',e)}registerLocalProtocol();if(SMOKE_TEST){runSmokeTest(createWindow());return}splash.start();try{flareApi().start()}catch{}startMiwayomi();createWindow();updater.start()})
 app.on('before-quit',()=>{if(miwayomiProcess){miwayomiProcess.kill();miwayomiProcess=null}try{flare&&flare.stop()}catch{}try{videoDl&&videoDl.close()}catch{}})
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()})

@@ -12,7 +12,7 @@ on:
         default: ''
   push:
     branches: ['claude/cleanup']
-    paths: ['scripts/book-scan.cjs', '.github/workflows/book-scan.yml', 'electron/plugin-runner.cjs', 'electron/plugin-libs.cjs']
+    paths: ['scripts/book-scan.cjs', '.github/workflows/book-scan.yml', 'electron/plugin-runner.cjs', 'electron/plugin-libs.cjs', 'electron/book-web.cjs']
 jobs:
   scan:
     runs-on: ubuntu-latest
@@ -27,10 +27,12 @@ jobs:
         env:
           NR_BOOK_TRACE: '1'
         run: node scripts/book-scan.cjs app.json "${{ inputs.langs || 'all' }}" "${{ inputs.only }}"
-      - name: Browser user agent
+      - name: As the PC app (Chromium network, Cloudflare checks)
         env:
-          NR_BOOK_UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36
-        run: node scripts/book-scan.cjs browser.json "${{ inputs.langs || 'all' }}" "${{ inputs.only }}"
+          NR_BOOK_TRACE: '1'
+        run: |
+          node node_modules/electron/install.js
+          xvfb-run -a npx electron --no-sandbox scripts/book-scan.cjs pc.json "${{ inputs.langs || 'all' }}" "${{ inputs.only }}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
