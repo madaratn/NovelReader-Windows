@@ -64,3 +64,21 @@ test('PC share: the link typed on the phone',()=>{
  assert.equal(parseLink('http://192.168.1.5:4580/e/abcdefghjk'),'http://192.168.1.5:4580/e/abcdefghjk')
  for(const bad of['','192.168.1.5','192.168.1.5:4580','192.168.1.5:4580/short','hello'])assert.equal(parseLink(bad),'')
 })
+
+test('PC share: consecutive messages with identical wall clock time both reach the phone',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'nr-share-cursor-'))
+ const share=createEngineShare({configFile:path.join(dir,'share.json'),port:0,addresses:()=>['192.168.1.5']})
+ const realNow=Date.now
+ try{
+  const st=await share.enable()
+  Date.now=()=>1800000000000
+  const first=share.send({kind:'books',id:'first',name:'Book one'})
+  const second=share.send({kind:'books',id:'second',name:'Book two'})
+  assert.ok(second.at>first.at,'The second message needs a unique polling cursor')
+  const url='http://127.0.0.1:'+st.port+'/e/'+st.code+'/nr/inbox?after='+first.at
+  const response=await fetch(url)
+  assert.equal(response.status,200)
+  const box=await response.json()
+  assert.deepEqual(box.items.map(x=>x.id),['second'])
+ }finally{Date.now=realNow;share.stop();fs.rmSync(dir,{recursive:true,force:true})}
+})

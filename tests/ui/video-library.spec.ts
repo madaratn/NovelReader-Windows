@@ -90,6 +90,40 @@ test('series detail: Books-style hero, clean facts, remembered server, skip intr
   await expect.poll(() => page.locator('.remote-player video').evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThanOrEqual(0)
 })
 
+test('advertisement escape switches to another playable stream', async ({ page }) => {
+  await openVideo(page, {
+    mode: 'series', 'lastPage:series': 'series',
+    seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns')])
+  })
+  await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
+  await page.locator('.media-hero .primary').click()
+  const quality = page.locator('.player-trackbar label', { hasText: 'Quality' }).locator('select')
+  await expect(quality).toBeVisible()
+  const selected = await quality.locator('option:checked').textContent()
+  await page.getByRole('button', { name: 'Ad instead of episode?' }).click()
+  await expect.poll(() => quality.locator('option:checked').textContent()).not.toBe(selected)
+  await expect(page.locator('.remote-player')).not.toContainText('No other stream is available here')
+})
+
+test('advertisement escape explains when the only stream is affected', async ({ page }) => {
+  await openVideo(page, {
+    mode: 'series', 'lastPage:series': 'series',
+    seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns')])
+  })
+  await page.evaluate(() => {
+    const w = window as any
+    const original = w.novelReader.miwayomiFetch
+    w.novelReader.miwayomiFetch = async (path: string, ...args: any[]) => {
+      const result = await original(path, ...args)
+      return path.includes('/videos') ? result.slice(0, 1) : result
+    }
+  })
+  await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
+  await page.locator('.media-hero .primary').click()
+  await page.getByRole('button', { name: 'Ad instead of episode?' }).click()
+  await expect(page.locator('.remote-player')).toContainText('No other stream is available here')
+})
+
 test('video sources: test installed sources and remove the dead one', async ({ page }) => {
   await openVideo(page, { mode: 'anime', 'lastPage:anime': 'animeSources' })
   await page.getByRole('button', { name: 'Test my sources' }).click()

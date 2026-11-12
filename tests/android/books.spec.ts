@@ -15,11 +15,11 @@ module.exports.default = {
   async parseNovel(path) { const $ = cheerio.load(await (await fetchApi('https://novels.test' + path)).text()); return { path, name: $('h1').text(), author: 'Auth', summary: $('p.s').text(), chapters: $('a.c').map((i, a) => ({ name: $(a).text(), path: $(a).attr('href') })).get() } },
   async parseChapter(path) { return '<p>Text of ' + path + '</p>' }
 }`
-const MANIFEST = [{ id: 'testsrc', name: 'Test Source', lang: 'English', version: '1.0.0', url: 'https://plugins.test/testsrc.js', iconUrl: '' }]
+const MANIFEST = [{ id: 'testsrc', name: 'Test Source', lang: 'English', version: '1.0.0', url: 'https://raw.githubusercontent.com/lnreader/lnreader-plugins/plugins/v3.0.0/.js/src/plugins/testsrc.js', iconUrl: '' }]
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/plugins.min.json', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify(MANIFEST) }))
-  await page.route('https://plugins.test/testsrc.js', r => r.fulfill({ contentType: 'text/javascript', body: PLUGIN }))
+  await page.route('https://raw.githubusercontent.com/lnreader/lnreader-plugins/plugins/v3.0.0/.js/src/plugins/testsrc.js', r => r.fulfill({ contentType: 'text/javascript', body: PLUGIN }))
   await page.route('https://novels.test/popular', r => r.fulfill({ contentType: 'text/html', body: '<a class="n" href="/novel/shadow">Shadow Slave</a><a class="n" href="/novel/lotm">Lord of the Mysteries</a>' }))
   await page.route('https://novels.test/novel/shadow', r => r.fulfill({ contentType: 'text/html', body: '<h1>Shadow Slave</h1><p class="s">A boy and his shadow.</p><a class="c" href="/c/1">Chapter 1</a><a class="c" href="/c/2">Chapter 2</a>' }))
   await page.addInitScript((notes) => {
@@ -108,7 +108,7 @@ test('Android: search with no video source points to Sources', async ({ page }) 
 test('Android: update found on GitHub, downloaded, Install opens the installer', async ({ page }) => {
   await page.route('https://api.github.com/**', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify([
     { tag_name: 'source-status', assets: [{ name: 'source-status.json' }] },
-    { tag_name: 'v99.0.0', assets: [{ name: 'NovelReader-Setup-99.0.0.exe', browser_download_url: 'https://x/y.exe', size: 1 }, { name: 'NovelReader-99.0.0.apk', browser_download_url: 'https://github.com/x/NovelReader-99.0.0.apk', size: 1234 }] },
+    { tag_name: 'v99.0.0', assets: [{ name: 'NovelReader-Setup-99.0.0.exe', browser_download_url: 'https://x/y.exe', size: 1 }, { name: 'NovelReader-99.0.0.apk', browser_download_url: 'https://github.com/madaratn/NovelReader-Windows/releases/download/v99.0.0/NovelReader-99.0.0.apk', size: 1234 }] },
     { tag_name: 'v0.1.0', assets: [{ name: 'NovelReader-0.1.0.apk', browser_download_url: 'https://x/old.apk', size: 1 }] },
   ]) }))
   await page.addInitScript(() => {
@@ -129,9 +129,60 @@ test('Android: update found on GitHub, downloaded, Install opens the installer',
   await expect(page.locator('.update-banner')).toContainText('NovelReader 99.0.0 is downloaded. Tap Install and confirm')
   await expect(page.locator('main')).toContainText('Version 99.0.0 is downloaded: tap Install, Android asks you to confirm.')
   await expect(page.locator('main')).not.toContainText('idle for 15 minutes')
-  expect(await page.evaluate(() => (window as any).__updater.downloads)).toEqual([{ url: 'https://github.com/x/NovelReader-99.0.0.apk', size: 1234 }])
+  expect(await page.evaluate(() => (window as any).__updater.downloads)).toEqual([{ url: 'https://github.com/madaratn/NovelReader-Windows/releases/download/v99.0.0/NovelReader-99.0.0.apk', size: 1234 }])
   await page.locator('.update-banner').getByRole('button', { name: 'Install' }).click()
   await expect.poll(() => page.evaluate(() => (window as any).__updater.installs)).toBe(1)
+})
+
+// Beta releases are opt-in. Switching back to stable must invalidate any queued
+// beta APK before it can be presented for installation.
+test('Android: beta channel is opt-in, persistent and can be turned off safely', async ({ page }) => {
+  const stable='https://github.com/madaratn/NovelReader-Windows/releases/download/v99.0.0/NovelReader-99.0.0.apk'
+  const beta='https://github.com/madaratn/NovelReader-Windows/releases/download/v100.0.0/NovelReader-100.0.0.apk'
+  let requests=0
+  await page.route('https://api.github.com/**',r=>{
+    requests++
+    return r.fulfill({contentType:'application/json',body:JSON.stringify([
+      {tag_name:'v100.0.0',prerelease:true,assets:[{name:'NovelReader-100.0.0.apk',browser_download_url:beta,size:1500}]},
+      {tag_name:'v99.0.0',prerelease:false,assets:[{name:'NovelReader-99.0.0.apk',browser_download_url:stable,size:1200}]},
+      {tag_name:'v101.0.0',prerelease:true,assets:[{name:'NovelReader-101.0.0.apk',browser_download_url:'https://evil.test/fake.apk',size:1}]},
+    ])})
+  })
+  await page.addInitScript(()=>{
+    const w=window as any
+    w.__updater={downloads:[] as any[],installs:0}
+    w.Capacitor.Plugins={Updater:{
+      addListener:()=>({remove(){}}),
+      download:async(o:any)=>{w.__updater.downloads.push(o)},
+      install:async()=>{w.__updater.installs++;return{started:true}},
+      canInstall:async()=>({allowed:true}),
+    }}
+  })
+  await page.goto('/')
+  await page.locator('.m-bottom').getByRole('button',{name:'More'}).click()
+  await page.locator('.m-sheet').getByRole('button',{name:'Settings'}).click()
+  const toggle=page.locator('main').getByRole('checkbox',{name:/Receive beta versions/})
+  await expect(toggle).not.toBeChecked()
+  await page.locator('main').getByRole('button',{name:'Check for updates'}).click()
+  await expect(page.locator('.update-banner')).toContainText('99.0.0')
+  expect((await page.evaluate(()=>(window as any).__updater.downloads)).map((v:any)=>v.url)).toEqual([stable])
+
+  await toggle.check()
+  await expect(page.locator('.update-banner')).toContainText('100.0.0')
+  expect((await page.evaluate(()=>(window as any).__updater.downloads)).map((v:any)=>v.url)).toEqual([stable,beta])
+  expect(await page.evaluate(()=>localStorage.getItem('androidBetaUpdates'))).toBe('1')
+
+  await toggle.uncheck()
+  await expect(page.locator('.update-banner')).toContainText('99.0.0')
+  expect(await page.evaluate(()=>localStorage.getItem('androidBetaUpdates'))).toBe('0')
+  await page.locator('.update-banner').getByRole('button',{name:'Install'}).click()
+  expect(await page.evaluate(()=>(window as any).__updater.installs)).toBe(1)
+  expect(requests).toBeGreaterThanOrEqual(3)
+
+  await page.reload()
+  await page.locator('.m-bottom').getByRole('button',{name:'More'}).click()
+  await page.locator('.m-sheet').getByRole('button',{name:'Settings'}).click()
+  await expect(page.locator('main').getByRole('checkbox',{name:/Receive beta versions/})).not.toBeChecked()
 })
 
 // Cast (served by the engine in the app) and online subtitles (run in the app).
@@ -523,7 +574,7 @@ test('Android, app closed: the hidden page finds the novels with new chapters, o
       http: (id: number, json: string) => { const q = JSON.parse(json); w.__bg.http.push(q.method + ' ' + q.url)
         real(q.url, { method: q.method, headers: q.headers, body: q.body || undefined }).then(async (r: Response) => { const b = new Uint8Array(await r.arrayBuffer()); let s = ''; b.forEach(x => { s += String.fromCharCode(x) }); const h: any = {}; r.headers.forEach((v, k) => { h[k] = v }); w.__nrHttp(id, { status: r.status, headers: h, url: q.url, body: btoa(s) }) }, (e: any) => w.__nrHttp(id, { error: String(e) })) },
       done: (json: string) => { w.__bg.done = JSON.parse(json) } }
-    const src = { id: 'testsrc', name: 'Test Source', url: 'https://plugins.test/testsrc.js', lang: 'English' }
+    const src = { id: 'testsrc', name: 'Test Source', url: 'https://raw.githubusercontent.com/lnreader/lnreader-plugins/plugins/v3.0.0/.js/src/plugins/testsrc.js', lang: 'English' }
     if (!localStorage.getItem('library')) localStorage.setItem('library', JSON.stringify([
       { id: 'n1', name: 'Shadow Slave', source: src, path: '/novel/shadow', chapters: [{ name: 'Chapter 1', path: '/c/1' }] },          // the site has more
       { id: 'n2', name: 'Dropped', source: src, path: '/novel/shadow', chapters: [{ name: 'Chapter 1', path: '/c/1' }], shelf: 'dropped' },
@@ -562,7 +613,7 @@ test('Android: "Continue on my phone" sent from the PC is offered here and opens
   await page.addInitScript(() => {
     if (localStorage.getItem('pcEngine')) return
     localStorage.setItem('pcEngine', 'http://192.168.1.5:4580/e/abcdefghjk')
-    const src = { id: 'testsrc', name: 'Test Source', url: 'https://plugins.test/testsrc.js', lang: 'English' }
+    const src = { id: 'testsrc', name: 'Test Source', url: 'https://raw.githubusercontent.com/lnreader/lnreader-plugins/plugins/v3.0.0/.js/src/plugins/testsrc.js', lang: 'English' }
     localStorage.setItem('library', JSON.stringify([{ id: 'n1', name: 'Shadow Slave', source: src, path: '/novel/shadow', chapters: [{ name: 'Chapter 1', path: '/novel/shadow/1' }, { name: 'Chapter 2', path: '/novel/shadow/2' }] }]))
     localStorage.setItem('reading:n1', JSON.stringify({ index: 1, progress: 0, at: Date.now() }))
   })

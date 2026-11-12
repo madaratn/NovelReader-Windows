@@ -7,6 +7,7 @@ import{t,getLang}from'../i18n'
 import{lsGet,lsSet}from'../lib/util'
 import{vttFromLines}from'../lib/subtitles'
 import{TRANSLATE_LANGS,translateTarget}from'./translate'
+import{Icon}from'../ui/common'
 
 export type SubInfo={kind:'anime'|'series'|'movie',title:string,year?:number,season?:number,episode?:number}
 const nr=()=>window.novelReader as any
@@ -85,16 +86,16 @@ export function useSubFinder({ref,streamUrl,info,haveSubs,addSub}:{ref:React.Ref
   return()=>clearTimeout(tm)},[streamUrl,haveSubs])
  if(!supported||!streamUrl)return{button:null,panel:null}
  const stepName=(s?:string)=>s==='ffmpeg'?t('sound tool'):s==='whisper'?t('AI program'):s==='model'?t('AI model'):''
- const button=<button className={'trackbtn'+(ai.state!=='off'?' on':'')} aria-expanded={open} onClick={()=>{setOpen(o=>!o);if(!open&&results==null&&wyzieKey()&&info?.title&&info.kind!=='anime')searchOnline()}} title={t('Find subtitles')}>💬 {t('Subtitles')}</button>
+ const button=<button className={'trackbtn'+(ai.state!=='off'?' on':'')} aria-expanded={open} onClick={()=>{setOpen(o=>!o);if(!open&&results==null&&wyzieKey()&&info?.title&&info.kind!=='anime')searchOnline()}} title={t('Find subtitles')}><Icon name="chat" inline/>{t('Subtitles')}</button>
  const panel=open?<div className="sub-finder" role="dialog" aria-label={t('Find subtitles')}>
   <div className="sub-finder-lang"><SubLangPicker/><small>{t('Used for the online search and to translate subtitles.')}</small></div>
-  <section><b>🔎 {t('Online')}</b>
+  <section><b><Icon name="search" inline/>{t('Online')}</b>
    {!wyzieKey()?<p className="cast-help">{t('Films and series: add your free Wyzie Subs key in Settings › Subtitles to search existing subtitles.')}</p>:
     busy==='search'?<p className="cast-help"><span className="spinner"/> {t('Searching subtitles…')}</p>:
     results&&results.length?<ul className="sub-results">{results.slice(0,12).map(s=><li key={s.id}><button disabled={!!busy} onClick={()=>useOnline(s)}><span className="lang-tag">{subLangName(s.language)}</span><span className="sub-rel">{s.release||s.source}</span>{s.hi&&<small title={t('For the deaf and hard of hearing')}>SDH</small>}{busy===s.id&&<span className="spinner"/>}</button></li>)}</ul>:
     results?<p className="cast-help">{t('No subtitles found online for this video.')}</p>:<button onClick={searchOnline}>{t('Search online')}</button>}
   </section>
-  {aiSupported()&&<section><b>🤖 {t('Written by AI on this PC')}</b>
+  {aiSupported()&&<section><b><Icon name="sparkles" inline/>{t('Written by AI on this PC')}</b>
    {ai.state==='off'?<><p className="cast-help">{t('Works for every video, even without any subtitles: the AI listens and writes the lines a little ahead, then they are translated into your language. Uses the processor; the first time, about 150 MB are downloaded.')}</p><button className="primary" onClick={startAi}>{t('Generate subtitles')}</button></>:
     ai.state==='preparing'?<p className="cast-help"><span className="spinner"/> {t('Installing the AI ({what})… {p}%',{what:stepName(ai.step),p:Math.round((ai.p||0)*100)})}</p>:
     <><p className="cast-help">{ai.lines?t('{n} lines written so far. They appear a little ahead of playback.',{n:ai.lines}):t('Listening to the first 30 seconds…')}</p><button className="removebtn" onClick={stopAi}>{t('Stop the AI subtitles')}</button></>}

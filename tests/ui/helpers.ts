@@ -13,7 +13,7 @@ export type Novel = { id: string, name: string, author?: string, path?: string, 
 
 export function novel(id: string, name: string, chapters: number, extra: Partial<Novel> = {}): Novel {
   return {
-    id, name, author: 'Test Author', path: id, source: { id: 'src1', name: 'Royal Road', url: 'https://plugins.test/src1.js', lang: 'English' },
+    id, name, author: 'Test Author', path: id, source: { id: 'src1', name: 'Royal Road', url: 'https://raw.githubusercontent.com/lnreader/lnreader-plugins/plugins/v3.0.0/.js/src/plugins/src1.js', lang: 'English' },
     chapterCount: chapters, chapters: Array.from({ length: chapters }, (_, i) => ({ name: `Chapter ${i + 1}: The Road`, path: `ch-${i + 1}` })),
     addedAt: Date.now() - 3600_000, cover: '', ...extra
   }
@@ -34,13 +34,13 @@ export type Setup = {
 export const PLUGINS = (() => {
   const langs: [string, number][] = [['English', 12], ['French', 4], ['Spanish', 4], ['Multi', 2]]
   const out: any[] = []; let k = 0
-  for (const [lang, n] of langs) for (let i = 0; i < n; i++) { k++; out.push({ id: 'src' + k, name: `${lang.slice(0, 2).toUpperCase()} Source ${k}`, site: `https://site${k}.test`, lang, version: '1.0.' + k, url: `https://plugins.test/src${k}.js`, iconUrl: '' }) }
+  for (const [lang, n] of langs) for (let i = 0; i < n; i++) { k++; out.push({ id: 'src' + k, name: `${lang.slice(0, 2).toUpperCase()} Source ${k}`, site: `https://site${k}.test`, lang, version: '1.0.' + k, url: `https://raw.githubusercontent.com/lnreader/lnreader-plugins/plugins/v3.0.0/.js/src/plugins/src${k}.js`, iconUrl: '' }) }
   return out
 })()
 
 export async function setup(page: Page, s: Setup = {}) {
   await page.route('**/plugins.min.json', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify(s.plugins ?? PLUGINS) }))
-  await page.route('https://plugins.test/**', r => r.fulfill({ contentType: 'text/javascript', body: '/* plugin */' + ' '.repeat(80) }))
+  await page.route('https://raw.githubusercontent.com/lnreader/lnreader-plugins/plugins/v3.0.0/.js/src/plugins/**', r => r.fulfill({ contentType: 'text/javascript', body: '/* plugin */' + ' '.repeat(80) }))
   const storage: Record<string, string> = { ...(s.storage || {}) }
   if (s.onboarded !== false) storage.onboarded = '1'
   storage.lang = s.lang || 'en'

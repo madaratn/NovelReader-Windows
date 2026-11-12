@@ -202,6 +202,8 @@ const FR: Record<string, string> = {
   'Automatic updates work in the installed app (not in development mode).': 'Les mises à jour automatiques fonctionnent dans l’appli installée (pas en mode développement).',
   'Updates are checked automatically when NovelReader starts.': 'Les mises à jour sont vérifiées automatiquement au démarrage.',
   'Updates': 'Mises à jour', 'Installed version: {v}': 'Version installée : {v}', 'Check for updates': 'Rechercher des mises à jour',
+  'Receive beta versions (experimental updates)': 'Recevoir les versions bêta (mises à jour expérimentales)',
+  'Beta versions are for testing and may contain bugs. Leave this off to get stable releases only.': 'Les versions bêta servent aux tests et peuvent contenir des bugs. Désactivez cette option pour ne recevoir que les versions stables.',
   'Show a Windows notification when new chapters are found': 'Afficher une notification Windows quand de nouveaux chapitres sont trouvés',
   // Offline / import / find / stats
   'You are offline and this chapter is not downloaded.': 'Tu es hors connexion et ce chapitre n’est pas téléchargé.',
@@ -954,6 +956,9 @@ const FR: Record<string, string> = {
   'Sent from your PC': 'Envoyé depuis votre PC',
   'Turn on the phone link first (Settings).': 'Activez d\'abord le lien avec le téléphone (Réglages).',
   'Nothing to send.': 'Rien à envoyer.',
+  'Ad instead of episode?': 'Publicité à la place de l’épisode ?',
+  'If an ad replaces the episode, try the next stream': 'Si une publicité remplace l’épisode, essayer le flux suivant',
+  'This server is showing an advertisement instead of the episode. No other stream is available here. Try a different video source.': 'Ce serveur diffuse une publicité à la place de l’épisode. Aucun autre flux n’est disponible ici. Essaie une autre source vidéo.',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

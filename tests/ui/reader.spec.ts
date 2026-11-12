@@ -74,7 +74,7 @@ test('read aloud: highlight, pause, click to jump, continues to next chapter', a
   await expect(page.locator('.tts-pos')).toHaveText('Paragraph 21 of 41')
   await page.locator('.tts-play').click()
   await expect(page.locator('.readerbar-title small')).toHaveText('Chapter 2: The Road', { timeout: 10_000 })
-  await expect(page.locator('.tts-play')).toHaveText('❚❚')
+  await expect(page.locator('.tts-play')).toHaveAttribute('aria-label', 'Pause')
   await page.locator('.tts-close').click()
   await expect(page.locator('.tts-current')).toHaveCount(0)
 })
@@ -96,7 +96,7 @@ test('read aloud: word highlight, natural voices first, sleep timer', async ({ p
   await page.locator('.readercontent p').nth(total - 2).click()
   await page.evaluate(() => { const w = window as any; w.__ttsHold = false; w.__cur.onend() })
   await expect(page.locator('.tts-err')).toHaveText('Sleep timer: reading stopped.')
-  await expect(page.locator('.tts-play')).toHaveText('▶')
+  await expect(page.locator('.tts-play')).toHaveAttribute('aria-label', 'Read aloud')
   await expect(page.locator('.readerbar-title small')).toHaveText('Chapter 1: The Road')
 })
 

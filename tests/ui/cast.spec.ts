@@ -40,7 +40,7 @@ test('cast to a TV: pick it, the PC pauses, remote control, next episode to the 
   await expect.poll(() => video(page).evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThan(2)
   await video(page).evaluate((v: HTMLVideoElement) => { v.currentTime = 6 })
   await expect.poll(() => video(page).evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThanOrEqual(5.9)
-  await page.getByRole('button', { name: /📺 Cast/ }).click()
+  await page.getByRole('button', { name: /^Cast$/ }).click()
   const menu = page.locator('.cast-menu')
   await expect(menu).toContainText('Looking for TVs…')
   await expect(menu.locator('li')).toHaveCount(2)
@@ -53,7 +53,7 @@ test('cast to a TV: pick it, the PC pauses, remote control, next episode to the 
   expect(start.deviceId).toBe('dlna:1'); expect(start.url).toContain('http://127.0.0.1:4567/api/v1/proxy'); expect(start.startAt).toBeGreaterThanOrEqual(5.9)
   expect(start.title).toContain('S1 E1'); expect(start.subtitles[0].url).toContain('http://127.0.0.1:4567/')
   await expect.poll(() => video(page).evaluate((v: HTMLVideoElement) => v.paused)).toBe(true)
-  await expect(page.getByRole('button', { name: /📺 On Samsung TV/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^On Samsung TV/ })).toBeVisible()
   // Remote control
   await panel.getByRole('button', { name: 'Pause' }).click()
   await panel.getByRole('button', { name: 'Forward 10 seconds' }).click()
@@ -78,7 +78,7 @@ test('cast to a TV: pick it, the PC pauses, remote control, next episode to the 
 test('cast: no TV found explains what to check', async ({ page }) => {
   await open(page)
   await page.evaluate(() => { (window as any).novelReader.castScan = async () => [] })
-  await page.getByRole('button', { name: /📺 Cast/ }).click()
+  await page.getByRole('button', { name: /^Cast$/ }).click()
   await expect(page.locator('.cast-menu')).toContainText('No TV found. Check that the TV is on and on the same Wi-Fi as this PC')
 })
 
