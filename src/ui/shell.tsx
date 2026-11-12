@@ -48,9 +48,11 @@ export function useMedia(q:string){
  return m
 }
 export const PHONE_QUERY='(max-width:600px)'
-// Pages that need the PC (local files, torrents): not shown on Android.
-const PC_ONLY=new Set(['localVideos','archive'])
-export const navItems=(mode:Mode)=>NAV[mode].items.filter(i=>!(onAndroid()&&PC_ONLY.has(i.page)))
+// Pages that need the PC (torrents): not shown on Android.
+const PC_ONLY=new Set(['archive'])
+// iPhone: no access to the device's video folders either.
+const onIosDevice=()=>typeof document!=='undefined'&&document.documentElement.classList.contains('ios')
+export const navItems=(mode:Mode)=>NAV[mode].items.filter(i=>!(onAndroid()&&PC_ONLY.has(i.page))&&!(onIosDevice()&&i.page==='localVideos'))
 // Short names for the bottom bar.
 const SHORT:Record<string,string>={'Anime Library':'Library','Series Library':'Library','Movie Library':'Library','Global Search':'Search','Bookmarks & notes':'Notes'}
 /** Phone: the modes on top, the 4 main pages at the bottom (thumb reach), the rest

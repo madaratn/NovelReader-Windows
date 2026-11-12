@@ -334,6 +334,19 @@ async function connect() {
   console.log('downloads:', JSON.stringify(dl))
   if (!(dl.item && dl.item.state === 'done' && dl.full && dl.full.same && dl.outside && dl.outside.status === 206 && dl.outside.got === dl.wantPart && dl.part && dl.part.status === 206 && dl.part.same && dl.fresh && dl.fresh.got === dl.wantPart && dl.meta === 404 && dl.left === 0)) { console.error('Offline video downloads failed on Android'); process.exit(1) }
 
+  // Read aloud: the phone's voices behind speechSynthesis. Emulator images do not always
+  // ship a voice: reported, and checked only when there is one.
+  const tts = await evaluate(async () => {
+    try {
+      const P = window.Capacitor.Plugins.Tts; await new Promise(r => setTimeout(r, 1500))
+      const v = await P.voices(); if (!v.ready || !v.voices.length) return { ready: v.ready, voices: v.voices.length }
+      const done = await new Promise(ok => { const u = new SpeechSynthesisUtterance('Hello.'); const t = setTimeout(() => ok('no end in 20 s'), 20000); u.onend = () => { clearTimeout(t); ok('end') }; u.onerror = e => { clearTimeout(t); ok('error ' + e.error) }; speechSynthesis.speak(u) })
+      return { ready: true, voices: v.voices.length, synth: speechSynthesis.getVoices().length, spoke: done }
+    } catch (e) { return { error: String(e && e.message || e) } }
+  })
+  console.log('read aloud:', JSON.stringify(tts))
+  if (tts.error || (tts.voices > 0 && tts.spoke !== 'end')) { console.error('Read aloud failed on Android'); process.exit(1) }
+
   // Cast: the engine looks for TVs on the network (none on the emulator; must not fail).
   const cs = await evaluate(async () => { const t = Date.now(); try { const l = await window.novelReader.castScan(); return { ok: true, tvs: l.length, seconds: Math.round((Date.now() - t) / 1000) } } catch (e) { return { ok: false, error: String(e.message || e) } } })
   console.log('cast scan:', JSON.stringify(cs))

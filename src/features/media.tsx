@@ -2,7 +2,7 @@
 // global search, detail hero/facts, and the video sources panels.
 import{LangBar,useLangChoice,langOf,langName}from'../ui/lang-bar'
 import React,{useEffect,useRef,useState}from'react'
-import{cachedScan,loadScan,scanFor,SECTIONS,hasOverride,resultFits,setSourceSections,sourceFits,sourceSections,type VideoSection}from'../lib/source-kinds'
+import{cachedScan,loadScan,scanFor,setAside,keepSource,DEAD_DAYS,SECTIONS,hasOverride,resultFits,setSourceSections,sourceFits,sourceSections,type VideoSection}from'../lib/source-kinds'
 import{t,plural,getLang}from'../i18n'
 import{lsGet,lsSet,timeAgo}from'../lib/util'
 import{Cover,NoticeText}from'../ui/common'
@@ -121,6 +121,16 @@ export function EpisodeGrid({eps,prefix,mediaId,selected,disabled,onPlay,renderE
 
 // ---- Video sources: test installed extensions and remove the dead ones ----------
 // Result of the weekly automatic check, for sources not tested on this PC.
+// Sources page: the installed sources that were set aside, and the way back.
+export function SetAsideNotice(){
+ const[names,setNames]=useState<string[]>([])
+ useEffect(()=>{let alive=true;const load=()=>engineFetch('/api/v1/sources').then((sr:any)=>{if(!alive)return;const l=(Array.isArray(sr)?sr:(sr?.anime||sr?.sources||sr?.items||[]));setNames(Array.from(new Set(l.map((x:any)=>String(x?.name||'')).filter((n:string)=>n&&setAside(n)))))}).catch(()=>{})
+  load();window.addEventListener('nr-sources-changed',load);window.addEventListener('nr-source-scan',load);return()=>{alive=false;window.removeEventListener('nr-sources-changed',load);window.removeEventListener('nr-source-scan',load)}},[])
+ if(!names.length)return null
+ return <section className="panel set-aside" role="status"><h2>{plural(names.length,'{n} source set aside','{n} sources set aside')}</h2>
+  <p className="settings-help">{t('The weekly check has found these sources not working for more than {n} days. They are left out of searches and Discover so results come faster; they come back by themselves when they work again.',{n:DEAD_DAYS})}</p>
+  <div className="set-aside-list">{names.map(n=><span key={n} className="set-aside-item"><b>{n}</b><button onClick={()=>keepSource(n)}>{t('Use anyway')}</button></span>)}</div>
+ </section>}
 function WeeklyScan({pkg,name}:{pkg:string,name:string}){const[,bump]=useState(0);useEffect(()=>{const f=()=>bump(x=>x+1);window.addEventListener('nr-source-scan',f);loadScan().catch(()=>{});return()=>window.removeEventListener('nr-source-scan',f)},[]);const sc=scanFor(pkg)||scanFor(name),at=cachedScan()?.at;if(!sc)return null;return <small className={'scan-line '+sc.state}>{(sc.state==='ok'?'✓ ':sc.state==='partial'?'~ ':'✗ ')+t('Weekly check ({date}): {state}',{date:at?new Date(at).toLocaleDateString():'',state:sc.state==='ok'?t('plays videos'):sc.state==='partial'?t('partly works'):/^On Android/.test(sc.detail||'')?t('does not play on a phone'):t('not responding')})}</small>}
 // Which sections (Anime / Series / Movies) show this source; click to change.
 function SectionChips({name}:{name:string}){

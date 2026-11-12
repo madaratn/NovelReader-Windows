@@ -15,4 +15,7 @@
         <item quantity="one">%d novel has new chapters</item>
         <item quantity="other">%d novels have new chapters</item>
     </plurals>
+    <string name="reading_channel">Reading aloud</string>
+    <string name="reading_running">Reading aloud</string>
+    <string name="reading_stop">Stop</string>
 </resources>

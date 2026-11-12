@@ -40,7 +40,8 @@ export function sourceSections(name:string):VideoSection[]{
  if(/movie|film|flix|cine|pel[ií]s|pelicula|cuevana|latino|hackstore|zonaleros|stream|tv\b|hd\b|4k|torrent/i.test(n))return BOTH
  return SECTIONS
 }
-export const sourceFits=(name:string,section:VideoSection)=>sourceSections(name).includes(section)
+// A source set aside (broken for a while, see below) is left out of searches and Discover.
+export const sourceFits=(name:string,section:VideoSection)=>sourceSections(name).includes(section)&&!setAside(name)
 
 // A title from a source that has movies and series: which one is it?
 // '' = unknown (kept in both sections).
@@ -72,7 +73,7 @@ export async function loadScan(force=false):Promise<ScanStatus|null>{
  const cur=cachedScan(),fetchedAt=Number(localStorage.getItem('sourceScanFetched'))||0
  if(!force&&cur&&Date.now()-fetchedAt<12*3600e3)return cur
  const nr:any=(window as any).novelReader;if(!nr?.sourceStatus)return cur
- try{const s=await nr.sourceStatus();if(s&&Array.isArray(s.results)){scanCache=s;localStorage.setItem('sourceScan',JSON.stringify(s));localStorage.setItem('sourceScanFetched',String(Date.now()));window.dispatchEvent(new Event('nr-source-scan'))}return scanCache}catch{return cur}
+ try{const s=await nr.sourceStatus();if(s&&Array.isArray(s.results)){scanCache=s;trackDead(s);localStorage.setItem('sourceScan',JSON.stringify(s));localStorage.setItem('sourceScanFetched',String(Date.now()));window.dispatchEvent(new Event('nr-source-scan'))}return scanCache}catch{return cur}
 }
 // Best result for a package or a name (an extension can be in several repositories).
 export function scanFor(pkgOrName:string):ScanRow|null{
@@ -80,3 +81,20 @@ export function scanFor(pkgOrName:string):ScanRow|null{
  const k=key(pkgOrName),rows=s.results.filter(r=>r.pkg===pkgOrName||key(r.name)===k)
  return rows.find(r=>r.state==='ok')||rows.find(r=>r.state==='partial')||rows[0]||null
 }
+
+// ---- Sources broken for a while are set aside --------------------------------
+// The weekly check says "not working" for a source: the day it is first seen that way
+// is kept. After DEAD_DAYS it is left out of searches and Discover (it stays installed
+// and listed in Sources, where "Use anyway" brings it back). Working again = forgotten.
+export const DEAD_DAYS=10
+const readJson=(k:string,d:any)=>{try{return JSON.parse(localStorage.getItem(k)||'null')??d}catch{return d}}
+export function trackDead(s:ScanStatus,now=Date.now()){
+ const seen:Record<string,number>=readJson('deadSources',{}),state=new Map<string,boolean>()
+ // An extension can be in several repositories: dead only when none of its rows works.
+ for(const r of s.results){const k=key(r.name);state.set(k,(state.get(k)??true)&&r.state==='dead')}
+ for(const[k,dead]of state){if(dead){if(!seen[k])seen[k]=now}else delete seen[k]}
+ localStorage.setItem('deadSources',JSON.stringify(seen))}
+export function setAside(name:string,now=Date.now()):boolean{
+ const k=key(name),since=readJson('deadSources',{})[k]
+ return!!since&&now-since>=DEAD_DAYS*86400e3&&!readJson('deadKeep',[]).includes(k)}
+export function keepSource(name:string){const k=key(name),l:string[]=readJson('deadKeep',[]);if(!l.includes(k))localStorage.setItem('deadKeep',JSON.stringify([...l,k]));window.dispatchEvent(new Event('nr-sources-changed'))}

@@ -1,6 +1,9 @@
 import fs from 'fs'
 import path from 'path'
 import { test, expect } from '@playwright/test'
+import qrcode from 'qrcode-generator'
+// The QR code of the phone link as the PC draws it (features/qr.tsx).
+const QR_CELLS = (() => { const q = (qrcode as any)(0, 'M'); q.addData('192.168.1.5:4580/abcdefghjk'); q.make(); const n = q.getModuleCount(); return Array.from({ length: n }, (_, r) => Array.from({ length: n }, (_, c) => q.isDark(r, c))) })()
 
 // A small LNReader-style plugin, run by the in-page runtime (cheerio, @libs/fetch).
 const PLUGIN = `
@@ -202,7 +205,7 @@ test('Android: phone navigation fits the screen and gets out of the way to read'
   await page.locator('.m-top').getByRole('tab', { name: 'Anime' }).click()
   await page.locator('.m-bottom').getByRole('button', { name: 'More' }).click()
   await expect(page.locator('.m-sheet')).toContainText('Settings')
-  await expect(page.locator('.m-sheet')).not.toContainText('Local Videos')
+  await expect(page.locator('.m-sheet')).toContainText('Local Videos')
   await expect(page.locator('.m-sheet')).not.toContainText('Internet Archive')
   await expect(page.locator('.m-sheet')).toContainText('Downloads')
   await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
@@ -445,8 +448,21 @@ test('Android: direct sync with the PC on the home Wi-Fi (link typed once), quie
   await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
   const block = page.locator('.pc-link')
   await expect(block).toContainText('Sync with your PC')
-  await block.getByLabel('Link shown on the PC').fill('192.168.1.5:4580/abcdefghjk')
-  await block.getByRole('button', { name: 'Link', exact: true }).click()
+  // The camera (faked: a picture of the PC's QR code) reads the link: nothing to type.
+  await page.evaluate(() => {
+    const c = document.createElement('canvas'); c.width = c.height = 400; (window as any).__qrCanvas = c
+    navigator.mediaDevices.getUserMedia = async () => (c as any).captureStream(10)
+  })
+  await block.getByRole('button', { name: 'Scan the QR code' }).click()
+  const scanner = page.getByRole('dialog', { name: 'Scan the QR code' })
+  await expect(scanner.locator('video')).toBeVisible()
+  // Draw the QR code the PC would show (same generator), then keep the picture moving so frames are produced.
+  await page.evaluate((cells) => {
+    const c = (window as any).__qrCanvas as HTMLCanvasElement, x = c.getContext('2d')!, n = cells.length, q = 4, s = 400 / (n + q * 2)
+    const draw = () => { x.fillStyle = '#fff'; x.fillRect(0, 0, 400, 400); x.fillStyle = '#000'; cells.forEach((row: boolean[], r: number) => row.forEach((on, col) => { if (on) x.fillRect(Math.floor((col + q) * s), Math.floor((r + q) * s), Math.ceil(s), Math.ceil(s)) })) }
+    draw(); (window as any).__qrTimer = setInterval(draw, 100)
+  }, QR_CELLS)
+  await expect(scanner).toHaveCount(0, { timeout: 15000 })
   await expect(block.getByRole('status')).toContainText('Your library is now shared with your PC.')
   // Both ways at once: the PC's series here, the phone's anime on the PC, signed by the phone.
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('seriesLibrary') || '[]').map((x: any) => x.name))).toEqual(['Lanterns'])
@@ -532,4 +548,95 @@ test('Android, app closed: the hidden page finds the novels with new chapters, o
   await page.reload()
   await expect.poll(() => page.evaluate(() => (window as any).__bg.done), { timeout: 20000 }).not.toBeNull()
   expect(await page.evaluate(() => (window as any).__bg)).toMatchObject({ done: { skipped: true, names: [] }, http: [] })
+})
+
+test('Android: "Continue on my phone" sent from the PC is offered here and opens the book at its chapter', async ({ page }) => {
+  let items: any[] = []
+  const t0 = Date.now()
+  await page.route('http://192.168.1.5:4580/**', r => {
+    const u = new URL(r.request().url()), p = u.pathname.replace('/e/abcdefghjk', ''), json = (b: any) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) })
+    if (p === '/nr/inbox') return json({ now: t0, items: items.filter(x => x.at > Number(u.searchParams.get('after') || 0)) })
+    if (p === '/nr/sync') return json(null)
+    return json({})
+  })
+  await page.addInitScript(() => {
+    if (localStorage.getItem('pcEngine')) return
+    localStorage.setItem('pcEngine', 'http://192.168.1.5:4580/e/abcdefghjk')
+    const src = { id: 'testsrc', name: 'Test Source', url: 'https://plugins.test/testsrc.js', lang: 'English' }
+    localStorage.setItem('library', JSON.stringify([{ id: 'n1', name: 'Shadow Slave', source: src, path: '/novel/shadow', chapters: [{ name: 'Chapter 1', path: '/novel/shadow/1' }, { name: 'Chapter 2', path: '/novel/shadow/2' }] }]))
+    localStorage.setItem('reading:n1', JSON.stringify({ index: 1, progress: 0, at: Date.now() }))
+  })
+  await page.goto('/')
+  // The first look only sets the clock; nothing sent before is offered.
+  await expect.poll(() => page.evaluate(() => Number(localStorage.getItem('pcInboxAt')))).toBe(t0)
+  await expect(page.locator('.incoming-toast')).toHaveCount(0)
+  items = [{ at: t0 + 5000, kind: 'books', id: 'n1', name: 'Shadow Slave', sub: 'Chapter 2', url: '', next: false }]
+  const toast = page.locator('.incoming-toast')
+  await expect(toast).toContainText('Sent from your PC', { timeout: 15000 })
+  await expect(toast).toContainText('Shadow Slave')
+  await toast.getByRole('button', { name: 'Continue' }).click()
+  await expect(toast).toHaveCount(0)
+  await expect(page.locator('.readerpage')).toContainText('Chapter 2', { timeout: 15000 })
+  // Offered once.
+  await page.waitForTimeout(7000)
+  await expect(page.locator('.incoming-toast')).toHaveCount(0)
+})
+
+test('Android: read aloud uses the phone voices (paragraph after paragraph, word highlight, Stop on the notification)', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as any, listeners: any[] = []
+    w.__tts = { spoken: [] as any[], hold: [] as boolean[], cancels: 0, emit: (e: any) => listeners.forEach(f => f(e)) }
+    w.Capacitor.Plugins = { ...(w.Capacitor.Plugins || {}), Tts: {
+      addListener: (_n: string, f: any) => { listeners.push(f); return { remove() {} } },
+      voices: async () => ({ ready: true, voices: [{ voiceURI: 'fr-fr-x-vlf-local', name: 'français (France)', lang: 'fr-FR', localService: true }, { voiceURI: 'en-us-x-sfg-local', name: 'English (United States)', lang: 'en-US', localService: true }] }),
+      speak: async (o: any) => { w.__tts.spoken.push(o) }, cancel: async () => { w.__tts.cancels++ }, hold: async (o: any) => { w.__tts.hold.push(o.on) } } }
+  })
+  await page.goto('/')
+  // The browser interface the reader relies on is there, backed by the phone.
+  const r = await page.evaluate(async () => {
+    const w = window as any, log: string[] = []
+    await new Promise(x => setTimeout(x, 100))
+    const voices = speechSynthesis.getVoices().map(v => v.lang)
+    const u = new SpeechSynthesisUtterance('Bonjour tout le monde'); u.rate = 1.25; u.voice = speechSynthesis.getVoices()[0]
+    u.onstart = () => log.push('start'); u.onboundary = (e: any) => log.push('word ' + e.charIndex + '+' + e.charLength); u.onend = () => log.push('end'); u.onerror = (e: any) => log.push('error ' + e.error)
+    speechSynthesis.speak(u)
+    const id = w.__tts.spoken[0].id
+    w.__tts.emit({ id, type: 'start' }); w.__tts.emit({ id, type: 'boundary', start: 8, end: 12 }); w.__tts.emit({ id: 'other', type: 'end' }); w.__tts.emit({ id, type: 'end' })
+    // A second paragraph, cut by the next one (as the reader does when jumping).
+    const u2 = new SpeechSynthesisUtterance('Deux'); u2.onerror = (e: any) => log.push('error ' + e.error); u2.onend = () => log.push('end2')
+    speechSynthesis.speak(u2); speechSynthesis.cancel()
+    w.__tts.emit({ id: w.__tts.spoken[1].id, type: 'end' }) // late event of the cancelled one: ignored
+    let stopped = 0; window.addEventListener('nr-tts-stop', () => stopped++); w.__tts.emit({ type: 'stopped' })
+    return { voices, log, spoken: w.__tts.spoken, hold: w.__tts.hold, cancels: w.__tts.cancels, stopped }
+  })
+  expect(r.voices).toEqual(['fr-FR', 'en-US'])
+  expect(r.log).toEqual(['start', 'word 8+4', 'end', 'error interrupted'])
+  expect(r.spoken[0]).toMatchObject({ text: 'Bonjour tout le monde', voice: 'fr-fr-x-vlf-local', lang: 'fr-FR', rate: 1.25 })
+  expect(r.hold).toEqual([true]) // kept alive while reading; released only after 20 s of silence
+  expect(r.cancels).toBe(1); expect(r.stopped).toBe(1)
+})
+
+test('Android: videos stored on the phone (a folder chosen once, files listed and played)', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as any
+    w.__folders = [] as string[]
+    w.Capacitor.convertFileSrc = (u: string) => u.replace('content://', 'https://localhost/_capacitor_content_/')
+    w.Capacitor.Plugins = { ...(w.Capacitor.Plugins || {}), Files: {
+      folders: async () => ({ folders: w.__folders }),
+      addFolder: async () => { w.__folders = ['Movies/Anime']; return { folders: w.__folders } },
+      removeFolder: async ({ folder }: any) => { w.__folders = w.__folders.filter((f: string) => f !== folder); return { folders: w.__folders } },
+      listVideos: async () => ({ videos: w.__folders.length ? [
+        { name: 'E10.mkv', folder: 'Movies/Anime', relPath: 'Frieren/E10.mkv', size: 300e6, mtime: 2, uri: 'content://com.android.externalstorage.documents/tree/primary%3AMovies/document/primary%3AMovies%2FFrieren%2FE10.mkv' },
+        { name: 'E2.mkv', folder: 'Movies/Anime', relPath: 'Frieren/E2.mkv', size: 280e6, mtime: 1, uri: 'content://com.android.externalstorage.documents/tree/primary%3AMovies/document/primary%3AMovies%2FFrieren%2FE2.mkv' }] : [] }) } }
+    if (!localStorage.getItem('mode')) { localStorage.setItem('mode', 'anime'); localStorage.setItem('lastPage:anime', 'localVideos') }
+  })
+  await page.goto('/')
+  const main = page.locator('main')
+  await expect(main).toContainText('Play video files stored on this device.')
+  await main.getByRole('button', { name: /Add (a )?folder/ }).first().click()
+  // Listed in natural order (E2 before E10), grouped by their folder.
+  await expect(main.locator('.localcard')).toHaveCount(2)
+  expect(await main.locator('.localcard .localname').allInnerTexts()).toEqual(['E2.mkv', 'E10.mkv'])
+  await main.locator('.localcard', { hasText: 'E2.mkv' }).click()
+  await expect(main.locator('video')).toHaveAttribute('src', 'https://localhost/_capacitor_content_/com.android.externalstorage.documents/tree/primary%3AMovies/document/primary%3AMovies%2FFrieren%2FE2.mkv')
 })

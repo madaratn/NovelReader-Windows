@@ -36,22 +36,37 @@ class ExtensionManager(
 
     private val extensions = ConcurrentHashMap<String, LoadedExtension>()
     private val sourceOwner = ConcurrentHashMap<Long, String>()
+    private val registry = Any()
 
     val loaded: List<LoadedExtension> get() = extensions.values.toList()
 
     fun pkgOf(sourceId: Long): String? = sourceOwner[sourceId]
 
+    /**
+     * Loads every installed extension, four at a time: opening an extension (its code,
+     * its classes) is what takes the time at start, and each one is independent. The
+     * list of sources is the same as before, in the same state when this returns.
+     */
     fun loadAll(): Int {
         extensionsDir.mkdirs()
-        var ok = 0
-        extensionsDir.listFiles { f -> f.isFile && f.extension.equals("apk", true) }?.sortedBy { it.name }?.forEach { apk ->
-            try {
-                load(apk); ok++
-            } catch (e: Throwable) {
-                println("[miwayomi] Error loading $apk: $e")
-            }
-        }
-        return ok
+        val apks = extensionsDir.listFiles { f -> f.isFile && f.extension.equals("apk", true) }?.sortedBy { it.name }.orEmpty()
+        if (apks.isEmpty()) return 0
+        val t0 = System.currentTimeMillis()
+        val ok = java.util.concurrent.atomic.AtomicInteger(0)
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(minOf(4, apks.size))
+        try {
+            apks.map { apk ->
+                pool.submit {
+                    try {
+                        load(apk); ok.incrementAndGet()
+                    } catch (e: Throwable) {
+                        println("[miwayomi] Error loading $apk: $e")
+                    }
+                }
+            }.forEach { runCatching { it.get() } }
+        } finally { pool.shutdown() }
+        println("[miwayomi] ${ok.get()} of ${apks.size} extension(s) opened in ${System.currentTimeMillis() - t0} ms")
+        return ok.get()
     }
 
     private fun parseMeta(apk: File): ExtensionMeta? {
@@ -90,7 +105,7 @@ class ExtensionManager(
 
     fun load(apk: File): LoadedExtension {
         val meta = parseMeta(apk) ?: throw IllegalStateException("Could not read manifest of ${apk.name}")
-        extensions[meta.pkgName]?.let { unregister(it) }
+        synchronized(registry) { extensions[meta.pkgName]?.let { unregister(it) } }
         // Android 14+ only loads code from read-only files.
         apk.setReadOnly()
         // Parent first, like the PC engine: the app's Aniyomi API, Kotlin, OkHttp… win,
@@ -116,9 +131,12 @@ class ExtensionManager(
         var manga = 0
         var anime = 0
         val registered = mutableListOf<Any>()
-        for (o in instances) when (o) {
-            is MangaSource -> { mangaSourceManager.register(o); sourceOwner[o.id] = meta.pkgName; registered.add(o); manga++ }
-            is AnimeSource -> { animeSourceManager.register(o); sourceOwner[o.id] = meta.pkgName; registered.add(o); anime++ }
+        // The shared lists of sources: one extension at a time (loadAll opens several at once).
+        synchronized(registry) {
+            for (o in instances) when (o) {
+                is MangaSource -> { mangaSourceManager.register(o); sourceOwner[o.id] = meta.pkgName; registered.add(o); manga++ }
+                is AnimeSource -> { animeSourceManager.register(o); sourceOwner[o.id] = meta.pkgName; registered.add(o); anime++ }
+            }
         }
         if (registered.isEmpty()) throw IllegalStateException("No source could be created from ${apk.name}")
         val ext = LoadedExtension(meta, apk, apk, loader, manga, anime, registered)
