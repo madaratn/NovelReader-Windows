@@ -6,6 +6,7 @@ import fs from 'fs'
 const series = (i: number, name: string) => ({ id: 'series' + i, name, sourceId: '42', sourceName: 'Mapple', url: '/series/' + i, thumbnail: '', episodes: 4, addedAt: Date.now() })
 async function pc(context: BrowserContext, library: any[]) {
   const page = await context.newPage()
+  if (process.env.PARTY_REAL) { await page.addInitScript(() => { (window as any).__REAL = true }); page.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') console.log('[console]', m.text().slice(0, 300)) }); page.on('pageerror', e => console.log('[pageerror]', String(e).slice(0, 300))) }
   await setup(page, { storage: { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify(library), welcomeDone: '1' } })
   // The stream, with byte ranges so the video can seek.
   const clip = fs.readFileSync('tests/ui/fixtures/clip.webm')
@@ -17,7 +18,7 @@ async function pc(context: BrowserContext, library: any[]) {
   })
   await page.addInitScript(() => {
     const w = window as any
-    w.__partyFake = true
+    w.__partyFake = !(window as any).__REAL // PARTY_REAL=1: through the real connection server
     const eps = Array.from({ length: 4 }, (_, i) => ({ name: `S1 E${i + 1} - Chapter ${i + 1}`, url: '/ep/' + (i + 1), episode_number: i + 1 }))
     const base = w.novelReader
     w.novelReader = {

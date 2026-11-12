@@ -1,0 +1,22 @@
+# Watch party through the real connection server (PeerJS), two windows.
+name: Watch party check
+on:
+  workflow_dispatch:
+  push:
+    branches: ['claude/party-check']
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npx vite build
+      - name: Two windows, real server
+        env:
+          PARTY_REAL: '1'
+        run: npx playwright test tests/ui/watch-party.spec.ts -g "create, join with the code" --retries=0
