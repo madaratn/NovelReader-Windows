@@ -131,3 +131,23 @@ test('scripts hidden in chapter HTML never run (content security policy)', async
   await page.waitForTimeout(300)
   expect(await page.evaluate(() => (window as any).__xss)).toBeUndefined()
 })
+
+test('security: a chapter keeps its text and pictures only (no script, frame, form, handler, javascript: link)', async ({ page }) => {
+  await open(page, { library: LIB, reading: { mol: { index: 3 } } })
+  await page.evaluate(() => {
+    const w = window as any
+    w.novelReader.parseChapter = async () => '<p id="keep">Chapter text <b>bold</b></p><img id="pic" src="https://img.test/a.jpg" onerror="window.__pwned=1">'
+      + '<script>window.__pwned=1</script><iframe src="https://evil.test"></iframe><form action="https://evil.test"><input name="x"></form>'
+      + '<a id="bad" href="javascript:window.__pwned=1">click</a><a id="good" href="https://site.test/next">next</a><svg onload="window.__pwned=1"></svg><div style="background:url(https://evil.test/t)">x</div>'
+  })
+  await page.locator('.libcard .primary').click()
+  const art = page.locator('.readercontent')
+  await expect(art.locator('#keep')).toContainText('Chapter text bold')
+  await expect(art.locator('#pic')).toHaveCount(1)
+  expect(await art.locator('#pic').getAttribute('onerror')).toBeNull()
+  await expect(art.locator('script, iframe, form, input, svg')).toHaveCount(0)
+  expect(await art.locator('#bad').getAttribute('href')).toBeNull()
+  expect(await art.locator('#good').getAttribute('href')).toBe('https://site.test/next')
+  expect(await art.locator('div[style]').count()).toBe(0)
+  expect(await page.evaluate(() => (window as any).__pwned)).toBeUndefined()
+})

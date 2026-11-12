@@ -1,6 +1,7 @@
 const vm=require('node:vm')
 const {fetchTrustedBookPlugin}=require('./book-plugin-policy.cjs')
 const libs=require('./plugin-libs.cjs')
+const {allowedBookUrl}=require('./book-web.cjs')
 const cheerio=require('cheerio')
 const dayjs=require('dayjs')
 const htmlparser2=require('htmlparser2')
@@ -24,6 +25,7 @@ function makeFetch(pluginUrl){
  return async function fetchApi(url,init={}){
   const h=new Headers({'User-Agent':web&&web.userAgent||UA,...BASE_HEADERS});new Headers(init.headers||{}).forEach((v,k)=>h.set(k,v))
   const host=hostOf(String(url));const c=jar.get(host);if(!web&&c&&c.size&&!h.has('cookie'))h.set('Cookie',[...c].map(([k,v])=>k+'='+v).join('; '))
+  if(!web&&!allowedBookUrl(url))throw Error('Address not allowed for a book source: '+String(url).slice(0,80))
   let r
   try{r=web?await web.fetch(String(url),{...init,headers:h}):await fetch(url,{...init,headers:h})}
   catch(e){if(traceOn)push(pluginUrl,String(url).slice(0,120)+' -> '+(e&&e.cause&&(e.cause.code||e.cause.message)||e.message));throw e}

@@ -9,7 +9,17 @@ import * as htmlparser2 from 'htmlparser2'
 import{FilterTypes,NovelStatus,makeStorage,aes,constants}from'./plugin-libs'
 
 const UA='Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36 NovelReader'
-async function fetchApi(url:string,init:any={}){return fetch(url,{...init,headers:{'User-Agent':UA,Accept:'*/*','Accept-Language':'*','Sec-Fetch-Mode':'cors',...(init.headers instanceof Headers?Object.fromEntries(init.headers.entries()):(init.headers||{}))}})}
+// A source may only reach web sites: not this device or the home network (the video
+// engine and the phone link live there). Same rule as electron/book-web.cjs.
+export function allowedBookUrl(url:string){
+ let u:URL;try{u=new URL(String(url))}catch{return false}
+ if(u.protocol!=='https:'&&u.protocol!=='http:')return false
+ const h=u.hostname.replace(/^\[|\]$/g,'').toLowerCase()
+ if(h==='localhost'||h.endsWith('.localhost')||h.endsWith('.local')||h.endsWith('.internal'))return false
+ if(/^(127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h))return false
+ if(h==='::1'||h==='::'||/^f[cd][0-9a-f]{2}:/.test(h)||/^fe80:/.test(h)||/^::ffff:/.test(h))return false
+ return true}
+async function fetchApi(url:string,init:any={}){if(!allowedBookUrl(url))throw Error('Address not allowed for a book source: '+String(url).slice(0,80));return fetch(url,{...init,headers:{'User-Agent':UA,Accept:'*/*','Accept-Language':'*','Sec-Fetch-Mode':'cors',...(init.headers instanceof Headers?Object.fromEntries(init.headers.entries()):(init.headers||{}))}})}
 async function fetchText(url:string,init?:any,encoding?:string){try{const r=await fetchApi(url,init);if(!r.ok)return'';return new TextDecoder(encoding||'utf-8').decode(await r.arrayBuffer())}catch{return''}}
 async function fetchFile(url:string,init?:any){try{const r=await fetchApi(url,init);if(!r.ok)return'';const b=new Uint8Array(await r.arrayBuffer());let s='';for(let i=0;i<b.length;i+=8192)s+=String.fromCharCode(...b.subarray(i,i+8192));return btoa(s)}catch{return''}}
 const urlencode={encode:(s:string)=>encodeURIComponent(s),decode:(s:string)=>decodeURIComponent(s),parse:(s:string)=>Object.fromEntries(new URLSearchParams(s)),stringify:(o:any)=>new URLSearchParams(o).toString()}

@@ -27,7 +27,20 @@ function challengeKind(status, headers, text) {
 }
 const isChallenge = (status, headers, text) => !!challengeKind(status, headers, text)
 
-function createBookWeb({ session, BrowserWindow, showWhenStuck = true, log = () => {} }) {
+// A source may only reach web sites: no file:, no other scheme, and not this PC or
+// the home network (the video engine, the phone link and the router live there).
+function allowedBookUrl(url) {
+  let u; try { u = new URL(String(url)) } catch { return false }
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') return false
+  const h = u.hostname.replace(/^\[|\]$/g, '').toLowerCase()
+  if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local') || h.endsWith('.internal')) return false
+  if (/^(127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h)) return false
+  if (h === '::1' || h === '::' || /^f[cd][0-9a-f]{2}:/.test(h) || /^fe80:/.test(h) || /^::ffff:/.test(h)) return false
+  return true
+}
+
+function createBookWeb({ session, BrowserWindow, showWhenStuck = true, allowLocal = false, log = () => {} }) {
+  const allowed = u => allowLocal ? /^https?:/i.test(String(u)) : allowedBookUrl(u)
   const ses = session.fromPartition(PARTITION)
   // A plain Chrome user agent (no "Electron/…"): the clearance cookie is tied to it.
   const ua = ses.getUserAgent().replace(/\s*Electron\/\S+/, '').replace(/\s*NovelReader\/\S+/i, '')
@@ -60,6 +73,13 @@ function createBookWeb({ session, BrowserWindow, showWhenStuck = true, log = () 
     new Headers(headers || {}).forEach((v, k) => { if (/^(origin|host|sec-|connection$|content-length$)/i.test(k)) { if (!/^(host|connection|content-length)$/i.test(k)) out.set(HIDDEN + k, v) } else out.set(k, v) })
     return out
   }
+  // The check windows show a foreign site: nothing is granted to it (no permission,
+  // no download, no new window), and it only gets http(s) pages.
+  ses.setPermissionRequestHandler((_wc, _permission, cb) => cb(false))
+  ses.setPermissionCheckHandler(() => false)
+  ses.on('will-download', e => e.preventDefault())
+  const windows = new WeakSet()
+  const isCheckWindow = contents => windows.has(contents)
   const solving = new Map()
 
   const useless = new Map() // origin -> until when a check is not tried again (it did not help)
@@ -70,6 +90,12 @@ function createBookWeb({ session, BrowserWindow, showWhenStuck = true, log = () 
     if (Date.now() < (useless.get(origin) || 0)) return Promise.resolve(false)
     const job = new Promise(resolve => {
       const win = new BrowserWindow({ show: false, width: 520, height: 640, title: 'NovelReader – ' + new URL(url).host, autoHideMenuBar: true, webPreferences: { partition: PARTITION, backgroundThrottling: false, sandbox: true, contextIsolation: true } })
+      windows.add(win.webContents)
+      win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+      const webOnly = (e, u) => { try { if (!/^https?:$/.test(new URL(u).protocol)) e.preventDefault() } catch { e.preventDefault() } }
+      win.webContents.on('will-navigate', webOnly)
+      win.webContents.on('will-redirect', webOnly)
+      win.webContents.on('will-attach-webview', e => e.preventDefault())
       let done = false, shown = false
       const finish = ok => { if (done) return; done = true; clearInterval(timer); clearTimeout(showTimer); clearTimeout(giveUp); try { win.destroy() } catch {} ; log('[books] check ' + (ok ? 'passed' : 'not passed') + ' ' + origin); resolve(ok) }
       const check = async () => {
@@ -92,6 +118,7 @@ function createBookWeb({ session, BrowserWindow, showWhenStuck = true, log = () 
   }
 
   async function fetchBook(url, init = {}) {
+    if (!allowed(url)) throw new Error('Address not allowed for a book source: ' + String(url).slice(0, 80))
     const headers = prepare(init.headers)
     const go = async () => settle(await ses.fetch(url, { ...init, headers, credentials: 'include' }), String(url))
     let r = await go()
@@ -113,7 +140,7 @@ function createBookWeb({ session, BrowserWindow, showWhenStuck = true, log = () 
     return r
   }
 
-  return { fetch: fetchBook, solve, solving: () => solving.size, userAgent: ua, partition: PARTITION }
+  return { fetch: fetchBook, solve, isCheckWindow, allowed, solving: () => solving.size, userAgent: ua, partition: PARTITION }
 }
 
-module.exports = { createBookWeb, isChallenge, challengeKind, PARTITION }
+module.exports = { createBookWeb, allowedBookUrl, isChallenge, challengeKind, PARTITION }

@@ -300,7 +300,10 @@ ipcMain.handle('mal:logout',()=>mal.logout())
 ipcMain.handle('mal:call',async(_e,{name,vars})=>mal.call(String(name),vars||{}))
 // Sign-in windows are recognised when the event happens (they are registered just
 // after their contents are created).
-const isAuth=c=>anilist.isAuthWindow(c)||mal.isAuthWindow(c)
+// Same for the hidden windows that pass a book site's check (electron/book-web.cjs):
+// they follow their own, stricter rules.
+let bookWeb=null
+const isAuth=c=>anilist.isAuthWindow(c)||mal.isAuthWindow(c)||!!(bookWeb&&bookWeb.isCheckWindow(c))
 app.on('web-contents-created',(_e,contents)=>{
  if(isAuth(contents))return
  contents.setWindowOpenHandler(({url})=>{if(isAuth(contents))return{action:'deny'};openOutside(url);return{action:'deny'}})
@@ -353,6 +356,6 @@ async function runSmokeTest(win){
  app.exit(result.ok?0:1)
 }
 
-app.whenReady().then(()=>{try{runner.configure(createBookWeb({session,BrowserWindow,log:m=>console.log(m)}))}catch(e){console.warn('[books] web',e)}registerLocalProtocol();if(SMOKE_TEST){runSmokeTest(createWindow());return}splash.start();try{flareApi().start()}catch{}startMiwayomi();createWindow();updater.start()})
+app.whenReady().then(()=>{try{bookWeb=createBookWeb({session,BrowserWindow,log:m=>console.log(m)});runner.configure(bookWeb)}catch(e){console.warn('[books] web',e)}registerLocalProtocol();if(SMOKE_TEST){runSmokeTest(createWindow());return}splash.start();try{flareApi().start()}catch{}startMiwayomi();createWindow();updater.start()})
 app.on('before-quit',()=>{if(miwayomiProcess){miwayomiProcess.kill();miwayomiProcess=null}try{flare&&flare.stop()}catch{}try{videoDl&&videoDl.close()}catch{}})
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()})

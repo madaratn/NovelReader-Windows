@@ -106,7 +106,20 @@ export function ReaderTTS({rootRef,chapterKey,hasNext,onNext,onClose}:{rootRef:R
 // which rebuilt the whole chapter on every scroll-driven render (losing text
 // selection and highlights). Keep one stable object per chapter content.
 export const chapterHtmlCache={src:null as any,obj:{__html:''}}
-export function chapterHtml(content:any){if(content!==chapterHtmlCache.src){chapterHtmlCache.src=content;chapterHtmlCache.obj={__html:String(content||'').replace(/<script[\s\S]*?<\/script>/gi,'')}}return chapterHtmlCache.obj}
+// A chapter comes from a web site: only its text and pictures are kept. Scripts,
+// frames, forms, embedded objects, event handlers (onclick, onerror…) and
+// javascript: links are removed before it is shown.
+const CHAPTER_DROP='script,iframe,frame,object,embed,applet,form,input,button,textarea,select,link,meta,base,style,noscript,template,svg,math,video,audio,source,track,dialog'
+export function sanitizeChapter(html:string):string{
+ const src=String(html||'')
+ if(typeof DOMParser==='undefined')return src.replace(/<script[\s\S]*?<\/script>/gi,'')
+ const doc=new DOMParser().parseFromString('<body>'+src+'</body>','text/html')
+ doc.body.querySelectorAll(CHAPTER_DROP).forEach(n=>n.remove())
+ doc.body.querySelectorAll('*').forEach(el=>{for(const a of Array.from(el.attributes)){const n=a.name.toLowerCase(),v=a.value.replace(/[\s\u0000-\u001f]+/g,'').toLowerCase()
+  if(n.startsWith('on')||n==='srcdoc'||n==='formaction'||n==='style'&&/url\(|expression|@import/.test(v)||(n==='href'||n==='src'||n==='xlink:href'||n==='action'||n==='poster')&&/^(javascript|vbscript|data:text\/html)/.test(v))el.removeAttribute(a.name)}
+  if(el.tagName==='A'){el.setAttribute('rel','noopener noreferrer nofollow')}})
+ return doc.body.innerHTML}
+export function chapterHtml(content:any){if(content!==chapterHtmlCache.src){chapterHtmlCache.src=content;chapterHtmlCache.obj={__html:sanitizeChapter(String(content||''))}}return chapterHtmlCache.obj}
 
 // ---- Find in chapter (Ctrl+F) — uses the CSS Custom Highlight API, no DOM changes ----
 export function FindBar({rootRef,chapterKey,onClose}:{rootRef:React.RefObject<HTMLElement|null>,chapterKey:string,onClose:()=>void}){

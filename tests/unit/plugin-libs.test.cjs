@@ -30,11 +30,21 @@ test('book sources: LNReader filter types, storage and statuses are there (PC ru
   try {
     const runner = require('../../electron/plugin-runner.cjs')
     const plugin = { id: 't', name: 'T', url }
+    // A source may not reach this PC (see the last test): the test site is served
+    // through a stand-in for the app's Chromium fetch.
+    runner.configure({ fetch: (u, o) => realFetch(u, o) })
     const list = await runner.popular(plugin, { page: 1 })
     assert.deepEqual(list.map(x => x.name), ['One', 'Two'])
     const novel = await runner.parseNovel(plugin, '/n/1')
     assert.equal(novel.status, 'Ongoing')
     const html = await runner.parseChapter(plugin, '/c/1')
     assert.match(html, /seen 1$/) // the store kept the value set while listing
-  } finally { global.fetch = realFetch; site.close() }
+  } finally { global.fetch = realFetch; require('../../electron/plugin-runner.cjs').configure(null); site.close() }
+})
+
+test('book sources may only reach web sites (no file, no local network)', () => {
+  const { allowedBookUrl: ok } = require('../../electron/book-web.cjs')
+  assert.equal(ok('https://www.royalroad.com/fictions'), true)
+  for (const u of ['file:///C:/Users/me/secret.txt', 'http://127.0.0.1:4567/api/v1/sources', 'http://localhost:4580/', 'http://192.168.1.5:4580/abc', 'http://10.0.0.1/', 'http://172.20.0.1/', 'http://[::1]/', 'data:text/html,x', 'javascript:alert(1)', 'not a url'])
+    assert.equal(ok(u), false, u)
 })
