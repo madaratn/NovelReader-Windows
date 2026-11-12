@@ -127,6 +127,11 @@ test('Android: update found on GitHub, downloaded, Install opens the installer',
   await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
   await page.locator('main').getByRole('button', { name: 'Check for updates' }).click()
   await expect(page.locator('.update-banner')).toContainText('NovelReader 99.0.0 is downloaded. Tap Install and confirm')
+  // Scrolled down, the banner stays visible under the top bar (not hidden behind it).
+  await page.evaluate(() => { (document.scrollingElement || document.documentElement).scrollTop = 600; document.querySelector('main')?.scrollTo(0, 600) })
+  const bar = await page.locator('.m-top').boundingBox(), banner = await page.locator('.update-banner').boundingBox()
+  expect(banner!.y).toBeGreaterThanOrEqual(bar!.y + bar!.height)
+  await expect(page.locator('.update-banner')).toBeInViewport()
   await expect(page.locator('main')).toContainText('Version 99.0.0 is downloaded: tap Install, Android asks you to confirm.')
   await expect(page.locator('main')).not.toContainText('idle for 15 minutes')
   expect(await page.evaluate(() => (window as any).__updater.downloads)).toEqual([{ url: 'https://github.com/madaratn/NovelReader-Windows/releases/download/v99.0.0/NovelReader-99.0.0.apk', size: 1234 }])

@@ -77,13 +77,16 @@ const SHORT:Record<string,string>={'Anime Library':'Library','Series Library':'L
  * under "More". Hidden while reading, which is full screen. */
 export function MobileNav({mode,page,onMode,onPage,onSearch,onHome,extra}:{mode:Mode,page:string,onMode:(m:Mode)=>void,onPage:(p:string)=>void,onSearch?:()=>void,onHome?:()=>void,extra?:React.ReactNode}){
  const[more,setMore]=useState(false)
+ // Height of the top bar, for what must stay visible just under it (update banner).
+ const topRef=useRef<HTMLElement>(null)
+ useEffect(()=>{const el=topRef.current;if(!el)return;const set=()=>document.documentElement.style.setProperty('--m-top-h',el.offsetHeight+'px');set();const ro=typeof ResizeObserver!=='undefined'?new ResizeObserver(set):null;ro?.observe(el);return()=>{ro?.disconnect();document.documentElement.style.removeProperty('--m-top-h')}},[page==='reader'])
  const current=isTopPage(mode,page)?page:PARENT[page]
  const items=navItems(mode),main=items.slice(0,4),rest=items.slice(4)
  useEffect(()=>{setMore(false)},[mode,page])
  if(page==='reader')return null
  const go=(p:string)=>{setMore(false);onPage(p)}
  return <>
-  <header className="m-top">
+  <header className="m-top" ref={topRef}>
    <div className="m-modes" role="tablist" aria-label={t('Mode')}>{MODES.map(m=><button key={m} role="tab" aria-selected={mode===m} className={mode===m?'active':''} onClick={()=>onMode(m)}><Icon name={NAV[m].icon}/><span>{t(NAV[m].label)}</span></button>)}</div>
    {onHome&&<button className="m-search m-home" onClick={onHome} aria-label={t('Continue')}><Icon name="play"/></button>}
    {onSearch&&<button className="m-search" onClick={onSearch} aria-label={t('Search everywhere')}><Icon name="search"/></button>}
