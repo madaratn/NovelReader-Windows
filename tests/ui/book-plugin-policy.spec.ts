@@ -25,8 +25,15 @@ test('mobile source-download guard does not request blocked URLs and caps bundle
  expect(calls).toBe(0)
  await expect(fetchTrustedBookPlugin(official,async()=>new Response(new Uint8Array(MAX_BOOK_PLUGIN_BYTES+1)))).rejects.toThrow(/too large/)
  const src='module.exports={searchNovels:async()=>[]}'
+ const interceptor=new Response(src)
+ Object.defineProperty(interceptor,'url',{value:'https://localhost/_capacitor_http_interceptor_?u='+encodeURIComponent(official)})
+ await expect(fetchTrustedBookPlugin(official,async()=>interceptor)).resolves.toBe(src)
+ const forged=new Response(src)
+ Object.defineProperty(forged,'url',{value:'https://localhost/_capacitor_http_interceptor_?u='+encodeURIComponent('https://evil.test/x.js')})
+ await expect(fetchTrustedBookPlugin(official,async()=>forged)).rejects.toThrow(/redirect blocked/)
  await expect(fetchTrustedBookPlugin(official,async(_url,init)=>{
   expect(init?.credentials).toBe('omit')
+  expect(init?.redirect).toBe('error')
   return new Response(src)
  })).resolves.toBe(src)
 })
