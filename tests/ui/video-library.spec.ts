@@ -546,3 +546,47 @@ test('episode list in order: seasons then episodes, whatever the language of the
   expect(await order()).toEqual(['2x10', '2x2', '2x1', '1x12', '1x2', '1x1'])
   expect(await page.evaluate(() => localStorage.getItem('epOrder'))).toBe('desc')
 })
+
+test('sources broken for more than 10 days are set aside from searches, listed in Sources, and can be used anyway', async ({ page }) => {
+  const day = 86400e3
+  await openVideo(page, { mode: 'anime', 'lastPage:anime': 'mediaSearch', 'mediaLangs:Anime': JSON.stringify(['en', 'fr']),
+    // Vostfree: seen broken 12 days ago. AnimeFLV: broken since yesterday only. Gone: was broken, works again in the new check.
+    deadSources: JSON.stringify({ vostfree: Date.now() - 12 * day, gone: Date.now() - 30 * day }) })
+  await page.goto('/')
+  await page.evaluate(async () => {
+    const w = window as any, f = w.novelReader.miwayomiFetch
+    w.__searched = []
+    w.novelReader.sourceStatus = async () => ({ at: new Date().toISOString(), results: [
+      { name: 'Hianimes', pkg: 'p.hi', lang: 'en', repo: 'r', state: 'ok', detail: '' },
+      { name: 'Vostfree', pkg: 'p.vf', lang: 'fr', repo: 'r', state: 'dead', detail: 'no stream' },
+      { name: 'AnimeFLV', pkg: 'p.flv', lang: 'en', repo: 'r', state: 'dead', detail: 'no stream' },
+      { name: 'Gone', pkg: 'p.gone', lang: 'en', repo: 'r1', state: 'dead', detail: '' }, { name: 'Gone', pkg: 'p.gone', lang: 'en', repo: 'r2', state: 'ok', detail: '' }] })
+    w.novelReader.miwayomiFetch = async (p: string, m?: string, b?: any) => {
+      if (p === '/api/v1/sources') return { anime: [{ id: '50', name: 'Hianimes', lang: 'en' }, { id: '51', name: 'Vostfree', lang: 'fr' }, { id: '52', name: 'AnimeFLV', lang: 'en' }, { id: '54', name: 'Gone', lang: 'en' }] }
+      const sid = /\/anime\/(\d+)\/search/.exec(p)?.[1]
+      if (sid) { w.__searched.push(sid); return [{ title: 'Naruto', url: '/n/' + sid, thumbnail_url: 'https://img.test/n.jpg' }] }
+      return f(p, m, b)
+    }
+  })
+  // The new weekly check is read: "Gone" works again in one repository, so it is forgotten.
+  await page.locator('.sidebar').getByText('Sources', { exact: true }).click()
+  await expect(page.locator('.set-aside')).toContainText('1 source set aside')
+  await expect(page.locator('.set-aside')).toContainText('Vostfree')
+  await expect(page.locator('.set-aside')).not.toContainText('AnimeFLV')
+  const tracked = await page.evaluate(() => JSON.parse(localStorage.getItem('deadSources') || '{}'))
+  expect(Object.keys(tracked).sort()).toEqual(['animeflv', 'vostfree'])
+  await page.locator('.sidebar').getByText('Global Search').click()
+  await page.locator('.search-main input').fill('Naruto')
+  await page.locator('.search-main input').press('Enter')
+  await expect(page.locator('.resultcard')).toHaveCount(1)
+  expect((await page.evaluate(() => (window as any).__searched)).sort()).toEqual(['50', '52', '54'])
+  // "Use anyway" brings it back.
+  await page.locator('.sidebar').getByText('Sources', { exact: true }).click()
+  await page.locator('.set-aside').getByRole('button', { name: 'Use anyway' }).click()
+  await expect(page.locator('.set-aside')).toHaveCount(0)
+  await page.locator('.sidebar').getByText('Global Search').click()
+  await page.evaluate(() => { (window as any).__searched = [] })
+  await page.locator('.search-main input').fill('Naruto')
+  await page.locator('.search-main input').press('Enter')
+  await expect.poll(async () => (await page.evaluate(() => (window as any).__searched)).sort()).toEqual(['50', '51', '52', '54'])
+})

@@ -937,6 +937,10 @@ const FR: Record<string, string> = {
   'QR code of the phone link': 'QR code du lien avec le téléphone',
   'On the phone: Settings › Sync with your PC › Scan the QR code.': 'Sur le téléphone : Réglages › Synchronisation avec votre PC › Scanner le QR code.',
   'Or type this link on the phone:': 'Ou tapez ce lien sur le téléphone :',
+  '{n} source set aside': '{n} source mise de côté',
+  '{n} sources set aside': '{n} sources mises de côté',
+  'The weekly check has found these sources not working for more than {n} days. They are left out of searches and Discover so results come faster; they come back by themselves when they work again.': 'La vérification hebdomadaire trouve ces sources en panne depuis plus de {n} jours. Elles sont laissées hors des recherches et de Découvrir pour que les résultats arrivent plus vite ; elles reviennent toutes seules quand elles remarchent.',
+  'Use anyway': 'Utiliser quand même',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')
