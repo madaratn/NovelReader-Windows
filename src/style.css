@@ -1168,3 +1168,5 @@ main header+h2.sources-block{margin-top:4px}
 .book-aside>summary small{color:var(--text-3);font-size:var(--fs-sm)}
 .book-aside[open]>summary{margin-bottom:12px}
 .set-aside-item small{color:var(--text-3);margin:0 8px}
+/* Phone: the update banner stays under the top bar, not behind it */
+.app.phone .update-banner{top:calc(var(--m-top-h,0px) + 6px)}
