@@ -27,7 +27,7 @@ async function check(plugin) {
     r.textLength = text.length
     if (text.length < 200) throw new Error('chapter text too short (' + text.length + ')')
     r.state = 'ok'
-  } catch (e) { r.state = 'dead'; r.error = short(e) }
+  } catch (e) { r.state = 'dead'; r.error = short(e); r.trace = runner.traceOf ? runner.traceOf(plugin.url) : [] }
   r.seconds = Math.round((Date.now() - t) / 1000)
   return r
 }
@@ -37,7 +37,7 @@ async function check(plugin) {
   if (ONLY) { const want = ONLY.split(',').map(x => x.trim().toLowerCase()); list = list.filter(p => want.includes(p.name.toLowerCase())) }
   console.log('checking', list.length, 'book sources, UA:', process.env.NR_BOOK_UA || '(app default)')
   const out = [], queue = [...list]
-  await Promise.all(Array.from({ length: 10 }, async () => { while (queue.length) { const p = queue.shift(); const r = await check(p); out.push(r); console.log((r.state === 'ok' ? '✓' : '✗') + ' ' + p.lang.padEnd(10) + ' ' + p.name.padEnd(28) + ' ' + (r.state === 'ok' ? r.titles + ' titles, ' + r.chapters + ' chapters, ' + r.textLength + ' chars' : r.step + ': ' + r.error)) } }))
+  await Promise.all(Array.from({ length: 10 }, async () => { while (queue.length) { const p = queue.shift(); const r = await check(p); out.push(r); console.log((r.state === 'ok' ? '✓' : '✗') + ' ' + p.lang.padEnd(10) + ' ' + p.name.padEnd(28) + ' ' + (r.state === 'ok' ? r.titles + ' titles, ' + r.chapters + ' chapters, ' + r.textLength + ' chars' : r.step + ': ' + r.error + (r.popularError ? '\n      popular: ' + r.popularError : '') + (r.trace && r.trace.length ? '\n      ' + r.trace.slice(-3).join('\n      ') : ''))) } }))
   const ok = out.filter(r => r.state === 'ok').length
   console.log('SUMMARY ok', ok, 'of', out.length)
   fs.writeFileSync(OUT, JSON.stringify({ at: new Date().toISOString(), ua: process.env.NR_BOOK_UA || '', results: out.sort((a, b) => a.name.localeCompare(b.name)) }))

@@ -1,3 +1,4 @@
+import {gcm} from '@noble/ciphers/aes'
 // The "@libs/…" modules LNReader gives to its book sources (Android copy of
 // electron/plugin-libs.cjs: keep both the same).
 export const FilterTypes={TextInput:'Text',Picker:'Picker',CheckboxGroup:'Checkbox',Switch:'Switch',ExcludableCheckboxGroup:'XCheckbox'}
@@ -16,3 +17,6 @@ export function makeStorage(){
  }
  const web={get:()=>undefined,getItem:()=>null,setItem:()=>{}}
  return{storage,localStorage:web,sessionStorage:web}}
+
+export const aes={gcm}
+export const constants={NovelStatus:{...NovelStatus,STUB:'STUB'},defaultCover:''}

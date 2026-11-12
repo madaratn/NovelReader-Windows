@@ -24,4 +24,8 @@ function makeStorage() {
   const web = { get: () => undefined, getItem: () => null, setItem: () => {} }
   return { storage, localStorage: web, sessionStorage: web }
 }
-module.exports = { FilterTypes, NovelStatus, makeStorage }
+// @libs/aes (LNReader re-exports gcm from @noble/ciphers) and @/types/constants.
+let aes = {}
+try { aes = { gcm: require('@noble/ciphers/aes').gcm } } catch {}
+const constants = { NovelStatus: { ...NovelStatus, STUB: 'STUB' }, defaultCover: '' }
+module.exports = { FilterTypes, NovelStatus, makeStorage, aes, constants }

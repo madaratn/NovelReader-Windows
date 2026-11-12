@@ -12,7 +12,7 @@ on:
         default: ''
   push:
     branches: ['claude/cleanup']
-    paths: ['scripts/book-scan.cjs', '.github/workflows/book-scan.yml']
+    paths: ['scripts/book-scan.cjs', '.github/workflows/book-scan.yml', 'electron/plugin-runner.cjs', 'electron/plugin-libs.cjs']
 jobs:
   scan:
     runs-on: ubuntu-latest
@@ -24,6 +24,8 @@ jobs:
           node-version: 22
       - run: npm install --no-audit --no-fund --ignore-scripts
       - name: App user agent
+        env:
+          NR_BOOK_TRACE: '1'
         run: node scripts/book-scan.cjs app.json "${{ inputs.langs || 'all' }}" "${{ inputs.only }}"
       - name: Browser user agent
         env:

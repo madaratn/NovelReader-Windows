@@ -6,23 +6,26 @@ import {fetchTrustedBookPlugin} from '../lib/book-plugin-policy'
 import * as cheerio from 'cheerio'
 import dayjs from 'dayjs'
 import * as htmlparser2 from 'htmlparser2'
-import{FilterTypes,NovelStatus,makeStorage}from'./plugin-libs'
+import{FilterTypes,NovelStatus,makeStorage,aes,constants}from'./plugin-libs'
 
 const UA='Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36 NovelReader'
-async function fetchApi(url:string,init:any={}){return fetch(url,{...init,headers:{'User-Agent':UA,Accept:'*/*','Accept-Language':'*',...(init.headers||{})}})}
+async function fetchApi(url:string,init:any={}){return fetch(url,{...init,headers:{'User-Agent':UA,Accept:'*/*','Accept-Language':'*','Sec-Fetch-Mode':'cors',...(init.headers instanceof Headers?Object.fromEntries(init.headers.entries()):(init.headers||{}))}})}
 async function fetchText(url:string,init?:any,encoding?:string){try{const r=await fetchApi(url,init);if(!r.ok)return'';return new TextDecoder(encoding||'utf-8').decode(await r.arrayBuffer())}catch{return''}}
+async function fetchFile(url:string,init?:any){try{const r=await fetchApi(url,init);if(!r.ok)return'';const b=new Uint8Array(await r.arrayBuffer());let s='';for(let i=0;i<b.length;i+=8192)s+=String.fromCharCode(...b.subarray(i,i+8192));return btoa(s)}catch{return''}}
 const urlencode={encode:(s:string)=>encodeURIComponent(s),decode:(s:string)=>decodeURIComponent(s),parse:(s:string)=>Object.fromEntries(new URLSearchParams(s)),stringify:(o:any)=>new URLSearchParams(o).toString()}
 // Each source keeps its own store for as long as the app runs.
 const stores=new Map<string,any>();let currentPlugin=''
 const storageFor=(u:string)=>{if(!stores.has(u))stores.set(u,makeStorage());return stores.get(u)}
 function runtimeRequire(name:string):any{
  if(name==='cheerio')return cheerio;if(name==='dayjs')return dayjs;if(name==='htmlparser2')return htmlparser2;if(name==='urlencode')return urlencode
- if(name==='@libs/fetch')return{fetchApi,fetchText,fetchProto:async()=>{throw Error('fetchProto unsupported')}}
+ if(name==='@libs/fetch')return{fetchApi,fetchText,fetchFile,fetchProto:async()=>{throw Error('fetchProto unsupported')}}
  if(name==='@libs/defaultCover')return{defaultCover:''}
  if(name==='@libs/novelStatus')return{NovelStatus}
  if(name==='@libs/filterInputs')return{FilterTypes,Filters:{}}
  if(name==='@libs/isAbsoluteUrl')return{isUrlAbsolute:(u:string)=>/^https?:\/\//i.test(u)}
  if(name==='@libs/storage')return storageFor(currentPlugin)
+ if(name==='@libs/aes')return aes
+ if(name==='@/types/constants')return constants
  if(name==='@/types/plugin')return{Plugin:{}}
  throw Error('Unsupported plugin dependency: '+name)
 }
