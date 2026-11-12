@@ -46,6 +46,7 @@ export const ICONS:Record<string,string>={
  playsolid:'M7 4.5v15l12-7.5z',
  pause:'M7 4h3v16H7zM14 4h3v16h-3z',
  check:'M5 12.5l4.5 4.5L19 7.5',
+ sidebar:'M4 5h16v14H4zM9.5 5v14',
  trash:'M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3',
  more:'M4 12a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M10.8 12a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M17.6 12a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0',
  book:'M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zm0 15A1.5 1.5 0 0 0 6.5 21H19',
