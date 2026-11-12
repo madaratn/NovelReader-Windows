@@ -120,6 +120,6 @@ test('"Continue on my phone": a card of the Continue panel is sent through the p
   const panel = page.getByRole('dialog', { name: 'Continue' })
   await panel.getByRole('button', { name: 'Continue on my phone: Mother of Learning' }).click()
   await expect(panel.getByRole('status')).toContainText('Open NovelReader on the phone')
-  expect(await page.evaluate(() => (window as any).__sent)).toEqual([{ kind: 'books', id: 'n1', name: 'Mother of Learning', sub: 'Chapter 42', url: '', next: false }])
+  expect(await page.evaluate(() => (window as any).__sent)).toEqual([{ kind: 'books', id: 'n1', name: 'Mother of Learning', sub: 'Chapter 42: The Road', url: '', next: false }])
   await expect(panel).toBeVisible() // sending does not open the book here
 })
