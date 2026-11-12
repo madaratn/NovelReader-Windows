@@ -17,9 +17,6 @@ on:
         default: false
   schedule:
     - cron: '23 4 * * 2,5'
-  push:
-    branches: ['claude/cleanup']
-    paths: ['scripts/book-scan.cjs', '.github/workflows/book-scan.yml', 'electron/plugin-runner.cjs', 'electron/plugin-libs.cjs', 'electron/book-web.cjs']
 permissions:
   contents: write
 jobs:
