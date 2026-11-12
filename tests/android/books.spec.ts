@@ -581,3 +581,37 @@ test('Android: "Continue on my phone" sent from the PC is offered here and opens
   await page.waitForTimeout(7000)
   await expect(page.locator('.incoming-toast')).toHaveCount(0)
 })
+
+test('Android: read aloud uses the phone voices (paragraph after paragraph, word highlight, Stop on the notification)', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as any, listeners: any[] = []
+    w.__tts = { spoken: [] as any[], hold: [] as boolean[], cancels: 0, emit: (e: any) => listeners.forEach(f => f(e)) }
+    w.Capacitor.Plugins = { ...(w.Capacitor.Plugins || {}), Tts: {
+      addListener: (_n: string, f: any) => { listeners.push(f); return { remove() {} } },
+      voices: async () => ({ ready: true, voices: [{ voiceURI: 'fr-fr-x-vlf-local', name: 'français (France)', lang: 'fr-FR', localService: true }, { voiceURI: 'en-us-x-sfg-local', name: 'English (United States)', lang: 'en-US', localService: true }] }),
+      speak: async (o: any) => { w.__tts.spoken.push(o) }, cancel: async () => { w.__tts.cancels++ }, hold: async (o: any) => { w.__tts.hold.push(o.on) } } }
+  })
+  await page.goto('/')
+  // The browser interface the reader relies on is there, backed by the phone.
+  const r = await page.evaluate(async () => {
+    const w = window as any, log: string[] = []
+    await new Promise(x => setTimeout(x, 100))
+    const voices = speechSynthesis.getVoices().map(v => v.lang)
+    const u = new SpeechSynthesisUtterance('Bonjour tout le monde'); u.rate = 1.25; u.voice = speechSynthesis.getVoices()[0]
+    u.onstart = () => log.push('start'); u.onboundary = (e: any) => log.push('word ' + e.charIndex + '+' + e.charLength); u.onend = () => log.push('end'); u.onerror = (e: any) => log.push('error ' + e.error)
+    speechSynthesis.speak(u)
+    const id = w.__tts.spoken[0].id
+    w.__tts.emit({ id, type: 'start' }); w.__tts.emit({ id, type: 'boundary', start: 8, end: 12 }); w.__tts.emit({ id: 'other', type: 'end' }); w.__tts.emit({ id, type: 'end' })
+    // A second paragraph, cut by the next one (as the reader does when jumping).
+    const u2 = new SpeechSynthesisUtterance('Deux'); u2.onerror = (e: any) => log.push('error ' + e.error); u2.onend = () => log.push('end2')
+    speechSynthesis.speak(u2); speechSynthesis.cancel()
+    w.__tts.emit({ id: w.__tts.spoken[1].id, type: 'end' }) // late event of the cancelled one: ignored
+    let stopped = 0; window.addEventListener('nr-tts-stop', () => stopped++); w.__tts.emit({ type: 'stopped' })
+    return { voices, log, spoken: w.__tts.spoken, hold: w.__tts.hold, cancels: w.__tts.cancels, stopped }
+  })
+  expect(r.voices).toEqual(['fr-FR', 'en-US'])
+  expect(r.log).toEqual(['start', 'word 8+4', 'end', 'error interrupted'])
+  expect(r.spoken[0]).toMatchObject({ text: 'Bonjour tout le monde', voice: 'fr-fr-x-vlf-local', lang: 'fr-FR', rate: 1.25 })
+  expect(r.hold).toEqual([true]) // kept alive while reading; released only after 20 s of silence
+  expect(r.cancels).toBe(1); expect(r.stopped).toBe(1)
+})

@@ -6,6 +6,7 @@ import{offline}from'./offline-idb'
 import{createAndroidUpdater}from'./android-update'
 import{subsSearch,subsFetch}from'./android-subs'
 import{androidSync}from'./android-sync'
+import{installAndroidTts}from'./android-tts'
 
 export const isAndroidApp=()=>!!(window as any).Capacitor?.isNativePlatform?.()&&(window as any).Capacitor?.getPlatform?.()==='android'
 
@@ -119,6 +120,8 @@ const backup={
 export function installAndroidBridge(version:string,ios=false){
  document.documentElement.classList.add('android')
  if(!ios)directStreams()
+ // Read aloud: the phone's voices behind the browser's speechSynthesis (the WebView has none).
+ if(!ios)installAndroidTts((window as any).Capacitor?.Plugins?.Tts)
  // A television: remote-control navigation (platform/tv.ts).
  if(!ios)(window as any).Capacitor?.Plugins?.Player?.device?.().then((d:any)=>{if(d?.tv)import('./tv').then(m=>m.enableTv())}).catch(()=>{})
  if(ios){document.documentElement.classList.add('ios');engineOf=()=>{try{return localStorage.getItem('pcEngine')||''}catch{return''}}}

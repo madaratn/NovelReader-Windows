@@ -68,6 +68,8 @@ export function ReaderTTS({rootRef,chapterKey,hasNext,onNext,onClose}:{rootRef:R
   window.speechSynthesis.cancel();window.speechSynthesis.speak(u)
  }
  const hasNextRef=useRef(hasNext),onNextRef=useRef(onNext);hasNextRef.current=hasNext;onNextRef.current=onNext
+ // Android: "Stop" pressed on the reading notification.
+ useEffect(()=>{const stop=()=>{playingRef.current=false;setPlaying(false);token.current++;setWordHighlight(null)};window.addEventListener('nr-tts-stop',stop);return()=>window.removeEventListener('nr-tts-stop',stop)},[])
  const play=()=>{if(!supported)return;setErr('');playingRef.current=true;setPlaying(true);speak(idxRef.current)}
  const pause=()=>{playingRef.current=false;setPlaying(false);token.current++;window.speechSynthesis?.cancel();setWordHighlight(null)}
  const jump=(d:number)=>{const n=Math.max(0,Math.min(readableBlocks(rootRef.current).length-1,idxRef.current+d));if(playingRef.current)speak(n);else{idxRef.current=n;setIdx(n);mark(n)}}
