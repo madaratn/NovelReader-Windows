@@ -615,3 +615,28 @@ test('Android: read aloud uses the phone voices (paragraph after paragraph, word
   expect(r.hold).toEqual([true]) // kept alive while reading; released only after 20 s of silence
   expect(r.cancels).toBe(1); expect(r.stopped).toBe(1)
 })
+
+test('Android: videos stored on the phone (a folder chosen once, files listed and played)', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as any
+    w.__folders = [] as string[]
+    w.Capacitor.convertFileSrc = (u: string) => u.replace('content://', 'https://localhost/_capacitor_content_/')
+    w.Capacitor.Plugins = { ...(w.Capacitor.Plugins || {}), Files: {
+      folders: async () => ({ folders: w.__folders }),
+      addFolder: async () => { w.__folders = ['Movies/Anime']; return { folders: w.__folders } },
+      removeFolder: async ({ folder }: any) => { w.__folders = w.__folders.filter((f: string) => f !== folder); return { folders: w.__folders } },
+      listVideos: async () => ({ videos: w.__folders.length ? [
+        { name: 'E10.mkv', folder: 'Movies/Anime', relPath: 'Frieren/E10.mkv', size: 300e6, mtime: 2, uri: 'content://com.android.externalstorage.documents/tree/primary%3AMovies/document/primary%3AMovies%2FFrieren%2FE10.mkv' },
+        { name: 'E2.mkv', folder: 'Movies/Anime', relPath: 'Frieren/E2.mkv', size: 280e6, mtime: 1, uri: 'content://com.android.externalstorage.documents/tree/primary%3AMovies/document/primary%3AMovies%2FFrieren%2FE2.mkv' }] : [] }) } }
+    if (!localStorage.getItem('mode')) { localStorage.setItem('mode', 'anime'); localStorage.setItem('lastPage:anime', 'localVideos') }
+  })
+  await page.goto('/')
+  const main = page.locator('main')
+  await expect(main).toContainText('Play video files stored on this device.')
+  await main.getByRole('button', { name: /Add (a )?folder/ }).first().click()
+  // Listed in natural order (E2 before E10), grouped by their folder.
+  await expect(main.locator('.localcard')).toHaveCount(2)
+  expect(await main.locator('.localcard .localname').allInnerTexts()).toEqual(['E2.mkv', 'E10.mkv'])
+  await main.locator('.localcard', { hasText: 'E2.mkv' }).click()
+  await expect(main.locator('video')).toHaveAttribute('src', 'https://localhost/_capacitor_content_/com.android.externalstorage.documents/tree/primary%3AMovies/document/primary%3AMovies%2FFrieren%2FE2.mkv')
+})

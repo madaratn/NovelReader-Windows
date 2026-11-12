@@ -117,6 +117,15 @@ const backup={
   const payload=checkBackup(x);let novels=0;try{novels=JSON.parse(payload.data.library||'[]').length}catch{}
   return{ok:true,payload,novels,keys:Object.keys(payload.data).length,exportedAt:payload.exportedAt}},
 }
+// Videos stored on the device (FilesPlugin.java): folders the person chose once; the
+// files are played through the app's own address for content (Capacitor).
+const localVideos={
+ localFolders:async()=>(await files().folders()).folders||[],
+ localAddFolder:async()=>(await files().addFolder()).folders||[],
+ localRemoveFolder:async(folder:string)=>(await files().removeFolder({folder})).folders||[],
+ localListVideos:async()=>((await files().listVideos()).videos||[]).map((v:any)=>({name:v.name,folder:v.folder,relPath:v.relPath,size:v.size,mtime:v.mtime,url:(window as any).Capacitor?.convertFileSrc?.(v.uri)||v.uri}))
+  .sort((a:any,b:any)=>(a.folder+'/'+a.relPath).localeCompare(b.folder+'/'+b.relPath,undefined,{numeric:true})),
+}
 export function installAndroidBridge(version:string,ios=false){
  document.documentElement.classList.add('android')
  if(!ios)directStreams()
@@ -136,7 +145,7 @@ export function installAndroidBridge(version:string,ios=false){
   offlineSave:offline.save,offlineGet:offline.get,offlineList:offline.list,offlineRemove:offline.remove,offlineUsage:offline.usage,offlineClear:offline.clear,
   miwayomiStatus,miwayomiFetch,
   ...androidSync,
-  ...(ios?{syncChoose:undefined}:{...createAndroidUpdater(version),...downloads,...cast,...backup}),
+  ...(ios?{syncChoose:undefined}:{...createAndroidUpdater(version),...downloads,...cast,...backup,...localVideos}),
   subsSearch,subsFetch,
   takeDeepLink:async()=>'',inviteBase:async()=>'',onDeepLink:()=>()=>{},
   sourceStatus:ios?async()=>null:sourceStatus,
@@ -144,6 +153,6 @@ export function installAndroidBridge(version:string,ios=false){
  }
  // Anything else (PC-only features: cast, downloads, AniList windows…) is absent, so the
  // interface hides it; direct calls give a clear message.
- const DIRECT=new Set(['importLNReader','localAddFolder','localFolders','localListVideos','localRemoveFolder','archiveSearch','archiveFiles','torrentStart','torrentStartMagnet','torrentStatus','torrentStop','backupListAuto','backupReadAuto','backupOpenFolder'])
+ const DIRECT=new Set(['importLNReader','archiveSearch','archiveFiles','torrentStart','torrentStartMagnet','torrentStatus','torrentStop','backupListAuto','backupReadAuto','backupOpenFolder'])
  ;(window as any).novelReader=new Proxy(impl,{get:(t,p:string)=>p in t?t[p]:DIRECT.has(p)?later(p):undefined,has:(t,p:string)=>p in t})
 }

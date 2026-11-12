@@ -48,8 +48,8 @@ export function useMedia(q:string){
  return m
 }
 export const PHONE_QUERY='(max-width:600px)'
-// Pages that need the PC (local files, torrents): not shown on Android.
-const PC_ONLY=new Set(['localVideos','archive'])
+// Pages that need the PC (torrents): not shown on Android.
+const PC_ONLY=new Set(['archive'])
 export const navItems=(mode:Mode)=>NAV[mode].items.filter(i=>!(onAndroid()&&PC_ONLY.has(i.page)))
 // Short names for the bottom bar.
 const SHORT:Record<string,string>={'Anime Library':'Library','Series Library':'Library','Movie Library':'Library','Global Search':'Search','Bookmarks & notes':'Notes'}
