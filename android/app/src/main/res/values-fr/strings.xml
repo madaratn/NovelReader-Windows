@@ -11,4 +11,7 @@
         <item quantity="one">%d roman a de nouveaux chapitres</item>
         <item quantity="other">%d romans ont de nouveaux chapitres</item>
     </plurals>
+    <string name="reading_channel">Lecture à voix haute</string>
+    <string name="reading_running">Lecture à voix haute</string>
+    <string name="reading_stop">Arrêter</string>
 </resources>

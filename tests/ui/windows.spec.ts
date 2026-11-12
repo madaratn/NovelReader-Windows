@@ -165,6 +165,14 @@ test('settings: videos on the iPhone through this PC (turn on, link to type, new
   await expect(block.locator('code')).toHaveCount(0)
   await block.getByRole('button', { name: 'Turn on the phone link' }).click()
   await expect(block.locator('.pc-share-link')).toHaveText('192.168.1.5:4580/abcdefghjk')
+  // The QR code says the same link (read back from its picture, as a phone camera would).
+  const px = await block.locator('svg.qr').evaluate(async (svg: SVGElement) => {
+    const img = new Image(); img.src = 'data:image/svg+xml;base64,' + btoa(new XMLSerializer().serializeToString(svg)); await img.decode()
+    const c = document.createElement('canvas'); c.width = c.height = 360; const x = c.getContext('2d')!; x.drawImage(img, 0, 0, 360, 360)
+    return Array.from(x.getImageData(0, 0, 360, 360).data)
+  })
+  const jsQR = (await import('jsqr')).default as any
+  expect((jsQR.default || jsQR)(Uint8ClampedArray.from(px), 360, 360)?.data).toBe('192.168.1.5:4580/abcdefghjk')
   await block.getByRole('button', { name: 'New code' }).click()
   await expect(block.locator('.pc-share-link')).toHaveText('192.168.1.5:4580/mnpqrstuvw')
   await block.getByRole('button', { name: 'Turn off' }).click()
