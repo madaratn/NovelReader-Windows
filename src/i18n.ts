@@ -980,6 +980,7 @@ const FR: Record<string, string> = {
   'Checked automatically: sources that stopped working are left out of search and Discover, and come back by themselves when they work again.': 'Vérifié automatiquement : les sources qui ne marchent plus sont retirées de la recherche et de Découvrir, et reviennent toutes seules quand elles remarchent.',
   'down for {n} days or more': 'en panne depuis {n} jours ou plus',
   'failed here several days in a row': 'en échec ici plusieurs jours de suite',
+  'Waiting for the picture…': 'En attente de l’image…',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

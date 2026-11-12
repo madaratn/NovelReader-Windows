@@ -19,6 +19,7 @@ async function pc(context: BrowserContext, library: any[]) {
   await page.addInitScript(() => {
     const w = window as any
     w.__partyFake = !w.__REAL // PARTY_REAL=1: through the real connection server
+    w.__partyCamWait = 1600 // camera checks: short wait in tests
     const eps = Array.from({ length: 4 }, (_, i) => ({ name: `S1 E${i + 1} - Chapter ${i + 1}`, url: '/ep/' + (i + 1), episode_number: i + 1 }))
     const base = w.novelReader
     w.novelReader = {
@@ -260,4 +261,47 @@ test('watch party (real server): the code still works after the host lost its li
   await expect(a.locator('.wp-member')).toHaveText(['Ali (you)', 'Sara'], { timeout: 40_000 })
   await expect(b.locator('.wp-member')).toHaveText(['Ali', 'Sara (you)'])
   expect(await a.evaluate(() => (window as any).__partyPeer.disconnected)).toBe(false)
+})
+
+async function together(context: BrowserContext) {
+  const a = await pc(context, [series(1, 'Lanterns')]), b = await pc(context, [])
+  await a.locator('.wp-open').click()
+  await a.locator('.wp-field input').fill('Ali')
+  await a.getByRole('button', { name: 'Start a watch party' }).click()
+  const code = (await a.locator('.wp-code b').innerText()).trim()
+  await b.locator('.wp-open').click()
+  await b.locator('.wp-field input').fill('Sara')
+  await b.locator('.wp-join input').fill(code)
+  await b.getByRole('button', { name: 'Join' }).click()
+  await expect(a.locator('.wp-member')).toHaveText(['Ali (you)', 'Sara'])
+  return { a, b }
+}
+
+test('watch party camera: the other PC gets the picture (a letter while it is not there yet)', async ({ context }) => {
+  const { a, b } = await together(context)
+  await a.getByRole('button', { name: 'Turn my camera on' }).click()
+  await expect(a.locator('.cam-bubble')).toHaveCount(1) // my own preview
+  const bubble = b.locator('.cam-bubble')
+  await expect(bubble).toHaveCount(1)
+  await expect(bubble.locator('.cam-wait')).toHaveCount(0, { timeout: 15_000 })
+  await expect.poll(() => bubble.locator('video').evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0)
+  expect(await a.evaluate(() => (window as any).__partyCamCalls)).toEqual(['']) // first call, default format: nothing to fix
+})
+
+test('watch party camera: a picture that stays black is called again with another video format', async ({ context }) => {
+  const { a, b } = await together(context)
+  // On the viewer's PC no picture is decoded (what a faulty decoder or encoder does).
+  await b.evaluate(() => { (window as any).__partyCamBlack = (_peer: string, kind: string) => kind === 'cam' && (window as any).__black !== false })
+  await a.getByRole('button', { name: 'Turn my camera on' }).click()
+  const bubble = b.locator('.cam-bubble')
+  await expect(bubble.locator('.cam-wait')).toBeVisible() // a letter, not a black circle
+  await expect(bubble.locator('.cam-wait b')).toHaveText('A')
+  // The viewer asks, the sender calls again: H264, then VP9.
+  await expect.poll(() => a.evaluate(() => (window as any).__partyCamCalls), { timeout: 20_000 }).toEqual(['', 'H264'])
+  await expect.poll(() => a.evaluate(() => (window as any).__partyCamCalls), { timeout: 20_000 }).toEqual(['', 'H264', 'VP9'])
+  // This one works: the picture is shown.
+  await b.evaluate(() => { (window as any).__black = false })
+  await expect(bubble.locator('.cam-wait')).toHaveCount(0, { timeout: 15_000 })
+  await expect.poll(() => bubble.locator('video').evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0)
+  await expect(b.locator('.cam-bubble')).toHaveCount(1)
 })
