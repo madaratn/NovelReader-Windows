@@ -35,7 +35,7 @@ export function Sidebar({mode,page,collapsed,onMode,onPage,onToggle,onHelp,onSea
   <div className="grow"/>
   {extra}
   <button className={'nav-item subtle'+(page==='settings'?' active':'')} aria-current={page==='settings'?'page':undefined} onClick={()=>onPage('settings')} title={t('Settings')}><Icon name="gear"/><span className="label">{t('Settings')}</span></button>
-  {!onAndroid()&&<button className="nav-item subtle shortcuts-btn" onClick={onHelp} title={t('Keyboard shortcuts')+' (?)'}><Icon name="keys"/><span className="label">{t('Shortcuts')}</span></button>}
+  {/* Keyboard shortcuts: "?" anywhere, and Settings › About. */}
   <div className="version">{version?(collapsed?'v'+version:(onAndroid()?'Android':'Windows')+' · v'+version):''}</div>
  </aside>
 }

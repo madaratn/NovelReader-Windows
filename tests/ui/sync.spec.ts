@@ -11,6 +11,7 @@ test('sync with another PC through a cloud folder', async ({ page }) => {
     'reading:mol': JSON.stringify({ index: 57, path: 'ch-58', at: Date.now() - 600_000 })
   }))
   await nav(page, 'Settings')
+  await page.locator('.settings-tabs').getByRole('tab', { name: 'Library & sync' }).click()
   await page.locator('button', { hasText: 'Choose a synced folder' }).click()
   await expect(page.locator('.settings-block', { hasText: 'Sync between PCs' })).toContainText('C:/Users/test/OneDrive')
   await expect(page.locator('.settings-block', { hasText: 'Sync between PCs' })).toContainText('Last synced just now.')
@@ -26,6 +27,7 @@ test('sync with another PC through a cloud folder', async ({ page }) => {
 test('a novel removed here does not come back from the other PC', async ({ page }) => {
   await open(page, { library: [novel('mol', 'Mother of Learning', 108), novel('boc', 'Beware of Chicken', 40)] })
   await nav(page, 'Settings')
+  await page.locator('.settings-tabs').getByRole('tab', { name: 'Library & sync' }).click()
   await page.locator('button', { hasText: 'Choose a synced folder' }).click()
   await expect(page.locator('.settings-block', { hasText: 'Sync between PCs' })).toContainText('Last synced')
   await nav(page, 'Library')
@@ -35,6 +37,7 @@ test('a novel removed here does not come back from the other PC', async ({ page 
     library: JSON.stringify([{ id: 'mol', name: 'Mother of Learning', addedAt: Date.now() - 3600_000 }, { id: 'boc', name: 'Beware of Chicken', addedAt: Date.now() - 3600_000 }])
   }))
   await nav(page, 'Settings')
+  await page.locator('.settings-tabs').getByRole('tab', { name: 'Library & sync' }).click()
   await page.locator('button', { hasText: 'Sync now' }).click()
   await expect(page.locator('.settings-block', { hasText: 'Sync between PCs' })).toContainText('Last synced just now.')
   await nav(page, 'Library')

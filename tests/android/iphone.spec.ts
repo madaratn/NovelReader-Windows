@@ -40,6 +40,7 @@ test('iPhone: videos through the PC (link typed in Settings, engine calls and st
   expect(await page.evaluate(() => ['updateCheck', 'castScan', 'dlStart', 'syncChoose'].filter(k => typeof (window as any).novelReader[k] === 'function'))).toEqual([])
   await page.locator('.m-bottom').getByRole('button', { name: 'More' }).click()
   await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
+  await page.locator('.settings-tabs').getByRole('tab', { name: 'Library & sync' }).click()
   const block = page.locator('.pc-link')
   await expect(block).toContainText('Videos and sync through your PC')
   await expect(page.locator('.pc-share')).toHaveCount(0)

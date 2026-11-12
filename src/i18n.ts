@@ -959,6 +959,12 @@ const FR: Record<string, string> = {
   'Ad instead of episode?': 'Publicité à la place de l’épisode ?',
   'If an ad replaces the episode, try the next stream': 'Si une publicité remplace l’épisode, essayer le flux suivant',
   'This server is showing an advertisement instead of the episode. No other stream is available here. Try a different video source.': 'Ce serveur diffuse une publicité à la place de l’épisode. Aucun autre flux n’est disponible ici. Essaie une autre source vidéo.',
+  'General': 'Général',
+  'Library & sync': 'Bibliothèque et synchronisation',
+  'Notifications': 'Notifications',
+  'Video': 'Vidéo',
+  'New chapters and episodes': 'Nouveaux chapitres et épisodes',
+  'Anime and series': 'Animes et séries',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

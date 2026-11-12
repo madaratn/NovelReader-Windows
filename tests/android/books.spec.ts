@@ -358,6 +358,7 @@ test('Android: sync with the PC through the file the PC wrote (library, position
   await page.evaluate(() => { localStorage.setItem('animeLibrary', JSON.stringify([{ id: 'a1', name: 'Phone Anime', sourceId: '7', sourceName: 'S', url: '/a/1', episodes: 1, addedAt: Date.now() }])) })
   await page.locator('.m-bottom').getByRole('button', { name: 'More' }).click()
   await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
+  await page.locator('.settings-tabs').getByRole('tab', { name: 'Library & sync' }).click()
   await page.locator('.sync-file').getByRole('button', { name: 'Choose the sync file…' }).click()
   const block = page.locator('.settings-block', { hasText: 'Sync with your PC' })
   await expect(block).toContainText('library-sync.json')
@@ -437,6 +438,7 @@ test('Android: notifications setting, and the list of titles checked while the a
   // Settings: the choice exists on Android, without the word "Windows"; turning it off stops the check.
   await page.locator('.m-bottom').getByRole('button', { name: 'More' }).click()
   await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
+  await page.locator('.settings-tabs').getByRole('tab', { name: 'Notifications' }).click()
   const box = page.getByLabel('Show a notification when new episodes are found')
   await expect(box).toBeChecked()
   await box.uncheck()
@@ -497,6 +499,7 @@ test('Android: direct sync with the PC on the home Wi-Fi (link typed once), quie
   await page.evaluate(() => { localStorage.setItem('animeLibrary', JSON.stringify([{ id: 'a1', name: 'Phone Anime', sourceId: '7', url: '/a/1', episodes: 1, addedAt: Date.now() }])) })
   await page.locator('.m-bottom').getByRole('button', { name: 'More' }).click()
   await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
+  await page.locator('.settings-tabs').getByRole('tab', { name: 'Library & sync' }).click()
   const block = page.locator('.pc-link')
   await expect(block).toContainText('Sync with your PC')
   // The camera (faked: a picture of the PC's QR code) reads the link: nothing to type.
@@ -545,6 +548,7 @@ test('Android: backup saved to a file the person chooses, and restored from one'
   await page.goto('/')
   await page.locator('.m-bottom').getByRole('button', { name: 'More' }).click()
   await page.locator('.m-sheet').getByRole('button', { name: 'Settings' }).click()
+  await page.locator('.settings-tabs').getByRole('tab', { name: 'Library & sync' }).click()
   const block = page.locator('.backup-block')
   await expect(block).toContainText('stored on this device')
   await expect(block).not.toContainText('Automatic backups')

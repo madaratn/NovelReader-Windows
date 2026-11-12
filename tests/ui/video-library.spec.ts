@@ -332,7 +332,7 @@ test('report a problem: versions, sources and logs copied from Settings and from
       reportSave: async () => 'C:/Users/x/Desktop/report.txt'
     }
   })
-  await openVideo(page, { mode: 'anime', 'lastPage:anime': 'settings' })
+  await openVideo(page, { mode: 'anime', 'lastPage:anime': 'settings', settingsTab: 'about' })
   await page.evaluate(() => { Object.assign((window as any).novelReader, (window as any).__reportPatch); console.warn('player stalled at C:\\Users\\ali\\x') })
   await page.locator('.sidebar .nav-item', { hasText: 'Library' }).first().click()
   await page.locator('.sidebar').getByText('Settings').click()
@@ -379,6 +379,7 @@ test('AniList: finished episode updates the AniList progress; the AniList list l
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('animeLibrary') || '[]')[0].anilistId)).toBe(5)
   // Settings: the AniList list, and a title searched in the sources
   await page.locator('.sidebar').getByText('Settings').click()
+  await page.locator('.settings-tabs').getByRole('tab', { name: 'Library & sync' }).click()
   const panel = page.locator('.anilist-panel')
   await expect(panel).toContainText('Connected to AniList')
   await expect(panel).toContainText('AniList: Lanterns → episode 3')
@@ -416,6 +417,7 @@ test('MyAnimeList: finished episode updates the MAL progress; the MAL list leads
   await expect.poll(() => page.evaluate(() => (window as any).__mal.length)).toBe(5)
   expect(await page.evaluate(() => (window as any).__mal[3].name)).toBe('entry')
   await page.locator('.sidebar').getByText('Settings').click()
+  await page.locator('.settings-tabs').getByRole('tab', { name: 'Library & sync' }).click()
   const panel = page.locator('.mal-panel')
   await expect(panel).toContainText('Connected to MyAnimeList')
   await expect(panel).toContainText('MyAnimeList: Lanterns → episode 3')
@@ -430,6 +432,7 @@ test('MyAnimeList: sign-in steps shown when not connected', async ({ page }) => 
   await openVideo(page, { mode: 'anime', 'lastPage:anime': 'anime' })
   await page.evaluate(() => Object.assign((window as any).novelReader, (window as any).__malPatch))
   await page.locator('.sidebar').getByText('Settings').click()
+  await page.locator('.settings-tabs').getByRole('tab', { name: 'Library & sync' }).click()
   const panel = page.locator('.mal-panel')
   await expect(panel).toContainText('http://localhost/novelreader-mal')
   const btn = panel.getByRole('button', { name: 'Sign in with MyAnimeList' })
