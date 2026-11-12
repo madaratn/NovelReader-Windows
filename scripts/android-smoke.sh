@@ -17,6 +17,21 @@ if [ -n "${sock:-}" ]; then
   adb forward tcp:9222 localabstract:$sock
   node scripts/android-smoke.cjs; code=$?
 fi
+# Restart with the extensions installed above: they are opened several at a time at
+# start (ExtensionManager.loadAll) and must all come back.
+count() { curl -s -m 5 http://127.0.0.1:14567/api/v1/sources | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const j=JSON.parse(s);console.log((j.anime||[]).length)}catch{console.log(-1)}})"; }
+if [ "$code" = 0 ]; then
+  adb forward tcp:14567 tcp:4567 >/dev/null
+  before=$(count)
+  if [ "${before:-0}" -ge 2 ]; then
+    adb shell am force-stop com.madaratn.novelreader; adb logcat -c || true
+    adb shell am start -n com.madaratn.novelreader/.MainActivity >/dev/null
+    after=-1; for i in $(seq 1 40); do after=$(count); [ "$after" = "$before" ] && break; sleep 2; done
+    echo "restart: $before video sources before, $after after"
+    adb logcat -d | grep -E 'extension\(s\) opened in|engine running' | tail -3
+    [ "$after" = "$before" ] || { echo "Sources lost at restart"; code=1; }
+  fi
+fi
 sleep 2; adb exec-out screencap -p > shots/android-after.png
 echo "--- app log"; adb logcat -d | grep -E 'miwayomi|AndroidRuntime|FATAL|Capacitor/Console' | grep -v 'Handling local request' | tail -150
 exit $code
