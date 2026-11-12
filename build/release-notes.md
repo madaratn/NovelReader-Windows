@@ -1,10 +1,10 @@
-## NovelReader 0.21.0
+## NovelReader 0.22.0
 
-- **Reprendre** : un nouvel écran réunit ce que vous lisez et regardez (livres, animes, séries, films) et les nouveautés de votre bibliothèque. Il s'ouvre au démarrage et par le bouton **Reprendre** (Ctrl+H).
-- **Synchronisation directe PC ↔ téléphone** : plus besoin de Google Drive. Sur le PC, **Réglages › Lien avec le téléphone** affiche un lien à taper une fois sur le téléphone (**Réglages › Synchronisation avec votre PC**). Marche sur le Wi-Fi de la maison, PC allumé.
-- **Android TV** : l'application s'installe sur une télé Android TV / Google TV et se pilote à la télécommande (flèches, OK, Retour).
-- **Android : bouton Retour** : il ferme ce qui est ouvert ou revient à l'écran précédent, au lieu de quitter l'application.
-- **Android : nouveaux chapitres, application fermée** : notification quand un roman de votre bibliothèque a de nouveaux chapitres (vérification toutes les 6 heures).
-- **Android : sauvegarde et restauration** dans **Réglages** (fichier enregistré où vous voulez).
-- **Android : flux vidéo lus par morceaux** : certains flux recevaient les mauvaises données et ne démarraient pas ; corrigé.
-- **Séries tunisiennes** : les séries complètes passent avant les extraits, et une entrée **Direct : chaînes tunisiennes** ouvre le direct YouTube de chaque chaîne.
+- **Lier le téléphone par QR code** : sur le PC, **Réglages › Lien avec le téléphone** affiche un QR code ; sur le téléphone, **Réglages › Synchronisation avec votre PC › Scanner le QR code**. Plus de lien à taper.
+- **Reprendre sur mon téléphone** : dans le panneau **Reprendre** du PC, le bouton 📱 envoie un titre au téléphone lié, qui propose de continuer au même endroit.
+- **Historique** : le panneau **Reprendre** liste ce que vous avez lu et regardé, jour par jour.
+- **Sources en panne mises de côté** : une source que la vérification hebdomadaire trouve en panne depuis plus de 10 jours ne ralentit plus les recherches. Elle revient toute seule quand elle remarche (ou par **Utiliser quand même** dans Sources).
+- **Android : lecture à voix haute** des livres avec les voix du téléphone, y compris écran éteint (bouton **Arrêter** dans la notification).
+- **Android : vidéos du téléphone** : la page **Vidéos locales** lit les vidéos d'un dossier du téléphone choisi une fois.
+- **Android TV** : interface agrandie et bibliothèques en rangées d'affiches.
+- **Android : démarrage plus rapide** quand beaucoup de sources sont installées (elles sont ouvertes quatre par quatre).
