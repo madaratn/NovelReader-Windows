@@ -4,7 +4,7 @@
 import React,{useEffect,useMemo,useRef}from'react'
 import{t,plural,getLang}from'../i18n'
 import{historyDays,clearHistory,dayOf,type HistoryLine}from'../lib/history'
-import{Cover,Icon}from'../ui/common'
+import{Help,Cover,Icon}from'../ui/common'
 import{mediaCover,readMediaPos}from'../lib/media'
 import{timeAgo}from'../lib/util'
 import type{QuickKind}from'./quick-search'
@@ -55,7 +55,7 @@ export function HomePanel({libs,onClose,onContinue,onOpen}:{libs:Record<QuickKin
  return <div className="qs-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><div className="qs home-panel" role="dialog" aria-modal="true" aria-label={t('Continue')} tabIndex={-1} ref={box} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();onClose()}}}>
   <div className="home-head"><h2>{t('Continue')}</h2><button className="iconbtn" onClick={onClose} aria-label={t('Close')}>×</button></div>
   <div className="home-body">
-   {going.length===0&&fresh.length===0&&days.length===0&&<p className="settings-help">{t('Nothing in progress yet. What you read and watch will show up here, from every section.')}</p>}
+   {going.length===0&&fresh.length===0&&days.length===0&&<Help text={t('Nothing in progress yet. What you read and watch will show up here, from every section.')}/>}
    {sent&&<div className="anime-toast ok" role="status"><span>{sent}</span><button onClick={()=>setSent('')}>×</button></div>}
    {going.length>0&&<div className="home-grid">{going.map((x,i)=>card(x,onContinue,i))}</div>}
    {fresh.length>0&&<><h3>{t('New in your library')}</h3><div className="home-grid">{fresh.map((x,i)=>card(x,onOpen,i))}</div></>}

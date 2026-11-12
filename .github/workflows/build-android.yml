@@ -185,3 +185,5 @@ jobs:
             fi
           fi
           gh release upload "v$v" "release/NovelReader-$v.apk" --clobber
+          (cd release && sha256sum "NovelReader-$v.apk" > SHA256SUMS-android.txt && cat SHA256SUMS-android.txt)
+          gh release upload "v$v" release/SHA256SUMS-android.txt --clobber

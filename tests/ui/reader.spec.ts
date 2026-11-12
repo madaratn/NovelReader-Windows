@@ -151,3 +151,22 @@ test('security: a chapter keeps its text and pictures only (no script, frame, fo
   expect(await art.locator('div[style]').count()).toBe(0)
   expect(await page.evaluate(() => (window as any).__pwned)).toBeUndefined()
 })
+
+test('a technical error is said plainly, with what to do; the original text stays under "Technical details"', async ({ page }) => {
+  await open(page, { library: LIB, reading: { mol: { index: 3 } } })
+  await page.evaluate(() => { (window as any).novelReader.parseChapter = async () => { throw new Error("Error invoking remote method 'plugin:parseChapter': Error: getaddrinfo ENOTFOUND site1.test") } })
+  await page.locator('.libcard .primary').click()
+  const toast = page.locator('.search-toast.error')
+  await expect(toast.locator('.notice-text > span')).toHaveText('Could not load chapter: This site no longer exists or has moved. Use another source.')
+  await toast.locator('summary').click()
+  await expect(toast.locator('pre')).toContainText('ENOTFOUND site1.test')
+})
+
+test('empty library: one sentence and one next step', async ({ page }) => {
+  await open(page, { library: [] })
+  const box = page.locator('.empty-state')
+  await expect(box.locator('h2')).toHaveText('Your library is empty')
+  await expect(box.locator('button')).toHaveCount(1)
+  await box.getByRole('button', { name: 'Search a title' }).click()
+  await expect(page.locator('main h1')).toHaveText('Find a title everywhere')
+})

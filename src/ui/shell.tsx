@@ -104,22 +104,26 @@ export function MobileNav({mode,page,onMode,onPage,onSearch,onHome,extra}:{mode:
 }
 
 // ---- Welcome guide (first launch) ------------------------------------------------
-export function Welcome({lang,onLang,onClose,onSearch}:{lang:Lang,onLang:(l:Lang)=>void,onClose:()=>void,onSearch:()=>void}){
- const[step,setStep]=useState(0),ref=useRef<HTMLDivElement>(null)
+// First launch, three short steps: language, what you want to start with, and
+// (for videos) the recommended sources in one click. Books need no install.
+export function Welcome({lang,onLang,onClose,onStart,onInstall}:{lang:Lang,onLang:(l:Lang)=>void,onClose:()=>void,onStart:(mode:Mode,search:boolean)=>void,onInstall?:(mode:Mode)=>Promise<string|void>}){
+ const[step,setStep]=useState(0),[choice,setChoice]=useState<Mode>('books'),[inst,setInst]=useState<{state:'idle'|'busy'|'done'|'error',text?:string}>({state:'idle'}),ref=useRef<HTMLDivElement>(null)
  useEffect(()=>{ref.current?.querySelector<HTMLElement>('.welcome-body button, .welcome-actions .primary')?.focus()},[step])
+ const video=choice!=='books'&&!!onInstall&&!onIosDevice()
+ const install=async()=>{setInst({state:'busy'});try{const text=await onInstall!(choice);setInst({state:'done',text:text||''})}catch(e:any){setInst({state:'error',text:String(e?.message||e)})}}
+ const WHAT:Record<Mode,string>={books:'Novels, manhwa and manga to read',anime:'Anime, subbed or dubbed',series:'TV series, season by season',movies:'Films'}
  const steps=[
-  <><h1>{t('Welcome to NovelReader')}</h1><p>{t('Read web novels, keep track of where you are, and watch your own videos — all in one place. First, choose your language:')}</p>
+  <><h1>{t('Welcome to NovelReader')}</h1><p>{t('Books, anime, series and films in one place, on your PC and your phone. First, choose your language:')}</p>
    <div className="rs-seg welcome-lang" role="radiogroup" aria-label={t('Language')}>{LANGS.map(l=><button key={l.id} role="radio" aria-checked={lang===l.id} className={lang===l.id?'on':''} onClick={()=>onLang(l.id)}>{l.label}</button>)}</div></>,
-  <><h1>{t('What you can do')}</h1><ul className="welcome-list">
-   <li><Icon name="book"/><div><b>{t('Read novels')}</b><span>{t('Search hundreds of sources, add novels to your library and continue exactly where you stopped.')}</span></div></li>
-   <li><Icon name="folder"/><div><b>{t('Watch your videos')}</b><span>{t('Play the video files stored on this PC, grouped by folder, with resume and shortcuts.')}</span></div></li>
-   <li><Icon name="archive"/><div><b>{t('Discover public-domain classics')}</b><span>{t('Stream free films and cartoons from the Internet Archive.')}</span></div></li>
-   <li><Icon name="gear"/><div><b>{t('Stay safe')}</b><span>{t('Your data is backed up automatically. Settings lets you export it or move it to another PC.')}</span></div></li></ul></>,
-  <><h1>{t('Add your first novel')}</h1><ol className="welcome-steps">
-   <li><span>1</span>{t('Open Global Search and type a title.')}</li>
+  <><h1>{t('What do you want to start with?')}</h1><p>{t('You can switch at any time with the tabs at the top.')}</p>
+   <div className="welcome-choices" role="radiogroup" aria-label={t('Section')}>{MODES.map(m=><button key={m} role="radio" aria-checked={choice===m} className={choice===m?'on':''} onClick={()=>{setChoice(m);setInst({state:'idle'})}}><Icon name={NAV[m].icon}/><b>{t(NAV[m].label)}</b><span>{t(WHAT[m])}</span></button>)}</div></>,
+  video?<><h1>{t('Get your sources')}</h1><p>{t('Videos come from sources (sites). Install the recommended ones in one click; you can add or remove some later in Sources.')}</p>
+   <div className="welcome-install">{inst.state==='done'?<p className="welcome-ok" role="status"><Icon name="check" inline/>{inst.text||t('Sources installed. You are ready.')}</p>:<button className="primary" disabled={inst.state==='busy'} onClick={install}>{inst.state==='busy'?t('Installing…'):t('Install the recommended sources')}</button>}
+   {inst.state==='error'&&<p className="welcome-err" role="alert">{t('The sources could not be installed now. You can do it later from Sources.')}</p>}</div></>
+  :<><h1>{t('You are ready')}</h1><ol className="welcome-steps">
+   <li><span>1</span>{t('Search a title: the book sources are already included.')}</li>
    <li><span>2</span>{t('Pick a result: NovelReader adds it to your library.')}</li>
-   <li><span>3</span>{t('Click Continue in your library to start reading.')}</li></ol>
-   <p className="welcome-tip">{t('Tip: press ? at any time to see the keyboard shortcuts.')}</p></>
+   <li><span>3</span>{t('Click Continue in your library to start reading.')}</li></ol></>
  ]
  const last=step===steps.length-1
  return <div className="kbd-overlay welcome-overlay"><div className="welcome" role="dialog" aria-modal="true" aria-label={t('Welcome to NovelReader')} ref={ref}>
@@ -128,7 +132,8 @@ export function Welcome({lang,onLang,onClose,onSearch}:{lang:Lang,onLang:(l:Lang
   <div className="welcome-actions">
    <button className="welcome-skip" onClick={onClose}>{t('Skip')}</button>
    <div>{step>0&&<button onClick={()=>setStep(step-1)}>{t('Back')}</button>}
-    {last?<><button onClick={onClose}>{t('Explore on my own')}</button><button className="primary" onClick={()=>{onClose();onSearch()}}>{t('Search a novel')}</button></>:<button className="primary" onClick={()=>setStep(step+1)}>{t('Next')}</button>}</div>
+    {last?<><button onClick={()=>{onClose();onStart(choice,false)}}>{t('Explore on my own')}</button><button className="primary" onClick={()=>{onClose();onStart(choice,true)}}>{t('Search a title')}</button></>:<button className="primary" onClick={()=>setStep(step+1)}>{t('Next')}</button>}</div>
   </div>
  </div></div>
 }
+
