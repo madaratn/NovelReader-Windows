@@ -510,6 +510,8 @@ test('video source catalog: language chips like Books', async ({ page }) => {
   ]
   await page.route('**/index.min.json', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify(index) }))
   await openVideo(page, { mode: 'anime', 'lastPage:anime': 'animeSources', animeRepos: JSON.stringify([{ name: 'Test repo', url: 'https://raw.githubusercontent.com/test/anime-repo/repo/index.min.json', enabled: true }]) })
+  // Repositories and their catalogue are in the closed "Advanced" block.
+  await page.locator('.sources-advanced summary').click()
   await page.getByRole('button', { name: 'Load all sources' }).click()
   const bar = page.locator('.langbar')
   await expect(bar).toContainText('2 sources shown')

@@ -968,6 +968,12 @@ const FR: Record<string, string> = {
   'Search all {section} sources': 'Rechercher dans toutes les sources ({section})',
   'Filters, languages and every source': 'Filtres, langues et toutes les sources',
   'Files': 'Fichiers',
+  'Add sources': 'Ajouter des sources',
+  'My sources': 'Mes sources',
+  'Advanced': 'Avancé',
+  'Video engine, Cloudflare, extension repositories': 'Moteur vidéo, Cloudflare, dépôts d\'extensions',
+  'Shared by Anime, Series and Movies.': 'Partagés par Animes, Séries et Films.',
+  'Manage repositories': 'Gérer les dépôts',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

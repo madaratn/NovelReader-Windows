@@ -1136,3 +1136,14 @@ main>header p,main header>div>p{color:var(--text-3)}
 .files-tabs button:hover{color:var(--text);background:var(--bg-active)}
 .files-tabs button.active{background:var(--bg-accent);color:var(--on-accent)}
 .files-tabs button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+/* Video sources page: Add sources / My sources / Advanced */
+main h2.sources-block{font-size:var(--fs-xl);font-weight:700;color:var(--text-strong);margin:28px 0 12px}
+main header+h2.sources-block{margin-top:4px}
+.sources-advanced{margin-top:28px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--bg-surface)}
+.sources-advanced>summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;gap:12px;padding:14px 18px;font-weight:700;color:var(--text-strong);font-size:var(--fs-lg)}
+.sources-advanced>summary::-webkit-details-marker{display:none}
+.sources-advanced>summary::before{content:'›';display:inline-block;transition:transform var(--speed) var(--ease);color:var(--text-3)}
+.sources-advanced[open]>summary::before{transform:rotate(90deg)}
+.sources-advanced>summary small{font-weight:400;color:var(--text-3);font-size:var(--fs-sm)}
+.sources-advanced-body{display:grid;gap:16px;padding:0 16px 16px}
+.sources-advanced-body>.panel{margin:0}
