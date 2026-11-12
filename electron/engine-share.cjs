@@ -76,7 +76,10 @@ function createEngineShare({configFile,enginePort=4567,engineHost='127.0.0.1',po
  function send(item){
   if(!server)throw new Error('Turn on the phone link first (Settings).')
   if(!item||typeof item!=='object'||!['books','anime','series','movies'].includes(item.kind)||!item.id)throw new Error('Nothing to send.')
-  const now=Date.now(),x={at:now,kind:item.kind,id:String(item.id).slice(0,400),name:String(item.name||'').slice(0,300),sub:String(item.sub||'').slice(0,300),url:String(item.url||'').slice(0,2000),next:!!item.next}
+  // Polling uses `after=<timestamp>`: two sends in the same millisecond must get
+  // different cursors, otherwise the second one is silently skipped on the phone.
+  const now=Math.max(Date.now(),(inbox[inbox.length-1]?.at||0)+1)
+  const x={at:now,kind:item.kind,id:String(item.id).slice(0,400),name:String(item.name||'').slice(0,300),sub:String(item.sub||'').slice(0,300),url:String(item.url||'').slice(0,2000),next:!!item.next}
   inbox=[...inbox.filter(y=>now-y.at<10*60*1000),x].slice(-5)
   return{ok:true,at:now,phoneSeen:lastSeen}
  }
