@@ -3,9 +3,10 @@ import { open, nav, novel } from './helpers'
 
 test('sidebar: modes, active page, remembered page per mode and after restart', async ({ page }) => {
   await open(page)
-  await expect(page.locator('.nav-list .nav-item')).toHaveText(['Library', 'Discover', 'Global Search', 'Bookmarks & notes', 'Sources'])
-  await nav(page, 'Global Search')
-  await expect(page.locator('.nav-item[aria-current=page]')).toHaveText('Global Search')
+  // One search: the Search button (Ctrl K) leads to the source search, no second entry.
+  await expect(page.locator('.nav-list .nav-item')).toHaveText(['Library', 'Discover', 'Bookmarks & notes', 'Sources'])
+  await page.locator('.qs-open').click().then(()=>page.locator('.qs-all').click())
+  await expect(page.locator('.qs-open')).toHaveAttribute('aria-current', 'page')
   await expect(page).toHaveTitle('Global Search · NovelReader')
   await page.keyboard.press('Control+2')
   await expect(page.locator('.mode-switch [aria-selected=true]')).toHaveText('Anime')
@@ -35,7 +36,7 @@ test('back navigation, shortcuts dialog, collapsible sidebar', async ({ page }) 
 
 test('/ focuses the search field of the page', async ({ page }) => {
   await open(page)
-  await nav(page, 'Global Search')
+  await page.locator('.qs-open').click().then(()=>page.locator('.qs-all').click())
   await page.locator('main h1').click()
   await page.keyboard.press('/')
   await expect(page.locator('main .searchbar input')).toBeFocused()

@@ -965,6 +965,9 @@ const FR: Record<string, string> = {
   'Video': 'Vidéo',
   'New chapters and episodes': 'Nouveaux chapitres et épisodes',
   'Anime and series': 'Animes et séries',
+  'Search all {section} sources': 'Rechercher dans toutes les sources ({section})',
+  'Filters, languages and every source': 'Filtres, langues et toutes les sources',
+  'Files': 'Fichiers',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

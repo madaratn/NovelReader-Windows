@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { setup } from './helpers'
+import { setup, nav } from './helpers'
 
 // Anime / Series / Movies: libraries, statuses, resume banner, new episodes,
 // detail page, remembered server, skip intro and installed source health.
@@ -267,7 +267,7 @@ test('offline downloads: download an episode, play it from this PC, manage it in
   await expect(page.locator('.remote-player video')).toHaveAttribute('src', 'http://127.0.0.1:9/series_1/video.mp4')
   expect(await page.evaluate(() => (window as any).__engine.calls.filter((c: string) => c.includes('/videos')).length)).toBe(before)
   // Downloads page: grouped by title, size, play and delete
-  await page.locator('.sidebar .nav-item', { hasText: 'Downloads' }).click()
+  await nav(page, 'Downloads')
   await expect(page.locator('.dl-group h2')).toHaveText('Lanterns')
   await expect(page.locator('.dl-group')).toContainText('1 video · 320 MB')
   await expect(page.locator('.dl-group .dl-row')).toContainText('1 subtitle')
@@ -486,7 +486,7 @@ test('languages for videos, as in Books: search only the chosen languages', asyn
   })
   // Reopen the page so the chips load the sources above
   await page.locator('.sidebar').getByText('Anime Library').click()
-  await page.locator('.sidebar').getByText('Global Search').click()
+  await page.locator('.qs-open').click().then(()=>page.locator('.qs-all').click())
   const bar = page.locator('.langbar')
   await expect(bar.getByRole('button', { name: /English/ })).toHaveAttribute('aria-pressed', 'true')
   await expect(bar.getByRole('button', { name: /Multi/ })).toHaveAttribute('aria-pressed', 'true')
@@ -612,7 +612,7 @@ test('sources broken for more than 10 days are set aside from searches, listed i
   await expect(page.locator('.set-aside')).not.toContainText('AnimeFLV')
   const tracked = await page.evaluate(() => JSON.parse(localStorage.getItem('deadSources') || '{}'))
   expect(Object.keys(tracked).sort()).toEqual(['animeflv', 'vostfree'])
-  await page.locator('.sidebar').getByText('Global Search').click()
+  await page.locator('.qs-open').click().then(()=>page.locator('.qs-all').click())
   await page.locator('.search-main input').fill('Naruto')
   await page.locator('.search-main input').press('Enter')
   await expect(page.locator('.resultcard')).toHaveCount(1)
@@ -621,7 +621,7 @@ test('sources broken for more than 10 days are set aside from searches, listed i
   await page.locator('.sidebar').getByText('Sources', { exact: true }).click()
   await page.locator('.set-aside').getByRole('button', { name: 'Use anyway' }).click()
   await expect(page.locator('.set-aside')).toHaveCount(0)
-  await page.locator('.sidebar').getByText('Global Search').click()
+  await page.locator('.qs-open').click().then(()=>page.locator('.qs-all').click())
   await page.evaluate(() => { (window as any).__searched = [] })
   await page.locator('.search-main input').fill('Naruto')
   await page.locator('.search-main input').press('Enter')

@@ -2,7 +2,7 @@ import React,{useEffect,useRef,useState}from'react'
 import{t,LANGS}from'../i18n'
 import type{Lang}from'../i18n'
 import{useAppVersion}from'../features/settings'
-import{lsGet}from'../lib/util'
+import{lsGet,lsSet}from'../lib/util'
 import{Icon}from'../ui/common'
 
 // ---- App shell: navigation model, sidebar, shortcuts ---------------------
@@ -18,6 +18,24 @@ export const MODES=Object.keys(NAV) as Mode[]
 // Detail pages highlight their parent entry in the sidebar.
 export const PARENT:Record<string,string>={novel:'library',reader:'library',animeDetail:'anime',seriesDetail:'series'}
 export const DETAIL_TITLES:Record<string,string>={novel:'Novel',reader:'Reader',animeDetail:'Episodes',seriesDetail:'Episodes',settings:'Settings'}
+// One search on the PC: the sidebar's Search button (Ctrl K) leads to each section's source search.
+export const SEARCH_PAGES=new Set(['search','animeSearch','seriesSearch','movieSearch'])
+// Downloads, Local Videos and Internet Archive share one "Files" entry on the PC
+// sidebar, with a tab for each (FilesTabs).
+export const FILE_PAGES=['downloads','localVideos','archive']
+export const FILES_ENTRY='@files'
+export const filePages=(mode:Mode)=>navItems(mode).filter(i=>FILE_PAGES.includes(i.page))
+export function lastFilesPage(mode:Mode){const all=filePages(mode).map(i=>i.page);const last=lsGet('filesTab')||'';return all.includes(last)?last:all[0]||'downloads'}
+function sidebarItems(mode:Mode,oneSearch:boolean):NavItem[]{
+ const items=navItems(mode).filter(it=>!oneSearch||!SEARCH_PAGES.has(it.page))
+ if(filePages(mode).length<2)return items
+ const out:NavItem[]=[];for(const it of items){if(!FILE_PAGES.includes(it.page)){out.push(it);continue}if(!out.some(x=>x.page===FILES_ENTRY))out.push({page:FILES_ENTRY,label:'Files',icon:'folder'})}
+ return out
+}
+export function FilesTabs({mode,page,onPage}:{mode:Mode,page:string,onPage:(p:string)=>void}){
+ const tabs=filePages(mode);if(tabs.length<2||!FILE_PAGES.includes(page))return null
+ return <div className="files-tabs" role="tablist" aria-label={t('Files')}>{tabs.map(it=><button key={it.page} role="tab" aria-selected={page===it.page} className={page===it.page?'active':''} onClick={()=>{lsSet('filesTab',it.page);onPage(it.page)}}><Icon name={it.icon} inline/>{t(it.label)}</button>)}</div>
+}
 export const isMode=(m:any):m is Mode=>MODES.includes(m)
 export const isTopPage=(mode:Mode,page:string)=>NAV[mode].items.some(i=>i.page===page)
 export function startPage(mode:Mode){const last=lsGet('lastPage:'+mode)||'';return isTopPage(mode,last)?last:NAV[mode].items[0].page}
@@ -25,13 +43,13 @@ export function pageLabel(mode:Mode,page:string){const own=NAV[mode].items.find(
 export const SHORTCUTS:[string,string][]=[['Ctrl+1 … 4','Switch mode (Books, Anime, Series, Movies)'],['Ctrl+K','Search everywhere'],['/','Jump to the search field of the page'],['Alt+←','Go back to the previous page (mouse back button too)'],['Ctrl+B','Collapse or expand the sidebar'],['?','Show or hide this list'],['Esc','Close this list / leave a text field']]
 export function ShortcutsDialog({onClose}:{onClose:()=>void}){const ref=useRef<HTMLDivElement>(null);useEffect(()=>{ref.current?.focus()},[]);return <div className="kbd-overlay" onClick={onClose}><div className="kbd-dialog" role="dialog" aria-modal="true" aria-labelledby="kbd-title" tabIndex={-1} ref={ref} onClick={e=>e.stopPropagation()}><h2 id="kbd-title">{t('Keyboard shortcuts')}</h2><dl>{SHORTCUTS.map(([k,v])=><React.Fragment key={k}><dt><kbd>{k}</kbd></dt><dd>{t(v)}</dd></React.Fragment>)}</dl><button className="primary" onClick={onClose}>{t('Close')}</button></div></div>}
 export function Sidebar({mode,page,collapsed,onMode,onPage,onToggle,onHelp,onSearch,onHome,extra}:{mode:Mode,page:string,collapsed:boolean,onMode:(m:Mode)=>void,onPage:(p:string)=>void,onToggle:()=>void,onHelp:()=>void,onSearch?:()=>void,onHome?:()=>void,extra?:React.ReactNode}){
- const current=isTopPage(mode,page)?page:PARENT[page],version=useAppVersion()
+ const top=isTopPage(mode,page)?page:PARENT[page],current=FILE_PAGES.includes(top)&&filePages(mode).length>1?FILES_ENTRY:top,version=useAppVersion()
  return <aside className="sidebar" aria-label={t('Main navigation')}>
   <div className="brand-row"><div className="brand" aria-label="NovelReader"><span className="brand-full">NOVEL<span>READER</span></span><span className="brand-short">N<span>R</span></span></div><button className="iconbtn collapse-btn" onClick={onToggle} title={t(collapsed?'Expand sidebar':'Collapse sidebar')+' (Ctrl+B)'} aria-label={t(collapsed?'Expand sidebar':'Collapse sidebar')} aria-expanded={!collapsed}><Icon name={collapsed?'expand':'collapse'}/></button></div>
   <div className="mode-switch" role="tablist" aria-label={t('Mode')}>{MODES.map((m,i)=><button key={m} role="tab" aria-selected={mode===m} className={mode===m?'active':''} onClick={()=>onMode(m)} title={t(NAV[m].label)+' (Ctrl+'+(i+1)+')'}><Icon name={NAV[m].icon}/><span className="label">{t(NAV[m].label)}</span></button>)}</div>
   {onHome&&<button className="home-open" onClick={onHome} title={t('Continue')+' (Ctrl+H)'} aria-label={t('Continue')}><Icon name="play"/><span className="label">{t('Continue')}</span></button>}
-  {onSearch&&<button className="qs-open" onClick={onSearch} title={t('Search everywhere')+' (Ctrl+K)'}><Icon name="search"/><span className="label">{t('Search')}</span><kbd className="label">Ctrl K</kbd></button>}
-  <nav className="nav-list">{navItems(mode).map(it=><button key={it.page} className={'nav-item'+(current===it.page?' active':'')} aria-current={current===it.page?'page':undefined} onClick={()=>onPage(it.page)} aria-label={t(it.label)} title={collapsed?t(it.label):undefined}><Icon name={it.icon}/><span className="label">{t(it.label)}</span></button>)}</nav>
+  {onSearch&&<button className={'qs-open'+(SEARCH_PAGES.has(page)?' active':'')} aria-current={SEARCH_PAGES.has(page)?'page':undefined} onClick={onSearch} title={t('Search everywhere')+' (Ctrl+K)'}><Icon name="search"/><span className="label">{t('Search')}</span><kbd className="label">Ctrl K</kbd></button>}
+  <nav className="nav-list">{sidebarItems(mode,!!onSearch).map(it=><button key={it.page} className={'nav-item'+(current===it.page?' active':'')} aria-current={current===it.page?'page':undefined} onClick={()=>onPage(it.page===FILES_ENTRY?lastFilesPage(mode):it.page)} aria-label={t(it.label)} title={collapsed?t(it.label):undefined}><Icon name={it.icon}/><span className="label">{t(it.label)}</span></button>)}</nav>
   <div className="grow"/>
   {extra}
   <button className={'nav-item subtle'+(page==='settings'?' active':'')} aria-current={page==='settings'?'page':undefined} onClick={()=>onPage('settings')} title={t('Settings')}><Icon name="gear"/><span className="label">{t('Settings')}</span></button>

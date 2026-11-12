@@ -3,7 +3,7 @@ import { open, nav } from './helpers'
 
 test('global search: live progress, default languages, grouped results, add in place', async ({ page }) => {
   await open(page, { library: [], slowSources: true })
-  await nav(page, 'Global Search')
+  await page.locator('.qs-open').click().then(()=>page.locator('.qs-all').click())
   // Default languages = UI language (en) + English + Multi: 12 + 2 sources.
   await expect(page.locator('.langcount')).toHaveText('14 sources selected')
   await page.fill('.search-main input', 'shadow slave')
@@ -24,7 +24,7 @@ test('global search: live progress, default languages, grouped results, add in p
 
 test('global search: stop, all languages, recent searches', async ({ page }) => {
   await open(page, { library: [], slowSources: true })
-  await nav(page, 'Global Search')
+  await page.locator('.qs-open').click().then(()=>page.locator('.qs-all').click())
   await page.fill('.search-main input', 'lord of mysteries')
   await page.locator('.search-main button').click()
   await page.locator('.search-main button', { hasText: 'Stop' }).click()
@@ -38,7 +38,7 @@ test('global search: stop, all languages, recent searches', async ({ page }) => 
 
 test('sources page: health from searches and manual test', async ({ page }) => {
   await open(page, { library: [] })
-  await nav(page, 'Global Search')
+  await page.locator('.qs-open').click().then(()=>page.locator('.qs-all').click())
   await page.fill('.search-main input', 'shadow slave')
   await page.locator('.search-main button').click()
   await expect(page.locator('.searchstatus:not(.running)')).toBeVisible({ timeout: 15_000 })
