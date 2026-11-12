@@ -1174,3 +1174,5 @@ main header+h2.sources-block{margin-top:4px}
 .media-detail-page>*{order:2}
 .media-detail-page>.series-detail-head{order:0}
 .media-detail-page>.media-player-top{order:1}
+/* Phone: the update banner stays under the top bar, not behind it */
+.app.phone .update-banner{top:calc(var(--m-top-h,0px) + 6px)}
