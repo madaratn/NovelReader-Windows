@@ -10,7 +10,7 @@ import type{FolderSync}from'./sync'
 import{t,plural,LANGS}from'../i18n'
 import type{Lang}from'../i18n'
 import{fmtDateTime,lsGet,lsSet}from'../lib/util'
-import{NoticeText}from'../ui/common'
+import{Help,NoticeText}from'../ui/common'
 import{ReportPanel}from'./report'
 import{ProfilesPanel}from'./profiles'
 import{AniListPanel}from'./anilist'
@@ -63,7 +63,7 @@ export function SettingsPage({lang,onLang,onWelcome,onShortcuts,update,onImportL
   {on('general')&&<>
   <section className="panel settings-block"><h2>{t('Appearance')}</h2>
    <div className="rs-seg settings-seg" role="radiogroup" aria-label={t('Appearance')}>{(['system','dark','light'] as ThemePref[]).map(v=><button key={v} role="radio" aria-checked={theme===v} className={theme===v?'on':''} onClick={()=>{setThemePref(v);setTheme(v)}}>{v==='system'?(android?t('Like the phone'):t('Like Windows')):v==='dark'?t('Dark'):t('Light')}</button>)}</div>
-   <p className="settings-help">{t('The reader has its own themes: open Aa while reading.')}</p>
+   <Help text={t('The reader has its own themes: open Aa while reading.')}/>
   </section>
   <section className="panel settings-block"><h2>{t('Language')}</h2>
    <div className="rs-seg settings-seg" role="radiogroup" aria-label={t('Language')}>{LANGS.map(l=><button key={l.id} role="radio" aria-checked={lang===l.id} className={lang===l.id?'on':''} onClick={()=>onLang(l.id)}>{l.label}</button>)}</div>
@@ -74,16 +74,16 @@ export function SettingsPage({lang,onLang,onWelcome,onShortcuts,update,onImportL
   </>}
   {on('library')&&<>
   {(!android||typeof (window.novelReader as any).backupExport==='function')&&<section className="panel settings-block backup-block"><h2>{t('Backup and restore')}</h2>
-   <p className="settings-help">{t('Your library, reading progress and preferences are stored on this PC. Export a backup file to keep them safe or to move them to another computer.')}</p>
+   <Help text={t('Your library, reading progress and preferences are stored on this PC. Export a backup file to keep them safe or to move them to another computer.')}/>
    <div className="libraryactions"><button className="primary" disabled={busy} onClick={doExport}>{t('Export a backup…')}</button><button disabled={busy} onClick={doImport}>{t('Restore from a file…')}</button></div>
    {msg&&<div className={'anime-toast '+(msg.ok?'ok':'error')} role="status"><NoticeText text={msg.text}/><button aria-label={t('Dismiss')} onClick={()=>setMsg(null)}>×</button></div>}
    {!android&&<><h3 className="settings-sub">{t('Automatic backups')}</h3>
-   <p className="settings-help">{t('NovelReader keeps the last 10 versions of your data automatically. A copy of the current data is also saved before any restore.')}</p>
-   {autos.length===0?<p className="settings-help">{t('No automatic backup yet.')}</p>:<div className="scanlist">{autos.map(a=><div className="scanrow settings-row" key={a.name}><span>{fmtDateTime(a.exportedAt)}</span><small>{plural(a.novels,'{n} novel','{n} novels')}</small><button className={confirm===a.name?'danger':undefined} disabled={busy} onClick={()=>doRestoreAuto(a.name)}>{confirm===a.name?t('Confirm restore'):t('Restore')}</button></div>)}</div>}
+   <Help text={t('NovelReader keeps the last 10 versions of your data automatically. A copy of the current data is also saved before any restore.')}/>
+   {autos.length===0?<Help text={t('No automatic backup yet.')}/>:<div className="scanlist">{autos.map(a=><div className="scanrow settings-row" key={a.name}><span>{fmtDateTime(a.exportedAt)}</span><small>{plural(a.novels,'{n} novel','{n} novels')}</small><button className={confirm===a.name?'danger':undefined} disabled={busy} onClick={()=>doRestoreAuto(a.name)}>{confirm===a.name?t('Confirm restore'):t('Restore')}</button></div>)}</div>}
    <div className="libraryactions"><button disabled={busy} onClick={doBackupNow}>{t('Back up now')}</button><button onClick={()=>window.novelReader.backupOpenFolder().catch(e=>setMsg({ok:false,text:String(e?.message||e)}))}>{t('Open backups folder')}</button></div></>}
   </section>}
   {!android&&<section className="panel settings-block"><h2>{t('Import from LNReader (Android)')}</h2>
-   <p className="settings-help">{t('In the LNReader app, open More > Backup and restore > Create backup, copy the .zip file to this PC, then import it here. Your novels and where you stopped reading are added to your library.')}</p>
+   <Help text={t('In the LNReader app, open More > Backup and restore > Create backup, copy the .zip file to this PC, then import it here. Your novels and where you stopped reading are added to your library.')}/>
    <div className="libraryactions"><button className="primary" disabled={impBusy} onClick={async()=>{setImpBusy(true);setMsg(null);setImp(null);try{setImp(await onImportLNReader())}catch(e:any){setMsg({ok:false,text:t(String(e?.message||e).replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/,''))})}finally{setImpBusy(false)}}}>{impBusy?t('Importing…'):t('Import an LNReader backup…')}</button></div>
    {imp&&<div className="anime-toast ok" role="status"><span>{plural(imp.added,'{n} novel imported','{n} novels imported')}{imp.exists?' · '+plural(imp.exists,'{n} already in your library','{n} already in your library'):''}{imp.unknown.length?' · '+t('{n} skipped (source not available: {list})',{n:imp.unknown.length,list:imp.unknown.slice(0,4).join(', ')}):''}</span><button className="undo-btn" onClick={onShowLibrary}>{t('Open library')}</button></div>}
   </section>}
@@ -158,7 +158,7 @@ export function UpdateSettings({status,version}:{status:UpdateStatus|null,versio
  return <section className="panel settings-block"><h2>{t('Updates')}</h2>
   <p className="settings-help">{t('Installed version: {v}',{v:version||'—'})} · {text}</p>
   <p className="settings-help">{android?t('Updates download in the background. Android asks you to confirm the install with one tap; your library and settings stay.'):t('Updates download in the background and install silently: no installer to run, nothing to uninstall, your library and settings stay.')}</p>
-  {android&&<><label className="settings-check"><input type="checkbox" checked={beta} onChange={e=>{const enabled=e.target.checked;setBeta(enabled);lsSet('androidBetaUpdates',enabled?'1':'0');(window.novelReader as any).updateSetBeta?.(enabled).catch(()=>{})}}/> {t('Receive beta versions (experimental updates)')}</label><p className="settings-help">{t('Beta versions are for testing and may contain bugs. Leave this off to get stable releases only.')}</p></>}
+  {android&&<><label className="settings-check"><input type="checkbox" checked={beta} onChange={e=>{const enabled=e.target.checked;setBeta(enabled);lsSet('androidBetaUpdates',enabled?'1':'0');(window.novelReader as any).updateSetBeta?.(enabled).catch(()=>{})}}/> {t('Receive beta versions (experimental updates)')}</label><Help text={t('Beta versions are for testing and may contain bugs. Leave this off to get stable releases only.')}/></>}
   {!android&&<label className="settings-check"><input type="checkbox" checked={autoIdle} onChange={e=>{setAutoIdle(e.target.checked);lsSet('updateAutoIdle',e.target.checked?'1':'0');window.novelReader?.updateBusy?.({busy:false,auto:e.target.checked}).catch(()=>{})}}/> {t('Also install when the PC has been idle for 15 minutes (never during a video); NovelReader reopens by itself')}</label>}
   <div className="libraryactions">{st==='ready'?<button className="primary" onClick={()=>window.novelReader.updateInstall()}>{android?t('Install'):t('Restart now')}</button>:<button disabled={busy||st==='checking'||st==='downloading'} onClick={async()=>{setBusy(true);try{await window.novelReader.updateCheck?.()}finally{setBusy(false)}}}>{t('Check for updates')}</button>}</div>
  </section>

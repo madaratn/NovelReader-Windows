@@ -1,4 +1,5 @@
 // QR code for the phone link: shown on the PC (PcShareSettings), scanned by the phone
+import{Help}from'../ui/common'
 // with its camera inside the app (QrScanner) — no link to type.
 import React,{useEffect,useRef,useState}from'react'
 import qrcode from'qrcode-generator'
@@ -37,7 +38,7 @@ export function QrScanner({onText,onClose}:{onText:(text:string)=>void,onClose:(
   return()=>{stop=true;clearTimeout(timer);stream?.getTracks().forEach(x=>x.stop())}},[])
  return <div className="qs-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><div className="qs qr-scan" role="dialog" aria-modal="true" aria-label={t('Scan the QR code')} tabIndex={-1} onKeyDown={e=>{if(e.key==='Escape')onClose()}}>
   <h2>{t('Scan the QR code')}</h2>
-  <p className="settings-help">{t('Point the camera at the QR code shown on the PC (Settings › Phone link).')}</p>
+  <Help text={t('Point the camera at the QR code shown on the PC (Settings › Phone link).')}/>
   {err?<div className="anime-toast error" role="alert"><span>{err}</span></div>:<video ref={video} playsInline muted/>}
   <div className="libraryactions"><button onClick={onClose} aria-label={t('Close')}>{t('Cancel')}</button></div>
  </div></div>}

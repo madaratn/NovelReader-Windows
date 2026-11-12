@@ -1,7 +1,7 @@
 import React,{useEffect,useRef,useState}from'react'
 import{t,plural,getLang}from'../i18n'
 import{clamp,fmtMB,fmtSize,fmtTime,isTyping,lsGet,lsSet}from'../lib/util'
-import{NoticeText}from'../ui/common'
+import{Help,NoticeText}from'../ui/common'
 
 export function readPos(url:string):{t:number,d:number,done?:boolean,at?:number}|null{try{return JSON.parse(localStorage.getItem('localpos:'+url)||'null')}catch{return null}}
 // Shared player helpers: keyboard shortcuts and remembered volume.
@@ -182,6 +182,6 @@ export function ArchivePage(){
    <div className="libraryactions"><button onClick={()=>setItem(null)}>← {t('Back to results')}</button></div>
   </section>}
   {!item&&results.length>0&&<section className="panel"><h2>{plural(results.length,'{n} result','{n} results')}</h2><div className="scanlist">{results.map(r=><div className="scanrow clickable" key={r.identifier} onClick={()=>!itemLoading&&openItem(r)}><span><b>{r.title}</b>{r.year?' · '+r.year:''}</span><small>{t('{n} downloads',{n:r.downloads.toLocaleString(getLang())})}</small><b className="status reachable">{itemLoading?'…':t('open')}</b></div>)}</div></section>}
-  {!item&&!searching&&results.length===0&&query.trim()===''&&<section className="panel"><h2>{t('Getting started')}</h2><p>{t('Search for a title. Results are limited to archive.org\'s public-domain collections (classic cartoons, feature films, Prelinger, silent films) and items with a Creative Commons or public-domain license. MP4 files play best.')}</p></section>}
+  {!item&&!searching&&results.length===0&&query.trim()===''&&<section className="panel"><h2>{t('Getting started')}</h2><Help className="" text={t('Search for a title. Results are limited to archive.org\'s public-domain collections (classic cartoons, feature films, Prelinger, silent films) and items with a Creative Commons or public-domain license. MP4 files play best.')}/></section>}
  </>
 }

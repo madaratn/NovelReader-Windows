@@ -2,7 +2,7 @@ import React,{useEffect,useRef,useState}from'react'
 import{t,plural}from'../i18n'
 import{ReadingStats}from'../features/stats'
 import{lsGet,lsSet,timeAgo}from'../lib/util'
-import{Cover,Icon,MoreMenu}from'../ui/common'
+import{EmptyState,Cover,Icon,MoreMenu}from'../ui/common'
 import{useAnnotations}from'./annotations'
 
 // ---- Novel library ----------------------------------------------------------
@@ -26,7 +26,7 @@ export function NovelLibrary({library,updates,onCheckUpdates,onOpen,onDetails,on
  const lastTitle=(x:typeof rows[number])=>{const c=x.n.chapters?.[x.r!.index];return c?.name||c?.title||t('Chapter {n}',{n:x.r!.index+1})}
  return <>
   <header><div><h1>{t('Your Library')}</h1><p>{plural(library.length,'{n} novel saved locally.','{n} novels saved locally.')}</p></div></header>
-  {library.length===0?<section className="panel lib-empty"><h2>{t('Your library is empty')}</h2><p>{t('Search your sources for a novel, pick a result and it will be saved here.')}</p><button className="primary" onClick={onSearch}>{t('Search novels')}</button></section>:<>
+  {library.length===0?<EmptyState icon="book" title={t('Your library is empty')} text={t('Search a title, pick a result: it is saved here.')} action={t('Search a title')} onAction={onSearch}/>:<>
    {last&&!q&&<section className="lib-resume" onClick={()=>onOpen(last.n)}>
     <Cover src={last.n.cover} name={last.n.name}/>
     <div className="lib-resume-meta"><small>{t('Continue where you left off')} · {timeAgo(last.r!.at)}</small><h2>{last.n.name}</h2><p>{lastTitle(last)}</p><div className="libbar"><span style={{width:(last.total?Math.min(100,last.done/last.total*100):0)+'%'}}/></div></div>
@@ -38,7 +38,7 @@ export function NovelLibrary({library,updates,onCheckUpdates,onOpen,onDetails,on
     <button className="lib-update" disabled={updates.running} onClick={onCheckUpdates} title={updates.at?t('Last check: {when}',{when:timeAgo(updates.at)}):undefined}>{updates.running?t('Checking {done}/{total}…',{done:updates.done,total:updates.total}):t('Check for new chapters')}</button>
     <label className="lib-sort">{t('Sort')}<select value={sort} onChange={e=>{const v=e.target.value as LibSort;setSort(v);lsSet('librarySort',v)}}><option value="recent">{t('Recently read')}</option><option value="added">{t('Recently added')}</option><option value="title">{t('Title A–Z')}</option><option value="unread">{t('Most unread')}</option></select></label></div>
    {!updates.running&&updates.at>0&&updates.total>0&&<p className="lib-update-status" role="status">{updates.found?plural(updates.found,'{n} novel has new chapters.','{n} novels have new chapters.'):t('Everything is up to date.')}{updates.failed?' '+plural(updates.failed,'{n} source did not answer.','{n} sources did not answer.'):''}</p>}
-   {shown.length===0?<section className="panel"><p>{q?t('No novel matches “{q}”.',{q:filter}):t('No novel on this shelf yet.')}</p></section>:<section className="libgrid">{shown.map(({n,r,total,done,left,shelf:sh})=><article className="libcard" key={n.id} onClick={e=>{if(!(e.target as HTMLElement).closest('button,select,a,label,.more-menu'))onDetails(n)}}>
+   {shown.length===0?<EmptyState icon="grid" title={q?t('No novel matches “{q}”.',{q:filter}):t('No novel on this shelf yet.')} action={q?t('Clear the filter'):undefined} onAction={()=>setFilter('')}/>:<section className="libgrid">{shown.map(({n,r,total,done,left,shelf:sh})=><article className="libcard" key={n.id} onClick={e=>{if(!(e.target as HTMLElement).closest('button,select,a,label,.more-menu'))onDetails(n)}}>
     <button className="libcard-cover" onClick={()=>onDetails(n)} aria-label={t('Chapters of {name}',{name:n.name})} title={t('Show chapters')}><Cover src={n.cover} name={n.name}/></button>
     <div className="libcard-meta">
      <h2 title={n.name}><button className="libtitle" onClick={()=>onDetails(n)}>{n.name}</button></h2>

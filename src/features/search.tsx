@@ -2,7 +2,7 @@ import React,{useEffect,useRef,useState}from'react'
 import{t,plural,getLang}from'../i18n'
 import type{Plugin}from'../lib/types'
 import{lsGet,lsSet,timeAgo}from'../lib/util'
-import{Cover,NoticeText}from'../ui/common'
+import{EmptyState,Help,Cover,NoticeText}from'../ui/common'
 import{BOOK_DEAD_DAYS,bookAsideReason,bookSetAside,keepBookSource,loadBookStatus,noteBookResult}from'../lib/book-status'
 
 // ---- Global search (novels, manhwa, manhua, manga) ------------------------------
@@ -80,7 +80,7 @@ export function NovelSearch({query,setQuery,plugins,ensurePlugins,library,onAdd,
   {added&&<div className="anime-toast ok search-toast" role="status"><span>{t('“{name}” was added to your library.',{name:added.name})}</span><div><button className="undo-btn" onClick={()=>onOpen(added)}>{t('Open')}</button><button aria-label={t('Dismiss')} onClick={()=>setAdded(null)}>×</button></div></div>}
   {!status&&!hits.length&&<section className="panel search-empty"><h2>{t('Search tips')}</h2><p>{t('Type the title as it is usually written in English. Pick the languages of the sources you want to search: fewer languages means faster results.')}</p>
    {recent.length>0&&<div className="recent"><span>{t('Recent searches')}</span>{recent.map(r=><button key={r} className="chip" onClick={()=>run(r)}>{r}</button>)}</div>}</section>}
-  {status&&!status.running&&groups.length===0&&<section className="panel"><h2>{t('No title found')}</h2><p>{t('Check the spelling, try a shorter title, or select more languages.')}</p></section>}
+  {status&&!status.running&&groups.length===0&&<EmptyState title={t('No title found')} text={t('Check the spelling, try a shorter title, or select more languages.')} action={selected.length<allLangs.length?t('Select all languages'):undefined} onAction={()=>setAllLangs(true)}/>}
   {groups.length>0&&<section className="resultgrid">{groups.map(g=>{const owned=g.hits.map(inLibrary).find(Boolean);const first=g.hits[0];const firstId=first.plugin.id+':'+first.novel.path
    return <article className="resultcard" key={g.key}>
     <Cover src={g.cover} name={g.title}/>
@@ -115,7 +115,7 @@ export function SourcesPage({plugins,ensurePlugins,onRefresh,refreshing,error}:{
   await Promise.all(Array.from({length:8},worker));if(token===cancel.current)setBulk(null)}
  const host=(u:string)=>{try{return new URL(u).hostname.replace(/^www\./,'')}catch{return u||''}}
  return <>
-  <header><div><h1>{t('Sources')}</h1><p>{t('The sites Global Search looks in. You do not need to install anything: search uses them directly. Here you can see which ones work.')}</p></div></header>
+  <header><div><h1>{t('Sources')}</h1><p>{t('The sites the search looks in. Nothing to install: here you see which ones work.')}</p></div></header>
   <div className="sources-actions">
    {bulk?<button className="stopbtn" onClick={()=>{cancel.current++;setBulk(null);setTesting({})}}>{t('Stop')} · {bulk.done}/{bulk.total}</button>:<button className="primary" disabled={!plugins.length} onClick={testMine}>{t('Test the sources in my languages ({n})',{n:plugins.filter(p=>myLangs.includes(String(p.lang||'?'))).length})}</button>}
    <button onClick={onRefresh} disabled={refreshing}>{refreshing?t('Refreshing…'):t('Refresh the list')}</button>
@@ -133,7 +133,7 @@ export function SourcesPage({plugins,ensurePlugins,onRefresh,refreshing,error}:{
    <div className="sourcerow-main"><b>{p.name}</b><small>{p.lang} · {host(p.site)} · v{p.version}</small></div>
    <span className={'health '+st}>{testing[p.id]?<><span className="spinner" aria-hidden="true"/>{t('Testing…')}</>:st==='ok'?<>● {t('Works')}<small>{timeAgo(h!.at)}</small></>:st==='bad'?<>● {t('Not responding')}<small>{timeAgo(h!.at)}</small></>:<>○ {t('Not tested yet')}</>}</span>
    <button disabled={!!testing[p.id]} onClick={()=>testOne(p)}>{t('Test')}</button>
-  </article>})}{shown.length===0&&<p className="settings-help">{t('No source matches.')}</p>}</section>}
+  </article>})}{shown.length===0&&<Help text={t('No source matches.')}/>}</section>}
  </>
 }
 
@@ -159,7 +159,7 @@ export function NovelDiscover({plugins,ensurePlugins,library,onAdd,onOpen}:{plug
   {err&&<div className="anime-toast error"><NoticeText text={err}/></div>}
   {rows.length>0&&<div className="resultgrid">{rows.map((n:any)=>{const item=saved(n);return <article className="resultcard" key={n.path}><Cover src={n.cover||''} name={n.name||'?'}/><div className="resultmeta"><h3>{n.name}</h3><small>{plugin?.name}</small><div className="resultactions">{item?<button className="inlib" onClick={()=>onOpen(item)}>{'✓ '+t('Open')}</button>:<button className="primary" disabled={adding===n.path} onClick={()=>add(n)}>{adding===n.path?t('Adding…'):'＋ '+t('Add to library')}</button>}</div></div></article>})}</div>}
   {loading&&<div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading…')}</div></div>}
-  {!loading&&!err&&plugin&&rows.length===0&&<section className="panel lib-empty"><h2>{t('Nothing here')}</h2><p>{t('This source returned an empty list. Try another source.')}</p></section>}
+  {!loading&&!err&&plugin&&rows.length===0&&<EmptyState icon="compass" title={t('Nothing here')} text={t('This source returned an empty list. Try another source.')}/>}
   {!loading&&more&&rows.length>0&&<div className="discover-more"><button onClick={()=>load(page+1)}>{t('Load more')}</button></div>}
  </div>
 }

@@ -1,16 +1,32 @@
 import { test, expect } from '@playwright/test'
 import { open, novel, nav } from './helpers'
 
-test('welcome guide on first launch only', async ({ page }) => {
+test('welcome guide on first launch only: language, section, ready', async ({ page }) => {
   await open(page, { onboarded: false, library: [] })
   await expect(page.locator('.welcome h1')).toHaveText('Welcome to NovelReader')
   await page.locator('.welcome-actions .primary').click()
-  await expect(page.locator('.welcome h1')).toHaveText('What you can do')
+  await expect(page.locator('.welcome h1')).toHaveText('What do you want to start with?')
+  await expect(page.locator('.welcome-choices [aria-checked=true]')).toContainText('Books')
   await page.locator('.welcome-actions .primary').click()
-  await page.locator('.welcome-actions .primary', { hasText: 'Search a novel' }).click()
+  await expect(page.locator('.welcome h1')).toHaveText('You are ready') // books: nothing to install
+  await page.locator('.welcome-actions .primary', { hasText: 'Search a title' }).click()
   await expect(page.locator('main h1')).toHaveText('Find a title everywhere')
   await expect(page.locator('main .searchbar input')).toBeFocused()
   await page.reload()
+  await expect(page.locator('.welcome')).toHaveCount(0)
+})
+
+test('welcome guide: choosing Series offers the recommended sources in one click, then opens that section', async ({ page }) => {
+  await open(page, { onboarded: false, library: [] })
+  await page.locator('.welcome-actions .primary').click()
+  await page.locator('.welcome-choices button', { hasText: 'Series' }).click()
+  await page.locator('.welcome-actions .primary').click()
+  await expect(page.locator('.welcome h1')).toHaveText('Get your sources')
+  // No video engine in this test: the guide says so plainly and lets you go on.
+  await page.locator('.welcome-install .primary').click()
+  await expect(page.locator('.welcome-err')).toContainText('You can do it later from Sources')
+  await page.locator('.welcome-actions button', { hasText: 'Explore on my own' }).click()
+  await expect(page.locator('.mode-switch [aria-selected=true]')).toHaveText('Series')
   await expect(page.locator('.welcome')).toHaveCount(0)
 })
 
@@ -33,7 +49,7 @@ test('French interface: detection-free switch, plurals, saved choice', async ({ 
   await open(page, { library: [novel('a', 'Mother of Learning', 10)], reading: { a: { index: 3 } } })
   await page.locator('.sidebar .nav-item', { hasText: 'Settings' }).click()
   await page.locator('.settings-seg button', { hasText: 'Français' }).click()
-  await expect(page.locator('main h1')).toHaveText('Paramètres')
+  await expect(page.locator('main h1')).toHaveText('Réglages')
   await page.locator('.sidebar .nav-item', { hasText: 'Bibliothèque' }).click()
   await expect(page.locator('main header p')).toHaveText('1 roman enregistré sur ce PC.')
   await expect(page.locator('.lib-resume small')).toContainText('il y a 2 h')
