@@ -194,16 +194,16 @@ test('watch party voice channel: join, hear each other, mute, leave', async ({ c
   await expect(a.locator('.wp-member')).toHaveCount(2)
   // Ali joins first, then Sara: Sara calls Ali
   await a.getByRole('button', { name: /Join the voice channel/ }).click()
-  await expect(b.locator('.wp-member', { hasText: 'Ali' })).toHaveText('🎙 Ali')
+  await expect(b.locator('.wp-member', { hasText: 'Ali' })).toHaveText('Ali'); await expect(b.locator('.wp-member', { hasText: 'Ali' })).toHaveAttribute('title', 'In the voice channel')
   await b.getByRole('button', { name: /Join the voice channel/ }).click()
-  await expect(a.locator('.wp-member', { hasText: 'Sara' })).toHaveText('🎙 Sara')
+  await expect(a.locator('.wp-member', { hasText: 'Sara' })).toHaveAttribute('title', 'In the voice channel')
   // Each side receives the other's microphone
   const live = (p: Page) => p.evaluate(() => { const el = document.querySelector('audio[data-wp-voice]') as HTMLAudioElement | null; const st = el?.srcObject as MediaStream | null; return !!st && st.getAudioTracks().some(t => t.readyState === 'live') })
   await expect.poll(() => live(a), { timeout: 15_000 }).toBe(true)
   await expect.poll(() => live(b), { timeout: 15_000 }).toBe(true)
   // Mute shows on the other side
   await b.getByRole('button', { name: /Mute/ }).click()
-  await expect(a.locator('.wp-member', { hasText: 'Sara' })).toHaveText('🔇 Sara')
+  await expect(a.locator('.wp-member', { hasText: 'Sara' })).toHaveAttribute('title', 'In the voice channel (muted)')
   // Leaving hangs up on both sides
   await b.getByRole('button', { name: 'Leave the voice channel' }).click()
   await expect(a.locator('.wp-member', { hasText: 'Sara' })).toHaveText('Sara')

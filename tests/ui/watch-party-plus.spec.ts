@@ -160,7 +160,7 @@ test('voice: the film gets quieter while someone speaks; push to talk with V', a
   await expect(b.locator('.wp-ptt')).toHaveText('Microphone off until you hold V')
   await b.locator('.wp-chat').click()
   await b.keyboard.down('v')
-  await expect(b.locator('.wp-ptt')).toHaveText('🎙 Talking…')
+  await expect(b.locator('.wp-ptt')).toHaveText('Talking…')
   expect(await mic()).toBe(true)
   await b.keyboard.up('v')
   expect(await mic()).toBe(false)
@@ -169,14 +169,14 @@ test('voice: the film gets quieter while someone speaks; push to talk with V', a
 test('cameras: off by default, small bubbles for everyone when turned on, enlarge, hide, turn off', async ({ context }) => {
   const { pages: [a, b] } = await party(context, [{ name: 'Sara' }])
   await expect(a.locator('.party-cams')).toHaveCount(0)
-  await a.getByRole('button', { name: '📷 Turn my camera on' }).click()
-  await expect(a.getByRole('button', { name: '📷 Turn my camera off' })).toBeVisible()
+  await a.getByRole('button', { name: 'Turn my camera on' }).click()
+  await expect(a.getByRole('button', { name: 'Turn my camera off' })).toBeVisible()
   // My own preview (mirrored), and Sara sees Ali's camera with his name
   await expect(a.locator('.cam-bubble')).toHaveCount(1)
   await expect(a.locator('.cam-bubble video.mirror')).toHaveCount(1)
   await expect(b.locator('.cam-bubble')).toHaveText('Ali', { timeout: 15_000 })
   await expect.poll(() => b.locator('.cam-bubble video').evaluate((v: HTMLVideoElement) => { const st = v.srcObject as MediaStream | null; return !!st && st.getVideoTracks().some(t => t.readyState === 'live') && v.videoWidth > 0 }), { timeout: 15_000 }).toBe(true)
-  await expect(b.locator('.wp-member', { hasText: 'Ali' })).toHaveText('📷 Ali')
+  await expect(b.locator('.wp-member', { hasText: 'Ali' })).toHaveText('Ali'); await expect(b.locator('.wp-member', { hasText: 'Ali' }).locator('svg.icon')).toHaveCount(1)
   // Click to enlarge
   await b.locator('.cam-bubble').click()
   await expect(b.locator('.cam-bubble')).toHaveClass(/big/)
@@ -186,7 +186,7 @@ test('cameras: off by default, small bubbles for everyone when turned on, enlarg
   await expect(b.locator('.cam-bubble')).toHaveClass(/big/)
   expect(await b.evaluate(() => JSON.parse(localStorage.getItem('partyCamsPos') || 'null'))).toEqual({ x: expect.any(Number), y: expect.any(Number) })
   // Sara turns hers on too: both see two bubbles
-  await b.getByRole('button', { name: '📷 Turn my camera on' }).click()
+  await b.getByRole('button', { name: 'Turn my camera on' }).click()
   await expect(a.locator('.cam-bubble')).toHaveCount(2, { timeout: 15_000 })
   await expect(a.locator('.cam-bubble').nth(1)).toHaveText('Sara')
   // Hiding the others' cameras keeps only my own preview
@@ -195,7 +195,7 @@ test('cameras: off by default, small bubbles for everyone when turned on, enlarg
   await a.getByLabel("Hide the others' cameras").uncheck()
   await expect(a.locator('.cam-bubble')).toHaveCount(2)
   // Ali turns his off: gone for Sara
-  await a.getByRole('button', { name: '📷 Turn my camera off' }).click()
+  await a.getByRole('button', { name: 'Turn my camera off' }).click()
   await expect(b.locator('.cam-bubble')).toHaveCount(1, { timeout: 15_000 })
   await expect(b.locator('.cam-bubble')).toHaveText('You')
   expect(await a.evaluate(() => (window as any).__nrParty.snap.camLocal)).toBeNull()

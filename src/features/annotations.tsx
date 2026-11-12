@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { t, plural } from '../i18n'
 import { readableBlocks } from './reader'
 import { lsGet, lsSet, timeAgo } from '../lib/util'
+import { Icon } from '../ui/common'
 
 // ---- Bookmarks, highlights and notes -------------------------------------------------
 // Stored in localStorage ('annotations'), so they are included in backups and
@@ -160,7 +161,7 @@ export function NotesPage({ onOpen, inLibrary, initialNovel }: { onOpen: (a: Ann
       {shown.length === 0 ? <section className="panel"><p>{t('No saved passage matches.')}</p></section> : [...groups.entries()].map(([id, items]) => <section className="panel notesgroup" key={id}>
         <h2>{items[0].novelName} <small>{items.length}</small></h2>
         <ul className="noteslist">{items.map(a => <li key={a.id} className={'noteitem ' + a.kind}>
-          <div className="notemeta"><span className={a.kind === 'bookmark' ? 'notekind bm' : 'notekind c-' + (a.color || 'yellow')} aria-hidden="true">{a.kind === 'bookmark' ? '🔖' : ''}</span><small>{a.chapterTitle} · {timeAgo(a.at)}</small></div>
+          <div className="notemeta"><span className={a.kind === 'bookmark' ? 'notekind bm' : 'notekind c-' + (a.color || 'yellow')} aria-hidden="true">{a.kind === 'bookmark' ? <Icon name="bookmark" inline /> : ''}</span><small>{a.chapterTitle} · {timeAgo(a.at)}</small></div>
           <blockquote>{a.text}</blockquote>
           {editing === a.id ? <div className="selnote inline"><textarea autoFocus value={draft} onChange={e => setDraft(e.target.value)} placeholder={t('Your note')} /><div><button onClick={() => setEditing(null)}>{t('Cancel')}</button><button className="primary" onClick={() => { updateAnnotation(a.id, { note: draft.trim() || undefined }); setEditing(null) }}>{t('Save')}</button></div></div>
             : a.note ? <p className="notetext">{a.note}</p> : null}
@@ -181,7 +182,7 @@ export function BookmarkButton({ rootRef, ctx }: { rootRef: React.RefObject<HTML
   const has = list.some(a => a.kind === 'bookmark' && a.novelId === ctx.novelId && a.chapterPath === ctx.chapterPath)
   useEffect(() => { if (!flash) return; const tm = setTimeout(() => setFlash(false), 1600); return () => clearTimeout(tm) }, [flash])
   return <>
-    <button className={'themebtn bm-toggle' + (has ? ' on' : '')} title={t('Bookmark this place')} aria-label={t('Bookmark this place')} onClick={() => { addBookmarkHere(rootRef.current, ctx); setFlash(true) }}>🔖</button>
+    <button className={'themebtn bm-toggle' + (has ? ' on' : '')} title={t('Bookmark this place')} aria-label={t('Bookmark this place')} onClick={() => { addBookmarkHere(rootRef.current, ctx); setFlash(true) }}><Icon name="bookmark" /></button>
     {flash && <div className="selsaved" role="status">{t('Bookmark added')}</div>}
   </>
 }

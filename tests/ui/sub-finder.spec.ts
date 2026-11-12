@@ -35,7 +35,7 @@ const cues = (page: any) => page.evaluate(() => { const v = document.querySelect
 
 test('find subtitles online for an episode (title, season, episode), pick one, it is shown', async ({ page }) => {
   await open(page, { wyzieKey: 'KEY', subAutoOnline: '0' })
-  await page.getByRole('button', { name: /💬 Subtitles/ }).click()
+  await page.getByRole('button', { name: /^Subtitles$/ }).click()
   const box = page.locator('.sub-finder')
   await expect(box.locator('.sub-results li')).toHaveCount(2)
   expect(await page.evaluate(() => (window as any).__subs.search[0])).toEqual({ kind: 'series', title: 'Rick and Morty', season: 2, episode: 3, langs: ['en'], key: 'KEY' })
@@ -47,7 +47,7 @@ test('find subtitles online for an episode (title, season, episode), pick one, i
 
 test('without a key: explains where to add it; the AI writes subtitles ahead of playback, translated', async ({ page }) => {
   await open(page, { subAutoOnline: '0' })
-  await page.getByRole('button', { name: /💬 Subtitles/ }).click()
+  await page.getByRole('button', { name: /^Subtitles$/ }).click()
   const box = page.locator('.sub-finder')
   await expect(box).toContainText('add your free Wyzie Subs key in Settings › Subtitles')
   await box.getByRole('button', { name: 'Generate subtitles' }).click()

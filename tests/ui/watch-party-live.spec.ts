@@ -35,7 +35,7 @@ test('live watch party over PeerJS: create, join, chat both ways', async ({ brow
   await expect(b.locator('.wp-chat')).toContainText('Ali hi from A', { timeout: 15_000 })
   // Voice over the real connection: both receive a live microphone track
   await a.getByRole('button', { name: /Join the voice channel/ }).click()
-  await expect(b.locator('.wp-member', { hasText: 'Ali' })).toHaveText('🎙 Ali', { timeout: 15_000 })
+  await expect(b.locator('.wp-member', { hasText: 'Ali' })).toHaveAttribute('title', 'In the voice channel', { timeout: 15_000 })
   await b.getByRole('button', { name: /Join the voice channel/ }).click()
   const live = (p: any) => p.evaluate(() => { const el = document.querySelector('audio[data-wp-voice]') as HTMLAudioElement | null; const st = el?.srcObject as MediaStream | null; return !!st && st.getAudioTracks().some(t => t.readyState === 'live') })
   await expect.poll(() => live(a), { timeout: 30_000 }).toBe(true)

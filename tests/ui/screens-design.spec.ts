@@ -54,3 +54,39 @@ for (const theme of ['dark', 'light'] as const) {
     await page.locator('.episodecard').first().click(); await page.waitForTimeout(1500); await shot('11-player')
   })
 }
+
+// Heights of the buttons and fields on each screen (MEASURE=<file>): a design check.
+test('design measure', async ({ page }) => {
+  test.skip(!process.env.MEASURE, 'MEASURE not set')
+  test.setTimeout(120_000)
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await setup(page, { library: LIB, reading: { mol: { index: 41, progress: 0.4 } }, storage: { seriesLibrary: JSON.stringify([item(1, 'Lanterns', { newEpisodes: 2 }), item(2, 'The Bear')]) } })
+  await engine(page)
+  await page.goto('/'); await page.waitForTimeout(800)
+  const out: Record<string, any> = {}
+  const measure = async (name: string) => {
+    await page.waitForTimeout(400)
+    out[name] = await page.evaluate(() => {
+      const res: Record<string, number[]> = {}
+      for (const el of document.querySelectorAll('main button, main select, main input:not([type=checkbox]):not([type=radio]):not([type=range])')) {
+        const r = el.getBoundingClientRect(); if (r.width < 2 || r.height < 2) continue
+        const cs = getComputedStyle(el)
+        // Cards and tiles made of a button are not "buttons" for this check.
+        if (r.height > 64) continue
+        const par = el.parentElement, pk = par ? (par.tagName.toLowerCase() + (par.classList.length ? '.' + Array.from(par.classList).join('.') : '')) : ''
+        const key = pk + ' > ' + el.tagName.toLowerCase() + (el.classList.length ? '.' + Array.from(el.classList).join('.') : '') + ' r' + cs.borderRadius + ' f' + cs.fontSize
+        ;(res[key] ||= []).push(Math.round(r.height))
+      }
+      return Object.fromEntries(Object.entries(res).map(([k, v]) => [k, Array.from(new Set(v)).join('/')]))
+    })
+    require('fs').writeFileSync(process.env.MEASURE!, JSON.stringify(out, null, 1))
+  }
+  const nav = (label: string) => page.locator('.sidebar').getByRole('button', { name: label, exact: true }).first().click()
+  await measure('library'); await page.locator('.libtitle').first().click(); await measure('novel')
+  await nav('Sources'); await measure('book-sources'); await nav('Settings'); await measure('settings')
+  await page.locator('.mode-switch, .modes').getByText('Series', { exact: true }).first().click(); await page.waitForTimeout(500); await measure('series-library')
+  await nav('Global Search'); await page.locator('main input').first().fill('lanterns'); await page.keyboard.press('Enter'); await page.waitForTimeout(1000); await measure('search')
+  await nav('Sources'); await measure('video-sources')
+  await nav('Series Library'); await page.locator('.libcard').first().getByRole('button', { name: 'Show episodes' }).click(); await page.waitForTimeout(800); await measure('episodes')
+  require('fs').writeFileSync(process.env.MEASURE!, JSON.stringify(out, null, 1))
+})

@@ -112,7 +112,7 @@
 .torrent-status{display:flex;flex-direction:column;gap:6px;margin:4px 0 10px;color:var(--text-2);font-size:var(--fs-sm)}.torrent-status.state-stalled,.torrent-status.state-error{color:var(--text-danger)}.torrent-status.state-done{color:var(--text-ok)}.torrent-status .localbar{max-width:420px}
 
 /* ---- App shell (sidebar, navigation, accessibility) ---------------------- */
-:root{--accent:#8b7cff;--accent-strong:#6a55e6;--side-bg:var(--bg-sunken);--side-border:var(--line);--side-hover:var(--bg-raised);--muted:var(--text-3);--focus:#b3a8ff}
+:root{--accent:#8b7cff;--accent-strong:#6a55e6;--side-bg:var(--bg-sunken);--side-border:var(--line);--side-hover:var(--bg-active);--muted:var(--text-3);--focus:#b3a8ff}
 .app{align-items:flex-start}
 aside.sidebar{position:sticky;top:0;height:100vh;flex:0 0 236px;width:236px;overflow-y:auto;overflow-x:hidden;padding:18px 12px 14px;gap:4px;background:var(--side-bg);border-right:1px solid var(--side-border);transition:width .18s ease,flex-basis .18s ease}
 .sidebar .brand-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 14px 8px;min-height:36px}
@@ -1062,3 +1062,51 @@ html.tv .libcard-meta p,html.tv .libcard .libraryactions select,html.tv .libcard
 html.tv .libcard .libraryactions{grid-template-columns:1fr!important}
 html.tv .libcard-cover:focus{outline-offset:-3px}
 html.tv .libcard-cover .libcover{width:100%!important;height:auto!important;aspect-ratio:2/3}
+
+/* ---- Components ------------------------------------------------------------------
+   Same look everywhere. Three control heights: --h-sm (dense rows: a source, an
+   episode toolbar), --h-md (default), --h-lg (a field and its buttons on one row). */
+:root{--h-sm:32px;--h-md:38px;--h-lg:44px}
+button,select,input,textarea{font-family:inherit}
+button{font-size:var(--fs-md)}
+.icon.inline{width:1.15em;height:1.15em;vertical-align:-.2em;margin-inline-end:.4em;flex:none}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+button,a,input,select,textarea{transition:background-color var(--speed) var(--ease),border-color var(--speed) var(--ease),color var(--speed) var(--ease),box-shadow var(--speed) var(--ease)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+
+/* Default buttons and fields */
+.primary,.removebtn,.libraryactions button,.libraryactions select,.lib-resume button,.engine-row button,.tntv-key button,.tntv-key input,.sources-actions button,.update-banner button,.resultactions button,.welcome-actions button,.readernav button,.player-next button,.findbar button,.pf-add button,.pf-add input,.settings-block>button,.settings-seg button,.rs-seg button,.sub-lang select,.settings-block select,.lib-sort select,.wp-panel button{min-height:var(--h-md);padding-top:0!important;padding-bottom:0!important;border-radius:var(--radius-sm);font-size:var(--fs-md);font-weight:600}
+/* Dense rows */
+.offlinebar button,.offlinebar select,.episode-tools button,.sourcerow>button,.trackbtn,.sub-offset button,.noteactions button,.selnote button,.reportbtn,.undo-btn,.notice-details button,.scanrow button{min-height:var(--h-sm);padding-top:0!important;padding-bottom:0!important;border-radius:var(--radius-sm);font-size:var(--fs-sm);font-weight:600}
+/* A field and its buttons on one row */
+.searchbar input,.search-main input,.search-main button,.lib-toolbar .lib-update,.lib-toolbar select,.chapter-order button,.repo-input{min-height:var(--h-lg);border-radius:var(--radius-md)}
+.searchbar input,.search-main input,.repo-input{padding-top:0;padding-bottom:0;font-size:var(--fs-lg)}
+.search-main button,.lib-toolbar .lib-update,.chapter-order button{padding-top:0!important;padding-bottom:0!important;font-size:var(--fs-md);font-weight:600}
+/* Lists shown as a select: the same field as the others */
+.sub-lang select,.settings-block select{background:var(--bg-sunken);color:var(--text);border:1px solid var(--line-strong);padding:0 10px}
+
+/* Variants: secondary (default), primary, danger */
+.primary,button.primary{background:var(--bg-accent);border:1px solid var(--line-accent-solid);color:var(--on-accent)}
+.primary:hover:not(:disabled),button.primary:hover:not(:disabled){background:#7663f0;border-color:#7663f0}
+.removebtn{background:transparent;border:1px solid var(--line-danger);color:var(--text-danger)}
+.removebtn:hover:not(:disabled){background:var(--bg-danger);border-color:var(--text-danger)}
+button:disabled,select:disabled,input:disabled{opacity:.55;cursor:default}
+/* Fields: one focus look */
+input:not([type=checkbox]):not([type=radio]):not([type=range]):focus-visible,select:focus-visible,textarea:focus-visible{outline:none;border-color:var(--line-accent-strong);box-shadow:0 0 0 3px rgba(139,124,255,.22)}
+input::placeholder,textarea::placeholder{color:var(--text-3);opacity:1}
+
+/* Cards and panels: one surface, one line, one radius */
+.panel,.settings-block,.engine-row,.libcard,.novelcard,.sourcerow,.scanrow,.resultcard,.lib-resume,.health-row{border-color:var(--line)}
+.panel,.settings-block,.engine-row,.lib-resume{border-radius:var(--radius-lg)}
+.libcard,.novelcard,.resultcard,.sourcerow,.scanrow,.health-row{border-radius:var(--radius-md)}
+/* Section titles: one size, one weight, one gap under them */
+.panel>h2,.settings-block>h2,.engine-row h2{font-size:var(--fs-2xl);font-weight:700;margin:0 0 6px;letter-spacing:-.005em}
+/* Several topics in one panel: a clear gap before each new one */
+.engine-row h2:not(:first-child),.settings-block>h2:not(:first-child){margin-top:20px}
+.engine-row h2 .icon.inline{width:1em;height:1em}
+.engine-row h2 .icon.inline{color:var(--text-accent)}
+main>header h1,main header>div>h1{font-size:var(--fs-4xl);font-weight:800;letter-spacing:-.015em}
+main>header p,main header>div>p{color:var(--text-3)}
+.search-main input,.search-main button{height:var(--h-lg)}
+/* Pack buttons in Sources: one line, beside their text */
+.engine-row>button,.engine-row>.primary,.engine-row>div>button{white-space:nowrap;flex-shrink:0}

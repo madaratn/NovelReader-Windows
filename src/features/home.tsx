@@ -4,7 +4,7 @@
 import React,{useEffect,useMemo,useRef}from'react'
 import{t,plural,getLang}from'../i18n'
 import{historyDays,clearHistory,dayOf,type HistoryLine}from'../lib/history'
-import{Cover}from'../ui/common'
+import{Cover,Icon}from'../ui/common'
 import{mediaCover,readMediaPos}from'../lib/media'
 import{timeAgo}from'../lib/util'
 import type{QuickKind}from'./quick-search'
@@ -51,7 +51,7 @@ export function HomePanel({libs,onClose,onContinue,onOpen}:{libs:Record<QuickKin
  const send=async(x:HomeItem)=>{try{const r=await api.shareSend({kind:x.kind,id:idOf(x.item),name:x.name,sub:x.sub,url:x.resume?.url||'',next:!!x.resume?.next});setSent(r?.phoneSeen&&Date.now()-r.phoneSeen<10*60*1000?t('Sent. Open NovelReader on the phone: it offers to continue "{name}".',{name:x.name}):t('Sent. The phone has not been seen on the Wi-Fi lately: open NovelReader on it within 10 minutes.'))}catch(e:any){setSent(String(e?.message||e).replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/,''))}}
  const card=(x:HomeItem,act:(x:HomeItem)=>void,i:number)=><div key={x.kind+idOf(x.item)+i} className="home-cardwrap"><button className="home-card" onClick={()=>{act(x);onClose()}}>
   <Cover src={x.cover} name={x.name}/>
-  <span className="home-meta"><small>{t(KIND[x.kind])}{x.at?' · '+timeAgo(x.at):''}</small><b>{x.name}</b><span>{x.sub}</span>{x.progress>0&&<span className="libbar"><span style={{width:Math.round(x.progress*100)+'%'}}/></span>}</span></button>{canSend&&act===onContinue&&<button className="home-send" onClick={()=>send(x)} title={t('Continue on my phone')} aria-label={t('Continue on my phone')+': '+x.name}>📱</button>}</div>
+  <span className="home-meta"><small>{t(KIND[x.kind])}{x.at?' · '+timeAgo(x.at):''}</small><b>{x.name}</b><span>{x.sub}</span>{x.progress>0&&<span className="libbar"><span style={{width:Math.round(x.progress*100)+'%'}}/></span>}</span></button>{canSend&&act===onContinue&&<button className="home-send" onClick={()=>send(x)} title={t('Continue on my phone')} aria-label={t('Continue on my phone')+': '+x.name}><Icon name="phone"/></button>}</div>
  return <div className="qs-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><div className="qs home-panel" role="dialog" aria-modal="true" aria-label={t('Continue')} tabIndex={-1} ref={box} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();onClose()}}}>
   <div className="home-head"><h2>{t('Continue')}</h2><button className="iconbtn" onClick={onClose} aria-label={t('Close')}>×</button></div>
   <div className="home-body">
