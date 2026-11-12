@@ -1,3 +1,9 @@
+## NovelReader 0.24.1
+
+- **Téléphone : bandeau de mise à jour** — le bandeau « Installer / Plus tard » ne passe plus derrière le menu du haut quand on fait défiler la page ; il reste visible juste en dessous.
+
+---
+
 ## NovelReader 0.24.0
 
 - **Sources de livres réparées** : plus de la moitié des sources ne démarraient pas du tout (il leur manquait des outils de LNReader). Au contrôle automatique, on passe de 41 à 179 sources qui marchent sur 371 ; chez vous le chiffre est plus haut, car le contrôle tourne depuis un serveur que beaucoup de sites bloquent.
