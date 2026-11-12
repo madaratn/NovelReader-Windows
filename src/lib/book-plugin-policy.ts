@@ -26,12 +26,24 @@ export function isTrustedBookPluginUrl(raw: unknown): boolean {
 
 export async function fetchTrustedBookPlugin(raw: unknown, fetcher: typeof fetch = fetch): Promise<string> {
   const url = trustedBookPluginUrl(raw)
-  const response = await fetcher(url, { credentials: 'omit', redirect: 'follow' })
+  const response = await fetcher(url, { credentials: 'omit', redirect: 'error' })
   if (!response.ok) throw Error('Book plugin download HTTP ' + response.status)
-  // Chromium/Android can percent-encode square brackets in LNReader bundle names.
-  // Accept only that harmless canonical spelling difference, never another host/path.
-  if (response.url && response.url.replace(/%5B/gi, '[').replace(/%5D/gi, ']') !== url)
-    throw Error('Book plugin redirect blocked: ' + String(response.url).slice(0, 300))
+  // CapacitorHttp represents the requested URL as a same-app WebView
+  // interceptor URL. This is NOT a remote redirect. Accept it only when its
+  // single 'u' argument matches the already-validated original URL exactly.
+  // A native HTTP interceptor may not expose the ultimate remote redirect URL.
+  let capacitorProxy = false
+  if (response.url) {
+    try {
+      const final = new URL(response.url)
+      capacitorProxy = final.origin === 'https://localhost' &&
+        final.pathname === '/_capacitor_http_interceptor_' &&
+        [...final.searchParams.keys()].length === 1 &&
+        final.searchParams.get('u') === url
+    } catch {}
+  }
+  if (response.url && response.url.replace(/%5B/gi, '[').replace(/%5D/gi, ']') !== url && !capacitorProxy)
+    throw Error('Book plugin redirect blocked.')
   const declared = Number(response.headers.get('content-length') || 0)
   if (declared > MAX_BOOK_PLUGIN_BYTES) throw Error('Book plugin is too large.')
   const bytes = await response.arrayBuffer()
