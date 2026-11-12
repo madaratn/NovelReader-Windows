@@ -8,7 +8,7 @@ Book-source JavaScript may be **downloaded and evaluated only if its URL belongs
 
 The policy runs before code evaluation on **Android/iOS and Windows**, and at the book-source list/import UI boundary. It also:
 
-- rejects HTTP, lookalike hosts, userinfo, query strings, fragments, encoded or traversing paths and redirects to other URLs;
+- rejects HTTP, lookalike hosts, userinfo, query strings, fragments and encoded/traversing paths; it requests `redirect: 'error'` and checks final URLs when the platform exposes them. Android CapacitorHttp reports its local interceptor URL, not necessarily the ultimate network redirect, so this is **not a guarantee against every native redirect**;
 - caps downloaded JavaScript to 2 MiB and explicitly omits browser credentials in download requests;
 - refuses custom or third-party LNReader plugin URLs by default in the family beta;
 - includes unit and Playwright tests, using both browser and Electron policy implementations.
