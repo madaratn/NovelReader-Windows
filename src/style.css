@@ -1168,5 +1168,11 @@ main header+h2.sources-block{margin-top:4px}
 .book-aside>summary small{color:var(--text-3);font-size:var(--fs-sm)}
 .book-aside[open]>summary{margin-bottom:12px}
 .set-aside-item small{color:var(--text-3);margin:0 8px}
+/* Title page while something plays: the video comes first, right under the Back
+   button; the poster, the facts and the episode list follow. */
+.media-detail-page{display:flex;flex-direction:column}
+.media-detail-page>*{order:2}
+.media-detail-page>.series-detail-head{order:0}
+.media-detail-page>.media-player-top{order:1}
 /* Phone: the update banner stays under the top bar, not behind it */
 .app.phone .update-banner{top:calc(var(--m-top-h,0px) + 6px)}
