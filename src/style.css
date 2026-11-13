@@ -1286,3 +1286,15 @@ html.android .home-card{transition:none}
 .player-skipped{position:absolute;left:18px;bottom:64px;z-index:3;display:flex;align-items:center;gap:10px;padding:8px 10px 8px 14px;border-radius:var(--radius-md);background:rgba(15,18,24,.88);color:var(--text);font-size:var(--fs-sm)}
 .player-skipped button{padding:6px 12px}
 .media-done{display:inline-flex;align-items:center;color:var(--text-ok);font-weight:600;margin-right:10px}
+/* Continue panel: one line per title (last episode / chapter) */
+.home-recent{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.home-recent li{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr) auto;align-items:baseline;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
+.home-recent li:last-child{border-bottom:0}
+.home-recent .linkbtn,.home-recent b{color:var(--text-strong);font-weight:700;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:28ch}
+.home-recent span{color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.home-recent small{color:var(--text-3);white-space:nowrap}
+@media (max-width:600px){.home-recent li{grid-template-columns:minmax(0,1fr) auto}.home-recent span{grid-column:1/-1;grid-row:2}}
+/* History page */
+.history-page header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:16px}
+.history-page .home-history{max-width:820px}
+.history-page .home-history li .linkbtn{color:var(--text-strong)}

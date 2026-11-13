@@ -1074,6 +1074,10 @@ const FR: Record<string, string> = {
   'Intro skipped': 'Générique passé',
   'Watch it': 'Le regarder',
   'Next episode': 'Épisode suivant',
+  'Recently': 'Récemment',
+  'Whole history': 'Tout l\'historique',
+  'What you read and watched on this device, day by day.': 'Ce que tu as lu et regardé sur cet appareil, jour par jour.',
+  'Nothing yet.': 'Rien pour le moment.',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')
