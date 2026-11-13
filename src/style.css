@@ -1270,3 +1270,11 @@ html.android .source-count,html.android .player-skip{backdrop-filter:none;-webki
 html.android .home-card{transition:none}
 /* The panel itself takes the focus when it opens: no ring around the whole panel. */
 .home-panel:focus,.home-panel:focus-visible,.qs:focus,.qs:focus-visible{outline:none}
+/* Title opened from a search, not in the library: read / watch it as it is, or add it */
+.preview-bar{display:flex;align-items:center;flex-wrap:wrap;gap:10px 14px;margin:10px 0;padding:10px 14px;border:1px dashed var(--line-accent);border-radius:var(--radius-md);background:var(--bg-accent-soft);color:var(--text-2);font-size:var(--fs-sm)}
+.preview-bar span{flex:1 1 220px}
+.series-detail-head .preview-bar{margin:12px 0 0}
+/* "New episodes" message while NovelReader is in front */
+.new-eps-toast{position:fixed;right:20px;bottom:20px;z-index:60;max-width:min(460px,calc(100vw - 32px));margin:0;background:var(--bg-raised);border:1px solid var(--line-accent);color:var(--text)}
+.new-eps-toast>div{display:flex;align-items:center;gap:6px;flex:none}
+.app.phone .new-eps-toast{left:16px;right:16px;bottom:calc(76px + env(safe-area-inset-bottom,0px))}

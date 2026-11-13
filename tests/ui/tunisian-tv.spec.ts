@@ -41,7 +41,7 @@ test('Tunisian TV: turned on in one click (no key), found in Global Search, epis
   // The full series first, its extracts after.
   const titles = await page.locator('.resultcard').allInnerTexts()
   expect(titles.findIndex(x => x.includes('مسلسل أولاد مفيدة'))).toBeLessThan(titles.findIndex(x => x.includes('مقاطع')))
-  await page.locator('.resultcard', { hasText: 'مسلسل أولاد مفيدة' }).getByRole('button', { name: /Add to library/ }).click()
+  await page.locator('.resultcard', { hasText: 'مسلسل أولاد مفيدة' }).getByRole('button', { name: '＋ Add', exact: true }).click()
   await expect(page.locator('.resultcard', { hasText: 'مسلسل أولاد مفيدة' })).toContainText('In your library')
   await page.locator('.sidebar').getByRole('button', { name: 'Series Library' }).click()
   await page.locator('.libcard', { hasText: 'أولاد مفيدة' }).getByRole('button', { name: 'Show episodes' }).click()
@@ -58,7 +58,7 @@ test('Tunisian TV: turned on in one click (no key), found in Global Search, epis
   await page.locator('.qs-open').click().then(()=>page.locator('.qs-all').click())
   await page.locator('main input').first().fill('live')
   await page.locator('main').getByRole('button', { name: 'Search', exact: true }).click()
-  await page.locator('.resultcard', { hasText: 'Live: Tunisian channels' }).getByRole('button', { name: /Add to library/ }).click()
+  await page.locator('.resultcard', { hasText: 'Live: Tunisian channels' }).getByRole('button', { name: '＋ Add', exact: true }).click()
   await page.locator('.sidebar').getByRole('button', { name: 'Series Library' }).click()
   await page.locator('.libcard', { hasText: 'Live: Tunisian channels' }).getByRole('button', { name: 'Show episodes' }).click()
   await page.locator('.episodecell', { hasText: 'Elhiwar Ettounsi' }).locator('.episodecard').click()

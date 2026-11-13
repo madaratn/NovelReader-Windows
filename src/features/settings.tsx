@@ -37,7 +37,7 @@ export type SettingsTab=typeof SETTINGS_TABS[number]['id']
 export function SettingsPage({lang,onLang,onWelcome,onShortcuts,update,onImportLNReader,onShowLibrary,sync}:{lang:Lang,onLang:(l:Lang)=>void,onWelcome:()=>void,onShortcuts?:()=>void,update:UpdateStatus|null,onImportLNReader:()=>Promise<ImportResult|null>,onShowLibrary:()=>void,sync?:FolderSync}){
  const[imp,setImp]=useState<ImportResult|null>(null),[impBusy,setImpBusy]=useState(false),[usage,setUsage]=useState<{bytes:number,chapters:number,novels:number}|null>(null),[clearConfirm,setClearConfirm]=useState(false)
  useEffect(()=>{window.novelReader.offlineUsage?.().then(setUsage).catch(()=>{})},[])
- const[theme,setTheme]=useState<ThemePref>(getThemePref),version=useAppVersion(),[notify,setNotify]=useState(()=>lsGet('notifyNewChapters')!=='0'),[autoEp,setAutoEp]=useState(()=>lsGet('autoCheckEpisodes')!=='0'),[notifyEp,setNotifyEp]=useState(()=>lsGet('notifyNewEpisodes')!=='0')
+ const[theme,setTheme]=useState<ThemePref>(getThemePref),version=useAppVersion(),[notify,setNotify]=useState(()=>lsGet('notifyNewChapters')!=='0'),[autoEp,setAutoEp]=useState(()=>lsGet('autoCheckEpisodes')!=='0'),[notifyEp,setNotifyEp]=useState(()=>lsGet('notifyNewEpisodes')!=='0'),[keepOn,setKeepOn]=useState(()=>lsGet('runInBackground')!=='0'),[atLogin,setAtLogin]=useState(()=>lsGet('startWithWindows')==='1')
  const[autos,setAutos]=useState<{name:string,novels:number,exportedAt:number}[]>([]),[msg,setMsg]=useState<{ok:boolean,text:string}|null>(null),[confirm,setConfirm]=useState<string|null>(null),[busy,setBusy]=useState(false)
  const[autoCheck,setAutoCheck]=useState(()=>lsGet('autoCheckUpdates')!=='0')
  const refresh=async()=>{try{setAutos(await window.novelReader.backupListAuto())}catch{}}
@@ -102,6 +102,11 @@ export function SettingsPage({lang,onLang,onWelcome,onShortcuts,update,onImportL
    <h3 className="settings-sub">{t('Anime and series')}</h3>
    <label className="settings-check"><input type="checkbox" checked={autoEp} onChange={e=>{setAutoEp(e.target.checked);lsSet('autoCheckEpisodes',e.target.checked?'1':'0');window.dispatchEvent(new Event('nr-watchlist'))}}/> {t('Check my anime and series for new episodes in the background (every 6 hours)')}</label>
    {(!android||deviceNotify())&&<label className="settings-check"><input type="checkbox" checked={notifyEp} onChange={e=>{setNotifyEp(e.target.checked);lsSet('notifyNewEpisodes',e.target.checked?'1':'0');if(e.target.checked)askNotifications();window.dispatchEvent(new Event('nr-watchlist'))}}/> {t('Show a Windows notification when new episodes are found')}</label>}
+   {!android&&typeof (window.novelReader as any)?.runInBackground==='function'&&<>
+    <h3 className="settings-sub">{t('When the window is closed')}</h3>
+    <label className="settings-check"><input type="checkbox" checked={keepOn} onChange={e=>{setKeepOn(e.target.checked);lsSet('runInBackground',e.target.checked?'1':'0');applyBackground()}}/> {t('Keep checking when I close the window (NovelReader stays near the clock; right-click its icon to quit)')}</label>
+    <label className="settings-check"><input type="checkbox" checked={atLogin} disabled={!keepOn} onChange={e=>{setAtLogin(e.target.checked);lsSet('startWithWindows',e.target.checked?'1':'0');applyBackground()}}/> {t('Start with Windows, in the background, to be told about new episodes even before opening NovelReader')}</label>
+   </>}
   </section>}
   {on('video')&&<SubtitleSettings/>}
   {on('about')&&<>
@@ -165,8 +170,13 @@ export function UpdateSettings({status,version}:{status:UpdateStatus|null,versio
  </section>
 }
 // Windows notification for new chapters (only when the window is not in front).
+// PC: what happens when the window is closed (electron/background.cjs).
+export function applyBackground(){const nr:any=window.novelReader;if(typeof nr?.runInBackground!=='function')return
+ nr.runInBackground({on:lsGet('runInBackground')!=='0',startWithWindows:lsGet('startWithWindows')==='1',strings:{open:t('Open NovelReader'),quit:t('Quit NovelReader'),tip:t('NovelReader — checking for new episodes'),hiddenTitle:t('NovelReader keeps running'),hiddenBody:t('It will tell you about new episodes and chapters. Right-click its icon near the clock to quit.')}}).catch(()=>{})}
 export function notifyNewEpisodes(found:number,names:string[],onClick:()=>void){
  if(lsGet('notifyNewEpisodes')==='0')return
+ // NovelReader in front: a message in the app (a system notification would not show).
+ if(typeof document!=='undefined'&&document.hasFocus()&&document.visibilityState==='visible'){window.dispatchEvent(new CustomEvent('nr-new-episodes',{detail:{found,names,onClick}}));return}
  if(showDeviceNotification(52,plural(found,'{n} title has new episodes.','{n} titles have new episodes.'),names.filter(Boolean).slice(0,3).join(', ')+(names.length>3?'…':'')))return
  if(typeof Notification==='undefined')return
  if(document.hasFocus())return

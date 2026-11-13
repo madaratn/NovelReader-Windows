@@ -1025,6 +1025,21 @@ const FR: Record<string, string> = {
   'No other video player is installed. VLC (free) reads every sound format.': 'Aucun autre lecteur vidéo n\'est installé. VLC (gratuit) lit tous les formats de son.',
   'No sound: this file uses Dolby / DTS sound, which the phone\'s built-in player cannot read. Open it in another player (VLC reads it), or pick another quality.': 'Pas de son : ce fichier utilise un son Dolby / DTS que le lecteur intégré du téléphone ne sait pas lire. Ouvre-le dans un autre lecteur (VLC le lit), ou choisis une autre qualité.',
   'Open in another player': 'Ouvrir dans un autre lecteur',
+  'Not in your library: you can read it as it is.': 'Pas dans ta bibliothèque : tu peux le lire tel quel.',
+  'Not in your library: you can watch it as it is.': 'Pas dans ta bibliothèque : tu peux le regarder tel quel.',
+  'Could not open this title:': 'Impossible d\'ouvrir ce titre :',
+  'Opening…': 'Ouverture…',
+  'Add': 'Ajouter',
+  'Watch': 'Regarder',
+  'When the window is closed': 'Quand la fenêtre est fermée',
+  'Keep checking when I close the window (NovelReader stays near the clock; right-click its icon to quit)': 'Continuer à vérifier quand je ferme la fenêtre (NovelReader reste près de l\'horloge ; clic droit sur son icône pour quitter)',
+  'Start with Windows, in the background, to be told about new episodes even before opening NovelReader': 'Démarrer avec Windows, en arrière-plan, pour être prévenu des nouveaux épisodes même avant d\'ouvrir NovelReader',
+  'Open NovelReader': 'Ouvrir NovelReader',
+  'Quit NovelReader': 'Quitter NovelReader',
+  'NovelReader — checking for new episodes': 'NovelReader — surveille les nouveaux épisodes',
+  'NovelReader keeps running': 'NovelReader reste ouvert',
+  'It will tell you about new episodes and chapters. Right-click its icon near the clock to quit.': 'Il te préviendra des nouveaux épisodes et chapitres. Clic droit sur son icône près de l\'horloge pour quitter.',
+  'See': 'Voir',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

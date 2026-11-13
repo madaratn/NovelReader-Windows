@@ -54,7 +54,9 @@ export function NovelLibrary({library,updates,onCheckUpdates,onOpen,onDetails,on
 }
 
 // ---- Novel detail (chapter list) ---------------------------------------------
-export function NovelDetail({novel,filter,setFilter,loading,onBack,onOpenChapter,onContinue,onShowNotes}:{novel:any,filter:string,setFilter:(v:string)=>void,loading:boolean,onBack:()=>void,onOpenChapter:(c:any,i:number)=>void,onContinue:()=>void,onShowNotes?:()=>void}){
+// onAdd: the title is not in the library (opened from a search): it can be read as
+// it is, and added with one button.
+export function NovelDetail({novel,filter,setFilter,loading,onBack,onOpenChapter,onContinue,onShowNotes,onAdd,backLabel}:{novel:any,filter:string,setFilter:(v:string)=>void,loading:boolean,onBack:()=>void,onOpenChapter:(c:any,i:number)=>void,onContinue:()=>void,onShowNotes?:()=>void,onAdd?:()=>void,backLabel?:string}){
  const notesCount=useAnnotations().filter(a=>a.novelId===novel.id).length
  const chapters:any[]=novel.chapters||[],total=chapters.length||Number(novel.chapterCount)||0
  const r=readingOf(novel.id),current=r?r.index:-1,done=r?r.index+1:0
@@ -85,11 +87,12 @@ export function NovelDetail({novel,filter,setFilter,loading,onBack,onOpenChapter
  useEffect(()=>{if(!loading)setClicked(-1)},[loading])
  const open=(c:any,i:number)=>{setClicked(i);onOpenChapter(c,i)}
  return <>
-  <header><div><button className="backbtn" onClick={onBack}>← {t('Library')}</button></div></header>
+  <header><div><button className="backbtn" onClick={onBack}>← {backLabel||t('Library')}</button></div></header>
   <section className="novelhead">
    <div className="novelhead-cover"><Cover src={novel.cover} name={novel.name}/></div>
    <div className="novelhead-meta">
     <h1>{novel.name}</h1>
+    {onAdd&&<div className="preview-bar" role="status"><span>{t('Not in your library: you can read it as it is.')}</span><button className="primary" onClick={onAdd}>{'＋ '+t('Add to library')}</button></div>}
     <p>{[novel.author||t('Unknown author'),novel.source?.name].filter(Boolean).join(' · ')}</p>
     <div className="libbar"><span style={{width:(total?Math.min(100,done/total*100):0)+'%'}}/></div>
     <small>{r?`${t('{done} / {total} read',{done,total})} · ${t('{n} left',{n:Math.max(0,total-done)})}${r.at?' · '+t('last read {when}',{when:timeAgo(r.at)}):''}`:plural(total,'{n} chapter','{n} chapters')+' · '+t('not started')}</small>
