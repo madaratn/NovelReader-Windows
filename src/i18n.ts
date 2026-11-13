@@ -1120,6 +1120,7 @@ const FR: Record<string, string> = {
   'Not found on your other sources.': 'Pas trouvé sur tes autres sources.',
   'Looking… {done}/{total}': 'Recherche… {done}/{total}',
   'Find on other sources': 'Chercher sur d\'autres sources',
+  'Profile “{name}” created. Tap Switch to use it.': 'Profil « {name} » créé. Touche « Changer » pour l’utiliser.',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

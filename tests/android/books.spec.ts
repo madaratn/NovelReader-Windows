@@ -729,3 +729,30 @@ test('Android: a book site behind a Cloudflare check is passed in the app, then 
   expect(kept['novels.test'].cookie).toBe('cf_clearance=ok')
   expect(kept['novels.test'].ua).toBe('Mozilla/5.0 TestWebView')
 })
+
+test('Android: profiles — each person has their own library, the sources stay shared', async ({ page }) => {
+  await page.addInitScript(() => { if (!sessionStorage.getItem('__lib')) { sessionStorage.setItem('__lib', '1'); localStorage.setItem('library', JSON.stringify([{ id: 'n1', name: 'Shadow Slave', pluginId: 'testsrc', path: '/novel/shadow', chapters: [] }])) } })
+  await page.goto('/')
+  await page.evaluate(async () => { await (window as any).novelReader.profileCreate('Sam') })
+  // Settings › Profiles is there on the phone
+  await page.locator('.m-bottom button').last().click()
+  await page.locator('.m-sheet-item', { hasText: 'Settings' }).click()
+  const panel = page.locator('.profiles-panel')
+  await expect(panel.locator('.pf-row')).toHaveCount(2)
+  await Promise.all([page.waitForEvent('load'), panel.locator('.pf-row').nth(1).getByRole('button', { name: 'Switch' }).click()])
+  // The app reloads on Sam's profile: empty library, same sources and language
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('nrProfiles') || '{}').current)).not.toBe('default')
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('library'))).toBeNull()
+  expect(await page.evaluate(() => localStorage.getItem('enabledPlugins'))).toContain('testsrc')
+  expect(await page.evaluate(() => localStorage.getItem('lang'))).toBe('en')
+  await page.evaluate(() => localStorage.setItem('library', JSON.stringify([{ id: 'n2', name: 'Lord of the Mysteries', pluginId: 'testsrc', path: '/novel/lotm', chapters: [] }])))
+  // Back to the main profile: its library comes back, Sam's is kept aside
+  const ready = () => page.waitForFunction(() => typeof (window as any).novelReader?.profileSwitch === 'function')
+  await ready()
+  await Promise.all([page.waitForEvent('load'), page.evaluate(() => (window as any).novelReader.profileSwitch('default'))])
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('library') || '[]').map((n: any) => n.name))).toEqual(['Shadow Slave'])
+  await ready()
+  const id = await page.evaluate(() => JSON.parse(localStorage.getItem('nrProfiles')!).list[1].id)
+  await Promise.all([page.waitForEvent('load'), page.evaluate((i) => (window as any).novelReader.profileSwitch(i), id)])
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('library') || '[]').map((n: any) => n.name))).toEqual(['Lord of the Mysteries'])
+})

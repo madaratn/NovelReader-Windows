@@ -33,7 +33,7 @@ export function ProfileSwitcher({onManage}:{collapsed?:boolean,onManage:()=>void
 export function ProfilesPanel(){
  const{data,reload}=useProfiles(),[name,setName]=useState(''),[confirm,setConfirm]=useState(''),[msg,setMsg]=useState('')
  if(!data||!profilesSupported())return null
- const add=async()=>{const p=await nr().profileCreate(name.trim());setName('');reload();setMsg(t('Profile “{name}” created. Switch to it from the bottom of the sidebar.',{name:profileName(p)}))}
+ const add=async()=>{const p=await nr().profileCreate(name.trim());setName('');reload();setMsg(document.documentElement.classList.contains('android')?t('Profile “{name}” created. Tap Switch to use it.',{name:profileName(p)}):t('Profile “{name}” created. Switch to it from the bottom of the sidebar.',{name:profileName(p)}))}
  const COLORS=['#8b7cff','#3fb37f','#e08a2e','#d9545f','#2b9bd8','#c06bd8','#c9a43a']
  return <section className="panel settings-block profiles-panel"><h2>{t('Profiles')}</h2>
   <p className="settingsnote">{t('Each person gets their own libraries, progress, bookmarks, settings, backups and sync folder. Downloads, offline chapters and sources are shared.')}</p>
