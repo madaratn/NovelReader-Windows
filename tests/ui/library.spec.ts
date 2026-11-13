@@ -126,10 +126,12 @@ test('"Continue on my phone": a card of the Continue panel is sent through the p
 })
 
 test('Continue panel: one line per title (its last episode); the whole history on its own page', async ({ page }) => {
-  const now = Date.now(), lines = [
+  // Times inside today and yesterday whatever the hour the test runs (just after midnight too).
+  const midnight = new Date(); midnight.setHours(0, 0, 0, 0)
+  const now = Math.max(Date.now(), midnight.getTime() + 2 * 3600e3), lines = [
     ...[5, 4, 3, 2, 1].map((n, i) => ({ at: now - i * 60e3, kind: 'series', id: 's1', name: 'Lanterns', sub: 'Episode ' + n })),
     { at: now - 3600e3, kind: 'books', id: 'mol', name: 'Mother of Learning', sub: 'Chapter 12' },
-    { at: now - 86400e3 - 3600e3, kind: 'books', id: 'mol', name: 'Mother of Learning', sub: 'Chapter 11' }]
+    { at: midnight.getTime() - 12 * 3600e3, kind: 'books', id: 'mol', name: 'Mother of Learning', sub: 'Chapter 11' }]
   await open(page, { library: [novel('mol', 'Mother of Learning', 108)], storage: { history: JSON.stringify(lines) } })
   await page.locator('.sidebar .home-open').click()
   const panel = page.locator('.home-panel')
