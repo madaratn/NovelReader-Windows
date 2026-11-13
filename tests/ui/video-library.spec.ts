@@ -76,6 +76,10 @@ test('series detail: Books-style hero, clean facts, remembered server, skip intr
     seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns')]),
     'prefServer:series1': 'Hermes - 1080p'
   })
+  // A stream that really plays: otherwise the player moves on to another server
+  // when this one fails, and the intro button goes with it.
+  const clip = require('node:fs').readFileSync(require('node:path').join(__dirname, 'fixtures', 'clip.webm'))
+  await page.route('http://127.0.0.1:4567/api/v1/proxy**', r => r.fulfill({ status: 200, body: clip, headers: { 'Content-Type': 'video/webm', 'Access-Control-Allow-Origin': '*' } }))
   await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
   await expect(page.locator('.media-hero h1')).toHaveText('Lanterns')
   await expect(page.locator('.media-hero .primary')).toHaveText('Start · Ep. 1')
