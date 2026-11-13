@@ -109,3 +109,13 @@ export function Help({text,className='settings-help'}:{text:string,className?:st
 // An empty page says what is missing in one sentence and offers the one next step.
 export function EmptyState({icon='search',title,text,action,onAction,className=''}:{icon?:string,title:string,text?:string,action?:string,onAction?:()=>void,className?:string}){
  return <section className={'panel lib-empty empty-state'+(className?' '+className:'')}><span className="empty-icon" aria-hidden="true"><Icon name={icon}/></span><h2>{title}</h2>{text&&<p>{text}</p>}{action&&onAction&&<button className="primary" onClick={onAction}>{action}</button>}</section>}
+
+// Library: one row of genre chips (the most frequent first, the rest in "More").
+// Hidden while no title has a genre yet.
+export function GenreFilter({lists,value,onChange}:{lists:string[][],value:string,onChange:(g:string)=>void}){
+ const counts=new Map<string,number>();for(const l of lists)for(const g of l||[])counts.set(g,(counts.get(g)||0)+1)
+ if(!counts.size)return null
+ const sorted=[...counts.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])),top=sorted.slice(0,10),rest=sorted.slice(10)
+ const chip=(g:string,n:number|null,label?:string)=><button key={g||'all'} role="tab" aria-selected={value===g} className={'chip'+(value===g?' on':'')} onClick={()=>onChange(value===g&&g?'':g)}>{label||t(g)}{n!=null&&<small> {n}</small>}</button>
+ return <div className="genre-chips lib-genres" role="tablist" aria-label={t('Genres')}>{chip('',null,t('All genres'))}{top.map(([g,n])=>chip(g,n))}
+  {rest.length>0&&<select aria-label={t('More genres')} value={rest.some(([g])=>g===value)?value:''} onChange={e=>onChange(e.target.value)}><option value="">{t('More genres…')}</option>{rest.map(([g,n])=><option key={g} value={g}>{t(g)+' ('+n+')'}</option>)}</select>}</div>}

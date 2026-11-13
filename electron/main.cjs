@@ -70,7 +70,8 @@ const reveal=()=>{if(win.isDestroyed()||win.isVisible())return;if(bg.startedInBa
 ipcMain.handle('plugin:search',async(_e,{plugin,query})=>runner.search(plugin,query))
 const translator=require('./translate.cjs')
 ipcMain.handle('translate:batch',async(_e,o)=>translator.translate(o||{}))
-ipcMain.handle('plugin:popular',async(_e,{plugin,page,latest})=>runner.popular(plugin,{page,latest}))
+ipcMain.handle('plugin:popular',async(_e,{plugin,page,latest,genre})=>runner.popular(plugin,{page,latest,genre}))
+ipcMain.handle('plugin:genres',async(_e,{plugin})=>runner.genres(plugin))
 ipcMain.handle('plugin:parseNovel',async(_e,{plugin,path})=>runner.parseNovel(plugin,path))
 ipcMain.handle('plugin:parseChapter',async(_e,{plugin,path})=>runner.parseChapter(plugin,path))
 
