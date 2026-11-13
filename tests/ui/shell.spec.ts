@@ -96,6 +96,22 @@ test('books Discover: popular list of a source, add, open, load more', async ({ 
   await expect(page.locator('main h1')).toHaveText('Shadow Slave') // the fake parseNovel always answers this title
 })
 
+test('genres: books Discover by the source\'s genre; the library filtered by genre', async ({ page }) => {
+  await open(page, { library: [{ ...novel('a', 'Alpha', 10), genres: ['Action', 'Fantasy'] }, { ...novel('b', 'Beta', 10), genres: ['Romance'] }, novel('c', 'Gamma', 10)] })
+  // Library: chips by genre (most frequent first), remembered.
+  const chips = page.locator('.lib-genres .chip')
+  await expect(chips).toHaveText(['All genres', 'Action 1', 'Fantasy 1', 'Romance 1'])
+  await chips.filter({ hasText: 'Romance' }).click()
+  await expect(page.locator('.libcard h2')).toHaveText(['Beta'])
+  await chips.filter({ hasText: 'All genres' }).click()
+  await expect(page.locator('.libcard')).toHaveCount(3)
+  // Discover: the source's genre list; a genre gives its own list.
+  await nav(page, 'Discover')
+  await page.getByLabel('Genre').selectOption('xianxia')
+  await expect(page.locator('.resultcard h3')).toHaveText(['Genre xianxia novel'])
+  expect(await page.evaluate(() => (window as any).__calls.popular.at(-1))).toMatch(/^src\d+:1:popular:xianxia$/)
+})
+
 test('TV mode: arrows move between buttons; a game controller moves, opens and goes back', async ({ page }) => {
   await page.addInitScript(() => {
     const w = window as any

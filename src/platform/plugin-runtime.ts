@@ -6,7 +6,7 @@ import {fetchTrustedBookPlugin} from '../lib/book-plugin-policy'
 import * as cheerio from 'cheerio'
 import dayjs from 'dayjs'
 import * as htmlparser2 from 'htmlparser2'
-import{FilterTypes,NovelStatus,makeStorage,aes,constants}from'./plugin-libs'
+import{FilterTypes,NovelStatus,makeStorage,aes,constants,genreFilter,withGenre}from'./plugin-libs'
 import{challengeKind}from'../lib/site-check'
 import{t}from'../i18n'
 
@@ -86,6 +86,7 @@ export function loadPlugin(url:string){
 const timeout=<T,>(p:Promise<T>,ms:number,msg:string)=>Promise.race([p,new Promise<T>((_,rej)=>{const end=Date.now()+ms+120e3;const tick=()=>{if(siteCheckBusy()&&Date.now()<end)return setTimeout(tick,500);rej(Error(msg))};setTimeout(tick,ms)})])
 const card=(plugin:any)=>(x:any)=>({name:x.name,path:x.path,cover:x.cover,sourceId:plugin.id,sourceName:plugin.name,lang:plugin.lang})
 export async function search(plugin:any,query:string){const p=await loadPlugin(plugin.url);if(!p||typeof p.searchNovels!=='function')throw Error('searchNovels unavailable');return(((await timeout(p.searchNovels(query,1),15000,'Search timeout')) as any[])||[]).map(card(plugin))}
-export async function popular(plugin:any,page=1,latest=false){const p=await loadPlugin(plugin.url);if(!p||typeof p.popularNovels!=='function')throw Error('popularNovels unavailable');const filters:any={};for(const[k,f]of Object.entries(p.filters||{}))if(f&&typeof f==='object')filters[k]={type:(f as any).type,value:(f as any).value};return(((await timeout(p.popularNovels(Number(page)||1,{showLatestNovels:!!latest,filters}),18000,'Timeout')) as any[])||[]).map(card(plugin))}
+export async function genres(plugin:any){const p=await loadPlugin(plugin.url);return genreFilter(p?.filters)?.options||[]}
+export async function popular(plugin:any,page=1,latest=false,genre:any=''){const p=await loadPlugin(plugin.url);if(!p||typeof p.popularNovels!=='function')throw Error('popularNovels unavailable');let filters:any={};for(const[k,f]of Object.entries(p.filters||{}))if(f&&typeof f==='object')filters[k]={type:(f as any).type,value:(f as any).value};if(genre!==''&&genre!=null)filters=withGenre(filters,genreFilter(p.filters),genre);return(((await timeout(p.popularNovels(Number(page)||1,{showLatestNovels:!!latest&&!genre,filters}),18000,'Timeout')) as any[])||[]).map(card(plugin))}
 export async function parseNovel(plugin:any,path:string){const p=await loadPlugin(plugin.url);return p.parseNovel(path)}
 export async function parseChapter(plugin:any,path:string){const p=await loadPlugin(plugin.url);if(!p||typeof p.parseChapter!=='function')throw Error('parseChapter unavailable');return timeout(p.parseChapter(path),18000,'Chapter timeout')}

@@ -68,15 +68,17 @@ export async function setup(page: Page, s: Setup = {}) {
         return [{ name: 'Unrelated', path: '/u' }]
       },
       translate: async (o: any) => { w.__translated = (w.__translated || 0) + 1; return o.texts.map((x: string) => '[' + o.to + '] ' + x.toUpperCase()) },
-      popularPlugin: async (pl: any, page: number, latest: boolean) => {
-        w.__calls.popular = (w.__calls.popular || []).concat(pl.id + ':' + page + ':' + (latest ? 'latest' : 'popular'))
+      pluginGenres: async () => [{ label: 'Action', value: 'action' }, { label: 'Romance', value: 'romance' }, { label: 'Xianxia', value: 'xianxia' }],
+      popularPlugin: async (pl: any, page: number, latest: boolean, genre?: any) => {
+        w.__calls.popular = (w.__calls.popular || []).concat(pl.id + ':' + page + ':' + (latest ? 'latest' : 'popular') + (genre ? ':' + genre : ''))
+        if (genre) return page > 1 ? [] : [{ name: 'Genre ' + genre + ' novel', path: '/novel/g-' + genre, cover: '' }]
         if (latest) throw new Error("Error invoking remote method 'plugin:popular': Error: popularNovels unavailable")
         return page > 2 ? [] : [1, 2, 3].map(i => ({ name: 'Popular ' + ((page - 1) * 3 + i), path: '/novel/pop-' + ((page - 1) * 3 + i), cover: '' }))
       },
       parseNovel: async (_pl: any, path: string) => {
         await new Promise(r => setTimeout(r, 80))
         const count = (newChapters || {})[path] ?? 12
-        return { name: 'Shadow Slave', author: 'Guiltythree', cover: '', chapters: Array.from({ length: count }, (_, i) => ({ name: `Chapter ${i + 1}: The Road`, path: `ch-${i + 1}` })) }
+        return { name: 'Shadow Slave', author: 'Guiltythree', cover: '', genres: 'Action, Fantasy', chapters: Array.from({ length: count }, (_, i) => ({ name: `Chapter ${i + 1}: The Road`, path: `ch-${i + 1}` })) }
       },
       parseChapter: async (_src: any, path: string) => {
         w.__calls.parseChapter++
