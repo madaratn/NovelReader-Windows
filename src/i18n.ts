@@ -1121,6 +1121,22 @@ const FR: Record<string, string> = {
   'Looking… {done}/{total}': 'Recherche… {done}/{total}',
   'Find on other sources': 'Chercher sur d\'autres sources',
   'Profile “{name}” created. Tap Switch to use it.': 'Profil « {name} » créé. Touche « Changer » pour l’utiliser.',
+  'Calendar': 'Calendrier',
+  'Release calendar': 'Calendrier des sorties',
+  'The next episodes of the anime and series in your libraries, for the next two weeks. Times are in your time zone.': 'Les prochains épisodes des animes et séries de tes bibliothèques, pour les deux semaines à venir. Heures dans ton fuseau horaire.',
+  'Refresh': 'Actualiser',
+  'Add anime or series to your libraries to see when their next episodes come out.': 'Ajoute des animes ou des séries à tes bibliothèques pour voir quand sortent leurs prochains épisodes.',
+  'The release dates could not be fetched right now ({error}).': 'Les dates de sortie n’ont pas pu être récupérées pour l’instant ({error}).',
+  'No episode announced for your titles in the next two weeks.': 'Aucun épisode annoncé pour tes titres dans les deux semaines à venir.',
+  'Tomorrow': 'Demain',
+  'out': 'sorti',
+  'in {n} min': 'dans {n} min',
+  'in {n} h': 'dans {n} h',
+  'in {n} days': 'dans {n} j',
+  'S{s} · Ep. {n}': 'S{s} · Ép. {n}',
+  'Ep. {n}': 'Ép. {n}',
+  'Next episode: {ep} · {day} at {time} ({until})': 'Prochain épisode : {ep} · {day} à {time} ({until})',
+  'Season {s} · Episode {n}': 'Saison {s} · Épisode {n}',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

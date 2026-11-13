@@ -14,4 +14,12 @@
     <string name="reading_channel">Lecture à voix haute</string>
     <string name="reading_running">Lecture à voix haute</string>
     <string name="reading_stop">Arrêter</string>
+    <string name="playback_channel">Vidéo en cours</string>
+    <string name="media_prev">Précédent</string>
+    <string name="media_play">Lecture</string>
+    <string name="media_pause">Pause</string>
+    <string name="media_next">Suivant</string>
+    <string name="widget_continue">Continuer</string>
+    <string name="widget_empty">Rien en cours</string>
+    <string name="widget_description">Reprendre le dernier épisode ou chapitre en un geste</string>
 </resources>

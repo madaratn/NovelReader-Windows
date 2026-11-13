@@ -9,7 +9,7 @@ import{vttFromLines}from'../lib/subtitles'
 import{TRANSLATE_LANGS,translateTarget}from'./translate'
 import{Icon}from'../ui/common'
 
-export type SubInfo={kind:'anime'|'series'|'movie',title:string,year?:number,season?:number,episode?:number}
+export type SubInfo={kind:'anime'|'series'|'movie',title:string,year?:number,season?:number,episode?:number,cover?:string}
 const nr=()=>window.novelReader as any
 const clean=(e:any)=>String(e?.message||e).replace(/^Error invoking remote method '[^']+': (Error: )?/,'')
 const LANG_LABEL:Record<string,string>={fr:'Français',en:'English',es:'Español',de:'Deutsch',it:'Italiano',pt:'Português',ar:'العربية',ja:'日本語',ko:'한국어',zh:'中文',ru:'Русский',tr:'Türkçe',hi:'हिन्दी',id:'Indonesia',vi:'Tiếng Việt',th:'ไทย',pl:'Polski',nl:'Nederlands'}

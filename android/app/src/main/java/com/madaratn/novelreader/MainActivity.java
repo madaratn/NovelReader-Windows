@@ -41,6 +41,8 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(FilesPlugin.class);
         registerPlugin(TtsPlugin.class);
         registerPlugin(SiteCheckPlugin.class);
+        registerPlugin(MediaPlugin.class);
+        registerPlugin(WidgetPlugin.class);
         current = this;
         super.onCreate(savedInstanceState);
         // Video engine (android/engine): http://127.0.0.1:4567, like on the PC.

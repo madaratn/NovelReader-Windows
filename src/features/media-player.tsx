@@ -3,6 +3,7 @@
 import{useSubtitleLang,SubLangPicker}from'./sub-finder'
 import{useDoubleTapSeek,nativePlayer,androidMiniPlayer}from'./player-touch'
 import{useSubFinder,type SubInfo}from'./sub-finder'
+import{useMediaSession}from'./media-session'
 import{useCast}from'./cast'
 import{useAudioFix}from'./audio-fix'
 import React,{useEffect,useRef,useState}from'react'
@@ -151,6 +152,7 @@ function RemoteVideo({video,mediaKey,onNext,onPrev,onUnsupported,variants,onVari
  useEffect(()=>{const apply=()=>{const el=ref.current;if(!el)return;for(let i=0;i<el.textTracks.length;i++){const cues=el.textTracks[i].cues;if(!cues)continue;for(let j=0;j<cues.length;j++){const c:any=cues[j];let b=cueBase.current.get(c);if(!b){b=[c.startTime,c.endTime];cueBase.current.set(c,b)}const st=Math.max(0,b[0]+subStyle.offset),en=Math.max(st+0.05,b[1]+subStyle.offset);if(Math.abs(c.startTime-st)>0.001){c.startTime=st;c.endTime=en}}}};apply();if(!subStyle.offset)return;const id=setInterval(apply,1000);return()=>clearInterval(id)},[subStyle.offset,video?.streamUrl])
  const tapSeek=useDoubleTapSeek(ref,video?.streamUrl);const pip=async()=>{const el:any=ref.current;try{if(nativePlayer()){if(!await androidMiniPlayer(el))throw Error('pip')}else if((document as any).pictureInPictureElement)await (document as any).exitPictureInPicture();else if(el?.requestPictureInPicture)await el.requestPictureInPicture()}catch(e:any){setPlayError(t('The mini player is not available for this video.'))}}
  useVideoShortcuts(ref,!!video?.streamUrl,{onNext,onPrev})
+ useMediaSession(ref,!!video?.streamUrl,{title:info?.title||String(video?.videoTitle||'NovelReader'),artist:info?.kind==='movie'||!info?.episode?'NovelReader':(info.season&&info.kind==='series'?t('Season {s} · Episode {n}',{s:info.season,n:info.episode}):t('Episode {n}',{n:info.episode})),art:info?.cover},{onNext,onPrev})
  // Some hosts give an HLS playlist under an address without ".m3u8": when such a
  // "file" cannot be decoded, its first bytes are checked and it is played as HLS.
  const[asHls,setAsHls]=useState('')
