@@ -1019,6 +1019,8 @@ const FR: Record<string, string> = {
   'Waiting for the picture…': 'En attente de l’image…',
   'NovelReader: back to the library': 'NovelReader : retour à la bibliothèque',
   'Back to the library': 'Retour à la bibliothèque',
+  'This connection does not let the update through (it happens on some Wi-Fi networks). You can download the installer in your browser and run it: your library and settings stay.': 'Cette connexion ne laisse pas passer la mise à jour (cela arrive sur certains réseaux Wi-Fi). Tu peux télécharger l\'installateur dans ton navigateur et le lancer : ta bibliothèque et tes réglages restent.',
+  'Download the latest version': 'Télécharger la dernière version',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

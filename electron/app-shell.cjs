@@ -52,13 +52,23 @@ function createWindowState({ app, screen }) {
 // and update", or by itself when the PC has been idle for a while and nothing is
 // playing (the app then reopens on its own).
 const IDLE_INSTALL_SECONDS = 15 * 60
-function createUpdater({ app, ipcMain, getWindow, log = console, powerMonitor = null, version = null }) {
+function createUpdater({ app, ipcMain, getWindow, log = console, powerMonitor = null, version = null, fetchUpdate = require('./update-fallback.cjs').fetchUpdate, retryMs = 30000, stallMs = 90000 }) {
+  let failures = 0, lastFail = 0, fallbackBusy = false, manualFile = ''
   let status = { state: 'idle', version: app.getVersion() }
   let updater = null
   let busy = false, autoIdle = true, installing = false
 
+  // A download that stops moving (no error, no progress) also hands over to the second way.
+  let stallTimer = null, stallAt = -1
+  const watchStall = () => {
+    if (status.state !== 'downloading' || fallbackBusy) { clearTimeout(stallTimer); stallTimer = null; stallAt = -1; return }
+    if (stallTimer && stallAt === status.percent) return
+    clearTimeout(stallTimer); stallAt = status.percent
+    stallTimer = setTimeout(() => { stallTimer = null; if (status.state === 'downloading' && !fallbackBusy && status.percent === stallAt) { log.warn('[update] download stalled'); fallback('download stalled') } }, stallMs)
+  }
   const send = patch => {
     status = { ...status, ...patch }
+    watchStall()
     const win = getWindow()
     if (win && !win.isDestroyed()) win.webContents.send('update:status', status)
   }
@@ -74,13 +84,47 @@ function createUpdater({ app, ipcMain, getWindow, log = console, powerMonitor = 
       updater.on('update-available', i => send({ state: 'downloading', next: i && i.version, percent: 0 }))
       updater.on('download-progress', p => send({ state: 'downloading', percent: Math.round(p.percent || 0) }))
       updater.on('update-downloaded', i => send({ state: 'ready', next: i && i.version }))
-      updater.on('error', e => { log.warn('[update]', e); send({ state: 'error', error: String(e && e.message || e).split('\n')[0] }) })
+      updater.on('error', e => { log.warn('[update]', e); failed(String(e && e.message || e).split('\n')[0]) })
     } catch (e) { log.warn('[update] electron-updater unavailable', e) }
   }
 
+  // ---- When the normal way fails (seen on a home Wi-Fi while 5G worked) ----------
+  // It is tried again once after 30 s; then the second way takes over
+  // (electron/update-fallback.cjs: Node's network, IPv4 first, resumes, retries).
+  const failed = message => {
+    if (status.state === 'ready' || installing || fallbackBusy) return
+    if (Date.now() - lastFail < 2000) return // the same failure, reported twice
+    lastFail = Date.now(); failures++
+    send({ state: 'error', error: message })
+    if (failures === 1) setTimeout(() => { if (status.state === 'error') check() }, retryMs)
+    else fallback(message)
+  }
+  const fallback = async firstError => {
+    if (fallbackBusy || !fetchUpdate) return
+    fallbackBusy = true
+    log.info && log.info('[update] second way (direct download)')
+    try {
+      const r = await fetchUpdate({ current: app.getVersion(), dir: path.join(app.getPath('userData'), 'pending-update'),
+        onInfo: i => send({ state: 'downloading', next: i.version, percent: 0, error: null }),
+        onProgress: p => { const pc = Math.round(p * 100); if (pc !== status.percent) send({ state: 'downloading', percent: pc }) } })
+      if (r.state === 'ready') { manualFile = r.file; send({ state: 'ready', next: r.version, error: null }) }
+      else send({ state: 'up-to-date', checkedAt: Date.now(), error: null })
+      failures = 0
+    } catch (e) {
+      log.warn('[update] second way failed', e)
+      send({ state: 'error', error: firstError, manual: 'https://github.com/madaratn/NovelReader-Windows/releases/latest' })
+    } finally { fallbackBusy = false }
+  }
+  // The installer fetched by the second way: same silent install as electron-updater.
+  const runManual = relaunch => {
+    try { require('child_process').spawn(manualFile, ['--updated', '/S', ...(relaunch ? ['--force-run'] : [])], { detached: true, stdio: 'ignore' }).unref(); return true } catch (e) { log.warn('[update] installer', e); return false }
+  }
+  app.on && app.on('will-quit', () => { if (manualFile && status.state === 'ready' && !installing) runManual(false) })
+
   const check = async () => {
     if (!updater) { send({ state: 'unsupported' }); return status }
-    try { await updater.checkForUpdates() } catch (e) { send({ state: 'error', error: String(e && e.message || e).split('\n')[0] }) }
+    if (fallbackBusy || manualFile && status.state === 'ready') return status
+    try { await updater.checkForUpdates() } catch (e) { failed(String(e && e.message || e).split('\n')[0]) }
     return status
   }
 
@@ -90,6 +134,7 @@ function createUpdater({ app, ipcMain, getWindow, log = console, powerMonitor = 
   const install = () => {
     if (!updater || status.state !== 'ready' || installing) return false
     installing = true; send({ state: 'installing' })
+    if (manualFile) { setImmediate(() => { if (runManual(true)) app.quit(); else { installing = false; send({ state: 'error', error: 'installer could not start' }) } }); return true }
     setImmediate(() => updater.quitAndInstall(true, true))
     return true
   }
