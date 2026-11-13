@@ -69,7 +69,11 @@ const merged=saved.map((r:any)=>/kohiden\.xyz/i.test(String(r?.url||''))?{...r,e
  const[collapsed,setCollapsed]=useState(()=>lsGet('sidebarCollapsed')==='1'),[showKeys,setShowKeys]=useState(false),[qsOpen,setQsOpen]=useState(false)
  // Each step remembers how far the page was scrolled: going back returns to the same
  // place in the list, not to its top. Choosing the page you are already on goes to its top.
- const here=()=>({mode:modeRef.current,page:pageRef.current,y:window.scrollY||0})
+ // The place is noted when the click or key press starts: by the time the page
+ // changes, the list may already have shrunk (the title is loading) and moved.
+ const intent=useRef({y:0,at:0})
+ useEffect(()=>{const note=()=>{intent.current={y:window.scrollY||0,at:Date.now()}};window.addEventListener('pointerdown',note,true);window.addEventListener('keydown',note,true);return()=>{window.removeEventListener('pointerdown',note,true);window.removeEventListener('keydown',note,true)}},[])
+ const here=()=>({mode:modeRef.current,page:pageRef.current,y:Date.now()-intent.current.at<8000?intent.current.y:window.scrollY||0})
  const setPage=(next:string)=>{if(next===pageRef.current){window.scrollTo({top:0,behavior:'smooth'});return}navStack.current.push(here());if(navStack.current.length>50)navStack.current.shift();setPageState(next)}
  const switchMode=(m:Mode)=>{if(m===modeRef.current){setPage(startPage(m));return}navStack.current.push(here());setModeState(m);lsSet('mode',m);setPageState(startPage(m))}
  const goBack=()=>{const prev=navStack.current.pop();if(!prev)return false;restoreY.current=prev.y;if(prev.mode!==modeRef.current){setModeState(prev.mode);lsSet('mode',prev.mode)}setPageState(prev.page);return true}
@@ -80,9 +84,10 @@ const merged=saved.map((r:any)=>/kohiden\.xyz/i.test(String(r?.url||''))?{...r,e
   const y=restoreY.current;restoreY.current=null
   if(!y){window.scrollTo({top:0});return}
   // Back: the list may still be filling in, so the place is looked for during a short while.
-  let tries=0,stop=false;const go=()=>{if(stop)return;window.scrollTo({top:y});if(Math.abs((window.scrollY||0)-y)>4&&++tries<20)setTimeout(go,60)};go()
-  const cancel=()=>{stop=true};window.addEventListener('wheel',cancel,{once:true,passive:true});window.addEventListener('touchstart',cancel,{once:true,passive:true})
-  return()=>{stop=true;window.removeEventListener('wheel',cancel);window.removeEventListener('touchstart',cancel)}},[mode,page,lang])
+  let tries=0,stop=false;const go=()=>{if(stop)return;if(Math.abs((window.scrollY||0)-y)>4)window.scrollTo({top:y,behavior:'instant' as ScrollBehavior});if(++tries<14)setTimeout(go,60)};go()
+  // Any action of the user ends it: the page is theirs again.
+  const cancel=()=>{stop=true},evs=['wheel','touchstart','pointerdown','keydown'];for(const e of evs)window.addEventListener(e,cancel,{once:true,passive:true})
+  return()=>{stop=true;for(const e of evs)window.removeEventListener(e,cancel)}},[mode,page,lang])
  useEffect(()=>{
   const onKey=(e:KeyboardEvent)=>{
    const typing=isTyping(e.target),ctrl=e.ctrlKey||e.metaKey

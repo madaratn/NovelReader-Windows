@@ -1,6 +1,7 @@
 ## NovelReader 0.25.2
 
 - **Mise à jour sur PC quand le Wi-Fi ne la laisse pas passer** : si la mise à jour échoue deux fois ou reste bloquée, l'application la télécharge par un second chemin (connexion directe, IPv4 d'abord, reprise là où elle s'est arrêtée, plusieurs essais) et vérifie l'empreinte du fichier avant de l'installer. Si même cela échoue, Réglages › Général propose un lien pour télécharger l'installateur dans le navigateur.
+- **Retour au même endroit** : plus fiable — la position est notée au moment du clic et retrouvée sans animation, même tout en bas d'une longue liste.
 
 ---
 
