@@ -1,3 +1,11 @@
+## NovelReader 0.26.0
+
+- **Regarder ou lire sans ajouter** : dans la recherche et dans Découvrir, chaque titre a maintenant « ▶ Regarder » (animes, séries, films) ou « Lire » (livres) à côté de « ＋ Ajouter ». La page du titre s'ouvre telle quelle, avec un bouton « Ajouter à la bibliothèque » si tu veux le garder ; ce que tu as regardé est conservé si tu l'ajoutes ensuite. « ← Retour » ramène aux résultats, qui sont toujours là.
+- **Nouveaux épisodes : tu es prévenu même quand NovelReader est ouvert** — un message apparaît dans l'application avec les titres concernés et un bouton « Voir » (avant, seule une notification Windows s'affichait, et seulement quand NovelReader était en arrière-plan).
+- **PC : la vérification continue quand tu fermes la fenêtre** — NovelReader reste près de l'horloge (clic droit sur son icône pour quitter) et vérifie tes animes et séries toutes les 6 heures. Option « Démarrer avec Windows » pour être prévenu même sans l'ouvrir. Réglages › Notifications.
+
+---
+
 ## NovelReader 0.25.5
 
 - **Téléphone : vidéo sans son** — certains fichiers (souvent les versions 4K / « remux ») ont un son Dolby ou DTS que le lecteur intégré du téléphone ne sait pas lire : l'image passe, le son non. L'application le détecte maintenant après quelques secondes et propose « Ouvrir dans un autre lecteur » (VLC, MX Player…), qui reprend au même moment. Autre solution : choisir une autre qualité.

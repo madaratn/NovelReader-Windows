@@ -10,8 +10,13 @@ export type SearchHit={plugin:Plugin,novel:any}
 export type SearchGroup={key:string,title:string,cover:string,hits:SearchHit[],score:number}
 export const normTitle=(x:string)=>String(x||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim()
 export function preferredLang(l:string){const v=String(l||'').toLowerCase();return /^en|english|anglais/.test(v)||/multi|all/.test(v)||(getLang()==='fr'&&/^fr|french|fran/.test(v))}
-export function NovelSearch({query,setQuery,plugins,ensurePlugins,library,onAdd,onOpen}:{query:string,setQuery:(q:string)=>void,plugins:Plugin[],ensurePlugins:()=>Promise<Plugin[]>,library:any[],onAdd:(h:SearchHit)=>Promise<any>,onOpen:(item:any)=>void}){
- const[hits,setHits]=useState<SearchHit[]>([]),[status,setStatus]=useState<{running:boolean,checked:number,total:number,errors:number,query:string,stopped?:boolean}|null>(null),[err,setErr]=useState('')
+const lastSearch:{query:string,hits:SearchHit[],status:any}={query:'',hits:[],status:null}
+export function NovelSearch({query,setQuery,plugins,ensurePlugins,library,onAdd,onOpen,onPreview}:{query:string,setQuery:(q:string)=>void,plugins:Plugin[],ensurePlugins:()=>Promise<Plugin[]>,library:any[],onAdd:(h:SearchHit)=>Promise<any>,onOpen:(item:any)=>void,onPreview?:(h:SearchHit)=>Promise<void>}){
+ // The last results are kept while the app runs: coming back from a title opened
+ // from them shows them again instead of an empty page.
+ const[hits,setHitsState]=useState<SearchHit[]>(()=>lastSearch.query===query?lastSearch.hits:[]),[status,setStatusState]=useState<{running:boolean,checked:number,total:number,errors:number,query:string,stopped?:boolean}|null>(()=>lastSearch.query===query&&lastSearch.status?{...lastSearch.status,running:false}:null),[err,setErr]=useState('')
+ const setHits=(h:SearchHit[])=>{lastSearch.hits=h;lastSearch.query=query;setHitsState(h)}
+ const setStatus=(x:any)=>{setStatusState((prev:any)=>{const v=typeof x==='function'?x(prev):x;lastSearch.status=v;return v})}
  const[langs,setLangs]=useState<string[]|null>(()=>{try{const x=JSON.parse(lsGet('searchLangs')||'null');return Array.isArray(x)?x:null}catch{return null}})
  const[recent,setRecent]=useState<string[]>(()=>{try{return JSON.parse(lsGet('recentSearches')||'[]')}catch{return[]}})
  const[adding,setAdding]=useState(''),[added,setAdded]=useState<any>(null)
@@ -57,6 +62,8 @@ export function NovelSearch({query,setQuery,plugins,ensurePlugins,library,onAdd,
  for(const h of hits){const key=normTitle(h.novel.name);let g=byKey.get(key);if(!g){g={key,title:h.novel.name,cover:h.novel.cover||'',hits:[],score:key===qn?2:key.startsWith(qn)?1:0};byKey.set(key,g);groups.push(g)}if(!g.cover&&h.novel.cover)g.cover=h.novel.cover;g.hits.push(h)}
  groups.sort((a,b)=>b.score-a.score||b.hits.length-a.hits.length)
  const inLibrary=(h:SearchHit)=>library.find(x=>x.id===h.plugin.id+':'+h.novel.path)
+ // Read without adding: the title opens as it is (it can be added from its page).
+ const preview=async(h:SearchHit)=>{if(!onPreview)return;const id='read:'+h.plugin.id+':'+h.novel.path;setAdding(id);setErr('');try{await onPreview(h)}catch(e:any){setErr(t('Could not open this title:')+' '+String(e?.message||e))}finally{setAdding('')}}
  const add=async(h:SearchHit)=>{const id=h.plugin.id+':'+h.novel.path;setAdding(id);setErr('');try{const item=await onAdd(h);setAdded(item)}catch(e:any){setErr(t('Could not add novel:')+' '+String(e?.message||e))}finally{setAdding('')}}
  const pct=status&&status.total?Math.round(status.checked/status.total*100):0
  return <>
@@ -86,7 +93,7 @@ export function NovelSearch({query,setQuery,plugins,ensurePlugins,library,onAdd,
     <Cover src={g.cover} name={g.title}/>
     <div className="resultmeta"><h3 title={g.title}>{g.title}</h3>
      <small>{plural(g.hits.length,'Found on {n} source','Found on {n} sources')}</small>
-     <div className="resultactions">{owned?<><span className="inlib">{t('In your library ✓')}</span><button onClick={()=>onOpen(owned)}>{t('Open')}</button></>:<button className="primary" disabled={!!adding} onClick={()=>add(first)}>{adding===firstId?t('Adding…'):t('Add from {source}',{source:first.plugin.name})}</button>}</div>
+     <div className="resultactions">{owned?<><span className="inlib">{t('In your library ✓')}</span><button onClick={()=>onOpen(owned)}>{t('Open')}</button></>:<>{onPreview&&<button className="primary" disabled={!!adding} onClick={()=>preview(first)}>{adding==='read:'+firstId?t('Opening…'):t('Read')}</button>}<button className={onPreview?'':'primary'} disabled={!!adding} onClick={()=>add(first)}>{adding===firstId?t('Adding…'):onPreview?'＋ '+t('Add'):t('Add from {source}',{source:first.plugin.name})}</button></>}</div>
      {g.hits.length>1&&!owned&&<details className="othersources"><summary>{t('Other sources')}</summary><div>{g.hits.slice(1).map(h=>{const id=h.plugin.id+':'+h.novel.path;return <button key={id} className="chip" disabled={!!adding} onClick={()=>add(h)}>{adding===id?t('Adding…'):h.plugin.name} <small>{h.plugin.lang}</small></button>})}</div></details>}
     </div></article>})}</section>}
  </>
@@ -139,7 +146,7 @@ export function SourcesPage({plugins,ensurePlugins,onRefresh,refreshing,error}:{
 
 // ---- Discover (books): Popular / Latest lists of one LNReader source ------------
 const novelDiscoverCache=new Map<string,{rows:any[],page:number,more:boolean}>()
-export function NovelDiscover({plugins,ensurePlugins,library,onAdd,onOpen}:{plugins:Plugin[],ensurePlugins:()=>Promise<Plugin[]>,library:any[],onAdd:(h:SearchHit)=>Promise<any>,onOpen:(item:any)=>void}){
+export function NovelDiscover({plugins,ensurePlugins,library,onAdd,onOpen,onPreview}:{plugins:Plugin[],ensurePlugins:()=>Promise<Plugin[]>,library:any[],onAdd:(h:SearchHit)=>Promise<any>,onOpen:(item:any)=>void,onPreview?:(h:SearchHit)=>Promise<void>}){
  const[list,setList]=useState<Plugin[]>(plugins),[source,setSource]=useState(()=>lsGet('novelDiscoverSource')||''),[tab,setTab]=useState<'popular'|'latest'>(()=>lsGet('novelDiscoverTab')==='latest'?'latest':'popular')
  const[rows,setRows]=useState<any[]>([]),[page,setPage]=useState(1),[more,setMore]=useState(false),[loading,setLoading]=useState(false),[err,setErr]=useState(''),[adding,setAdding]=useState('')
  const token=useRef(0),rowsRef=useRef<any[]>([])
@@ -157,7 +164,7 @@ export function NovelDiscover({plugins,ensurePlugins,library,onAdd,onOpen}:{plug
   {choices.length>0&&<div className="discover-bar"><div className="shelftabs" role="tablist" aria-label={t('Lists')}>{(['popular','latest'] as const).map(x=><button key={x} role="tab" aria-selected={tab===x} className={'shelftab'+(tab===x?' on':'')} onClick={()=>setTab(x)}>{x==='popular'?t('Popular'):t('Latest')}</button>)}</div><label>{t('Source')}<select value={source} onChange={e=>setSource(e.target.value)}>{choices.map(p=><option key={p.id} value={p.id}>{p.name}{p.lang?' ('+p.lang+')':''}</option>)}</select></label></div>}
   {!list.length&&!err&&<div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading sources…')}</div></div>}
   {err&&<div className="anime-toast error"><NoticeText text={err}/></div>}
-  {rows.length>0&&<div className="resultgrid">{rows.map((n:any)=>{const item=saved(n);return <article className="resultcard" key={n.path}><Cover src={n.cover||''} name={n.name||'?'}/><div className="resultmeta"><h3>{n.name}</h3><small>{plugin?.name}</small><div className="resultactions">{item?<button className="inlib" onClick={()=>onOpen(item)}>{'✓ '+t('Open')}</button>:<button className="primary" disabled={adding===n.path} onClick={()=>add(n)}>{adding===n.path?t('Adding…'):'＋ '+t('Add to library')}</button>}</div></div></article>})}</div>}
+  {rows.length>0&&<div className="resultgrid">{rows.map((n:any)=>{const item=saved(n);return <article className="resultcard" key={n.path}><Cover src={n.cover||''} name={n.name||'?'}/><div className="resultmeta"><h3>{n.name}</h3><small>{plugin?.name}</small><div className="resultactions">{item?<button className="inlib" onClick={()=>onOpen(item)}>{'✓ '+t('Open')}</button>:<>{onPreview&&plugin&&<button className="primary" disabled={!!adding} onClick={async()=>{setAdding('read:'+n.path);setErr('');try{await onPreview({plugin,novel:n})}catch(e:any){setErr(t('Could not open this title:')+' '+String(e?.message||e))}finally{setAdding('')}}}>{adding==='read:'+n.path?t('Opening…'):t('Read')}</button>}<button className={onPreview?'':'primary'} disabled={!!adding} onClick={()=>add(n)}>{adding===n.path?t('Adding…'):(onPreview?'＋ '+t('Add'):'＋ '+t('Add to library'))}</button></>}</div></div></article>})}</div>}
   {loading&&<div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading…')}</div></div>}
   {!loading&&!err&&plugin&&rows.length===0&&<EmptyState icon="compass" title={t('Nothing here')} text={t('This source returned an empty list. Try another source.')}/>}
   {!loading&&more&&rows.length>0&&<div className="discover-more"><button onClick={()=>load(page+1)}>{t('Load more')}</button></div>}

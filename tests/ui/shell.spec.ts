@@ -85,7 +85,7 @@ test('books Discover: popular list of a source, add, open, load more', async ({ 
   await nav(page, 'Discover')
   await expect(page.locator('main h1')).toHaveText('Discover')
   await expect(page.locator('.resultcard h3')).toHaveText(['Popular 1', 'Popular 2', 'Popular 3'])
-  await page.locator('.resultcard', { hasText: 'Popular 2' }).getByRole('button', { name: /Add to library/ }).click()
+  await page.locator('.resultcard', { hasText: 'Popular 2' }).getByRole('button', { name: '＋ Add', exact: true }).click()
   await expect(page.locator('.resultcard', { hasText: 'Popular 2' }).getByRole('button', { name: /Open/ })).toBeVisible()
   await page.getByRole('button', { name: 'Load more' }).click()
   await expect(page.locator('.resultcard h3')).toHaveCount(6)
