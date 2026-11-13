@@ -18,4 +18,12 @@
     <string name="reading_channel">Reading aloud</string>
     <string name="reading_running">Reading aloud</string>
     <string name="reading_stop">Stop</string>
+    <string name="playback_channel">Video playing</string>
+    <string name="media_prev">Previous</string>
+    <string name="media_play">Play</string>
+    <string name="media_pause">Pause</string>
+    <string name="media_next">Next</string>
+    <string name="widget_continue">Continue</string>
+    <string name="widget_empty">Nothing in progress</string>
+    <string name="widget_description">Continue the last episode or chapter in one tap</string>
 </resources>
