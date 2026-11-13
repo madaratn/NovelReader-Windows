@@ -33,6 +33,14 @@ for (const theme of ['light', 'dark'] as const) {
     await nav(page, 'Sources'); expect(await lowContrast(page)).toEqual([])
     await nav(page, 'Settings'); expect(await lowContrast(page)).toEqual([])
   })
+
+  test(`readable Continue panel and history in the ${theme} theme`, async ({ page }) => {
+    const now = Date.now()
+    await open(page, { storage: { appTheme: theme, history: JSON.stringify([{ at: now, kind: 'books', id: 'mol', name: 'Mother of Learning', sub: 'Chapter 12' }, { at: now - 3600e3, kind: 'series', id: 'x', name: 'Lanterns', sub: 'Episode 3' }]) }, library: [novel('mol', 'Mother of Learning', 108)], reading: { mol: { index: 11 } } })
+    await page.locator('.home-open').click()
+    await expect(page.locator('.home-history li')).toHaveCount(2)
+    expect(await lowContrast(page)).toEqual([])
+  })
 }
 
 test('appearance: light, dark, or like Windows; saved; reader follows by default', async ({ page }) => {

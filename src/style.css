@@ -1255,3 +1255,8 @@ html.tv .libcard .libcover{width:100%!important;height:auto!important}
  .lib-toolbar>.lib-sort{display:flex;align-items:center;gap:6px;margin:0}
  .lib-toolbar>.lib-sort select{max-width:150px;height:var(--h-lg)}
 }
+/* Text buttons had no colour of their own: the browser's black showed, unreadable on
+   the dark and mauve panels (history of the Continue panel). */
+.linkbtn{color:var(--text-accent)}
+.home-history .linkbtn{color:var(--text-strong)}
+.home-history-head .linkbtn{color:var(--text-accent);font-size:var(--fs-sm);font-weight:600}

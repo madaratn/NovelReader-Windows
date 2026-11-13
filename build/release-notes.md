@@ -1,3 +1,9 @@
+## NovelReader 0.25.3
+
+- **Historique lisible** : dans le panneau « Reprendre », les titres de l'historique s'affichaient en noir sur fond sombre. Ils sont maintenant en clair, et « Effacer » a la couleur des liens.
+
+---
+
 ## NovelReader 0.25.2
 
 - **Mise à jour sur PC quand le Wi-Fi ne la laisse pas passer** : si la mise à jour échoue deux fois ou reste bloquée, l'application la télécharge par un second chemin (connexion directe, IPv4 d'abord, reprise là où elle s'est arrêtée, plusieurs essais) et vérifie l'empreinte du fichier avant de l'installer. Si même cela échoue, Réglages › Général propose un lien pour télécharger l'installateur dans le navigateur.
