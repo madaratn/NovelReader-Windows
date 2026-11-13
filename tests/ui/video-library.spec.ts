@@ -779,3 +779,26 @@ test('media keys: the playing episode is given to the system, Next track plays t
   await expect.poll(() => page.evaluate(() => (window as any).__ms.metadata?.artist)).toBe('Season 1 · Episode 2')
   expect(await page.evaluate(() => typeof (window as any).__ms.handlers.previoustrack)).toBe('function')
 })
+
+test('find on other sources: only the same series (not a sequel, a namesake or a film of another year)', async ({ page }) => {
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns (2024)')]) })
+  await page.addInitScript(() => {
+    const w = window as any, base = w.novelReader.miwayomiFetch
+    w.novelReader.miwayomiFetch = async (path: string, ...rest: any[]) => {
+      if (path.includes('/search')) return { animes: [
+        { title: 'Green Lanterns', url: '/x/green' }, { title: 'Lanterns 2', url: '/x/sequel' }, { title: 'Lanterns Season 2', url: '/x/s2' },
+        { title: 'Lanterns (1999)', url: '/x/old' }, { title: 'Lanterns: The Movie', url: '/x/movie' }, { title: 'LANTERNS [VOSTFR]', url: '/x/right' }
+      ] }
+      if (path.includes('/details') && path.includes('%2Fx%2Fold')) return { title: 'Lanterns', description: 'Year: 1999' }
+      if (path.includes('/episodes') && path.includes('%2Fx%2Fmovie')) return [{ name: 'Movie', url: '/m' }]
+      return base(path, ...rest)
+    }
+  })
+  await page.goto('/')
+  await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
+  await page.getByRole('button', { name: 'Find on other sources' }).click()
+  await expect(page.locator('.source-picker small')).toContainText(/Found on/)
+  const urls = await page.evaluate(() => JSON.parse(localStorage.getItem('seriesLibrary') || '[]')[0].alternates.map((a: any) => a.url))
+  expect(urls.length).toBeGreaterThan(0)
+  expect(new Set(urls)).toEqual(new Set(['/x/right']))
+})

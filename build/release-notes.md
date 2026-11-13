@@ -1,3 +1,16 @@
+## NovelReader 0.29.1
+
+- **« Chercher sur mes autres sources » plus précis** : seul le même film ou la même série est retenu.
+  - Le nom est comparé mot à mot, sans tenir compte des accents, des articles ni des mentions comme VF, VOSTFR ou 1080p.
+  - Une suite (« Dune 2 », « Partie 2 »), une autre saison, un homonyme (« Green Lanterns ») ou un titre d'une autre année n'est jamais pris.
+  - Chaque résultat est vérifié sur sa fiche : l'année, et film ou série selon le nombre d'épisodes.
+  - Un nom avec un sous-titre en plus n'est gardé que si l'année ou le nombre d'épisodes concorde.
+  - Le menu « Source » indique le nom trouvé quand il diffère.
+  - Les sources ajoutées par erreur avec l'ancienne recherche sont masquées.
+- La même règle sert quand la lecture passe toute seule sur une autre source parce que la sienne ne marche pas.
+
+---
+
 ## NovelReader 0.29.0
 
 - **Calendrier des sorties** (Animes et Séries › Calendrier) : les prochains épisodes des titres de tes bibliothèques, jour par jour, pour les deux semaines à venir, à l'heure de ton fuseau horaire. Les dates viennent d'AniList pour les animes et de TVmaze pour les séries. Un clic ouvre le titre.
