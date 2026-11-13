@@ -15,3 +15,8 @@ export function historyDays(list=readHistory()):{day:string,lines:HistoryLine[]}
  const out:{day:string,lines:HistoryLine[]}[]=[]
  for(const x of list){const d=dayOf(x.at),last=out[out.length-1];if(last&&last.day===d)last.lines.push(x);else out.push({day:d,lines:[x]})}
  return out}
+/** The latest line of each title (newest first): what the Continue panel shows. */
+export function recentTitles(list=readHistory(),max=5):HistoryLine[]{
+ const seen=new Set<string>(),out:HistoryLine[]=[]
+ for(const x of list){const k=x.kind+'|'+x.id;if(seen.has(k))continue;seen.add(k);out.push(x);if(out.length>=max)break}
+ return out}

@@ -38,7 +38,7 @@ for (const theme of ['light', 'dark'] as const) {
     const now = Date.now()
     await open(page, { storage: { appTheme: theme, history: JSON.stringify([{ at: now, kind: 'books', id: 'mol', name: 'Mother of Learning', sub: 'Chapter 12' }, { at: now - 3600e3, kind: 'series', id: 'x', name: 'Lanterns', sub: 'Episode 3' }]) }, library: [novel('mol', 'Mother of Learning', 108)], reading: { mol: { index: 11 } } })
     await page.locator('.home-open').click()
-    await expect(page.locator('.home-history li')).toHaveCount(2)
+    await expect(page.locator('.home-recent li')).toHaveCount(2)
     expect(await lowContrast(page)).toEqual([])
   })
 }
