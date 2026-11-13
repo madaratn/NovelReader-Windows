@@ -357,5 +357,8 @@ async function runSmokeTest(win){
 }
 
 app.whenReady().then(()=>{try{bookWeb=createBookWeb({session,BrowserWindow,log:m=>console.log(m)});runner.configure(bookWeb)}catch(e){console.warn('[books] web',e)}registerLocalProtocol();if(SMOKE_TEST){runSmokeTest(createWindow());return}splash.start();try{flareApi().start()}catch{}startMiwayomi();createWindow();updater.start()})
-app.on('before-quit',()=>{if(miwayomiProcess){miwayomiProcess.kill();miwayomiProcess=null}try{flare&&flare.stop()}catch{}try{videoDl&&videoDl.close()}catch{}})
+// The video engine (Java) must really be gone before an update replaces the files:
+// on Windows it is closed with its whole process tree, and waited for.
+function stopEngineNow(){const p=miwayomiProcess;if(!p)return;miwayomiProcess=null;try{if(process.platform==='win32'&&p.pid)require('child_process').spawnSync('taskkill',['/pid',String(p.pid),'/T','/F'],{windowsHide:true,timeout:5000});else p.kill()}catch{try{p.kill()}catch{}}}
+app.on('before-quit',()=>{stopEngineNow();try{flare&&flare.stop()}catch{}try{videoDl&&videoDl.close()}catch{}})
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()})
