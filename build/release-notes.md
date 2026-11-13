@@ -1,3 +1,13 @@
+## NovelReader 0.28.1
+
+- **Épisode suivant : même serveur, même qualité** — le serveur et la qualité choisis pour un titre (ex. « HubCloud 1080p ») sont repris aux épisodes suivants, même quand le nom du flux change d'un épisode à l'autre (taille du fichier, ordre de la liste). Si ce serveur n'est pas là, la même qualité ou la plus proche est prise. Pour un nouveau titre, la dernière qualité choisie sert de point de départ.
+- **Même source vidéo** : si un titre a dû être lu depuis une autre source (la sienne ne marchait pas), les épisodes suivants commencent directement par celle qui a marché.
+- **Choisir la source** d'une série ou d'un anime : sur la page du titre, un menu « Source » liste les sources où il a été trouvé ; « Chercher sur mes autres sources » en ajoute d'autres. Le choix est gardé pour les épisodes suivants.
+- **Profils sur le téléphone** : comme sur PC, chacun a sa bibliothèque, sa progression, son historique et ses réglages (Réglages › Général › Profils, ou le menu). Les sources et les réglages de l'appareil restent communs.
+- **Lecteur** : un nom de qualité très long ne dépasse plus du cadre de la vidéo (tablette, petite fenêtre).
+
+---
+
 ## NovelReader 0.28.0
 
 - **Genres dans les bibliothèques** (livres, animes, séries, films) : une ligne de genres sous les étagères (les plus fréquents d'abord, les autres dans « Autres genres… ») pour ne voir que tes titres d'un genre. Les genres viennent des sources ; pour les titres déjà ajoutés, ils sont récupérés petit à petit (livres : à la prochaine vérification des nouveaux chapitres ; vidéos : en ouvrant la bibliothèque).

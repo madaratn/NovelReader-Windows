@@ -2,6 +2,7 @@
 // in for the PC side (electron/preload.cjs). Books (sources, reading, offline
 // chapters, translation) and videos (the engine in android/engine).
 import * as plugins from './plugin-runtime'
+import{androidProfiles}from'./android-profiles'
 import{offline}from'./offline-idb'
 import{createAndroidUpdater}from'./android-update'
 import{subsSearch,subsFetch}from'./android-subs'
@@ -152,6 +153,7 @@ export function installAndroidBridge(version:string,ios=false){
   sourceStatus:ios?async()=>null:sourceStatus,
   bookStatus:async()=>{const r=await fetch(STATUS+'book-status.json');return r.ok?r.json():null},
   backupAuto:async()=>({ok:false}),
+  ...androidProfiles,
  }
  // Anything else (PC-only features: cast, downloads, AniList windows…) is absent, so the
  // interface hides it; direct calls give a clear message.

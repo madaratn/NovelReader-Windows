@@ -30,8 +30,31 @@ export function prefetchNextEpisode(media:any,ep:any,sourceId:string){try{const 
 // The stream (server + quality) that last played for a title is remembered and
 // tried first next time, so playback starts on a server known to work.
 export const serverKey=(media:any)=>'prefServer:'+String(media?.id||media?.url||media?.name||'')
-export function rememberServer(media:any,video:any){try{const title=String(video?.videoTitle||video?.title||video?.quality||'');if(media&&title)lsSet(serverKey(media),title)}catch{}}
-export function preferRemembered(list:any[],media:any){const want=String(lsGet(serverKey(media))||'');if(!want||list.length<2)return list;const head=(x:string)=>x.split(' - ')[0].trim().toLowerCase(),kind=(x:string)=>(x.match(/\b(sub|dub|h-sub|s-sub|a-dub)\b/i)?.[1]||'').toLowerCase();const score=(v:any)=>{const tt=String(v?.videoTitle||v?.title||v?.quality||'');return tt===want?3:head(tt)===head(want)&&kind(tt)===kind(want)?2:head(tt)===head(want)?1:0};return list.map((v,i)=>({v,i,s:score(v)})).sort((a,b)=>b.s-a.s||a.i-b.i).map(x=>x.v)}
+// The server and the quality chosen for a title are kept, and the next episodes
+// start with the same ones. A stream's name changes from one episode to the next
+// ("HubCloud [2160] [20.96 GB]" / "HubCloud [2160] [19.40 GB]"), so it is compared
+// by its parts: server, resolution, sub/dub. Without a choice for this title, the
+// last resolution chosen anywhere is used.
+export function rememberServer(media:any,video:any){try{const title=String(video?.videoTitle||video?.title||video?.quality||'');if(media&&title)lsSet(serverKey(media),title);if(title)lsSet('novelreader:player:quality',title)}catch{}}
+export function streamParts(title:string){
+ const raw=String(title||''),low=raw.toLowerCase()
+ const server=low.replace(/\[[^\]]*\]|\([^)]*\)|\{[^}]*\}/g,' ').split(/\s+-\s+|\s*[|•·]\s*/)[0].replace(/\b(\d{3,4}p|4k|uhd|fhd|hd|sd|sub|dub|h-sub|s-sub|a-dub|multi|vf|vostfr)\b/g,' ').replace(/[^a-z0-9]+/g,' ').trim()
+ const m=low.match(/\b(2160|1440|1080|720|576|480|360|240)p?\b/)||(/\b(4k|uhd)\b/.test(low)?['2160','2160']:null)
+ const res=m?Number(m[1]):0
+ const kind=(low.match(/\b(h-sub|s-sub|a-dub|sub|dub|vostfr|vf)\b/)?.[1]||'')
+ return{server,res,kind}}
+export function preferRemembered(list:any[],media:any){
+ if(list.length<2)return list
+ const own=String(lsGet(serverKey(media))||''),want=own||String(lsGet('novelreader:player:quality')||'');if(!want)return list
+ const w=streamParts(want),name=(v:any)=>String(v?.videoTitle||v?.title||v?.quality||'')
+ const score=(v:any)=>{const tt=name(v);if(tt===want)return 1000;const p=streamParts(tt);let sc=0
+  if(own&&w.server&&p.server===w.server)sc+=400            // same server first (only for this title's own choice)
+  if(w.res&&p.res)sc+=p.res===w.res?200:Math.max(0,150-Math.abs(p.res-w.res)/8)   // then the same quality, or the nearest
+  if(w.kind&&p.kind===w.kind)sc+=100                         // same sub / dub
+  return sc}
+ return list.map((v,i)=>({v,i,s:score(v)})).sort((a,b)=>b.s-a.s||a.i-b.i).map(x=>x.v)}
+// The video source a title played from last (when its own source failed and another one worked).
+export const sourceKey=(media:any)=>'prefSource:'+String(media?.id||media?.url||media?.name||'')
 // Route extension subtitle files through the Miwayomi proxy (source headers / Referer).
 export function proxySubtitleTracks(tracks:any,sourceId:string,headers:any){return (Array.isArray(tracks)?tracks:[]).map((t:any)=>{const su=String(t?.url||t?.file||t?.src||'');if(!/^https?:\/\//i.test(su))return t;const sh=Object.entries(t?.headers||headers||{}).map(([k,val])=>k+': '+String(val)).join('\n');return {...t,streamUrl:engineBase()+'/api/v1/proxy?sourceId='+encodeURIComponent(sourceId)+'&url='+encodeURIComponent(su)+'&headers='+encodeURIComponent(sh)}})}
 // Sources that just failed with a dead host / timeout / block are skipped by the

@@ -78,3 +78,42 @@ test('all watched: look for the next season', async ({ page }) => {
   await page.getByRole('button', { name: 'Look for the next season' }).click()
   await expect(page.locator('main input').first()).toHaveValue('Lanterns season 2')
 })
+
+test('next episode: same server and same quality as chosen, even when the stream names change', async ({ page }) => {
+  await setup(page, { storage: { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify([SERIES]) } })
+  await page.route('http://127.0.0.1:4567/api/v1/proxy**', serve)
+  await page.addInitScript(() => {
+    const w = window as any, base = w.novelReader
+    // Each episode lists its streams in another order, with other sizes in their names.
+    const streams = (n: number) => {
+      const list = [
+        { videoUrl: 'https://cdn.test/a' + n + '.webm', videoTitle: `Pixeldrain [1080p] [${2 + n}.1 GB]` },
+        { videoUrl: 'https://cdn.test/b' + n + '.webm', videoTitle: `HubCloud (FSL) [2160] [${20 + n}.96 GB] [4K - H.264]` },
+        { videoUrl: 'https://cdn.test/c' + n + '.webm', videoTitle: `HubCloud (FSL) [1080] [${4 + n}.20 GB]` },
+        { videoUrl: 'https://cdn.test/d' + n + '.webm', videoTitle: `GDFlix [720p] [${1 + n}.0 GB]` }]
+      return n % 2 ? list : list.reverse()
+    }
+    w.novelReader = { ...base,
+      miwayomiStatus: async () => ({ online: true, baseUrl: 'http://127.0.0.1:4567' }),
+      miwayomiFetch: async (p: string) => {
+        if (p.includes('/details')) return { title: 'Lanterns' }
+        if (p.includes('/episodes')) return [3, 2, 1].map(n => ({ name: 'Episode ' + n, url: '/ep/' + n, episode_number: n }))
+        if (p.includes('/videos')) { const n = Number(decodeURIComponent(p).match(/\/ep\/(\d)/)?.[1] || 1); return streams(n).map(v => ({ ...v, headers: {}, subtitleTracks: [], audioTracks: [] })) }
+        if (p.includes('/sources')) return { anime: [{ id: '42', name: 'Mapple', lang: 'en' }] }
+        return []
+      } }
+  })
+  await page.goto('/')
+  await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
+  await page.locator('.media-hero .primary').click()
+  const quality = page.locator('.player-trackbar select').first()
+  await expect(quality).toBeVisible()
+  // Choose HubCloud 1080.
+  await quality.selectOption({ label: 'HubCloud (FSL) [1080] [5.20 GB]' })
+  await expect(quality.locator('option:checked')).toHaveText('HubCloud (FSL) [1080] [5.20 GB]')
+  // Next episode: HubCloud 1080 again (its name has another size, the list another order).
+  await page.locator('.player-row').getByRole('button', { name: 'Next →' }).click()
+  await expect(quality.locator('option:checked')).toHaveText('HubCloud (FSL) [1080] [6.20 GB]')
+  await page.locator('.player-row').getByRole('button', { name: 'Next →' }).click()
+  await expect(quality.locator('option:checked')).toHaveText('HubCloud (FSL) [1080] [7.20 GB]')
+})
