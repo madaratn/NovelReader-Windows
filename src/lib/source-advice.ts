@@ -6,7 +6,7 @@ export function sourceAdvice(msg:string,phone=false):Advice|null{
  const m=String(msg||'')
  if(!m.trim())return null
  if(/cloudflare|just a moment|challenge|ddos-guard|captcha/i.test(m))return{why:t('The site checks that visitors are not robots (Cloudflare).'),fix:phone?t('Try it on the PC, where the check can be passed.'):t('Turn on the Cloudflare protection (Sources › Advanced), then test again.')}
- if(/unknownhost|name or service not known|enotfound|could not resolve|dns/i.test(m))return{why:t('The site no longer exists (its address does not answer).'),fix:t('Remove this source.'),remove:true}
+ if(/unknownhost|unknown host|h[ôo]te inconnu|name or service not known|enotfound|could not resolve|dns/i.test(m))return{why:t('The site no longer exists (its address does not answer).'),fix:t('Remove this source.'),remove:true}
  if(/\b(401)\b|api.?key|token|login|log in|sign in|account|credential|preference|configure|settings/i.test(m))return{why:t('This source needs an account or a key from its site.'),fix:t('Fill it in the source\'s settings, or remove the source if you have none.')}
  if(/\b451\b/.test(m))return{why:t('The site is blocked in your country.'),fix:t('Use another source.')}
  if(/\b(403|441)\b|forbidden|blocked|refus/i.test(m))return{why:t('The site refuses the app for now.'),fix:t('Try again later; if it lasts, use another source.')}

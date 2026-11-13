@@ -106,6 +106,19 @@ function RemoteVideo({video,mediaKey,onNext,onPrev,onUnsupported,variants,onVari
  const stamps=(Array.isArray(video?.timestamps)?video.timestamps:[]).filter((x:any)=>Number(x?.end)>Number(x?.start))
  const seg=stamps.find((x:any)=>nowT>=Number(x.start)&&nowT<Number(x.end)-1)
  const segLabel=seg?(/open|intro/i.test(String(seg.type)+' '+String(seg.name))?t('Skip intro'):/end|outro|credit/i.test(String(seg.type)+' '+String(seg.name))?t('Skip credits'):t('Skip')):''
+ // Credits and intro (Settings › Video):
+ //  - autoNext (on by default): the countdown to the next episode starts when the
+ //    credits begin (source markers), or when the video ends;
+ //  - autoSkip (off by default): the intro is skipped by itself, with a way back.
+ //  Without markers, a "Next episode" button shows in the last minute.
+ const autoNext=lsGet('autoNext')!=='0',autoSkip=lsGet('autoSkip')==='1'
+ const isOpening=(x:any)=>/open|intro/i.test(String(x?.type)+' '+String(x?.name)),isEnding=(x:any)=>/end|outro|credit/i.test(String(x?.type)+' '+String(x?.name))
+ const handled=useRef(new Set<string>()),[skipped,setSkipped]=useState<{from:number,to:number}|null>(null),[dur,setDur]=useState(0)
+ useEffect(()=>{handled.current=new Set();setSkipped(null)},[video?.streamUrl])
+ useEffect(()=>{if(!seg)return;const k=String(seg.start)+'-'+String(seg.end);if(handled.current.has(k))return;handled.current.add(k);const el=ref.current;if(!el)return
+  if(isOpening(seg)&&autoSkip){const from=el.currentTime;el.currentTime=Number(seg.end);setSkipped({from,to:Number(seg.end)});setTimeout(()=>setSkipped(x=>x&&x.to===Number(seg.end)?null:x),6000)}
+  else if(isEnding(seg)&&autoNext&&onNext&&nextIn==null)setNextIn(10)},[seg?.start,seg?.end])
+ const nearEnd=!!onNext&&nextIn==null&&!stamps.some(isEnding)&&dur>120&&dur-nowT<60&&dur-nowT>1
  // Auto-play the next episode after a short, cancellable countdown.
  useEffect(()=>{if(nextIn==null)return;if(nextIn<=0){setNextIn(null);onNext?.();return}const id=setTimeout(()=>setNextIn(n=>n==null?null:n-1),1000);return()=>clearTimeout(id)},[nextIn])
  useEffect(()=>()=>{if(watchTick.current.acc>=1)bumpWatch({s:watchTick.current.acc});watchTick.current.acc=0},[video?.streamUrl])
@@ -185,9 +198,11 @@ function RemoteVideo({video,mediaKey,onNext,onPrev,onUnsupported,variants,onVari
   onLoadedMetadata={e=>{e.currentTarget.playbackRate=rate;if(audioRef.current)audioRef.current.playbackRate=rate}} onVolumeChange={e=>{rememberVolume(e.currentTarget);if(audioRef.current)audioRef.current.volume=e.currentTarget.volume}}
   onTimeUpdate={e=>{setNowT(e.currentTarget.currentTime);{const el=e.currentTarget,now=el.currentTime,dt=now-watchTick.current.t;watchTick.current.t=now;if(!el.paused&&!el.seeking&&dt>0&&dt<2.5){watchTick.current.acc+=dt/(el.playbackRate||1);if(watchTick.current.acc>=15){bumpWatch({s:watchTick.current.acc});watchTick.current.acc=0}}}const ae=audioRef.current;if(ae&&audioHlsRef.current&&Math.abs(ae.currentTime-e.currentTarget.currentTime)>.5)ae.currentTime=e.currentTarget.currentTime;const now=Date.now();if(now-lastSave.current>4000){lastSave.current=now;save(e.currentTarget)}}}
   onPlaying={()=>onPlaying?.()} onPlay={()=>{const ae=audioRef.current;if(ae&&audioHlsRef.current){ae.currentTime=ref.current?.currentTime||0;ae.play().catch(()=>{})}}} onPause={e=>{audioRef.current?.pause();save(e.currentTarget)}}
-  onEnded={e=>{save(e.currentTarget,true);if(onNext)setNextIn(5)}}
+  onEnded={e=>{save(e.currentTarget,true);if(onNext&&autoNext&&nextIn==null)setNextIn(5)}} onDurationChange={e=>setDur(Number.isFinite(e.currentTarget.duration)?e.currentTarget.duration:0)}
   onError={async e=>{const c=e.currentTarget.error?.code;if((c===4||c===3)&&await sniffHls())return;if(c===4&&onUnsupported){setPlayError(refused.current?t('The server of this quality refused to send the video ({code}). Trying another stream…',{code:refused.current}):t('This quality is not supported by the built-in player. Trying another stream…'));setTimeout(()=>onUnsupported(),250);return}setPlayError(c===4?t('This stream uses a video or audio format that the built-in player cannot decode.'):t('The video stream could not be played. Try another source or quality.'))}}>{extSubs.map((t:any)=><track key={t.src} kind="subtitles" src={t.src} label={t.label} srcLang={t.lang}/>)}</video>
   {seg&&nextIn==null&&<button className="player-skip" onClick={()=>{const el=ref.current;if(el)el.currentTime=Number(seg.end)}}>{segLabel+' ⏭'}</button>}
+  {skipped&&<div className="player-skipped" role="status"><span>{t('Intro skipped')}</span><button onClick={()=>{const el=ref.current;if(el)el.currentTime=skipped.from;setSkipped(null)}}>{t('Watch it')}</button></div>}
+  {nearEnd&&!seg&&<button className="player-skip" onClick={()=>onNext?.()}>{t('Next episode')+' ⏭'}</button>}
   {nextIn!=null&&<div className="player-next" role="status"><span>{t('Next episode in {n} s',{n:nextIn})}</span><button className="primary" onClick={()=>{setNextIn(null);onNext?.()}}>{t('Play now')}</button><button onClick={()=>setNextIn(null)}>{t('Cancel')}</button></div>}</div>
   {playError&&<div className="anime-toast error"><NoticeText text={playError}/><button onClick={()=>setPlayError('')}>×</button></div>}
   {adNotice&&<div className="anime-toast error" role="status"><NoticeText text={adNotice}/><button onClick={()=>setAdNotice('')}>×</button></div>}

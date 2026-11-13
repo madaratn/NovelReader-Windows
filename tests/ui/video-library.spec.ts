@@ -136,13 +136,16 @@ test('video sources: test installed sources and remove the dead one', async ({ p
   await expect(page.locator('.health-row.ok')).toContainText('List ✓ · Episodes ✓ · Streams ✓ (2)')
   await expect(page.locator('.health-row.ok .health-state')).toHaveText('Plays')
   await expect(page.locator('.health-row.warn')).toContainText('List ✓ · Episodes ✗ · Streams ✗')
-  await expect(page.locator('.health-row.warn')).toContainText('No episode')
+  // In plain words, with the technical message on hover.
+  await expect(page.locator('.health-row.warn .source-advice')).toContainText('The site changed and the source no longer reads it.')
+  await expect(page.locator('.health-row.warn .source-advice')).toHaveAttribute('title', /No episode/)
   // Remembered, and dead sources are skipped by the fallback search
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('videoSourceHealth') || '{}'))
   expect(saved.lamovie.state).toBe('dead'); expect(saved.lamovie.sourceIds).toEqual(['43']); expect(saved.mapple.state).toBe('ok')
   const dead = page.locator('.health-row.dead')
   await expect(dead).toContainText('LaMovie')
-  await expect(dead.locator('small')).toHaveText('Hôte inconnu (la.movie)')
+  await expect(dead.locator('.source-advice')).toContainText('The site no longer exists')
+  await expect(dead.locator('.source-advice')).toHaveAttribute('title', 'Hôte inconnu (la.movie)')
   await page.getByRole('button', { name: 'Remove 1 dead source' }).click()
   await page.getByRole('button', { name: 'Yes, uninstall' }).click()
   await expect(page.locator('.health-row')).toHaveCount(2)

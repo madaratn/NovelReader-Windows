@@ -1066,6 +1066,14 @@ const FR: Record<string, string> = {
   'The source did not work during the check.': 'La source n\'a pas marché pendant la vérification.',
   'Test it again later; if it keeps failing, remove it.': 'Teste-la à nouveau plus tard ; si elle échoue encore, retire-la.',
   'The usual source did not answer: opened from {source}.': 'La source habituelle ne répond pas : ouvert depuis {source}.',
+  'All watched': 'Tout vu',
+  'Look for the next season': 'Chercher la saison suivante',
+  'Playback': 'Lecture',
+  'Play the next episode by itself (a 10 s countdown when the credits start, which you can cancel)': 'Lancer l\'épisode suivant tout seul (compte à rebours de 10 s au début du générique de fin, annulable)',
+  'Skip intros by themselves (when the source marks them; “Watch it” brings it back)': 'Passer les génériques de début tout seul (quand la source les indique ; « Le regarder » le remet)',
+  'Intro skipped': 'Générique passé',
+  'Watch it': 'Le regarder',
+  'Next episode': 'Épisode suivant',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

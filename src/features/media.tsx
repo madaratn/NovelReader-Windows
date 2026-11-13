@@ -278,5 +278,21 @@ export function MediaFacts({item}:{item:any}){const parsed=parseMediaDescription
 // Books-style hero for media detail pages: big cover, title, source line,
 // progress and the main "Continue / Start" action (same layout as NovelDetail).
 export function MediaHero({item,kicker,subtitle,progress,note,actions}:{item:any,kicker:string,subtitle:string,progress?:number,note?:string,actions?:any}){return <section className="novelhead media-hero"><div className="novelhead-cover"><Cover src={mediaCover(item)} name={item.name||item.title||'Media'}/></div><div className="novelhead-meta"><span className="media-kicker">{kicker}</span><h1>{item.name||item.title}</h1><p>{subtitle}</p>{progress!=null&&<div className="libbar"><span style={{width:Math.max(0,Math.min(100,progress))+'%'}}/></div>}{note&&<small>{note}</small>}{actions&&<div className="libraryactions">{actions}</div>}</div></section>}
+// What "Continue" plays: the last episode watched if it was not finished, else the
+// next one; 'done' when the last episode was finished (then: look for the next season).
+export function continueTarget(prefix:string,media:any,eps:any[]):{kind:'start'|'continue'|'next'|'done',index:number}{
+ const li=lastEpisodeIndex(media,eps);if(li<0)return{kind:'start',index:0}
+ const ep=eps[li],p=readMediaPos(prefix+String(media?.id||media?.url||media?.name)+':'+String(ep?.url||ep?.path||ep?.number||ep?.name||li))
+ const finished=!!p&&(p.done||p.d>0&&p.t/p.d>=0.92)
+ if(!finished)return{kind:'continue',index:li}
+ return li+1<eps.length?{kind:'next',index:li+1}:{kind:'done',index:li}}
+// "Show S2", "Show Season 2", "Show 2nd Season", "Show II" -> base name and season number.
+export function seasonOfTitle(name:string):{base:string,season:number}{
+ const s=String(name||'').replace(/\s*\(\d{4}\)\s*/g,' ').trim()
+ const m=/^(.*?)[\s:–-]+(?:(?:season|saison|temporada|staffel)\s*(\d+)|s(\d+)|(\d+)(?:st|nd|rd|th)\s+season|part\s*(\d+))\s*$/i.exec(s)
+ if(m){const n=Number(m[2]||m[3]||m[4]||m[5]);return{base:m[1].trim()||s,season:n||1}}
+ const r=/^(.*?)\s+(II|III|IV|V)$/.exec(s);if(r)return{base:r[1],season:{II:2,III:3,IV:4,V:5}[r[2] as 'II']||1}
+ return{base:s,season:1}}
+export function nextSeasonQuery(name:string,eps:any[]=[]){const{base,season}=seasonOfTitle(name);const fromEps=Math.max(0,...eps.map((e:any)=>seasonNo(e)||0));return base+' season '+(Math.max(season,fromEps||1)+1)}
 export function lastEpisodeIndex(media:any,eps:any[]){const key=lsGet('lastEp:'+String(media?.id||media?.url||media?.name));if(!key)return -1;return eps.findIndex((e:any)=>String(e?.url||e?.path||e?.name||'')===key)}
 

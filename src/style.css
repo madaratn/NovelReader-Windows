@@ -1282,3 +1282,7 @@ html.android .home-card{transition:none}
 .source-advice{display:block;margin-top:4px;color:var(--text-2);font-size:var(--fs-xs);line-height:1.45}
 .source-advice b{color:var(--text);font-weight:600}
 .switch-note{margin:10px 0 0;padding:8px 12px;border-radius:var(--radius-sm);background:var(--bg-info);color:var(--text-info);font-size:var(--fs-sm)}
+/* "Intro skipped · Watch it" (automatic skip) */
+.player-skipped{position:absolute;left:18px;bottom:64px;z-index:3;display:flex;align-items:center;gap:10px;padding:8px 10px 8px 14px;border-radius:var(--radius-md);background:rgba(15,18,24,.88);color:var(--text);font-size:var(--fs-sm)}
+.player-skipped button{padding:6px 12px}
+.media-done{display:inline-flex;align-items:center;color:var(--text-ok);font-weight:600;margin-right:10px}
