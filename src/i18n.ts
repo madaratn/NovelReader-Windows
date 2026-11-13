@@ -1115,6 +1115,11 @@ const FR: Record<string, string> = {
   'Reality-TV': 'Téléréalité',
   'Talk-Show': 'Talk-show',
   'Game-Show': 'Jeu télévisé',
+  'Found on {n} more source.': 'Trouvé sur {n} autre source.',
+  'Found on {n} more sources.': 'Trouvé sur {n} autres sources.',
+  'Not found on your other sources.': 'Pas trouvé sur tes autres sources.',
+  'Looking… {done}/{total}': 'Recherche… {done}/{total}',
+  'Find on other sources': 'Chercher sur d\'autres sources',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

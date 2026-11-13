@@ -706,3 +706,21 @@ test('sources broken for more than 10 days are set aside from searches, listed i
   await page.locator('.search-main input').press('Enter')
   await expect.poll(async () => (await page.evaluate(() => (window as any).__searched)).sort()).toEqual(['50', '51', '52', '54'])
 })
+
+test('source of a title: pick another source it was found on, or look for more', async ({ page }) => {
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns', { alternates: [{ sourceId: '43', sourceName: 'Kodi', url: '/series/1' }] })]) })
+  await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
+  const picker = page.locator('.source-picker select')
+  await expect(picker.locator('option')).toHaveText(['Mapple', 'Kodi'])
+  // Look for more: every other installed source is asked.
+  await page.getByRole('button', { name: 'Find on other sources' }).click()
+  await expect(page.locator('.source-picker small')).toContainText(/Found on|Not found/)
+  // Pick Kodi: the title now comes from it, Mapple becomes another choice; same place in the library.
+  await picker.selectOption({ label: 'Kodi' })
+  await expect(picker.locator('option:checked')).toHaveText('Kodi')
+  const lib = await page.evaluate(() => JSON.parse(localStorage.getItem('seriesLibrary') || '[]'))
+  expect(lib.length).toBe(1)
+  expect(lib[0].id).toBe('series1')
+  expect(lib[0].sourceId).toBe('43')
+  expect(lib[0].alternates.map((a: any) => a.sourceName)).toContain('Mapple')
+})

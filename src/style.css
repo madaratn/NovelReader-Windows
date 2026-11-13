@@ -1307,3 +1307,8 @@ html.android .home-card{transition:none}
 .genre-chips select{height:32px;border-radius:var(--radius-pill);font-size:var(--fs-sm)}
 @media (max-width:600px){.genre-chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}.genre-chips .chip{flex:none}}
 .genre-note{margin:-6px 0 12px}
+/* Source of a title: choose among the sources it was found on */
+.source-picker{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin:12px 0 0;font-size:var(--fs-sm);color:var(--text-2)}
+.source-picker label{display:flex;align-items:center;gap:8px}
+.source-picker select{min-width:180px}
+.source-picker small{color:var(--text-3)}

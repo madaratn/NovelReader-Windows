@@ -317,3 +317,23 @@ export function seasonOfTitle(name:string):{base:string,season:number}{
 export function nextSeasonQuery(name:string,eps:any[]=[]){const{base,season}=seasonOfTitle(name);const fromEps=Math.max(0,...eps.map((e:any)=>seasonNo(e)||0));return base+' season '+(Math.max(season,fromEps||1)+1)}
 export function lastEpisodeIndex(media:any,eps:any[]){const key=lsGet('lastEp:'+String(media?.id||media?.url||media?.name));if(!key)return -1;return eps.findIndex((e:any)=>String(e?.url||e?.path||e?.name||'')===key)}
 
+
+// ---- Choose the video source of a title ------------------------------------------
+// The title's own source and the others it was found on ("alternates"); more can be
+// looked for. Choosing one opens the title from it (its progress and place in the
+// library stay); the next episodes then come from it.
+export type AltSource={sourceId:string,sourceName:string,url:string,name?:string}
+export async function findOnOtherSources(kind:MediaKind,title:string,known:AltSource[],onProgress?:(done:number,total:number)=>void):Promise<AltSource[]>{
+ const sr:any=await engineFetch('/api/v1/sources');const sources=(Array.isArray(sr)?sr:(sr.anime||sr.sources||sr.items||[])).filter((x:any)=>x&&x.id!=null&&sourceFits(String(x.name||''),sectionOf(kind)))
+ const want=mediaNorm(title),have=new Set(known.map(k=>String(k.sourceId))),todo=sources.filter((x:any)=>!have.has(String(x.id))),found:AltSource[]=[];let done=0
+ const queue=[...todo];await Promise.all(Array.from({length:6},async()=>{while(queue.length){const src=queue.shift()!;try{const d:any=await engineFetch('/api/v1/anime/'+encodeURIComponent(String(src.id))+'/search?query='+encodeURIComponent(title)+'&page=1');const list=Array.isArray(d)?d:(d.animes||d.results||d.items||d.list||[])
+  const hit=list.find((a:any)=>mediaNorm(a.title||a.name||'')===want)||list.find((a:any)=>{const n=mediaNorm(a.title||a.name||'');return n&&want&&(n.startsWith(want)||want.startsWith(n))&&Math.abs(n.length-want.length)<=4})
+  if(hit&&(hit.url||hit.path))found.push({sourceId:String(src.id),sourceName:String(src.name||src.id),url:hit.url||hit.path,name:hit.title||hit.name})}catch{}finally{done++;onProgress?.(done,todo.length)}}}))
+ return found.sort((a,b)=>a.sourceName.localeCompare(b.sourceName))}
+export function SourcePicker({kind,item,onPick,onFound}:{kind:MediaKind,item:any,onPick:(alt:AltSource)=>void,onFound:(alts:AltSource[])=>void}){
+ const own:AltSource={sourceId:String(item.sourceId||''),sourceName:String(item.sourceName||item.source||t('Video source')),url:item.url||item.path}
+ const alts:AltSource[]=(Array.isArray(item.alternates)?item.alternates:[]).filter((a:any)=>a&&a.sourceId&&a.url&&String(a.sourceId)!==own.sourceId)
+ const[busy,setBusy]=useState<{done:number,total:number}|null>(null),[msg,setMsg]=useState('')
+ const more=async()=>{setMsg('');setBusy({done:0,total:0});try{const f=await findOnOtherSources(kind,String(item.name||item.title||''),[own,...alts],(done,total)=>setBusy({done,total}));onFound(f);setMsg(f.length?plural(f.length,'Found on {n} more source.','Found on {n} more sources.'):t('Not found on your other sources.'))}catch(e:any){setMsg(cleanEngineError(e))}finally{setBusy(null)}}
+ return <div className="source-picker"><label>{t('Source')}<select value={own.sourceId} onChange={e=>{const a=alts.find(x=>x.sourceId===e.target.value);if(a)onPick(a)}}><option value={own.sourceId}>{own.sourceName}</option>{alts.map(a=><option key={a.sourceId+a.url} value={a.sourceId}>{a.sourceName}</option>)}</select></label>
+  <button disabled={!!busy} onClick={more}>{busy?t('Looking… {done}/{total}',{done:busy.done,total:busy.total||'?'}):t('Find on other sources')}</button>{msg&&<small role="status">{msg}</small>}</div>}
