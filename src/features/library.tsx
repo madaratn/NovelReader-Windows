@@ -2,7 +2,7 @@ import React,{useEffect,useRef,useState}from'react'
 import{t,plural}from'../i18n'
 import{ReadingStats}from'../features/stats'
 import{lsGet,lsSet,timeAgo}from'../lib/util'
-import{EmptyState,Cover,Icon,MoreMenu}from'../ui/common'
+import{EmptyState,Cover,Icon,MoreMenu,GenreFilter}from'../ui/common'
 import{useAnnotations}from'./annotations'
 
 // ---- Novel library ----------------------------------------------------------
@@ -20,8 +20,10 @@ export function NovelLibrary({library,updates,onCheckUpdates,onOpen,onDetails,on
  useEffect(()=>{if(!undo)return;const t=setTimeout(()=>setUndo(null),7000);return()=>clearTimeout(t)},[undo])
  const rows=library.map(n=>{const r=readingOf(n.id),total=Number(n.chapterCount)||n.chapters?.length||0,done=r?r.index+1:0;return{n,r,total,done,left:Math.max(0,total-done),shelf:shelfOf(n,r,total)}})
  const q=filter.trim().toLowerCase()
+ const[genre,setGenre]=useState(()=>lsGet('libraryGenre')||'')
+ const pickGenre=(g:string)=>{setGenre(g);lsSet('libraryGenre',g)}
  const counts=Object.fromEntries(SHELVES.map(x=>[x.id,rows.filter(r=>r.shelf===x.id).length])) as Record<Shelf,number>
- const shown=rows.filter(x=>shelf==='all'||x.shelf===shelf).filter(x=>!q||(x.n.name+' '+(x.n.author||'')+' '+(x.n.source?.name||'')).toLowerCase().includes(q)).sort((a,b)=>sort==='title'?String(a.n.name).localeCompare(String(b.n.name)):sort==='added'?(b.n.addedAt||0)-(a.n.addedAt||0):sort==='unread'?b.left-a.left:((Number(b.n.newChapters)>0?1:0)-(Number(a.n.newChapters)>0?1:0))||((b.r?.at||0)-(a.r?.at||0))||((b.n.addedAt||0)-(a.n.addedAt||0)))
+ const shown=rows.filter(x=>shelf==='all'||x.shelf===shelf).filter(x=>!genre||(x.n.genres||[]).includes(genre)).filter(x=>!q||(x.n.name+' '+(x.n.author||'')+' '+(x.n.source?.name||'')).toLowerCase().includes(q)).sort((a,b)=>sort==='title'?String(a.n.name).localeCompare(String(b.n.name)):sort==='added'?(b.n.addedAt||0)-(a.n.addedAt||0):sort==='unread'?b.left-a.left:((Number(b.n.newChapters)>0?1:0)-(Number(a.n.newChapters)>0?1:0))||((b.r?.at||0)-(a.r?.at||0))||((b.n.addedAt||0)-(a.n.addedAt||0)))
  const last=rows.filter(x=>x.r?.at).sort((a,b)=>(b.r!.at!)-(a.r!.at!))[0]
  const lastTitle=(x:typeof rows[number])=>{const c=x.n.chapters?.[x.r!.index];return c?.name||c?.title||t('Chapter {n}',{n:x.r!.index+1})}
  return <>
@@ -34,6 +36,7 @@ export function NovelLibrary({library,updates,onCheckUpdates,onOpen,onDetails,on
    </section>}
    {!q&&<ReadingStats/>}
    <div className="shelftabs" role="tablist" aria-label={t('Shelves')}>{([['all',t('All'),rows.length]] as [string,string,number][]).concat(SHELVES.map(x=>[x.id,t(x.label),counts[x.id]] as [string,string,number])).map(([id,label,n])=><button key={id} role="tab" aria-selected={shelf===id} className={'shelftab'+(shelf===id?' on':'')} onClick={()=>{setShelf(id as any);lsSet('libraryShelf',id)}}>{label} <small>{n}</small></button>)}</div>
+   <GenreFilter lists={library.map(n=>n.genres||[])} value={genre} onChange={pickGenre}/>
    <div className="lib-toolbar"><div className="searchbar"><input placeholder={t('Filter by title, author or source…')} value={filter} onChange={e=>setFilter(e.target.value)} aria-label={t('Filter by title, author or source…')}/></div>
     <button className="lib-update" disabled={updates.running} onClick={onCheckUpdates} title={updates.at?t('Last check: {when}',{when:timeAgo(updates.at)}):undefined}>{updates.running?t('Checking {done}/{total}…',{done:updates.done,total:updates.total}):t('Check for new chapters')}</button>
     <label className="lib-sort">{t('Sort')}<select value={sort} onChange={e=>{const v=e.target.value as LibSort;setSort(v);lsSet('librarySort',v)}}><option value="recent">{t('Recently read')}</option><option value="added">{t('Recently added')}</option><option value="title">{t('Title A–Z')}</option><option value="unread">{t('Most unread')}</option></select></label></div>

@@ -137,7 +137,8 @@ export function installAndroidBridge(version:string,ios=false){
  const impl:Record<string,any>={
   platform:'android',
   searchPlugin:(p:any,q:string)=>plugins.search(p,q),
-  popularPlugin:(p:any,page:number,latest:boolean)=>plugins.popular(p,page,latest),
+  popularPlugin:(p:any,page:number,latest:boolean,genre?:any)=>plugins.popular(p,page,latest,genre),
+  pluginGenres:(p:any)=>plugins.genres(p),
   parseNovel:(p:any,path:string)=>plugins.parseNovel(p,path),
   parseChapter:(p:any,path:string)=>plugins.parseChapter(p,path),
   translate,
