@@ -108,7 +108,7 @@ export function SettingsPage({lang,onLang,onWelcome,onShortcuts,update,onImportL
     <label className="settings-check"><input type="checkbox" checked={atLogin} disabled={!keepOn} onChange={e=>{setAtLogin(e.target.checked);lsSet('startWithWindows',e.target.checked?'1':'0');applyBackground()}}/> {t('Start with Windows, in the background, to be told about new episodes even before opening NovelReader')}</label>
    </>}
   </section>}
-  {on('video')&&<SubtitleSettings/>}
+  {on('video')&&<><PlaybackSettings/><SubtitleSettings/></>}
   {on('about')&&<>
   <section className="panel settings-block"><h2>{t('About')}</h2><p className="settings-help">NovelReader · {android?(document.documentElement.classList.contains('ios')?'iPhone':'Android'):'Windows'} · {version?'v'+version:''}</p><div className="libraryactions"><button onClick={onWelcome}>{t('Show the welcome guide again')}</button>{onShortcuts&&!android&&<button onClick={onShortcuts}>{t('Keyboard shortcuts')+' (?)'}</button>}</div></section>
   <ReportPanel/>
@@ -173,6 +173,13 @@ export function UpdateSettings({status,version}:{status:UpdateStatus|null,versio
 // PC: what happens when the window is closed (electron/background.cjs).
 export function applyBackground(){const nr:any=window.novelReader;if(typeof nr?.runInBackground!=='function')return
  nr.runInBackground({on:lsGet('runInBackground')!=='0',startWithWindows:lsGet('startWithWindows')==='1',strings:{open:t('Open NovelReader'),quit:t('Quit NovelReader'),tip:t('NovelReader — checking for new episodes'),hiddenTitle:t('NovelReader keeps running'),hiddenBody:t('It will tell you about new episodes and chapters. Right-click its icon near the clock to quit.')}}).catch(()=>{})}
+// Settings › Video › Playback: next episode and intro (media-player.tsx).
+function PlaybackSettings(){
+ const[next,setNext]=useState(()=>lsGet('autoNext')!=='0'),[skip,setSkip]=useState(()=>lsGet('autoSkip')==='1')
+ return <section className="panel settings-block"><h2>{t('Playback')}</h2>
+  <label className="settings-check"><input type="checkbox" checked={next} onChange={e=>{setNext(e.target.checked);lsSet('autoNext',e.target.checked?'1':'0')}}/> {t('Play the next episode by itself (a 10 s countdown when the credits start, which you can cancel)')}</label>
+  <label className="settings-check"><input type="checkbox" checked={skip} onChange={e=>{setSkip(e.target.checked);lsSet('autoSkip',e.target.checked?'1':'0')}}/> {t('Skip intros by themselves (when the source marks them; “Watch it” brings it back)')}</label>
+ </section>}
 export function notifyNewEpisodes(found:number,names:string[],onClick:()=>void){
  if(lsGet('notifyNewEpisodes')==='0')return
  // NovelReader in front: a message in the app (a system notification would not show).

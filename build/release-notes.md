@@ -1,3 +1,14 @@
+## NovelReader 0.27.0
+
+- **Téléphone : sources de livres protégées par Cloudflare** — la page « Just a moment… » est maintenant passée dans l'application, comme sur PC. Si le site demande de cocher une case, une page s'affiche avec une courte explication ; elle se ferme toute seule ensuite. Le passage est gardé quelques heures pour ce site.
+- **Sources vidéo : pourquoi une source ne marche pas, en clair** — dans Sources, chaque source en panne dit ce qui se passe (site fermé, compte demandé, site qui a changé, pas de vidéo…) et quoi faire.
+- **Titre qui ne s'ouvre plus** : si sa source ne donne plus la liste des épisodes, NovelReader l'ouvre tout seul depuis une autre source où il a été trouvé (un message l'indique).
+- **Épisode suivant automatique** : le compte à rebours de 10 s démarre dès le début du générique de fin (quand la source l'indique), annulable. Sans repère, un bouton « Épisode suivant » apparaît dans la dernière minute.
+- **Passer les génériques tout seul** (option, Réglages › Vidéo › Lecture) avec « Le regarder » pour revenir en arrière.
+- **« Reprendre » passe à l'épisode suivant** quand le dernier regardé est fini (« Suivant · Ép. 3 ») ; tout vu → « Chercher la saison suivante ».
+
+---
+
 ## NovelReader 0.26.0
 
 - **Regarder ou lire sans ajouter** : dans la recherche et dans Découvrir, chaque titre a maintenant « ▶ Regarder » (animes, séries, films) ou « Lire » (livres) à côté de « ＋ Ajouter ». La page du titre s'ouvre telle quelle, avec un bouton « Ajouter à la bibliothèque » si tu veux le garder ; ce que tu as regardé est conservé si tu l'ajoutes ensuite. « ← Retour » ramène aux résultats, qui sont toujours là.

@@ -8,6 +8,7 @@ import{lsGet,lsSet,timeAgo}from'../lib/util'
 import{EmptyState,Help,Cover,Icon,NoticeText,MoreMenu}from'../ui/common'
 import{mediaPosKey,readMediaPos,mediaNorm,mediaCover,enrichMediaCover,episodeNo,seasonNo,orderedEpisodes,cleanEngineError,readWatchStats,watchDayKey,watchedCount,type MediaKind}from'../lib/media'
 import{engineFetch}from'../lib/engine'
+import{sourceAdvice}from'../lib/source-advice'
 // ---- Media libraries: mirror the polished Books library UX -----------------
 // ---- New episodes: ask each title's source how many episodes it has now.
 // Used by the library button and by the background check in App (every 6 h).
@@ -131,7 +132,9 @@ export function SetAsideNotice(){
   <Help text={t('The weekly check has found these sources not working for more than {n} days. They are left out of searches and Discover so results come faster; they come back by themselves when they work again.',{n:DEAD_DAYS})}/>
   <div className="set-aside-list">{names.map(n=><span key={n} className="set-aside-item"><b>{n}</b><button onClick={()=>keepSource(n)}>{t('Use anyway')}</button></span>)}</div>
  </section>}
-function WeeklyScan({pkg,name}:{pkg:string,name:string}){const[,bump]=useState(0);useEffect(()=>{const f=()=>bump(x=>x+1);window.addEventListener('nr-source-scan',f);loadScan().catch(()=>{});return()=>window.removeEventListener('nr-source-scan',f)},[]);const sc=scanFor(pkg)||scanFor(name),at=cachedScan()?.at;if(!sc)return null;return <small className={'scan-line '+sc.state}>{(sc.state==='ok'?'✓ ':sc.state==='partial'?'~ ':'✗ ')+t('Weekly check ({date}): {state}',{date:at?new Date(at).toLocaleDateString():'',state:sc.state==='ok'?t('plays videos'):sc.state==='partial'?t('partly works'):/^On Android/.test(sc.detail||'')?t('does not play on a phone'):t('not responding')})}</small>}
+function WeeklyScan({pkg,name}:{pkg:string,name:string}){const[,bump]=useState(0);useEffect(()=>{const f=()=>bump(x=>x+1);window.addEventListener('nr-source-scan',f);loadScan().catch(()=>{});return()=>window.removeEventListener('nr-source-scan',f)},[]);const sc=scanFor(pkg)||scanFor(name),at=cachedScan()?.at;if(!sc)return null;return <><small className={'scan-line '+sc.state}>{(sc.state==='ok'?'✓ ':sc.state==='partial'?'~ ':'✗ ')+t('Weekly check ({date}): {state}',{date:at?new Date(at).toLocaleDateString():'',state:sc.state==='ok'?t('plays videos'):sc.state==='partial'?t('partly works'):/^On Android/.test(sc.detail||'')?t('does not play on a phone'):t('not responding')})}</small>{sc.state!=='ok'&&!/^On Android/.test(sc.detail||'')&&<AdviceLine msg={sc.detail||''}/>}</>}
+// Why a source fails, in plain words, and what to do (the technical text on hover).
+function AdviceLine({msg}:{msg:string}){const a=sourceAdvice(msg,document.documentElement.classList.contains('android'));if(!a)return null;return <small className="source-advice" title={msg}><b>{a.why}</b> {a.fix}</small>}
 // Which sections (Anime / Series / Movies) show this source; click to change.
 function SectionChips({name}:{name:string}){
  const[,bump]=useState(0),cur=sourceSections(name),custom=hasOverride(name)
@@ -185,7 +188,7 @@ export function VideoSourceHealth(){
  const dead=rows.filter(r=>r.state==='dead'),okN=rows.filter(r=>r.state==='ok').length,warnN=rows.filter(r=>r.state==='warn').length,done=rows.filter(r=>r.state==='ok'||r.state==='dead'||r.state==='warn').length,at=Number(lsGet('videoSourceHealthAt'))||0
  const tested=rows.some(r=>r.state!=='idle')
  return <section className="panel source-health"><div className="engine-row"><div><h2>{t('Installed sources')}</h2><p>{tested?(running?t('Testing {done} / {total} sources…',{done,total:rows.length}):t('{ok} working, {warn} partly working, {dead} not responding.',{ok:okN,warn:warnN,dead:dead.length})+(at&&!running?' · '+t('Checked {when}',{when:timeAgo(at)}):'')):t('Check which installed sources still work, and remove the ones that are down.')}</p></div><button className={tested?'':'primary'} disabled={running} onClick={test}>{running?t('Testing…'):tested?t('Test again'):t('Test my sources')}</button></div>
-  {rows.length>0&&<div className="health-list">{rows.map(r=><div key={r.pkg} className={'health-row '+r.state}><span className="health-dot" aria-hidden="true"/><div><b>{r.name}</b>{r.state==='testing'&&r.step?<small>{r.step}</small>:r.detail?<small className="health-steps">{r.detail}</small>:<WeeklyScan pkg={r.pkg} name={r.name}/>}{(r.state==='dead'||r.state==='warn')&&r.error&&<small>{r.error}</small>}</div><SectionChips name={r.name}/><span className="health-state">{r.state==='testing'?t('Testing…'):r.state==='ok'?t('Plays'):r.state==='warn'?t('Partly'):r.state==='dead'?t('Not responding'):''}</span>{r.state==='dead'&&<button className="removebtn" onClick={()=>uninstall([r.pkg])}>{t('Uninstall')}</button>}</div>)}</div>}
+  {rows.length>0&&<div className="health-list">{rows.map(r=><div key={r.pkg} className={'health-row '+r.state}><span className="health-dot" aria-hidden="true"/><div><b>{r.name}</b>{r.state==='testing'&&r.step?<small>{r.step}</small>:r.detail?<small className="health-steps">{r.detail}</small>:<WeeklyScan pkg={r.pkg} name={r.name}/>}{(r.state==='dead'||r.state==='warn')&&r.error&&<AdviceLine msg={r.error}/>}</div><SectionChips name={r.name}/><span className="health-state">{r.state==='testing'?t('Testing…'):r.state==='ok'?t('Plays'):r.state==='warn'?t('Partly'):r.state==='dead'?t('Not responding'):''}</span>{r.state==='dead'&&<button className="removebtn" onClick={()=>uninstall([r.pkg])}>{t('Uninstall')}</button>}</div>)}</div>}
   {!running&&dead.length>0&&<div className="libraryactions health-actions">{confirm?<><span>{plural(dead.length,'Uninstall {n} source that is not responding?','Uninstall {n} sources that are not responding?')}</span><button className="removebtn" onClick={()=>uninstall(dead.map(r=>r.pkg))}>{t('Yes, uninstall')}</button><button onClick={()=>setConfirm(false)}>{t('Cancel')}</button></>:<button className="removebtn" onClick={()=>setConfirm(true)}>{plural(dead.length,'Remove {n} dead source','Remove {n} dead sources')}</button>}</div>}
   {msg&&<p className="lib-update-status" role="status">{msg}</p>}
  </section>
@@ -275,5 +278,21 @@ export function MediaFacts({item}:{item:any}){const parsed=parseMediaDescription
 // Books-style hero for media detail pages: big cover, title, source line,
 // progress and the main "Continue / Start" action (same layout as NovelDetail).
 export function MediaHero({item,kicker,subtitle,progress,note,actions}:{item:any,kicker:string,subtitle:string,progress?:number,note?:string,actions?:any}){return <section className="novelhead media-hero"><div className="novelhead-cover"><Cover src={mediaCover(item)} name={item.name||item.title||'Media'}/></div><div className="novelhead-meta"><span className="media-kicker">{kicker}</span><h1>{item.name||item.title}</h1><p>{subtitle}</p>{progress!=null&&<div className="libbar"><span style={{width:Math.max(0,Math.min(100,progress))+'%'}}/></div>}{note&&<small>{note}</small>}{actions&&<div className="libraryactions">{actions}</div>}</div></section>}
+// What "Continue" plays: the last episode watched if it was not finished, else the
+// next one; 'done' when the last episode was finished (then: look for the next season).
+export function continueTarget(prefix:string,media:any,eps:any[]):{kind:'start'|'continue'|'next'|'done',index:number}{
+ const li=lastEpisodeIndex(media,eps);if(li<0)return{kind:'start',index:0}
+ const ep=eps[li],p=readMediaPos(prefix+String(media?.id||media?.url||media?.name)+':'+String(ep?.url||ep?.path||ep?.number||ep?.name||li))
+ const finished=!!p&&(p.done||p.d>0&&p.t/p.d>=0.92)
+ if(!finished)return{kind:'continue',index:li}
+ return li+1<eps.length?{kind:'next',index:li+1}:{kind:'done',index:li}}
+// "Show S2", "Show Season 2", "Show 2nd Season", "Show II" -> base name and season number.
+export function seasonOfTitle(name:string):{base:string,season:number}{
+ const s=String(name||'').replace(/\s*\(\d{4}\)\s*/g,' ').trim()
+ const m=/^(.*?)[\s:–-]+(?:(?:season|saison|temporada|staffel)\s*(\d+)|s(\d+)|(\d+)(?:st|nd|rd|th)\s+season|part\s*(\d+))\s*$/i.exec(s)
+ if(m){const n=Number(m[2]||m[3]||m[4]||m[5]);return{base:m[1].trim()||s,season:n||1}}
+ const r=/^(.*?)\s+(II|III|IV|V)$/.exec(s);if(r)return{base:r[1],season:{II:2,III:3,IV:4,V:5}[r[2] as 'II']||1}
+ return{base:s,season:1}}
+export function nextSeasonQuery(name:string,eps:any[]=[]){const{base,season}=seasonOfTitle(name);const fromEps=Math.max(0,...eps.map((e:any)=>seasonNo(e)||0));return base+' season '+(Math.max(season,fromEps||1)+1)}
 export function lastEpisodeIndex(media:any,eps:any[]){const key=lsGet('lastEp:'+String(media?.id||media?.url||media?.name));if(!key)return -1;return eps.findIndex((e:any)=>String(e?.url||e?.path||e?.name||'')===key)}
 

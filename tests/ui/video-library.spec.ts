@@ -136,13 +136,16 @@ test('video sources: test installed sources and remove the dead one', async ({ p
   await expect(page.locator('.health-row.ok')).toContainText('List ✓ · Episodes ✓ · Streams ✓ (2)')
   await expect(page.locator('.health-row.ok .health-state')).toHaveText('Plays')
   await expect(page.locator('.health-row.warn')).toContainText('List ✓ · Episodes ✗ · Streams ✗')
-  await expect(page.locator('.health-row.warn')).toContainText('No episode')
+  // In plain words, with the technical message on hover.
+  await expect(page.locator('.health-row.warn .source-advice')).toContainText('The site changed and the source no longer reads it.')
+  await expect(page.locator('.health-row.warn .source-advice')).toHaveAttribute('title', /No episode/)
   // Remembered, and dead sources are skipped by the fallback search
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('videoSourceHealth') || '{}'))
   expect(saved.lamovie.state).toBe('dead'); expect(saved.lamovie.sourceIds).toEqual(['43']); expect(saved.mapple.state).toBe('ok')
   const dead = page.locator('.health-row.dead')
   await expect(dead).toContainText('LaMovie')
-  await expect(dead.locator('small')).toHaveText('Hôte inconnu (la.movie)')
+  await expect(dead.locator('.source-advice')).toContainText('The site no longer exists')
+  await expect(dead.locator('.source-advice')).toHaveAttribute('title', 'Hôte inconnu (la.movie)')
   await page.getByRole('button', { name: 'Remove 1 dead source' }).click()
   await page.getByRole('button', { name: 'Yes, uninstall' }).click()
   await expect(page.locator('.health-row')).toHaveCount(2)
@@ -270,6 +273,21 @@ test('discover: watch a title without adding it, then add it from its page', asy
   await expect(bar).toHaveCount(0)
   await expect(page.getByRole('button', { name: '← Series Library' })).toBeVisible()
   expect(await ids()).toEqual(['series:42:/s/sev', 'series1']) // same id as when watched: progress kept
+})
+
+test('opening a title whose source gives no episode list uses another source it was found on', async ({ page }) => {
+  // Source 44 answers with an empty list; the same title was also found on 42.
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns', { sourceId: '44', sourceName: 'Partial', alternates: [{ sourceId: '42', sourceName: 'Mapple', url: '/series/1' }] })]) })
+  await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
+  await expect(page.locator('.episodecell')).toHaveCount(8)
+  await expect(page.locator('main')).toContainText('The usual source did not answer: opened from Mapple.')
+})
+
+test('sources page: a failing source says why in plain words and what to do', async ({ page }) => {
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'series', videoSourceHealth: JSON.stringify({ lamovie: { name: 'LaMovie', state: 'dead', error: 'list: Miwayomi HTTP 500 — Hôte inconnu UnknownHostException la.movie', at: Date.now() }, partial: { name: 'Partial', state: 'warn', error: 'no stream for the first episode', at: Date.now() } }) })
+  await nav(page, 'Sources')
+  await expect(page.locator('.health-row', { hasText: 'LaMovie' }).locator('.source-advice')).toContainText('The site no longer exists')
+  await expect(page.locator('.health-row', { hasText: 'Partial' }).locator('.source-advice')).toContainText('gives no video')
 })
 
 test('background check can be turned off in Settings', async ({ page }) => {

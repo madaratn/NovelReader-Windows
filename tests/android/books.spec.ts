@@ -700,3 +700,32 @@ test('Android: videos stored on the phone (a folder chosen once, files listed an
   await main.locator('.localcard', { hasText: 'E2.mkv' }).click()
   await expect(main.locator('video')).toHaveAttribute('src', 'https://localhost/_capacitor_content_/com.android.externalstorage.documents/tree/primary%3AMovies/document/primary%3AMovies%2FFrieren%2FE2.mkv')
 })
+
+test('Android: a book site behind a Cloudflare check is passed in the app, then searched normally', async ({ page }) => {
+  let hits = 0
+  await page.unroute('https://novels.test/popular')
+  await page.route('https://novels.test/popular', r => {
+    hits++
+    if (hits === 1) return r.fulfill({ status: 403, contentType: 'text/html', headers: { 'cf-mitigated': 'challenge' }, body: '<html><head><title>Just a moment...</title></head><body>challenge-platform</body></html>' })
+    return r.fulfill({ contentType: 'text/html', body: '<a class="n" href="/novel/shadow">Shadow Slave</a>' })
+  })
+  await page.addInitScript(() => {
+    const w = window as any
+    w.__solves = []
+    w.Capacitor.Plugins = { ...(w.Capacitor.Plugins || {}), SiteCheck: { solve: async (o: any) => { w.__solves.push(o); return { ok: true, cookie: 'cf_clearance=ok', userAgent: 'Mozilla/5.0 TestWebView' } } } }
+  })
+  await page.goto('/')
+  await page.locator('.m-bottom').getByRole('button', { name: 'Global Search' }).click()
+  await page.locator('main input').first().fill('shadow')
+  await page.locator('main input').first().press('Enter')
+  await expect(page.locator('main')).toContainText('Shadow Slave', { timeout: 15000 })
+  const solves = await page.evaluate(() => (window as any).__solves)
+  expect(solves.length).toBe(1)
+  expect(solves[0].url).toBe('https://novels.test/popular')
+  expect(solves[0].show).toBe(true) // a real check: shown if it wants a click
+  expect(hits).toBe(2)
+  // The pass is kept for the next requests to that site.
+  const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('siteChecks') || '{}'))
+  expect(kept['novels.test'].cookie).toBe('cf_clearance=ok')
+  expect(kept['novels.test'].ua).toBe('Mozilla/5.0 TestWebView')
+})
