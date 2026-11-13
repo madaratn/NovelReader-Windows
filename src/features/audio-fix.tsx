@@ -21,10 +21,21 @@ export function pickStream(list:Stream[],prefer=lsGet('audioFixLang')||'',langs:
 }
 export const silentNow=(v:HTMLVideoElement)=>{const a=(v as any).webkitAudioDecodedByteCount,vd=(v as any).webkitVideoDecodedByteCount;return(window as any).__forceSilent===true||(typeof a==='number'&&typeof vd==='number'&&vd>0&&a===0)}
 
-export function useAudioFix(ref:React.RefObject<HTMLVideoElement|null>,streamUrl:string){
- const[state,setState]=useState<'off'|'loading'|'on'|'none'|'error'>('off'),[progress,setProgress]=useState(0),[streams,setStreams]=useState<Stream[]>([]),[track,setTrack]=useState(0),[error,setError]=useState('')
+// Android: Dolby / DTS sound cannot be converted on the phone; the video can be
+// handed to another player app (VLC, MX Player…) that reads it.
+const phonePlayer=():any=>(window as any).Capacitor?.Plugins?.Player
+export function externalTarget(streamUrl:string):{url:string,headers:string[]}{
+ try{const u=new URL(streamUrl);if(!/\/api\/v1\/proxy$/.test(u.pathname))return{url:streamUrl,headers:[]}
+  const raw=u.searchParams.get('url')||'';if(!/^https?:\/\//i.test(raw))return{url:streamUrl,headers:[]}
+  const hs=(u.searchParams.get('headers')||'').split('\n').map(l=>{const i=l.indexOf(':');return i>0?[l.slice(0,i).trim(),l.slice(i+1).trim()]:null}).filter(Boolean) as string[][]
+  const needed=hs.filter(([k])=>!/^(user-agent|accept|accept-language)$/i.test(k))
+  return needed.length?{url:streamUrl,headers:[]}:{url:raw,headers:hs.flat()}}catch{return{url:streamUrl,headers:[]}}}
+export function useAudioFix(ref:React.RefObject<HTMLVideoElement|null>,streamUrl:string,title=''){
+ const[state,setState]=useState<'off'|'loading'|'on'|'none'|'error'|'phone'>('off'),[progress,setProgress]=useState(0),[streams,setStreams]=useState<Stream[]>([]),[track,setTrack]=useState(0),[error,setError]=useState('')
  const audio=useRef<HTMLAudioElement|null>(null),base=useRef(''),offset=useRef(0),lat=useRef(3),startedAt=useRef(0)
- const supported=typeof nr()?.audioFixStart==='function'&&/^http:\/\/(127\.0\.0\.1|localhost):\d+\//.test(streamUrl)
+ const convert=typeof nr()?.audioFixStart==='function'&&/^http:\/\/(127\.0\.0\.1|localhost):\d+\//.test(streamUrl)
+ const external=!convert&&typeof phonePlayer()?.openExternal==='function'&&/^https?:\/\//.test(streamUrl)
+ const supported=convert||external
  // New video: everything off.
  useEffect(()=>{setState('off');setStreams([]);setError('');stopAudio()},[streamUrl])
  useEffect(()=>()=>{stopAudio();nr()?.audioFixStop?.().catch(()=>{})},[])
@@ -36,6 +47,7 @@ export function useAudioFix(ref:React.RefObject<HTMLVideoElement|null>,streamUrl
    if(watched>=4){if(silentNow(v))begin();else clearInterval(iv)}}
   const iv=setInterval(tick,500);return()=>clearInterval(iv)},[streamUrl,state,supported])
  async function begin(){
+  if(!convert){setState('phone');return}
   setState('loading');setProgress(0)
   const off=nr().onAudioFixProgress?.((p:number)=>setProgress(p))
   try{const r=await nr().audioFixStart(streamUrl);base.current=r.base;setStreams(r.streams||[])
@@ -69,10 +81,16 @@ export function useAudioFix(ref:React.RefObject<HTMLVideoElement|null>,streamUrl
   },250)
   return()=>{clearInterval(iv);clearTimeout(seekT);v.removeEventListener('seeked',onSeek);v.removeEventListener('volumechange',onVol)}},[state,streamUrl])
  const choose=(i:number)=>{setTrack(i);const s=streams[i];if(s)lsSet('audioFixLang',s.lang||s.title);restart(i)}
+ const openElsewhere=async()=>{const v=ref.current;if(v&&!v.paused)v.pause()
+  // A plain file with no special header is given directly: the other app then
+  // reads it from the site, even if Android closes NovelReader in the background.
+  const direct=externalTarget(streamUrl)
+  try{const r=await phonePlayer().openExternal({url:direct.url,headers:direct.headers,title,position:Math.round((v?.currentTime||0)*1000),chooserTitle:t('Play with')});if(!r?.ok)setError(t('No other video player is installed. VLC (free) reads every sound format.'))}catch(e:any){setError(String(e?.message||e))}}
  const label=(s:Stream)=>[s.title,s.lang&&s.lang.toUpperCase(),s.codec.toUpperCase(),s.channels].filter(Boolean).join(' · ')
  const node=state==='off'?null:<div className={'audio-fix-note'+(state==='error'||state==='none'?' warn':'')} role="status">
   {state==='loading'&&<span><Icon name="volume" inline/>{progress>0&&progress<1?t('This video has a sound format the player cannot read (Dolby / DTS). Downloading the sound converter (once, about 30 MB)… {p}%',{p:Math.round(progress*100)}):t('This video has a sound format the player cannot read (Dolby / DTS). Converting the sound…')}</span>}
   {state==='on'&&<><span><Icon name="volume" inline/>{t('Sound converted live (the file uses Dolby / DTS sound).')}</span><label title={t('Volume')}><Icon name="volume" inline/><input type="range" min={0} max={1} step={0.05} defaultValue={ref.current?.volume??1} aria-label={t('Volume')} onChange={e=>{const v=ref.current;if(v){v.volume=Number(e.target.value);v.muted=false}}}/></label>{streams.length>1&&<label>{t('Sound track')}<select value={track} onChange={e=>choose(Number(e.target.value))}>{streams.map((s,i)=><option key={i} value={i}>{label(s)}</option>)}</select></label>}</>}
+  {state==='phone'&&<><span><Icon name="mute" inline/>{t('No sound: this file uses Dolby / DTS sound, which the phone\'s built-in player cannot read. Open it in another player (VLC reads it), or pick another quality.')}</span><button className="primary" onClick={openElsewhere}>{t('Open in another player')}</button>{error&&<small role="alert">{error}</small>}</>}
   {state==='none'&&<span><Icon name="mute" inline/>{t('This file has no sound track. Pick another quality.')}</span>}
   {state==='error'&&<span><Icon name="mute" inline/>{t('The sound of this file could not be converted: {e}. Pick another quality.',{e:error})}</span>}
  </div>
