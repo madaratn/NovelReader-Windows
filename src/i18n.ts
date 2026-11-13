@@ -1021,6 +1021,10 @@ const FR: Record<string, string> = {
   'Back to the library': 'Retour à la bibliothèque',
   'This connection does not let the update through (it happens on some Wi-Fi networks). You can download the installer in your browser and run it: your library and settings stay.': 'Cette connexion ne laisse pas passer la mise à jour (cela arrive sur certains réseaux Wi-Fi). Tu peux télécharger l\'installateur dans ton navigateur et le lancer : ta bibliothèque et tes réglages restent.',
   'Download the latest version': 'Télécharger la dernière version',
+  'Play with': 'Lire avec',
+  'No other video player is installed. VLC (free) reads every sound format.': 'Aucun autre lecteur vidéo n\'est installé. VLC (gratuit) lit tous les formats de son.',
+  'No sound: this file uses Dolby / DTS sound, which the phone\'s built-in player cannot read. Open it in another player (VLC reads it), or pick another quality.': 'Pas de son : ce fichier utilise un son Dolby / DTS que le lecteur intégré du téléphone ne sait pas lire. Ouvre-le dans un autre lecteur (VLC le lit), ou choisis une autre qualité.',
+  'Open in another player': 'Ouvrir dans un autre lecteur',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')
