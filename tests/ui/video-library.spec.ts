@@ -210,7 +210,7 @@ test('discover: popular list of a source, add to library, load more, latest unsu
   await expect(page.locator('.media-discover .resultcard h3')).toHaveText(['Lanterns', 'Severance'])
   // Already saved titles link to the library instead of offering to add them again
   await expect(page.locator('.resultcard', { hasText: 'Lanterns' })).toContainText('In your library')
-  await page.locator('.resultcard', { hasText: 'Severance' }).getByRole('button', { name: /Add to library/ }).click()
+  await page.locator('.resultcard', { hasText: 'Severance' }).getByRole('button', { name: '＋ Add', exact: true }).click()
   await expect(page.locator('.resultcard', { hasText: 'Severance' })).toContainText('In your library')
   const lib = await page.evaluate(() => JSON.parse(localStorage.getItem('seriesLibrary') || '[]').map((x: any) => x.name))
   expect(lib).toEqual(['Severance', 'Lanterns'])
@@ -240,6 +240,36 @@ test('background check: new episodes found while away raise a Windows notificati
   await expect(page.locator('.libcard', { hasText: 'The Bear' })).toBeVisible()
   // Done for the next 6 hours
   expect(Number(await page.evaluate(() => localStorage.getItem('lastEpisodeCheck')))).toBeGreaterThan(0)
+})
+
+test('background check: NovelReader in front shows the new episodes in the app', async ({ page }) => {
+  await openVideo(page, { episodeCheckDelay: '1500', mode: 'books', seriesLibrary: JSON.stringify([item('series', 0, 'The Bear')]) })
+  await page.evaluate(() => { (window as any).__engine.episodes = 10; document.hasFocus = () => true })
+  const toast = page.locator('.new-eps-toast')
+  await expect(toast).toContainText('1 title has new episodes.', { timeout: 15_000 })
+  await expect(toast).toContainText('The Bear')
+  expect(await page.evaluate(() => (window as any).__notes || [])).toEqual([]) // no system notification in front
+  await toast.getByRole('button', { name: 'See' }).click()
+  await expect(page.locator('.libcard', { hasText: 'The Bear' })).toBeVisible()
+  await expect(toast).toHaveCount(0)
+})
+
+test('discover: watch a title without adding it, then add it from its page', async ({ page }) => {
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'seriesDiscover', seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns')]) })
+  await page.locator('.resultcard', { hasText: 'Severance' }).getByRole('button', { name: '▶ Watch' }).click()
+  await expect(page.locator('.media-hero')).toBeVisible() // the title page (its name comes from the source's details)
+  const bar = page.locator('.preview-bar')
+  await expect(bar).toContainText('Not in your library')
+  const ids = () => page.evaluate(() => JSON.parse(localStorage.getItem('seriesLibrary') || '[]').map((x: any) => x.id))
+  expect(await ids()).toEqual(['series1'])
+  // Back returns to the results, not to the library.
+  await page.getByRole('button', { name: '← Back' }).click()
+  await expect(page.locator('h1')).toHaveText('Discover')
+  await page.locator('.resultcard', { hasText: 'Severance' }).getByRole('button', { name: '▶ Watch' }).click()
+  await bar.getByRole('button', { name: '＋ Add to library' }).click()
+  await expect(bar).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '← Series Library' })).toBeVisible()
+  expect(await ids()).toEqual(['series:42:/s/sev', 'series1']) // same id as when watched: progress kept
 })
 
 test('background check can be turned off in Settings', async ({ page }) => {

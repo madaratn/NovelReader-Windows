@@ -1,4 +1,4 @@
-const {app,BrowserWindow,ipcMain,dialog,protocol,shell,screen,session,clipboard}=require('electron')
+const {app,BrowserWindow,ipcMain,dialog,protocol,shell,screen,session,clipboard,Tray,Menu,Notification,nativeImage}=require('electron')
 const diagnostics=require('./diagnostics.cjs')
 const profiles=require('./profiles.cjs').init(app)
 diagnostics.capture()
@@ -19,6 +19,10 @@ const {createUiUpdate}=require('./ui-update.cjs')
 // Loading screen while the app opens (electron/splash.cjs).
 const {createSplash}=require('./splash.cjs')
 const splash=createSplash({BrowserWindow,app})
+// Closing the window can leave NovelReader near the clock, checking for new episodes
+// (electron/background.cjs); started with Windows it opens there, without a window.
+const {createBackground}=require('./background.cjs')
+const bg=createBackground({app,Tray,Menu,Notification,nativeImage,iconPath:path.join(__dirname,'icon.png'),getWindow:()=>mainWindow})
 let revealMain=null
 const uiUpdate=createUiUpdate({app})
 const {createOfflineStore}=require('./offline.cjs')
@@ -44,7 +48,7 @@ const findDeepLink=argv=>(argv||[]).find(a=>/^novelreader:\/\//i.test(String(a))
 function deliverDeepLink(url){if(!url)return;pendingDeepLink=url;if(mainWindow&&!mainWindow.isDestroyed()){try{mainWindow.webContents.send('deep-link',url)}catch{}}}
 pendingDeepLink=findDeepLink(process.argv)
 try{if(process.defaultApp&&process.argv.length>=2)app.setAsDefaultProtocolClient('novelreader',process.execPath,[path.resolve(process.argv[1])]);else app.setAsDefaultProtocolClient('novelreader')}catch{}
-app.on('second-instance',(_e,argv)=>{if(mainWindow){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.show();mainWindow.focus()}deliverDeepLink(findDeepLink(argv))})
+app.on('second-instance',(_e,argv)=>{if(mainWindow){mainWindow.__asked=true;if(mainWindow.isMinimized())mainWindow.restore();mainWindow.show();mainWindow.focus()}deliverDeepLink(findDeepLink(argv))})
 app.on('open-url',(e,url)=>{e.preventDefault();deliverDeepLink(url)})
 if(process.platform==='win32')app.setAppUserModelId(APP_ID) // required for Windows notifications
 const updater=createUpdater({app,ipcMain,getWindow:()=>mainWindow,powerMonitor:require('electron').powerMonitor,version:()=>uiUpdate.version()})
@@ -54,14 +58,15 @@ ipcMain.handle('ui:ok',()=>{try{revealMain&&revealMain()}catch{}return uiUpdate.
 ipcMain.handle('ui:apply',()=>{const file=uiUpdate.apply();if(!file||!mainWindow)return false;setImmediate(()=>mainWindow.loadFile(file));return true})
 uiUpdate.onStatus(st=>{try{mainWindow&&mainWindow.webContents.send('ui:status',st)}catch{}})
 if(app.isPackaged){setTimeout(()=>uiUpdate.check(),30000);setInterval(()=>uiUpdate.check(),3*3600e3)}
-ipcMain.handle('app:focus',()=>{if(mainWindow){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.show();mainWindow.focus()}return true})
+ipcMain.handle('app:background',(_e,o)=>bg.set(o||{}))
+ipcMain.handle('app:focus',()=>{if(mainWindow){mainWindow.__asked=true;if(mainWindow.isMinimized())mainWindow.restore();mainWindow.show();mainWindow.focus()}return true})
 const mediaCorsDone=new WeakSet();
 function installMediaCors(ses=session.defaultSession){if(mediaCorsDone.has(ses))return;mediaCorsDone.add(ses);ses.webRequest.onHeadersReceived({urls:['http://127.0.0.1:4567/*']},(details,callback)=>{const h={...(details.responseHeaders||{})};h['Access-Control-Allow-Origin']=['*'];h['Access-Control-Allow-Headers']=['*'];h['Access-Control-Allow-Methods']=['GET, HEAD, OPTIONS'];callback({responseHeaders:h})})}
 // Each profile window uses its own session (storage); give it the same rules as the default one.
 const preparedSessions=new WeakSet()
 function sessionFor(partition){const ses=partition?session.fromPartition(partition):session.defaultSession;if(!preparedSessions.has(ses)){preparedSessions.add(ses);installMediaCors(ses);try{installYouTubeReferer(ses)}catch(e){console.warn('[youtube] referer',e)}if(ses!==session.defaultSession){ses.setPermissionRequestHandler(permissionRequest);ses.setPermissionCheckHandler(permissionCheck);try{registerLocalProtocol(ses.protocol)}catch(e){console.warn('[profiles] nrlocal',e)}}}return ses}
 function createWindow(){const partition=profiles.partition();sessionFor(partition);const ws=createWindowState({app,screen});const state=ws.load();const win=new BrowserWindow({...state,minWidth:900,minHeight:600,show:false,icon:path.join(__dirname,'icon.png'),backgroundColor:'#0b0c10',title:'NovelReader',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,...(partition?{partition}:{})}});if(!app.isPackaged&&!SMOKE_TEST)win.loadURL('http://127.0.0.1:5173');else win.loadFile(uiUpdate.entry());win.webContents.on('did-fail-load',(_e,code,desc,url)=>console.error('Load failed',code,desc,url));ws.track(win);// Shown once the interface has drawn itself (it says so with ui:ok), with the loading screen meanwhile; never later than 12 s.
-const reveal=()=>{if(win.isDestroyed()||win.isVisible())return;if(state.maximized)win.maximize();win.show();splash.finish()};win.once('ready-to-show',()=>{if(SMOKE_TEST||!app.isPackaged)reveal()});revealMain=reveal;setTimeout(reveal,12000);mainWindow=win;win.on('closed',()=>{if(mainWindow===win)mainWindow=null});return win}
+const reveal=()=>{if(win.isDestroyed()||win.isVisible())return;if(bg.startedInBackground&&!win.__asked){splash.finish();return}if(state.maximized)win.maximize();win.show();splash.finish()};win.once('ready-to-show',()=>{if(SMOKE_TEST||!app.isPackaged)reveal()});revealMain=reveal;setTimeout(reveal,12000);mainWindow=win;win.on('close',e=>{bg.onClose(e,win)});win.on('closed',()=>{if(mainWindow===win)mainWindow=null});return win}
 ipcMain.handle('plugin:search',async(_e,{plugin,query})=>runner.search(plugin,query))
 const translator=require('./translate.cjs')
 ipcMain.handle('translate:batch',async(_e,o)=>translator.translate(o||{}))
@@ -356,7 +361,7 @@ async function runSmokeTest(win){
  app.exit(result.ok?0:1)
 }
 
-app.whenReady().then(()=>{try{bookWeb=createBookWeb({session,BrowserWindow,log:m=>console.log(m)});runner.configure(bookWeb)}catch(e){console.warn('[books] web',e)}registerLocalProtocol();if(SMOKE_TEST){runSmokeTest(createWindow());return}splash.start();try{flareApi().start()}catch{}startMiwayomi();createWindow();updater.start()})
+app.whenReady().then(()=>{try{bookWeb=createBookWeb({session,BrowserWindow,log:m=>console.log(m)});runner.configure(bookWeb)}catch(e){console.warn('[books] web',e)}registerLocalProtocol();if(SMOKE_TEST){runSmokeTest(createWindow());return}if(!bg.startedInBackground)splash.start();try{flareApi().start()}catch{}startMiwayomi();createWindow();updater.start()})
 // The video engine (Java) must really be gone before an update replaces the files:
 // on Windows it is closed with its whole process tree, and waited for.
 function stopEngineNow(){const p=miwayomiProcess;if(!p)return;miwayomiProcess=null;try{if(process.platform==='win32'&&p.pid)require('child_process').spawnSync('taskkill',['/pid',String(p.pid),'/T','/F'],{windowsHide:true,timeout:5000});else p.kill()}catch{try{p.kill()}catch{}}}

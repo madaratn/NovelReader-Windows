@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld('novelReader',{
  takeDeepLink:()=>ipcRenderer.invoke('deeplink:take'),inviteBase:()=>ipcRenderer.invoke('invite:base'),onDeepLink:(cb)=>{const h=(_e,u)=>{try{cb(u)}catch{}};ipcRenderer.on('deep-link',h);return()=>ipcRenderer.removeListener('deep-link',h)},
  reportCollect:()=>ipcRenderer.invoke('report:collect'),reportRedact:(t)=>ipcRenderer.invoke('report:redact',t),reportCopy:(t)=>ipcRenderer.invoke('report:copy',t),reportSave:(t)=>ipcRenderer.invoke('report:save',t),
  focusWindow:()=>ipcRenderer.invoke('app:focus'),
+ runInBackground:(o)=>ipcRenderer.invoke('app:background',o),
  updateStatus:()=>ipcRenderer.invoke('update:status'),
  updateCheck:()=>ipcRenderer.invoke('update:check'),
  updateInstall:()=>ipcRenderer.invoke('update:install'),
