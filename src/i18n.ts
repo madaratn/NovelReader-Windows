@@ -1040,6 +1040,8 @@ const FR: Record<string, string> = {
   'NovelReader keeps running': 'NovelReader reste ouvert',
   'It will tell you about new episodes and chapters. Right-click its icon near the clock to quit.': 'Il te préviendra des nouveaux épisodes et chapitres. Clic droit sur son icône près de l\'horloge pour quitter.',
   'See': 'Voir',
+  'Site check: {site}': 'Vérification du site : {site}',
+  'This site checks that you are not a robot. Tick the box if one appears; this window closes by itself afterwards.': 'Ce site vérifie que tu n\'es pas un robot. Coche la case si elle apparaît ; cette fenêtre se ferme toute seule ensuite.',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')
