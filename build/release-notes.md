@@ -1,3 +1,11 @@
+## NovelReader 0.25.2
+
+- **Mise à jour sur PC quand le Wi-Fi ne la laisse pas passer** : si la mise à jour échoue deux fois ou reste bloquée, l'application la télécharge par un second chemin (connexion directe, IPv4 d'abord, reprise là où elle s'est arrêtée, plusieurs essais) et vérifie l'empreinte du fichier avant de l'installer. Si même cela échoue, Réglages › Général propose un lien pour télécharger l'installateur dans le navigateur.
+- **« Échec de désinstallation des anciens fichiers d'application » pendant la mise à jour (PC)** : le moteur vidéo restait parfois ouvert et bloquait le remplacement des fichiers. L'installateur ferme maintenant ce qui tourne encore, et continue l'installation même si l'ancienne version ne s'enlève pas entièrement. NovelReader ferme aussi le moteur pour de bon avant de se mettre à jour.
+- **Retour au même endroit** : plus fiable — la position est notée au moment du clic et retrouvée sans animation, même tout en bas d'une longue liste.
+
+---
+
 ## NovelReader 0.25.1
 
 - **Retour au même endroit** : quand on ouvre un titre depuis une liste puis qu'on revient en arrière (bouton Retour, Alt+←, bouton Précédent de la souris, geste Retour du téléphone), la liste réapparaît là où on l'avait laissée, plus tout en haut.

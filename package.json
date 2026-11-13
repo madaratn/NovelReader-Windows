@@ -1,6 +1,6 @@
 {
   "name": "novel-reader-windows",
-  "version": "0.25.1",
+  "version": "0.25.2",
   "private": true,
   "description": "NovelReader — read web novels and watch your videos, on Windows and Android",
   "main": "electron/main.cjs",

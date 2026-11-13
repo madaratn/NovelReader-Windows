@@ -153,10 +153,12 @@ test('navigation: going back returns to the same place in the list; the current 
   await open(page, { library: many })
   await expect(page.locator('.libcard')).toHaveCount(40)
   // Far down the list, open a title…
-  const card = page.locator('.libcard', { hasText: 'Novel number 34' })
-  await card.scrollIntoViewIfNeeded()
+  const card = page.locator('.libcard').last() // whatever the sort order, the last card is far down
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(1000)
+  await card.locator('h2').hover() // the pointer is on it: nothing moves any more
   const before = await page.evaluate(() => window.scrollY)
-  expect(before).toBeGreaterThan(300)
+  expect(before).toBeGreaterThan(1000)
   await card.locator('h2').click()
   await expect(page.locator('.backbtn, .novel-back, main button', { hasText: 'Library' }).first()).toBeVisible()
   expect(await page.evaluate(() => window.scrollY)).toBeLessThan(50) // a new page starts at its top
