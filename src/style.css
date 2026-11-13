@@ -1260,3 +1260,13 @@ html.tv .libcard .libcover{width:100%!important;height:auto!important}
 .linkbtn{color:var(--text-accent)}
 .home-history .linkbtn{color:var(--text-strong)}
 .home-history-head .linkbtn{color:var(--text-accent);font-size:var(--fs-sm);font-weight:600}
+/* Android: after scrolling down and back up, the content of a panel shown over a
+   blurred background was no longer painted (cards blank in the Continue panel).
+   No blur behind panels there (a darker veil instead), and the scrolling part of a
+   panel gets its own layer so it is always repainted. */
+html.android .qs-backdrop,html.android .kbd-overlay{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(5,7,12,.78)}
+html.android .source-count,html.android .player-skip{backdrop-filter:none;-webkit-backdrop-filter:none}
+.home-body,.qs-results{transform:translateZ(0);-webkit-overflow-scrolling:touch}
+html.android .home-card{transition:none}
+/* The panel itself takes the focus when it opens: no ring around the whole panel. */
+.home-panel:focus,.home-panel:focus-visible,.qs:focus,.qs:focus-visible{outline:none}

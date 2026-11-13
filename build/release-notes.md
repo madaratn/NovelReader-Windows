@@ -1,3 +1,10 @@
+## NovelReader 0.25.4
+
+- **Android : panneau « Reprendre » vide après avoir fait défiler** — quand on descendait puis remontait, les cartes n'étaient plus dessinées. Le flou derrière les panneaux est retiré sur Android (voile plus sombre à la place) et la zone qui défile est redessinée à chaque fois.
+- **Plus de cadre mauve épais** autour du panneau à son ouverture.
+
+---
+
 ## NovelReader 0.25.3
 
 - **Historique lisible** : dans le panneau « Reprendre », les titres de l'historique s'affichaient en noir sur fond sombre. Ils sont maintenant en clair, et « Effacer » a la couleur des liens.
