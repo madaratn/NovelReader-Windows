@@ -1,3 +1,9 @@
+## NovelReader 0.25.5
+
+- **Téléphone : vidéo sans son** — certains fichiers (souvent les versions 4K / « remux ») ont un son Dolby ou DTS que le lecteur intégré du téléphone ne sait pas lire : l'image passe, le son non. L'application le détecte maintenant après quelques secondes et propose « Ouvrir dans un autre lecteur » (VLC, MX Player…), qui reprend au même moment. Autre solution : choisir une autre qualité.
+
+---
+
 ## NovelReader 0.25.4
 
 - **Android : panneau « Reprendre » vide après avoir fait défiler** — quand on descendait puis remontait, les cartes n'étaient plus dessinées. Le flou derrière les panneaux est retiré sur Android (voile plus sombre à la place) et la zone qui défile est redessinée à chaque fois.

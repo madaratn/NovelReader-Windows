@@ -71,3 +71,25 @@ test('a file with no sound track at all says so', async ({ page }) => {
   await expect(page.locator('.audio-fix-note')).toContainText('This file has no sound track. Pick another quality.', { timeout: 15000 })
   await expect(fixAudio(page)).toHaveCount(0)
 })
+
+test('phone: no sound (Dolby / DTS) — the video opens in another player app, at the same moment', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as any
+    w.__opened = []
+    // On the phone there is no converter; the native plugin can hand the video to another app.
+    w.Capacitor = { ...(w.Capacitor || {}), Plugins: { ...(w.Capacitor?.Plugins || {}), Player: { openExternal: async (o: any) => { w.__opened.push(o); return { ok: true } } } } }
+    const fix = () => { if (w.novelReader) { delete w.novelReader.audioFixStart; delete w.novelReader.audioFixStop } }
+    Object.defineProperty(w, '__noFix', { value: setInterval(fix, 20) })
+  })
+  await open(page, { streams: [] })
+  const note = page.locator('.audio-fix-note')
+  await expect(note).toContainText('Dolby / DTS', { timeout: 15_000 })
+  expect(await fixAudio(page).count()).toBe(0) // nothing to convert on the phone
+  await note.getByRole('button', { name: 'Open in another player' }).click()
+  await expect.poll(() => page.evaluate(() => (window as any).__opened.length)).toBe(1)
+  const o = await page.evaluate(() => (window as any).__opened[0])
+  expect(o.url).toBe('https://cdn.test/remux.mkv') // no special header: the site's own address
+  expect(o.title).toBeTruthy()
+  expect(o.position).toBeGreaterThan(3000)
+  expect(await page.locator('video').evaluate((v: HTMLVideoElement) => v.paused)).toBe(true)
+})
