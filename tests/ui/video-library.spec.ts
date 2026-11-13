@@ -272,6 +272,21 @@ test('discover: watch a title without adding it, then add it from its page', asy
   expect(await ids()).toEqual(['series:42:/s/sev', 'series1']) // same id as when watched: progress kept
 })
 
+test('opening a title whose source gives no episode list uses another source it was found on', async ({ page }) => {
+  // Source 44 answers with an empty list; the same title was also found on 42.
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns', { sourceId: '44', sourceName: 'Partial', alternates: [{ sourceId: '42', sourceName: 'Mapple', url: '/series/1' }] })]) })
+  await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
+  await expect(page.locator('.episodecell')).toHaveCount(8)
+  await expect(page.locator('main')).toContainText('The usual source did not answer: opened from Mapple.')
+})
+
+test('sources page: a failing source says why in plain words and what to do', async ({ page }) => {
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'series', videoSourceHealth: JSON.stringify({ lamovie: { name: 'LaMovie', state: 'dead', error: 'list: Miwayomi HTTP 500 — Hôte inconnu UnknownHostException la.movie', at: Date.now() }, partial: { name: 'Partial', state: 'warn', error: 'no stream for the first episode', at: Date.now() } }) })
+  await nav(page, 'Sources')
+  await expect(page.locator('.health-row', { hasText: 'LaMovie' }).locator('.source-advice')).toContainText('The site no longer exists')
+  await expect(page.locator('.health-row', { hasText: 'Partial' }).locator('.source-advice')).toContainText('gives no video')
+})
+
 test('background check can be turned off in Settings', async ({ page }) => {
   await openVideo(page, { episodeCheckDelay: '300', autoCheckEpisodes: '0', seriesLibrary: JSON.stringify([item('series', 0, 'The Bear')]) })
   await page.waitForTimeout(1200)
