@@ -76,6 +76,10 @@ test('series detail: Books-style hero, clean facts, remembered server, skip intr
     seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns')]),
     'prefServer:series1': 'Hermes - 1080p'
   })
+  // A stream that really plays: otherwise the player moves on to another server
+  // when this one fails, and the intro button goes with it.
+  const clip = require('node:fs').readFileSync(require('node:path').join(__dirname, 'fixtures', 'clip.webm'))
+  await page.route('http://127.0.0.1:4567/api/v1/proxy**', r => r.fulfill({ status: 200, body: clip, headers: { 'Content-Type': 'video/webm', 'Access-Control-Allow-Origin': '*' } }))
   await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
   await expect(page.locator('.media-hero h1')).toHaveText('Lanterns')
   await expect(page.locator('.media-hero .primary')).toHaveText('Start · Ep. 1')
@@ -701,4 +705,22 @@ test('sources broken for more than 10 days are set aside from searches, listed i
   await page.locator('.search-main input').fill('Naruto')
   await page.locator('.search-main input').press('Enter')
   await expect.poll(async () => (await page.evaluate(() => (window as any).__searched)).sort()).toEqual(['50', '51', '52', '54'])
+})
+
+test('source of a title: pick another source it was found on, or look for more', async ({ page }) => {
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns', { alternates: [{ sourceId: '43', sourceName: 'Kodi', url: '/series/1' }] })]) })
+  await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
+  const picker = page.locator('.source-picker select')
+  await expect(picker.locator('option')).toHaveText(['Mapple', 'Kodi'])
+  // Look for more: every other installed source is asked.
+  await page.getByRole('button', { name: 'Find on other sources' }).click()
+  await expect(page.locator('.source-picker small')).toContainText(/Found on|Not found/)
+  // Pick Kodi: the title now comes from it, Mapple becomes another choice; same place in the library.
+  await picker.selectOption({ label: 'Kodi' })
+  await expect(picker.locator('option:checked')).toHaveText('Kodi')
+  const lib = await page.evaluate(() => JSON.parse(localStorage.getItem('seriesLibrary') || '[]'))
+  expect(lib.length).toBe(1)
+  expect(lib[0].id).toBe('series1')
+  expect(lib[0].sourceId).toBe('43')
+  expect(lib[0].alternates.map((a: any) => a.sourceName)).toContain('Mapple')
 })
