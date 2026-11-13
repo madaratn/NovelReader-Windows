@@ -1,0 +1,145 @@
+{
+ "ok": 6,
+ "log": [
+  "engine up in 0 s: {\"status\":\"ok\",\"service\":\"miwayomi\",\"mangaSources\":0,\"animeSources\":0}"
+ ],
+ "results": [
+  {
+   "name": "AnimeOnsen",
+   "version": "14.10",
+   "steps": [
+    "installed (1 source)",
+    "popular 30 (\"Toaru Anbu no Item\")",
+    "6 episodes",
+    "1 links",
+    "video bytes 206 8403 ✓"
+   ],
+   "kind": "dash",
+   "ok": true,
+   "play": {
+    "sourceId": "8542735178285060053",
+    "sourceName": "AnimeOnsen",
+    "url": "h9QwRZNGqhGk8J3G",
+    "title": "Toaru Anbu no Item",
+    "episodes": 6
+   },
+   "seconds": 4
+  },
+  {
+   "name": "AnimeXin",
+   "version": "14.32",
+   "steps": [
+    "installed (1 source)",
+    "popular 30 (\"Soul Land Season 2\")",
+    "238 episodes",
+    "no video link (0)"
+   ],
+   "seconds": 4
+  },
+  {
+   "name": "LMAnime",
+   "version": "14.30",
+   "steps": [
+    "installed (1 source)",
+    "popular 20 (\"The Magic Chef Of Ice And Fire\")",
+    "156 episodes",
+    "2 links",
+    "HLS playlist 200 253957 ✓"
+   ],
+   "kind": "hls",
+   "ok": true,
+   "play": {
+    "sourceId": "7296222662412524790",
+    "sourceName": "LMAnime",
+    "url": "/the-magic-chef-of-ice-and-fire/",
+    "title": "The Magic Chef Of Ice And Fire",
+    "episodes": 156
+   },
+   "seconds": 4
+  },
+  {
+   "name": "Anichi",
+   "version": "16.10",
+   "steps": [
+    "installed (1 source)",
+    "popular 30 (\"Solo Leveling Season 2: Arise from the S\")",
+    "13 episodes",
+    "4 links",
+    "HLS playlist 200 182156 ✓"
+   ],
+   "kind": "hls",
+   "ok": true,
+   "play": {
+    "sourceId": "1023516189537091690",
+    "sourceName": "Anichi",
+    "url": "/anime/solo-leveling-season-2-arise-from-the-shadow-3eukp",
+    "title": "Solo Leveling Season 2: Arise from the Shadow",
+    "episodes": 13
+   },
+   "seconds": 6
+  },
+  {
+   "name": "Anikoto",
+   "version": "16.10",
+   "steps": [
+    "installed (1 source)",
+    "popular 30 (\"Solo Leveling Season 2: Arise from the S\")",
+    "13 episodes",
+    "6 links",
+    "HLS playlist 200 182156 ✓"
+   ],
+   "kind": "hls",
+   "ok": true,
+   "play": {
+    "sourceId": "4697393375201558791",
+    "sourceName": "Anikoto",
+    "url": "/watch/solo-leveling-season-2-arise-from-the-shadow-3eukp",
+    "title": "Solo Leveling Season 2: Arise from the Shadow",
+    "episodes": 13
+   },
+   "seconds": 7
+  },
+  {
+   "name": "AnimeParadise",
+   "version": "16.3",
+   "steps": [
+    "installed (1 source)",
+    "popular 20 (\"Sousou no Frieren\")",
+    "28 episodes",
+    "1 links",
+    "video bytes 206 65536 ✓"
+   ],
+   "kind": "file",
+   "ok": true,
+   "play": {
+    "sourceId": "3319373396687010408",
+    "sourceName": "AnimeParadise",
+    "url": "{\"slug\":\"sousou-no-frieren\",\"id\":\"NIUsb960SxtXls4h\"}",
+    "title": "Sousou no Frieren",
+    "episodes": 28
+   },
+   "seconds": 4
+  },
+  {
+   "name": "AnimeSogo",
+   "version": "16.10",
+   "steps": [
+    "installed (1 source)",
+    "popular 30 (\"Solo Leveling Season 2: Arise from the S\")",
+    "13 episodes",
+    "4 links",
+    "HLS playlist 200 182156 ✓"
+   ],
+   "kind": "hls",
+   "ok": true,
+   "play": {
+    "sourceId": "8456322126210259639",
+    "sourceName": "AnimeSogo",
+    "url": "/watch/solo-leveling-season-2-arise-from-the-shadow-3eukp",
+    "title": "Solo Leveling Season 2: Arise from the Shadow",
+    "episodes": 13
+   },
+   "seconds": 6
+  }
+ ]
+}
