@@ -6,6 +6,7 @@ import{cachedScan,loadScan,scanFor,setAside,keepSource,DEAD_DAYS,SECTIONS,hasOve
 import{t,plural,getLang}from'../i18n'
 import{lsGet,lsSet,timeAgo}from'../lib/util'
 import{EmptyState,Help,Cover,Icon,NoticeText,MoreMenu,GenreFilter}from'../ui/common'
+import{titleInfo,matchScore,yearOf,searchQuery,sameTitle}from'../lib/title-match'
 import{mediaPosKey,readMediaPos,mediaNorm,mediaCover,enrichMediaCover,episodeNo,seasonNo,orderedEpisodes,cleanEngineError,readWatchStats,watchDayKey,watchedCount,type MediaKind}from'../lib/media'
 import{engineFetch}from'../lib/engine'
 import{sourceAdvice}from'../lib/source-advice'
@@ -323,17 +324,39 @@ export function lastEpisodeIndex(media:any,eps:any[]){const key=lsGet('lastEp:'+
 // looked for. Choosing one opens the title from it (its progress and place in the
 // library stay); the next episodes then come from it.
 export type AltSource={sourceId:string,sourceName:string,url:string,name?:string}
-export async function findOnOtherSources(kind:MediaKind,title:string,known:AltSource[],onProgress?:(done:number,total:number)=>void):Promise<AltSource[]>{
+export async function findOnOtherSources(kind:MediaKind,title:string,known:AltSource[],onProgress?:(done:number,total:number)=>void,ref:{year?:number,episodes?:number}={}):Promise<AltSource[]>{
  const sr:any=await engineFetch('/api/v1/sources');const sources=(Array.isArray(sr)?sr:(sr.anime||sr.sources||sr.items||[])).filter((x:any)=>x&&x.id!=null&&sourceFits(String(x.name||''),sectionOf(kind)))
- const want=mediaNorm(title),have=new Set(known.map(k=>String(k.sourceId))),todo=sources.filter((x:any)=>!have.has(String(x.id))),found:AltSource[]=[];let done=0
- const queue=[...todo];await Promise.all(Array.from({length:6},async()=>{while(queue.length){const src=queue.shift()!;try{const d:any=await engineFetch('/api/v1/anime/'+encodeURIComponent(String(src.id))+'/search?query='+encodeURIComponent(title)+'&page=1');const list=Array.isArray(d)?d:(d.animes||d.results||d.items||d.list||[])
-  const hit=list.find((a:any)=>mediaNorm(a.title||a.name||'')===want)||list.find((a:any)=>{const n=mediaNorm(a.title||a.name||'');return n&&want&&(n.startsWith(want)||want.startsWith(n))&&Math.abs(n.length-want.length)<=4})
-  if(hit&&(hit.url||hit.path))found.push({sourceId:String(src.id),sourceName:String(src.name||src.id),url:hit.url||hit.path,name:hit.title||hit.name})}catch{}finally{done++;onProgress?.(done,todo.length)}}}))
+ const want=titleInfo(title,ref.year),have=new Set(known.map(k=>String(k.sourceId))),todo=sources.filter((x:any)=>!have.has(String(x.id))),found:AltSource[]=[];let done=0
+ const query=searchQuery(title)||title
+ const queue=[...todo];await Promise.all(Array.from({length:6},async()=>{while(queue.length){const src=queue.shift()!;try{
+  const sid=encodeURIComponent(String(src.id))
+  const d:any=await engineFetch('/api/v1/anime/'+sid+'/search?query='+encodeURIComponent(query)+'&page=1');const list=Array.isArray(d)?d:(d.animes||d.results||d.items||d.list||[])
+  const ranked=list.map((a:any)=>({a,score:matchScore(want,titleInfo(String(a.title||a.name||''),yearOf(a.year,a.releaseDate,a.release_date)))})).filter((r:any)=>r.score>0&&(r.a.url||r.a.path)).sort((x:any,y:any)=>y.score-x.score).slice(0,3)
+  for(const{a,score}of ranked){
+   // Checked against the title's details: the year, and film or series (episode count).
+   const url=a.url||a.path
+   const[det,eps]=await Promise.all([engineFetch('/api/v1/anime/'+sid+'/details?url='+encodeURIComponent(url)).catch(()=>null),engineFetch('/api/v1/anime/'+sid+'/episodes?url='+encodeURIComponent(url)).then((e:any)=>Array.isArray(e)?e:(e?.episodes||e?.items||e?.list||[])).catch(()=>null)])
+   const gotYear=yearOf(a.year,det?.year,det?.releaseDate,det?.release_date,a.title,a.name,det?.title,det?.description)
+   if(want.year&&gotYear&&Math.abs(want.year-gotYear)>1)continue
+   const n=Array.isArray(eps)?eps.length:undefined
+   if(n===0)continue
+   if(n!=null&&kind==='Movie'&&n>3)continue
+   if(n!=null&&kind!=='Movie'&&(ref.episodes||0)>1&&n<2)continue
+   // A name with a subtitle on one side only counts when the year or the episodes agree.
+   const sameYear=!!(want.year&&gotYear&&Math.abs(want.year-gotYear)<=1)
+   const sameEps=kind!=='Movie'&&n!=null&&(ref.episodes||0)>1&&Math.abs(n-(ref.episodes||0))<=Math.max(2,Math.round((ref.episodes||0)*.1))
+   if(score<100&&!sameYear&&!sameEps)continue
+   found.push({sourceId:String(src.id),sourceName:String(src.name||src.id),url,name:String(a.title||a.name||'')});break}
+ }catch{}finally{done++;onProgress?.(done,todo.length)}}}))
  return found.sort((a,b)=>a.sourceName.localeCompare(b.sourceName))}
+// The year and episode count of a title of the library, to compare with other sources.
+export function titleRef(item:any){const eps=Array.isArray(item?.episodes)?item.episodes.length:Number(item?.episodes)||0;return{year:yearOf(item?.year,item?.releaseDate,item?.name,item?.title,item?.description),episodes:eps||undefined}}
 export function SourcePicker({kind,item,onPick,onFound}:{kind:MediaKind,item:any,onPick:(alt:AltSource)=>void,onFound:(alts:AltSource[])=>void}){
  const own:AltSource={sourceId:String(item.sourceId||''),sourceName:String(item.sourceName||item.source||t('Video source')),url:item.url||item.path}
- const alts:AltSource[]=(Array.isArray(item.alternates)?item.alternates:[]).filter((a:any)=>a&&a.sourceId&&a.url&&String(a.sourceId)!==own.sourceId)
+ // Alternates found by an older, looser search that are another title are left out.
+ const alts:AltSource[]=(Array.isArray(item.alternates)?item.alternates:[]).filter((a:any)=>a&&a.sourceId&&a.url&&String(a.sourceId)!==own.sourceId&&(!a.name||sameTitle(String(item.name||item.title||''),String(a.name))>0))
  const[busy,setBusy]=useState<{done:number,total:number}|null>(null),[msg,setMsg]=useState('')
- const more=async()=>{setMsg('');setBusy({done:0,total:0});try{const f=await findOnOtherSources(kind,String(item.name||item.title||''),[own,...alts],(done,total)=>setBusy({done,total}));onFound(f);setMsg(f.length?plural(f.length,'Found on {n} more source.','Found on {n} more sources.'):t('Not found on your other sources.'))}catch(e:any){setMsg(cleanEngineError(e))}finally{setBusy(null)}}
- return <div className="source-picker"><label>{t('Source')}<select value={own.sourceId} onChange={e=>{const a=alts.find(x=>x.sourceId===e.target.value);if(a)onPick(a)}}><option value={own.sourceId}>{own.sourceName}</option>{alts.map(a=><option key={a.sourceId+a.url} value={a.sourceId}>{a.sourceName}</option>)}</select></label>
+ const more=async()=>{setMsg('');setBusy({done:0,total:0});try{const ref=titleRef(item);if(!ref.year&&own.sourceId&&own.url){try{const d:any=await engineFetch('/api/v1/anime/'+encodeURIComponent(own.sourceId)+'/details?url='+encodeURIComponent(own.url));ref.year=yearOf(d?.year,d?.releaseDate,d?.release_date,d?.title,d?.description)}catch{}}
+  const f=await findOnOtherSources(kind,String(item.name||item.title||''),[own,...alts],(done,total)=>setBusy({done,total}),ref);onFound(f);setMsg(f.length?plural(f.length,'Found on {n} more source.','Found on {n} more sources.'):t('Not found on your other sources.'))}catch(e:any){setMsg(cleanEngineError(e))}finally{setBusy(null)}}
+ return <div className="source-picker"><label>{t('Source')}<select value={own.sourceId} onChange={e=>{const a=alts.find(x=>x.sourceId===e.target.value);if(a)onPick(a)}}><option value={own.sourceId}>{own.sourceName}</option>{alts.map(a=><option key={a.sourceId+a.url} value={a.sourceId}>{a.name&&mediaNorm(a.name)!==mediaNorm(item.name||item.title||'')?a.sourceName+' — '+a.name:a.sourceName}</option>)}</select></label>
   <button disabled={!!busy} onClick={more}>{busy?t('Looking… {done}/{total}',{done:busy.done,total:busy.total||'?'}):t('Find on other sources')}</button>{msg&&<small role="status">{msg}</small>}</div>}

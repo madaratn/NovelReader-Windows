@@ -42,9 +42,10 @@ import{Help,Cover,ErrorBoundary,NoticeText,Icon}from'./ui/common'
 import{FilesTabs,MODES,MobileNav,PHONE_QUERY,ShortcutsDialog,Sidebar,Welcome,isMode,isTopPage,pageLabel,startPage,useMedia}from'./ui/shell'
 import type{Mode}from'./ui/shell'
 const MANIFEST='https://raw.githubusercontent.com/LNReader/lnreader-plugins/plugins/v3.0.0/.dist/plugins.min.json'
+import{titleInfo,matchScore,yearOf}from'./lib/title-match'
 import{mediaPosKey,readMediaPos,mediaNorm,mediaCover,enrichMediaCover,episodeNo,seasonNo,orderedEpisodes,cleanEngineError,type MediaKind}from'./lib/media'
 import{youtubeVideo,REMOTE_PLAYER_CONFIG,remoteMode,fetchVideosCached,prefetchNextEpisode,rememberServer,preferRemembered,sourceKey,serverKey,proxySubtitleTracks,brokenSources,isSourceDead,BROKEN_SOURCE_RE,normalizeRemoteVideos,AnimeVideo,type RemoteMediaMode}from'./features/media-player'
-import{SourcePicker,genreList,continueTarget,nextSeasonQuery,SetAsideNotice,CloudflarePanel,EpisodeGrid,applyEpisodeCounts,scanNewEpisodes,MEDIA_STATUS,MediaDiscover,MediaFacts,MediaHero,MediaLibrary,MediaSearch,VideoSourceHealth,WatchStats,factLabel,lastEpisodeIndex,parseMediaDescription}from'./features/media'
+import{SourcePicker,titleRef,genreList,continueTarget,nextSeasonQuery,SetAsideNotice,CloudflarePanel,EpisodeGrid,applyEpisodeCounts,scanNewEpisodes,MEDIA_STATUS,MediaDiscover,MediaFacts,MediaHero,MediaLibrary,MediaSearch,VideoSourceHealth,WatchStats,factLabel,lastEpisodeIndex,parseMediaDescription}from'./features/media'
 import{engineFetch,engineBase,onIos}from'./lib/engine'
 import{PcLinkSettings}from'./features/pc-link'
 import{TntvSetup}from'./features/tn-tv-setup'
@@ -259,11 +260,10 @@ const playAnimeEpisode=async(ep:any,mediaOverride?:any)=>{const media=mediaOverr
    try{
     const foundData=await searchJobs.get(sid);
     const found=Array.isArray(foundData)?foundData:(foundData.animes||foundData.items||foundData.results||[]);console.log('[novelreader] fallback-source-search',{source:src.name||sid,count:found.length,query:cleanMediaTitle});
-    const title=cleanMediaTitle.trim().toLowerCase();
-    const normTitle=(v:any)=>mediaNorm(v);
-    const wanted=normTitle(title);
-    const ranked=found.map((x:any)=>{const got=normTitle(x.title||x.name||'');let score=0;if(got===wanted)score=100;else if(got.startsWith(wanted+' ')||wanted.startsWith(got+' '))score=80;else if(got.includes(wanted)||wanted.includes(got))score=60;return{x,score}}).filter((r:any)=>r.score>0).sort((a:any,b:any)=>b.score-a.score);
-    let hits=ranked.slice(0,3).map((r:any)=>r.x);let hit=hits[0];if(!hit&&isMoviePlayback&&found.length){const wantedTokens=new Set(wanted.split(' ').filter((x:string)=>x.length>2));const leadToken=wanted.split(' ').find((x:string)=>x.length>2)||'';const loose=found.map((x:any)=>{const got=normTitle(x.title||x.name||'');const gotTokens=new Set(got.split(' ').filter((y:string)=>y.length>2));let common=0;wantedTokens.forEach((t:string)=>{if(gotTokens.has(t))common++});const score=wantedTokens.size?common/wantedTokens.size:0;return{x,score,lead:!leadToken||gotTokens.has(leadToken)}}).filter((r:any)=>r.lead&&r.score>=0.8).sort((a:any,b:any)=>b.score-a.score);hit=loose[0]?.x;if(hit)hits=[hit]}if(!hit)continue;console.log('[novelreader] fallback-source-hit',{source:src.name||sid,title:hit.title||hit.name||'',url:hit.url||hit.path||''});
+    // Same title only (src/lib/title-match.ts): another year, season or sequel is never taken.
+    const want=titleInfo(rawMediaTitle,titleRef(media).year);
+    const ranked=found.map((x:any)=>{const got=titleInfo(String(x.title||x.name||''),yearOf(x.year,x.releaseDate));const score=matchScore(want,got);return{x,score,sure:score>=100||!!(want.year&&got.year)}}).filter((r:any)=>r.score>0&&r.sure).sort((a:any,b:any)=>b.score-a.score);
+    let hits=ranked.slice(0,3).map((r:any)=>r.x);let hit=hits[0];if(!hit)continue;console.log('[novelreader] fallback-source-hit',{source:src.name||sid,title:hit.title||hit.name||'',url:hit.url||hit.path||''});
     // Several titles can have the same name (a film and a series…): the first that has this episode.
     // The episode is found by season and number (sources often send -1 as the number).
     let targetEp:any=null,eps:any[]=[];for(const h of hits){const animeUrl=h.url||h.path;if(!animeUrl)continue;try{const epData=await engineFetch('/api/v1/anime/'+encodeURIComponent(sid)+'/episodes?url='+encodeURIComponent(animeUrl));eps=orderedEpisodes(Array.isArray(epData)?epData:(epData.episodes||epData.items||epData.list||[]))}catch{eps=[]}
