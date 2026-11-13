@@ -724,3 +724,58 @@ test('source of a title: pick another source it was found on, or look for more',
   expect(lib[0].sourceId).toBe('43')
   expect(lib[0].alternates.map((a: any) => a.sourceName)).toContain('Mapple')
 })
+
+test('release calendar: next episodes of the library, day by day, and on the title page', async ({ page }) => {
+  const now = Date.now(), inHours = (h: number) => now + h * 3600e3
+  await openVideo(page, {
+    mode: 'anime', 'lastPage:anime': 'anime', lang: 'en',
+    animeLibrary: JSON.stringify([item('anime', 1, 'Frieren (2023)'), item('anime', 2, 'Old Finished Show')]),
+    seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns')])
+  })
+  const asked: string[] = []
+  await page.route('https://graphql.anilist.co/**', async r => {
+    const body = r.request().postDataJSON(); asked.push(...Object.values(body.variables) as string[])
+    const data: any = {}
+    Object.entries(body.variables).forEach(([k, v], i) => { data['a' + i] = v === 'Frieren' ? { status: 'RELEASING', airingSchedule: { nodes: [{ airingAt: Math.round(inHours(26) / 1000), episode: 12 }, { airingAt: Math.round(inHours(26 + 168) / 1000), episode: 13 }] } } : { status: 'FINISHED', airingSchedule: { nodes: [] } } })
+    await r.fulfill({ contentType: 'application/json', body: JSON.stringify({ data }) })
+  })
+  await page.route('https://api.tvmaze.com/singlesearch/**', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ name: 'Lanterns', _embedded: { nextepisode: { season: 2, number: 3, name: 'The Well', airstamp: new Date(inHours(3)).toISOString() } } }) }))
+  await page.goto('/')
+  await nav(page, 'Calendar')
+  await expect(page.locator('.calendar-page h1')).toHaveText('Release calendar')
+  const days = page.locator('.calendar-day')
+  await expect(days.first().locator('.calendar-item')).toContainText('Lanterns')
+  await expect(days.first().locator('.calendar-item')).toContainText('S2 · Ep. 3 · The Well')
+  await expect(page.locator('.calendar-item', { hasText: 'Frieren' }).first()).toContainText('Ep. 12')
+  await expect(page.locator('.calendar-item', { hasText: 'Frieren' })).toHaveCount(2) // ep. 12 and 13 within two weeks
+  await expect(page.locator('.calendar-page')).not.toContainText('Old Finished Show')
+  expect(asked).toContain('Frieren') // the year is not part of the search
+  // Filter, then open the title from the calendar
+  await page.locator('.calendar-page').getByRole('tab', { name: 'Series' }).click()
+  await expect(page.locator('.calendar-item')).toHaveCount(1)
+  await page.locator('.calendar-item', { hasText: 'Lanterns' }).click()
+  await expect(page.locator('.media-hero h1')).toHaveText('Lanterns')
+  await expect(page.locator('.next-airing')).toContainText('Next episode: S2 · Ep. 3')
+  await expect(page.locator('.next-airing')).toContainText('in 3 h')
+})
+
+test('media keys: the playing episode is given to the system, Next track plays the next episode', async ({ page }) => {
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns', { thumbnail: 'https://img.test/cover.jpg' })]) })
+  const clip = require('node:fs').readFileSync(require('node:path').join(__dirname, 'fixtures', 'clip.webm'))
+  await page.route('http://127.0.0.1:4567/api/v1/proxy**', r => r.fulfill({ status: 200, body: clip, headers: { 'Content-Type': 'video/webm', 'Access-Control-Allow-Origin': '*' } }))
+  await page.addInitScript(() => {
+    const w = window as any, handlers: Record<string, any> = {}
+    w.__ms = { handlers, metadata: null }
+    Object.defineProperty(navigator, 'mediaSession', { configurable: true, value: { set metadata(m: any) { w.__ms.metadata = m }, get metadata() { return w.__ms.metadata }, playbackState: 'none', setActionHandler: (n: string, f: any) => { handlers[n] = f }, setPositionState: () => {} } })
+  })
+  await page.goto('/')
+  await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
+  await page.locator('.media-hero .primary').click()
+  await expect.poll(() => page.evaluate(() => (window as any).__ms.metadata?.title)).toBe('Lanterns')
+  expect(await page.evaluate(() => (window as any).__ms.metadata.artist)).toBe('Season 1 · Episode 1')
+  expect(await page.evaluate(() => (window as any).__ms.metadata.artwork[0].src)).toBe('https://img.test/cover.jpg')
+  expect(await page.evaluate(() => typeof (window as any).__ms.handlers.previoustrack)).not.toBe('function') // first episode
+  await page.evaluate(() => (window as any).__ms.handlers.nexttrack())
+  await expect.poll(() => page.evaluate(() => (window as any).__ms.metadata?.artist)).toBe('Season 1 · Episode 2')
+  expect(await page.evaluate(() => typeof (window as any).__ms.handlers.previoustrack)).toBe('function')
+})

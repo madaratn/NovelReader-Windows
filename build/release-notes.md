@@ -1,3 +1,14 @@
+## NovelReader 0.29.0
+
+- **Calendrier des sorties** (Animes et Séries › Calendrier) : les prochains épisodes des titres de tes bibliothèques, jour par jour, pour les deux semaines à venir, à l'heure de ton fuseau horaire. Les dates viennent d'AniList pour les animes et de TVmaze pour les séries. Un clic ouvre le titre.
+- **Prochain épisode sur la fiche** : « Prochain épisode : Ép. 6 · vendredi à 17:00 (dans 3 j) ».
+- **Touches média** :
+  - Sur PC : les touches lecture/pause, suivant et précédent du clavier, et la fenêtre média de Windows, pilotent la vidéo.
+  - Sur téléphone : les contrôles dans les notifications et sur l'écran verrouillé, avec la jaquette, ainsi que les boutons des écouteurs et du Bluetooth.
+- **Widget « Continuer »** (Android) : sur l'écran d'accueil, ton dernier épisode ou chapitre en cours. Un geste suffit pour le reprendre. Pour l'ajouter, fais un appui long sur l'écran d'accueil › Widgets › NovelReader.
+
+---
+
 ## NovelReader 0.28.1
 
 - **Épisode suivant : même serveur, même qualité** — le serveur et la qualité choisis pour un titre (ex. « HubCloud 1080p ») sont repris aux épisodes suivants, même quand le nom du flux change d'un épisode à l'autre (taille du fichier, ordre de la liste). Si ce serveur n'est pas là, la même qualité ou la plus proche est prise. Pour un nouveau titre, la dernière qualité choisie sert de point de départ.

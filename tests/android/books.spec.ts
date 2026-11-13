@@ -756,3 +756,55 @@ test('Android: profiles — each person has their own library, the sources stay 
   await Promise.all([page.waitForEvent('load'), page.evaluate((i) => (window as any).novelReader.profileSwitch(i), id)])
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('library') || '[]').map((n: any) => n.name))).toEqual(['Lord of the Mysteries'])
 })
+
+test('Android: lock-screen controls follow the video, and the "Continue" widget opens the title', async ({ page }) => {
+  const clip = fs.readFileSync(path.join(__dirname, 'fixtures', 'clip.webm'))
+  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': '*' }
+  await page.route('http://127.0.0.1:4567/**', r => {
+    const p = new URL(r.request().url()).pathname
+    if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: cors })
+    const json = (b: any) => r.fulfill({ contentType: 'application/json', headers: cors, body: JSON.stringify(b) })
+    if (p === '/api/v1/proxy') return r.fulfill({ status: 200, body: clip, headers: { ...cors, 'Content-Type': 'video/webm' } })
+    if (p === '/api/v1/health') return json({ status: 'ok', service: 'miwayomi', mangaSources: 0, animeSources: 1 })
+    if (p === '/api/v1/sources') return json({ manga: [], anime: [{ id: '42', name: 'Mapple', lang: 'en', type: 'anime', pkg: 'mapple' }] })
+    if (p.endsWith('/details')) return json({ url: '/series/1', title: 'Lanterns', description: 'A mystery.', status: 2, thumbnail_url: '' })
+    if (p.endsWith('/episodes')) return json([1, 2, 3].map(n => ({ name: `S1 E${n}`, url: '/ep/' + n, episode_number: n })))
+    if (p.endsWith('/videos')) return json([{ videoUrl: 'https://cdn.test/a.mp4', videoTitle: 'Zeus - 720p', headers: {}, subtitleTracks: [], audioTracks: [], timestamps: [] }])
+    return json([])
+  })
+  await page.route('https://graphql.anilist.co/**', r => r.fulfill({ contentType: 'application/json', body: '{"data":{}}' }))
+  await page.route('https://api.tvmaze.com/**', r => r.fulfill({ status: 404, body: '{}' }))
+  await page.addInitScript(() => {
+    const w = window as any
+    localStorage.setItem('mode', 'series'); localStorage.setItem('lastPage:series', 'series')
+    localStorage.setItem('seriesLibrary', JSON.stringify([{ id: 'series1', name: 'Lanterns', sourceId: '42', sourceName: 'Mapple', url: '/series/1', thumbnail: 'https://img.test/l.jpg', episodes: 3, addedAt: Date.now() }]))
+    const listeners: Record<string, any[]> = {}
+    const on = (name: string, f: any) => { (listeners[name] = listeners[name] || []).push(f); return Promise.resolve({ remove: () => {} }) }
+    w.__native = { media: [] as any[], widget: [] as any[], cleared: 0, fire: (name: string, e: any) => (listeners[name] || []).forEach(f => f(e)) }
+    w.Capacitor.Plugins = { ...(w.Capacitor.Plugins || {}),
+      Media: { update: async (o: any) => { w.__native.media.push(o) }, clear: async () => { w.__native.cleared++ }, addListener: (n: string, f: any) => on('media:' + n, f) },
+      Widget: { update: async (o: any) => { w.__native.widget.push(o) }, take: async () => ({}), addListener: (n: string, f: any) => on('widget:' + n, f) } }
+  })
+  await page.goto('/')
+  await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
+  await page.locator('.media-hero .primary').click()
+  await page.locator('.remote-player video').evaluate((v: HTMLVideoElement) => { v.muted = true; return v.play().catch(() => {}) })
+  await expect.poll(() => page.evaluate(() => { const l = (window as any).__native.media; return l[l.length - 1] })).toMatchObject({ title: 'Lanterns', artist: 'Season 1 · Episode 1', art: 'https://img.test/l.jpg', hasNext: true, hasPrev: false })
+  // "Next" on the lock screen plays episode 2
+  await page.evaluate(() => (window as any).__native.fire('media:action', { action: 'next' }))
+  await expect.poll(() => page.evaluate(() => { const l = (window as any).__native.media; return l[l.length - 1]?.artist })).toBe('Season 1 · Episode 2')
+  // "Pause" pauses the video
+  await page.locator('.remote-player video').evaluate((v: HTMLVideoElement) => { v.muted = true; return v.play().catch(() => {}) })
+  await page.evaluate(() => (window as any).__native.fire('media:action', { action: 'pause' }))
+  await expect.poll(() => page.locator('.remote-player video').evaluate((v: HTMLVideoElement) => v.paused)).toBe(true)
+  // The widget is told what is in progress, and a tap on it opens the title
+  await page.evaluate(() => { localStorage.setItem('lastEpInfo:series1', JSON.stringify({ url: '/ep/2', name: 'S1 E2', n: 2, at: Date.now() })); document.dispatchEvent(new Event('visibilitychange')) })
+  await page.evaluate(() => Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }))
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
+  await expect.poll(() => page.evaluate(() => { const l = (window as any).__native.widget; return l[l.length - 1] })).toMatchObject({ title: 'Lanterns', kind: 'series', id: 'series1', cover: 'https://img.test/l.jpg' })
+  await page.evaluate(() => Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' }))
+  await page.locator('.backbtn').first().click()
+  await expect(page.locator('.media-hero')).toHaveCount(0)
+  await page.evaluate(() => (window as any).__native.fire('widget:open', { kind: 'series', id: 'series1' }))
+  await expect(page.locator('.media-hero h1')).toHaveText('Lanterns')
+})
