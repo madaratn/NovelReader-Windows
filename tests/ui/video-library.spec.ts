@@ -294,6 +294,27 @@ test('sources page: a failing source says why in plain words and what to do', as
   await expect(page.locator('.health-row', { hasText: 'Partial' }).locator('.source-advice')).toContainText('gives no video')
 })
 
+test('genres: Discover › Genres lists popular titles of a genre and finds one on the sources', async ({ page }) => {
+  await page.route('https://v3-cinemeta.strem.io/catalog/series/top/**', r => r.fulfill({ contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ metas: [{ id: 'tt1', name: 'Severance', poster: '', releaseInfo: '2022–', imdbRating: '8.7' }, { id: 'tt2', name: 'Lanterns', poster: '', releaseInfo: '2025' }] }) }))
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'seriesDiscover', seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns')]) })
+  await page.getByRole('tab', { name: 'Genres' }).click()
+  await page.locator('.genre-chips .chip', { hasText: 'Drama' }).click()
+  await expect(page.locator('.resultcard h3')).toHaveText(['Severance', 'Lanterns'])
+  await expect(page.locator('.resultcard', { hasText: 'Severance' })).toContainText('★ 8.7')
+  await expect(page.locator('.resultcard', { hasText: 'Lanterns' })).toContainText('In your library')
+  await page.locator('.resultcard', { hasText: 'Severance' }).getByRole('button', { name: /Find/ }).click()
+  await expect(page.locator('main input').first()).toHaveValue('Severance')
+})
+
+test('genres: a video library filtered by genre; genres read from the source for older titles', async ({ page }) => {
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns'), item('series', 2, 'Severance', { genres: ['Thriller'] })]) })
+  // Lanterns had no genre: read from its source's details (Drama).
+  const chips = page.locator('.lib-genres .chip')
+  await expect(chips).toHaveText(['All genres', 'Drama 1', 'Thriller 1'])
+  await chips.filter({ hasText: 'Thriller' }).click()
+  await expect(page.locator('.libcard h2')).toHaveText(['Severance'])
+})
+
 test('background check can be turned off in Settings', async ({ page }) => {
   await openVideo(page, { episodeCheckDelay: '300', autoCheckEpisodes: '0', seriesLibrary: JSON.stringify([item('series', 0, 'The Bear')]) })
   await page.waitForTimeout(1200)

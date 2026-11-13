@@ -5,6 +5,17 @@
 
 ---
 
+## NovelReader 0.28.0
+
+- **Genres dans les bibliothèques** (livres, animes, séries, films) : une ligne de genres sous les étagères (les plus fréquents d'abord, les autres dans « Autres genres… ») pour ne voir que tes titres d'un genre. Les genres viennent des sources ; pour les titres déjà ajoutés, ils sont récupérés petit à petit (livres : à la prochaine vérification des nouveaux chapitres ; vidéos : en ouvrant la bibliothèque).
+- **Découvrir › Genres** :
+  - Livres : un menu « Genre » quand la source en propose (selon la source).
+  - Animes : les plus populaires de chaque genre (AniList).
+  - Séries et films : les plus populaires de chaque genre (catalogue Cinemeta / IMDb).
+  - « Trouver » cherche le titre sur tes sources pour le regarder ou l'ajouter.
+
+---
+
 ## NovelReader 0.27.1
 
 - **Panneau « Reprendre » plus court** : l'historique y montre une seule ligne par titre — le dernier épisode ou chapitre — au lieu de tous les épisodes (5 titres au plus). « Tout l'historique » ouvre une page à part, jour par jour, avec un filtre Livres / Animes / Séries / Films.
