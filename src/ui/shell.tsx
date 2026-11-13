@@ -17,7 +17,7 @@ export const NAV:Record<Mode,{label:string,icon:string,items:NavItem[]}>={
 export const MODES=Object.keys(NAV) as Mode[]
 // Detail pages highlight their parent entry in the sidebar.
 export const PARENT:Record<string,string>={novel:'library',reader:'library',animeDetail:'anime',seriesDetail:'series'}
-export const DETAIL_TITLES:Record<string,string>={novel:'Novel',reader:'Reader',animeDetail:'Episodes',seriesDetail:'Episodes',settings:'Settings'}
+export const DETAIL_TITLES:Record<string,string>={novel:'Novel',reader:'Reader',animeDetail:'Episodes',seriesDetail:'Episodes',settings:'Settings',history:'History'}
 // One search on the PC: the sidebar's Search button (Ctrl K) leads to each section's source search.
 export const SEARCH_PAGES=new Set(['search','animeSearch','seriesSearch','movieSearch'])
 // Downloads, Local Videos and Internet Archive share one "Files" entry on the PC

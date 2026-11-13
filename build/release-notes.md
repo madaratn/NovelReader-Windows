@@ -1,3 +1,9 @@
+## NovelReader 0.27.1
+
+- **Panneau « Reprendre » plus court** : l'historique y montre une seule ligne par titre — le dernier épisode ou chapitre — au lieu de tous les épisodes (5 titres au plus). « Tout l'historique » ouvre une page à part, jour par jour, avec un filtre Livres / Animes / Séries / Films.
+
+---
+
 ## NovelReader 0.27.0
 
 - **Téléphone : sources de livres protégées par Cloudflare** — la page « Just a moment… » est maintenant passée dans l'application, comme sur PC. Si le site demande de cocher une case, une page s'affiche avec une courte explication ; elle se ferme toute seule ensuite. Le passage est gardé quelques heures pour ce site.

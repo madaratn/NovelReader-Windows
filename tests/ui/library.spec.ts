@@ -98,11 +98,10 @@ test('"Continue": one panel with what is in progress in every section, shown at 
   await page.keyboard.press('Escape')
   await page.goto('/')
   await expect(panel).toBeVisible()
-  // History: the chapter just opened, under today.
-  await expect(panel.locator('.home-history')).toContainText('Today')
-  await expect(panel.locator('.home-history li').first()).toContainText('Mother of Learning')
-  await expect(panel.locator('.home-history li').first()).toContainText('Chapter 42')
-  await expect(panel.locator('.home-history li')).toHaveCount(1)
+  // Recently: the chapter just opened, one line for the title.
+  await expect(panel.locator('.home-recent li')).toHaveCount(1)
+  await expect(panel.locator('.home-recent li').first()).toContainText('Mother of Learning')
+  await expect(panel.locator('.home-recent li').first()).toContainText('Chapter 42')
   await panel.getByLabel('Show this when NovelReader starts').uncheck()
   await page.keyboard.press('Escape')
   await expect(panel).toHaveCount(0)
@@ -124,4 +123,28 @@ test('"Continue on my phone": a card of the Continue panel is sent through the p
   await expect(panel.getByRole('status')).toContainText('Open NovelReader on the phone')
   expect(await page.evaluate(() => (window as any).__sent)).toEqual([{ kind: 'books', id: 'n1', name: 'Mother of Learning', sub: 'Chapter 42: The Road', url: '', next: false }])
   await expect(panel).toBeVisible() // sending does not open the book here
+})
+
+test('Continue panel: one line per title (its last episode); the whole history on its own page', async ({ page }) => {
+  const now = Date.now(), lines = [
+    ...[5, 4, 3, 2, 1].map((n, i) => ({ at: now - i * 60e3, kind: 'series', id: 's1', name: 'Lanterns', sub: 'Episode ' + n })),
+    { at: now - 3600e3, kind: 'books', id: 'mol', name: 'Mother of Learning', sub: 'Chapter 12' },
+    { at: now - 86400e3 - 3600e3, kind: 'books', id: 'mol', name: 'Mother of Learning', sub: 'Chapter 11' }]
+  await open(page, { library: [novel('mol', 'Mother of Learning', 108)], storage: { history: JSON.stringify(lines) } })
+  await page.locator('.sidebar .home-open').click()
+  const panel = page.locator('.home-panel')
+  await expect(panel.locator('.home-recent li')).toHaveCount(2)
+  await expect(panel.locator('.home-recent li').first()).toContainText('Lanterns')
+  await expect(panel.locator('.home-recent li').first()).toContainText('Episode 5')
+  await expect(panel.locator('.home-recent')).not.toContainText('Episode 4')
+  await panel.getByRole('button', { name: 'Whole history' }).click()
+  await expect(panel).toHaveCount(0)
+  const hist = page.locator('.history-page')
+  await expect(hist.locator('h1')).toHaveText('History')
+  await expect(hist.locator('.home-history li')).toHaveCount(7)
+  await expect(hist.locator('.home-history h4')).toHaveText(['Today', 'Yesterday'])
+  await hist.getByRole('tab', { name: 'Books' }).click()
+  await expect(hist.locator('.home-history li')).toHaveCount(2)
+  await hist.getByRole('button', { name: '← Back' }).click()
+  await expect(hist).toHaveCount(0)
 })
