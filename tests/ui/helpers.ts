@@ -41,6 +41,7 @@ export const PLUGINS = (() => {
 export async function setup(page: Page, s: Setup = {}) {
   // Release dates (src/lib/airing.ts): nothing announced, unless a test says otherwise.
   await page.route('https://graphql.anilist.co/**', r => r.fulfill({ contentType: 'application/json', body: '{"data":{}}' }))
+  await page.route('https://www.wikidata.org/**', r => r.fulfill({ contentType: 'application/json', body: '{}' }))
   await page.route('https://api.tvmaze.com/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{}' }))
   await page.route('**/plugins.min.json', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify(s.plugins ?? PLUGINS) }))
   await page.route('https://raw.githubusercontent.com/lnreader/lnreader-plugins/plugins/v3.0.0/.js/src/plugins/**', r => r.fulfill({ contentType: 'text/javascript', body: '/* plugin */' + ' '.repeat(80) }))

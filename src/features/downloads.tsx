@@ -4,7 +4,7 @@
 import React,{useEffect,useState}from'react'
 import{t,plural}from'../i18n'
 import{EmptyState,Cover,NoticeText}from'../ui/common'
-import{cleanEngineError,mediaCover,episodeNo}from'../lib/media'
+import{cleanEngineError,mediaCover,episodeNo,seasonNo}from'../lib/media'
 import{fetchVideosCached,normalizeRemoteVideos,preferRemembered,AnimeVideo}from'./media-player'
 
 export type DlKind='anime'|'series'|'movie'
@@ -15,7 +15,39 @@ export const downloadsSupported=()=>typeof api()?.dlStart==='function'
 let items:VideoDownload[]=[],base='',loaded=false,listening=false
 const subs=new Set<()=>void>()
 const emit=()=>{for(const f of subs)f()}
-export async function refreshDownloads(){if(!downloadsSupported())return items;if(!listening){listening=true;api().onDownloadsChanged?.(()=>{refreshDownloads()})}try{const[list,b]=await Promise.all([api().dlList(),base?Promise.resolve(base):api().dlBase()]);items=Array.isArray(list)?list:[];base=String(b||'');loaded=true;emit()}catch{}return items}
+export async function refreshDownloads(){if(!downloadsSupported())return items;if(!listening){listening=true;api().onDownloadsChanged?.(()=>{refreshDownloads()});watchNetwork()}try{const[list,b]=await Promise.all([api().dlList(),base?Promise.resolve(base):api().dlBase()]);items=[...(Array.isArray(list)?list:[]),...waitingItems()];base=String(b||'');loaded=true;emit()}catch{}return items}
+
+// ---- Wi-Fi only (phone): episodes wait for Wi-Fi instead of using mobile data -----
+// A download asked for on mobile data waits in a list; one running when the phone
+// leaves Wi-Fi is stopped and waits too. Both start again on Wi-Fi.
+type Job={kind:DlKind,media:any,ep:any,index:number}
+const WAIT='dlWifiWait',ARGS='dlArgs'
+const net=()=>(window as any).Capacitor?.Plugins?.Net
+export const wifiSupported=()=>typeof net()?.status==='function'
+export const wifiOnlyOn=()=>wifiSupported()&&localStorage.getItem('dlWifiOnly')==='1'
+const lsList=(k:string):any[]=>{try{const v=JSON.parse(localStorage.getItem(k)||'[]');return Array.isArray(v)?v:[]}catch{return[]}}
+const light=(m:any)=>({id:m?.id,url:m?.url,path:m?.path,name:m?.name,title:m?.title,sourceId:m?.sourceId,sourceName:m?.sourceName,thumbnail:m?.thumbnail,thumbnail_url:m?.thumbnail_url,cover:m?.cover})
+const jobKey=(j:{media:any,ep:any})=>mediaIdOf(j.media)+'|'+episodeKey(j.ep)
+const waitList=():Job[]=>lsList(WAIT)
+const saveWait=(l:Job[])=>localStorage.setItem(WAIT,JSON.stringify(l.slice(-300)))
+function waitingItems():VideoDownload[]{return waitList().map(j=>({id:'wifi:'+jobKey(j),kind:j.kind,mediaId:mediaIdOf(j.media),mediaName:String(j.media?.name||j.media?.title||''),cover:mediaCover(j.media)||'',episodeUrl:episodeKey(j.ep),episodeName:String(j.ep?.name||j.ep?.title||''),episodeNo:episodeNo(j.ep,j.index+1),mediaKey:playerKey(j.kind,j.media,j.ep,j.index),state:'queued',progress:0,wifi:true}))}
+async function onWifi(){const n=net();if(!n?.status)return true;try{const s=await n.status();return!!s.unmetered&&!!s.connected}catch{return true}}
+function wait(job:Job){const l=waitList().filter(j=>jobKey(j)!==jobKey(job));l.push({kind:job.kind,media:light(job.media),ep:{url:job.ep?.url,path:job.ep?.path,name:job.ep?.name,title:job.ep?.title,episode_number:job.ep?.episode_number,number:job.ep?.number},index:job.index});saveWait(l)}
+// Cancel a download, or take an episode off the Wi-Fi list.
+export async function cancelDownload(id:string){if(id.startsWith('wifi:')){saveWait(waitList().filter(j=>'wifi:'+jobKey(j)!==id))}else await api().dlCancel(id);return refreshDownloads()}
+let flushing=false
+async function flushWifi(){if(flushing)return;flushing=true;try{const l=waitList();if(!l.length)return;saveWait([]);for(const j of l){try{await startEpisodeDownload(j.kind,j.media,j.ep,j.index)}catch{}}}finally{flushing=false;refreshDownloads()}}
+let watching=false
+function watchNetwork(){if(watching||!wifiSupported())return;watching=true
+ const on=async(s:any)=>{if(!s?.connected)return
+  if(s.unmetered){flushWifi();return}
+  if(!wifiOnlyOn())return
+  // Left Wi-Fi: what is downloading stops and waits.
+  const args:Record<string,Job>=Object.fromEntries(lsList(ARGS).map((j:Job)=>[jobKey(j),j]))
+  for(const d of items)if(!(d as any).wifi&&(d.state==='queued'||d.state==='downloading')){const j=args[d.mediaId+'|'+d.episodeUrl];if(!j)continue;try{await api().dlCancel(d.id);await api().dlRemove?.(d.id)}catch{};wait(j)}
+  refreshDownloads()}
+ try{net().addListener?.('change',on)}catch{}
+ net().status().then((s:any)=>{if(s?.unmetered)flushWifi()}).catch(()=>{})}
 export function useDownloads(){
  const[,bump]=useState(0)
  useEffect(()=>{const f=()=>bump(x=>x+1);subs.add(f);if(!loaded)refreshDownloads();return()=>{subs.delete(f)}},[])
@@ -38,6 +70,8 @@ export async function offlineVideoFor(media:any,ep:any){if(!downloadsSupported()
 export async function startEpisodeDownload(kind:DlKind,media:any,ep:any,index=0){
  const sourceId=String(media?.sourceId||''),url=episodeKey(ep)
  if(!sourceId||!url)throw new Error(t('This episode is missing its source.'))
+ if(wifiOnlyOn()&&!(await onWifi())){wait({kind,media,ep,index});refreshDownloads();return{id:'wifi:'+mediaIdOf(media)+'|'+url,wifi:true}}
+ {const l=lsList(ARGS).filter((j:Job)=>jobKey(j)!==mediaIdOf(media)+'|'+url);l.push({kind,media:light(media),ep:{url:ep?.url,path:ep?.path,name:ep?.name,title:ep?.title,episode_number:ep?.episode_number,number:ep?.number},index});localStorage.setItem(ARGS,JSON.stringify(l.slice(-300)))}
  const data:any=await fetchVideosCached(sourceId,url)
  const videos=Array.isArray(data)?data:(data?.videos||data?.items||data?.list||[])
  const ordered=preferRemembered(normalizeRemoteVideos(videos,sourceId,media.sourceName||''),media)
@@ -72,16 +106,21 @@ export async function flushAutoDeletes(keep=''){
  localStorage.setItem(PENDING,JSON.stringify(left));if(n)refreshDownloads();return n
 }
 export function BatchDownload({kind,media,eps,list,onError}:{kind:DlKind,media:any,eps:any[],list:VideoDownload[],onError?:(m:string)=>void}){
- const[count,setCount]=useState(()=>Number(localStorage.getItem('dlBatchCount'))||5),[busy,setBusy]=useState<{done:number,total:number}|null>(null),[msg,setMsg]=useState('')
+ const[count,setCount]=useState(()=>Number(localStorage.getItem('dlBatchCount'))||5),[busy,setBusy]=useState<{done:number,total:number}|null>(null),[msg,setMsg]=useState(''),[wifi,setWifi]=useState(wifiOnlyOn())
  if(!downloadsSupported()||eps.length<2)return null
  // Start after the last episode watched (or at the one in progress).
  const id=mediaIdOf(media);let from=0
  try{const info=JSON.parse(localStorage.getItem('lastEpInfo:'+id)||'null');if(info?.url){const i=eps.findIndex((e:any)=>episodeKey(e)===info.url);if(i>=0){const pos=JSON.parse(localStorage.getItem('mediapos:'+playerKey(kind,media,eps[i],i))||'null');from=pos?.done?i+1:i}}}catch{}
  const left=eps.slice(from).filter(e=>!findDownload(list,id,e)).length
+ // -1: the rest of this season, -2: every episode after this one.
+ const seasonEnd=(()=>{const sn=seasonNo(eps[Math.min(from,eps.length-1)]);let j=from;while(j<eps.length&&seasonNo(eps[j])===sn)j++;return j})()
+ const howMany=count===-1?eps.slice(from,seasonEnd).filter(e=>!findDownload(list,id,e)).length:count===-2?left:count
+ const seasons=new Set(eps.map(seasonNo)).size
  const all=eps.filter(e=>findDownload(list,id,e)?.state==='done').length
- const go=async()=>{setBusy({done:0,total:Math.min(count,left)});setMsg('');try{const r=await startBatchDownload(kind,media,eps,from,count,list,(done,total)=>setBusy({done,total}));setMsg(r.failed?t('{ok} queued, {failed} could not start: {error}',{ok:r.queued,failed:r.failed,error:r.lastError}):plural(r.queued,'{n} episode queued.','{n} episodes queued.'));if(r.failed&&!r.queued)onError?.(r.lastError)}finally{setBusy(null)}}
- return <div className="batch-dl"><span className="batch-dl-info">{all?plural(all,'{n} episode on this PC','{n} episodes on this PC'):t('Watch offline')}</span>
-  {left>0?<><select aria-label={t('How many episodes')} value={count} disabled={!!busy} onChange={e=>{const n=Number(e.target.value);setCount(n);localStorage.setItem('dlBatchCount',String(n))}}>{[3,5,10,25].map(n=><option key={n} value={n}>{n}</option>)}</select><button disabled={!!busy} onClick={go}>{busy?t('Preparing {done} / {total}…',{done:busy.done+1>busy.total?busy.total:busy.done+1,total:busy.total}):'⤓ '+t('Download the next episodes')}</button></>:<span className="batch-dl-info">{t('All the next episodes are downloaded.')}</span>}
+ const go=async()=>{setBusy({done:0,total:Math.min(howMany,left)});setMsg('');try{const r=await startBatchDownload(kind,media,eps,from,howMany,list,(done,total)=>setBusy({done,total}));setMsg(r.failed?t('{ok} queued, {failed} could not start: {error}',{ok:r.queued,failed:r.failed,error:r.lastError}):(wifiOnlyOn()&&!(await onWifi())?plural(r.queued,'{n} episode will download on Wi-Fi.','{n} episodes will download on Wi-Fi.'):plural(r.queued,'{n} episode queued.','{n} episodes queued.')));if(r.failed&&!r.queued)onError?.(r.lastError)}finally{setBusy(null)}}
+ return <div className="batch-dl"><span className="batch-dl-info">{all?(wifiSupported()?plural(all,'{n} episode on this phone','{n} episodes on this phone'):plural(all,'{n} episode on this PC','{n} episodes on this PC')):t('Watch offline')}</span>
+  {left>0?<><select aria-label={t('How many episodes')} value={count} disabled={!!busy} onChange={e=>{const n=Number(e.target.value);setCount(n);localStorage.setItem('dlBatchCount',String(n))}}>{[3,5,10,25].map(n=><option key={n} value={n}>{n}</option>)}{seasons>1&&<option value={-1}>{t('The rest of the season')}</option>}<option value={-2}>{t('All the next ones')}</option></select><button disabled={!!busy} onClick={go}>{busy?t('Preparing {done} / {total}…',{done:busy.done+1>busy.total?busy.total:busy.done+1,total:busy.total}):'⤓ '+t('Download the next episodes')}</button></>:<span className="batch-dl-info">{t('All the next episodes are downloaded.')}</span>}
+  {wifiSupported()&&<label className="settings-check batch-dl-wifi"><input type="checkbox" checked={wifi} onChange={e=>{setWifi(e.target.checked);localStorage.setItem('dlWifiOnly',e.target.checked?'1':'0');if(!e.target.checked)flushWifi()}}/> {t('Wi-Fi only')}</label>}
   {msg&&<small className="batch-dl-msg" role="status">{msg}</small>}
  </div>
 }
@@ -97,7 +136,7 @@ export function EpisodeDownload({kind,media,ep,index,list,onError,wide}:{kind:Dl
  if(!d)return <button className={cls(busy?'busy':'')} disabled={busy} title={t('Download for offline viewing')} aria-label={t('Download for offline viewing')} onClick={start}>{busy?txt('…',t('Preparing…')):txt('⤓',t('Download'))}</button>
  if(d.state==='done')return <button className={cls('done'+(confirm?' confirm':''))} title={confirm?t('Click again to delete the download'):t('Downloaded ({size}). Plays without internet. Click to delete.',{size:fmtBytes(d.size||0)})} aria-label={confirm?t('Delete the download'):t('Downloaded')} onClick={()=>{if(confirm){api().dlRemove(d.id).then(refreshDownloads);setConfirm(false)}else setConfirm(true)}}>{confirm?txt('×',t('Delete the download')):txt('✓',t('Downloaded'))}</button>
  if(d.state==='error')return <button className={cls('error')} title={t('Download failed: {error}. Click to try again.',{error:d.error||''})} aria-label={t('Retry the download')} onClick={start}>{txt('!',t('Retry the download'))}</button>
- return <button className={cls('active')} title={d.state==='queued'?t('Waiting to download… Click to cancel.'):t('Downloading… {pct}%. Click to cancel.',{pct:Math.round(d.progress*100)})} aria-label={t('Cancel the download')} onClick={()=>api().dlCancel(d.id).then(refreshDownloads)}>{d.state==='queued'?txt('…',t('Waiting')):wide?t('Downloading… {pct}%',{pct:Math.round(d.progress*100)}):Math.round(d.progress*100)+'%'}</button>
+ return <button className={cls('active')} title={(d as any).wifi?t('Waiting for Wi-Fi… Click to cancel.'):d.state==='queued'?t('Waiting to download… Click to cancel.'):t('Downloading… {pct}%. Click to cancel.',{pct:Math.round(d.progress*100)})} aria-label={t('Cancel the download')} onClick={()=>cancelDownload(d.id)}>{(d as any).wifi?txt('📶',t('Waiting for Wi-Fi')):d.state==='queued'?txt('…',t('Waiting')):wide?t('Downloading… {pct}%',{pct:Math.round(d.progress*100)}):Math.round(d.progress*100)+'%'}</button>
 }
 
 // ---- Downloads page ---------------------------------------------------------------
@@ -112,10 +151,11 @@ export function DownloadsPage(){
  const kindLabel=(k:string)=>k==='movie'?t('MOVIE'):k==='series'?t('SERIES'):t('ANIME')
  return <div className="media-search-page downloads-page"><header><div><h1>{t('Downloads')}</h1><p>{t('Episodes and movies saved on this PC. They play without internet, with their subtitles.')}</p></div></header>
   <div className="dl-settings"><label>{t('Quality')}<select value={maxH} onChange={e=>{setMaxH(e.target.value);localStorage.setItem('dlMaxHeight',e.target.value);applyDownloadSettings()}}><option value="0">{t('Best (up to 1080p)')}</option><option value="720">720p</option><option value="480">480p</option><option value="360">{t('360p (smallest)')}</option></select></label><label>{t('Speed limit')}<select value={limit} onChange={e=>{setLimit(e.target.value);localStorage.setItem('dlLimitMB',e.target.value);applyDownloadSettings()}}><option value="0">{t('No limit')}</option>{['1','2','5','10'].map(v=><option key={v} value={v}>{v+' MB/s'}</option>)}</select></label></div>
+  {wifiSupported()&&<label className="settings-check dl-auto"><input type="checkbox" defaultChecked={wifiOnlyOn()} onChange={e=>{localStorage.setItem('dlWifiOnly',e.target.checked?'1':'0');if(!e.target.checked)flushWifi()}}/> {t('Download on Wi-Fi only (episodes wait for Wi-Fi instead of using mobile data)')}</label>}
   <label className="settings-check dl-auto"><input type="checkbox" checked={auto} onChange={e=>{setAuto(e.target.checked);localStorage.setItem('dlAutoDelete',e.target.checked?'1':'0')}}/> {t('Delete a downloaded episode automatically once I have watched it')}</label>
   <div className="downloads-bar"><span>{usage?plural(usage.count,'{n} video','{n} videos')+' · '+fmtBytes(usage.bytes):''}</span><div className="libraryactions">{api().dlOpenFolder&&<button onClick={()=>api().dlOpenFolder()}>{t('Open folder')}</button>}{done.length>0&&(confirmAll?<button className="danger" onClick={()=>{api().dlClear().then(refreshDownloads);setConfirmAll(false);setPlaying(null)}}>{t('Delete all downloads')}</button>:<button onClick={()=>setConfirmAll(true)}>{t('Free up space…')}</button>)}</div></div>
   {playing&&<section className="panel media-player-top"><div className="media-player-title"><div><span className="media-kicker">{t('OFFLINE')}</span><h2>{playing.mediaName}{playing.kind!=='movie'&&playing.episodeName?' · '+playing.episodeName:''}</h2></div><button onClick={()=>setPlaying(null)}>{t('Close')}</button></div><AnimeVideo key={playing.id} video={offlineVideo(playing)} mediaKey={playing.mediaKey}/></section>}
-  {active.length>0&&<section className="panel"><h2>{t('In progress')}</h2><ul className="downloads-list">{active.map(d=><li key={d.id} className={'dl-row '+d.state}><div><b>{d.mediaName}</b><small>{d.kind==='movie'?kindLabel(d.kind):d.episodeName||t('Episode {n}',{n:d.episodeNo||''})}</small>{d.state==='error'?<NoticeText text={d.error||''}/>:<div className="libbar"><span style={{width:Math.round(d.progress*100)+'%'}}/></div>}</div><span className="dl-state">{d.state==='queued'?t('Waiting'):d.state==='error'?t('Failed'):Math.round(d.progress*100)+'%'+(d.bytes?' · '+fmtBytes(d.bytes):'')}</span><button onClick={()=>(d.state==='error'?api().dlRemove(d.id):api().dlCancel(d.id)).then(refreshDownloads)}>{d.state==='error'?t('Remove'):t('Cancel')}</button></li>)}</ul></section>}
+  {active.length>0&&<section className="panel"><h2>{t('In progress')}</h2><ul className="downloads-list">{active.map(d=><li key={d.id} className={'dl-row '+d.state}><div><b>{d.mediaName}</b><small>{d.kind==='movie'?kindLabel(d.kind):d.episodeName||t('Episode {n}',{n:d.episodeNo||''})}</small>{d.state==='error'?<NoticeText text={d.error||''}/>:<div className="libbar"><span style={{width:Math.round(d.progress*100)+'%'}}/></div>}</div><span className="dl-state">{d.state==='queued'?((d as any).wifi?t('Waiting for Wi-Fi'):t('Waiting')):d.state==='error'?t('Failed'):Math.round(d.progress*100)+'%'+(d.bytes?' · '+fmtBytes(d.bytes):'')}</span><button onClick={()=>d.state==='error'?api().dlRemove(d.id).then(refreshDownloads):cancelDownload(d.id)}>{d.state==='error'?t('Remove'):t('Cancel')}</button></li>)}</ul></section>}
   {done.length===0&&active.length===0&&<EmptyState icon="download" title={t('No downloads yet')} text={t('Open an anime, a series or a movie and use the ⤓ button on an episode to keep it on this PC.')}/>}
   {[...groups.values()].map(g=>{const first=g[0];return <section className="panel dl-group" key={first.kind+first.mediaId}><div className="dl-head"><Cover src={first.cover||''} name={first.mediaName}/><div><span className="media-kicker">{kindLabel(first.kind)}</span><h2>{first.mediaName}</h2><small>{plural(g.length,'{n} video','{n} videos')+' · '+fmtBytes(g.reduce((n,d)=>n+(d.size||0),0))}</small></div></div>
    <ul className="downloads-list">{g.sort((a,b)=>(a.episodeNo||0)-(b.episodeNo||0)).map(d=><li key={d.id} className={'dl-row'+(playing?.id===d.id?' on':'')}><div><b>{d.kind==='movie'?first.mediaName:d.episodeName||t('Episode {n}',{n:d.episodeNo||''})}</b><small>{fmtBytes(d.size||0)}{d.subtitles?.length?' · '+plural(d.subtitles.length,'{n} subtitle','{n} subtitles'):''}</small></div><button className="primary" onClick={()=>setPlaying(d)}>{'▶ '+t('Play')}</button><button onClick={()=>{api().dlRemove(d.id).then(refreshDownloads);if(playing?.id===d.id)setPlaying(null)}}>{t('Delete')}</button></li>)}</ul></section>})}

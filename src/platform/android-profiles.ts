@@ -5,11 +5,18 @@
 // puts the current one away, brings the other back and reloads the app.
 // Shared by all profiles (as on the PC): installed sources, site checks, source
 // health, downloads settings and other device settings, offline chapters.
+import{hashPin,newSalt,validPin,makeThrottle}from'../lib/parental'
 const META='nrProfiles'
 const DB='nr-profiles',STORE='data'
 const SHARED=/^(nrProfiles$|plugin:|siteChecks$|installedSources$|enabledPlugins$|animeRepos$|animeRepoUrl$|sourceHealth|videoSourceHealth|sourceScan|deadSources$|deadKeep$|pcEngine$|lastUpdateCheck$|autoCheckUpdates$|extAutoUpdate$|debugStreamProbe$|onboarded$|whatsNewSeen$|dl[A-Z]|CapacitorStorage|_cap)/
 const COLORS=['#8b7cff','#3fb37f','#e08a2e','#d9545f','#2b9bd8','#c06bd8','#c9a43a']
-type State={list:Profile[],current:string}
+type State={list:Profile[],current:string,pin?:{salt:string,hash:string}}
+const throttle=makeThrottle()
+// Is this the parent code? (throws after five wrong codes in a row)
+async function pinOk(s:State,pin:any){if(!s.pin)return true;throttle.check();const ok=await hashPin(String(pin||''),s.pin.salt)===s.pin.hash;throttle.result(ok);return ok}
+const needPin=async(s:State,pin:any)=>{if(!await pinOk(s,pin))throw Error('Wrong parent code')}
+// Changing profiles, or leaving a kids profile, asks for the parent code once it is set.
+const guarded=(s:State)=>!!s.pin&&!!s.list.find(p=>p.id===s.current)?.kids
 
 export const sharedKey=(k:string)=>SHARED.test(k)
 const clean=(s:any)=>String(s||'').replace(/[\u0000-\u001f]/g,'').trim().slice(0,40)
@@ -29,13 +36,20 @@ const tx=async<T>(mode:IDBTransactionMode,f:(s:IDBObjectStore)=>IDBRequest<T>)=>
 export function ownEntries(){const out:Record<string,string>={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i)!;if(!sharedKey(k))out[k]=localStorage.getItem(k)||''}return out}
 
 export const androidProfiles={
- profileList:async()=>{const s=load();return{list:s.list.map(p=>({...p,current:p.id===s.current})),current:s.current}},
- profileCreate:async(name:string)=>{const s=load(),id=Math.random().toString(16).slice(2,12);const p={id,name:clean(name)||'Profile '+(s.list.length+1),color:COLORS[s.list.length%COLORS.length]};s.list.push(p);save(s);return p},
- profileRename:async(id:string,name:string)=>{const s=load(),p=s.list.find(x=>x.id===id);if(!p)throw Error('Unknown profile');p.name=clean(name);save(s);return p},
+ profileList:async()=>{const s=load();return{list:s.list.map(p=>({...p,current:p.id===s.current})),current:s.current,pin:!!s.pin}},
+ profileCheckPin:async(pin:string)=>pinOk(load(),pin),
+ // {pin (current parent code), newPin ('' removes it), id + kids + genres}
+ profileParental:async(o:any={})=>{const s=load();await needPin(s,o.pin)
+  if(typeof o.newPin==='string'){if(o.newPin===''){s.pin=undefined;for(const p of s.list)p.kids=false}else{if(!validPin(o.newPin))throw Error('The code is 4 to 8 digits');const salt=newSalt();s.pin={salt,hash:await hashPin(o.newPin,salt)}}}
+  if(o.id){const p=s.list.find(x=>x.id===o.id);if(!p)throw Error('Unknown profile');if(o.kids!==undefined){if(o.kids&&!s.pin)throw Error('Set a parent code first');if(o.kids&&p.id==='default')throw Error('The first profile cannot be a kids profile');p.kids=!!o.kids}if(Array.isArray(o.genres))p.genres=o.genres.map((g:any)=>String(g)).slice(0,30)}
+  save(s);return true},
+ profileCreate:async(name:string,pin?:string)=>{const s=load();if(guarded(s))await needPin(s,pin);const id=Math.random().toString(16).slice(2,12);const p={id,name:clean(name)||'Profile '+(s.list.length+1),color:COLORS[s.list.length%COLORS.length]};s.list.push(p);save(s);return p},
+ profileRename:async(id:string,name:string,pin?:string)=>{const s=load();if(guarded(s))await needPin(s,pin);const p=s.list.find(x=>x.id===id);if(!p)throw Error('Unknown profile');p.name=clean(name);save(s);return p},
  profileColor:async(id:string,color:string)=>{const s=load(),p=s.list.find(x=>x.id===id);if(p&&/^#[0-9a-f]{6}$/i.test(color)){p.color=color;save(s)}return p as Profile},
- profileRemove:async(id:string)=>{const s=load();if(id==='default')throw Error('The first profile cannot be removed');if(id===s.current)throw Error('Switch to another profile first');s.list=s.list.filter(x=>x.id!==id);save(s);await tx('readwrite',st=>st.delete(id));return true},
- profileSwitch:async(id:string)=>{
+ profileRemove:async(id:string,pin?:string)=>{const s=load();if(s.pin)await needPin(s,pin);if(id==='default')throw Error('The first profile cannot be removed');if(id===s.current)throw Error('Switch to another profile first');s.list=s.list.filter(x=>x.id!==id);save(s);await tx('readwrite',st=>st.delete(id));return true},
+ profileSwitch:async(id:string,pin?:string)=>{
   const s=load();if(!s.list.some(x=>x.id===id))throw Error('Unknown profile');if(id===s.current)return true
+  if(guarded(s))await needPin(s,pin)
   // Put the current profile away first: nothing is removed before it is safely stored.
   const mine=ownEntries()
   await tx('readwrite',st=>st.put(mine,s.current))

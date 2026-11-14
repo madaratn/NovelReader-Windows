@@ -7,6 +7,9 @@ import{t,plural,getLang}from'../i18n'
 import{lsGet,lsSet,timeAgo}from'../lib/util'
 import{EmptyState,Help,Cover,Icon,NoticeText,MoreMenu,GenreFilter}from'../ui/common'
 import{titleInfo,matchScore,yearOf,searchQuery,sameTitle}from'../lib/title-match'
+import{parental,kidsBlock}from'./parental'
+import{altTitles}from'../lib/alt-titles'
+import{genreAllowed}from'../lib/parental'
 import{mediaPosKey,readMediaPos,mediaNorm,mediaCover,enrichMediaCover,episodeNo,seasonNo,orderedEpisodes,cleanEngineError,readWatchStats,watchDayKey,watchedCount,type MediaKind}from'../lib/media'
 import{engineFetch}from'../lib/engine'
 import{sourceAdvice}from'../lib/source-advice'
@@ -237,7 +240,8 @@ export function MediaDiscover({kind,library,onAdd,onLibrary,onWatch,onFind}:{kin
  </div>}
 // Discover › Genres: popular titles of a genre (public catalogues), found on your sources.
 function GenreBrowse({kind,library,onFind,onLibrary}:{kind:MediaKind,library:any[],onFind:(title:string)=>void,onLibrary:()=>void}){
- const list=genresFor(kind),[genre,setGenre]=useState(()=>{const g=lsGet('discoverGenre:'+kind)||'';return list.includes(g)?g:list[0]}),[rows,setRows]=useState<CatalogTitle[]>([]),[page,setPage]=useState(1),[loading,setLoading]=useState(false),[error,setError]=useState('')
+ // In a kids profile: only the allowed genres (or, if none of them is in this catalog, every genre not for adults).
+ const kidsList=parental().kids?genresFor(kind).filter(g=>genreAllowed(g,parental().genres)):genresFor(kind),list=kidsList.length?kidsList:genresFor(kind).filter(g=>genreAllowed(g,[])),[genre,setGenre]=useState(()=>{const g=lsGet('discoverGenre:'+kind)||'';return list.includes(g)?g:list[0]}),[rows,setRows]=useState<CatalogTitle[]>([]),[page,setPage]=useState(1),[loading,setLoading]=useState(false),[error,setError]=useState('')
  const token=useRef(0)
  const load=async(pg:number)=>{const my=++token.current;setLoading(true);setError('');if(pg===1)setRows([]);try{const r=await catalogByGenre(kind,genre,pg);if(my!==token.current)return;setRows(x=>pg===1?r:[...x,...r.filter(y=>!x.some(z=>z.id===y.id))]);setPage(pg)}catch(e:any){if(my===token.current)setError(t('The list of this genre could not be loaded ({e}). Check your internet connection and try again.',{e:String(e?.message||e)}))}finally{if(my===token.current)setLoading(false)}}
  useEffect(()=>{lsSet('discoverGenre:'+kind,genre);load(1)},[genre])
@@ -246,7 +250,7 @@ function GenreBrowse({kind,library,onFind,onLibrary}:{kind:MediaKind,library:any
   <div className="genre-chips" role="tablist" aria-label={t('Genres')}>{list.map(g=><button key={g} role="tab" aria-selected={genre===g} className={'chip'+(genre===g?' on':'')} onClick={()=>setGenre(g)}>{t(g)}</button>)}</div>
   <p className="settings-help genre-note">{kind==='Anime'?t('Popular on AniList. “Find” looks for the title on your sources.'):t('Popular on IMDb (Cinemeta catalogue). “Find” looks for the title on your sources.')}</p>
   {error&&<div className="anime-toast error"><NoticeText text={error}/></div>}
-  {rows.length>0&&<div className="resultgrid">{rows.map(x=>{const saved=inLib(x);return <article className="resultcard" key={x.id}><Cover src={x.cover} name={x.title}/><div className="resultmeta"><h3>{x.title}</h3><small>{[x.year,x.score?'★ '+x.score.toFixed(1):''].filter(Boolean).join(' · ')}</small><div className="resultactions">{saved?<button className="inlib linkbtn" onClick={onLibrary}>{'✓ '+t('In your library')}</button>:<button className="primary" onClick={()=>onFind(x.title)}>{'⌕ '+t('Find')}</button>}</div></div></article>})}</div>}
+  {rows.length>0&&<div className="resultgrid">{rows.filter(x=>!kidsBlock(x)).map(x=>{const saved=inLib(x);return <article className="resultcard" key={x.id}><Cover src={x.cover} name={x.title}/><div className="resultmeta"><h3>{x.title}</h3><small>{[x.year,x.score?'★ '+x.score.toFixed(1):''].filter(Boolean).join(' · ')}</small><div className="resultactions">{saved?<button className="inlib linkbtn" onClick={onLibrary}>{'✓ '+t('In your library')}</button>:<button className="primary" onClick={()=>onFind(x.title)}>{'⌕ '+t('Find')}</button>}</div></div></article>})}</div>}
   {loading&&<div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading…')}</div></div>}
   {!loading&&!error&&rows.length>0&&rows.length%30===0&&<div className="discover-more"><button onClick={()=>load(page+1)}>{t('Load more')}</button></div>}
  </>}
@@ -323,15 +327,21 @@ export function lastEpisodeIndex(media:any,eps:any[]){const key=lsGet('lastEp:'+
 // The title's own source and the others it was found on ("alternates"); more can be
 // looked for. Choosing one opens the title from it (its progress and place in the
 // library stay); the next episodes then come from it.
-export type AltSource={sourceId:string,sourceName:string,url:string,name?:string}
+export type AltSource={sourceId:string,sourceName:string,url:string,name?:string,checked?:boolean}
 export async function findOnOtherSources(kind:MediaKind,title:string,known:AltSource[],onProgress?:(done:number,total:number)=>void,ref:{year?:number,episodes?:number}={}):Promise<AltSource[]>{
  const sr:any=await engineFetch('/api/v1/sources');const sources=(Array.isArray(sr)?sr:(sr.anime||sr.sources||sr.items||[])).filter((x:any)=>x&&x.id!=null&&sourceFits(String(x.name||''),sectionOf(kind)))
- const want=titleInfo(title,ref.year),have=new Set(known.map(k=>String(k.sourceId))),todo=sources.filter((x:any)=>!have.has(String(x.id))),found:AltSource[]=[];let done=0
- const query=searchQuery(title)||title
+ const have=new Set(known.map(k=>String(k.sourceId))),todo=sources.filter((x:any)=>!have.has(String(x.id))),found:AltSource[]=[];let done=0
+ // The title's other names (other languages, other spellings): each is searched in turn.
+ const names=await altTitles(kind,title,ref.year).catch(()=>[searchQuery(title)||title])
+ const wants=names.map(n=>titleInfo(n,ref.year)),want=wants[0]
+ const best=(name:string,year?:number)=>{const got=titleInfo(name,year);return Math.max(...wants.map(w=>matchScore(w,got)))}
  const queue=[...todo];await Promise.all(Array.from({length:6},async()=>{while(queue.length){const src=queue.shift()!;try{
   const sid=encodeURIComponent(String(src.id))
-  const d:any=await engineFetch('/api/v1/anime/'+sid+'/search?query='+encodeURIComponent(query)+'&page=1');const list=Array.isArray(d)?d:(d.animes||d.results||d.items||d.list||[])
-  const ranked=list.map((a:any)=>({a,score:matchScore(want,titleInfo(String(a.title||a.name||''),yearOf(a.year,a.releaseDate,a.release_date)))})).filter((r:any)=>r.score>0&&(r.a.url||r.a.path)).sort((x:any,y:any)=>y.score-x.score).slice(0,3)
+  // An exact name wins; a name with a subtitle is only kept if no other name finds an exact one.
+  let hit=false,maybe:AltSource|null=null
+  for(const query of names){if(hit)break
+  const d:any=await engineFetch('/api/v1/anime/'+sid+'/search?query='+encodeURIComponent(query)+'&page=1').catch(()=>[]);const list=Array.isArray(d)?d:(d?.animes||d?.results||d?.items||d?.list||[])
+  const ranked=list.map((a:any)=>({a,score:best(String(a.title||a.name||''),yearOf(a.year,a.releaseDate,a.release_date))})).filter((r:any)=>r.score>0&&(r.a.url||r.a.path)).sort((x:any,y:any)=>y.score-x.score).slice(0,3)
   for(const{a,score}of ranked){
    // Checked against the title's details: the year, and film or series (episode count).
    const url=a.url||a.path
@@ -346,7 +356,10 @@ export async function findOnOtherSources(kind:MediaKind,title:string,known:AltSo
    const sameYear=!!(want.year&&gotYear&&Math.abs(want.year-gotYear)<=1)
    const sameEps=kind!=='Movie'&&n!=null&&(ref.episodes||0)>1&&Math.abs(n-(ref.episodes||0))<=Math.max(2,Math.round((ref.episodes||0)*.1))
    if(score<100&&!sameYear&&!sameEps)continue
-   found.push({sourceId:String(src.id),sourceName:String(src.name||src.id),url,name:String(a.title||a.name||'')});break}
+   const alt={sourceId:String(src.id),sourceName:String(src.name||src.id),url,name:String(a.title||a.name||''),checked:true}
+   if(score>=100){found.push(alt);hit=true;break}
+   if(!maybe)maybe=alt}}
+  if(!hit&&maybe)found.push(maybe)
  }catch{}finally{done++;onProgress?.(done,todo.length)}}}))
  return found.sort((a,b)=>a.sourceName.localeCompare(b.sourceName))}
 // The year and episode count of a title of the library, to compare with other sources.
@@ -354,7 +367,7 @@ export function titleRef(item:any){const eps=Array.isArray(item?.episodes)?item.
 export function SourcePicker({kind,item,onPick,onFound}:{kind:MediaKind,item:any,onPick:(alt:AltSource)=>void,onFound:(alts:AltSource[])=>void}){
  const own:AltSource={sourceId:String(item.sourceId||''),sourceName:String(item.sourceName||item.source||t('Video source')),url:item.url||item.path}
  // Alternates found by an older, looser search that are another title are left out.
- const alts:AltSource[]=(Array.isArray(item.alternates)?item.alternates:[]).filter((a:any)=>a&&a.sourceId&&a.url&&String(a.sourceId)!==own.sourceId&&(!a.name||sameTitle(String(item.name||item.title||''),String(a.name))>0))
+ const alts:AltSource[]=(Array.isArray(item.alternates)?item.alternates:[]).filter((a:any)=>a&&a.sourceId&&a.url&&String(a.sourceId)!==own.sourceId&&(a.checked||!a.name||sameTitle(String(item.name||item.title||''),String(a.name))>0))
  const[busy,setBusy]=useState<{done:number,total:number}|null>(null),[msg,setMsg]=useState('')
  const more=async()=>{setMsg('');setBusy({done:0,total:0});try{const ref=titleRef(item);if(!ref.year&&own.sourceId&&own.url){try{const d:any=await engineFetch('/api/v1/anime/'+encodeURIComponent(own.sourceId)+'/details?url='+encodeURIComponent(own.url));ref.year=yearOf(d?.year,d?.releaseDate,d?.release_date,d?.title,d?.description)}catch{}}
   const f=await findOnOtherSources(kind,String(item.name||item.title||''),[own,...alts],(done,total)=>setBusy({done,total}),ref);onFound(f);setMsg(f.length?plural(f.length,'Found on {n} more source.','Found on {n} more sources.'):t('Not found on your other sources.'))}catch(e:any){setMsg(cleanEngineError(e))}finally{setBusy(null)}}

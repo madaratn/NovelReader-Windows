@@ -802,3 +802,57 @@ test('find on other sources: only the same series (not a sequel, a namesake or a
   expect(urls.length).toBeGreaterThan(0)
   expect(new Set(urls)).toEqual(new Set(['/x/right']))
 })
+
+test('find on other sources: a source that uses another name (other language) is found too', async ({ page }) => {
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify([item('series', 1, "L'Attaque des Titans")]) })
+  await page.route('https://api.tvmaze.com/singlesearch/**', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ id: 7, name: 'Attack on Titan' }) }))
+  await page.route('https://api.tvmaze.com/shows/7/akas', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify([{ name: "L'Attaque des Titans", country: { code: 'FR' } }, { name: 'Shingeki no Kyojin', country: { code: 'JP' } }, { name: 'Ataque a los titanes' }]) }))
+  await page.addInitScript(() => {
+    const w = window as any, base = w.novelReader.miwayomiFetch
+    w.__queries = []
+    w.novelReader.miwayomiFetch = async (path: string, ...rest: any[]) => {
+      if (path.includes('/search')) {
+        const q = decodeURIComponent((/query=([^&]*)/.exec(path) || [])[1] || ''); w.__queries.push(q)
+        if (q === 'Shingeki no Kyojin') return { animes: [{ title: 'Shingeki no Kyojin', url: '/x/snk' }, { title: 'Shingeki no Kyojin Season 2', url: '/x/snk2' }] }
+        return { animes: [{ title: 'Attack on Titan: Junior High', url: '/x/junior' }] }
+      }
+      if (path.includes('/details') && !path.includes('%2Fx%2F')) return { title: "L'Attaque des Titans", description: 'Humanity behind walls.' }
+      return base(path, ...rest)
+    }
+  })
+  await page.goto('/')
+  await page.locator('.libcard', { hasText: 'Attaque' }).getByRole('button', { name: 'Show episodes' }).click()
+  await page.getByRole('button', { name: 'Find on other sources' }).click()
+  await expect(page.locator('.source-picker small')).toContainText(/Found on/)
+  const alts = await page.evaluate(() => JSON.parse(localStorage.getItem('seriesLibrary') || '[]')[0].alternates)
+  expect(new Set(alts.map((a: any) => a.url))).toEqual(new Set(['/x/snk']))
+  expect(await page.evaluate(() => (window as any).__queries)).toEqual(expect.arrayContaining(["L'Attaque des Titans", 'Attack on Titan', 'Shingeki no Kyojin']))
+  // The picker says which name it was found under
+  await expect(page.locator('.source-picker select option').nth(1)).toContainText('Shingeki no Kyojin')
+})
+
+test('kids profile: a title with adult genres does not play, the Genres tab hides adult genres', async ({ page }) => {
+  await openVideo(page, { mode: 'anime', 'lastPage:anime': 'anime', animeLibrary: JSON.stringify([item('anime', 1, 'Spicy Show', { genres: ['Comedy', 'Ecchi'] }), item('anime', 2, 'Gentle Show', { genres: ['Comedy'] })]) })
+  await page.addInitScript(() => {
+    const w = window as any
+    const patch = () => Object.assign(w.novelReader, {
+      profileList: async () => ({ list: [{ id: 'default', name: 'Ali', color: '#8b7cff' }, { id: 'k', name: 'Sam', color: '#3fb37f', kids: true, genres: [] }], current: 'k', pin: true }),
+      profileCheckPin: async (p: string) => p === '1234', profileSwitch: async () => true
+    })
+    const iv = setInterval(() => { if (w.novelReader) { patch(); clearInterval(iv) } }, 0)
+  })
+  await page.goto('/')
+  await page.locator('.libcard', { hasText: 'Spicy Show' }).getByRole('button', { name: 'Show episodes' }).click()
+  await page.locator('.media-hero .primary').click()
+  await expect(page.getByText('This title is not for children.')).toBeVisible()
+  await expect(page.locator('.remote-player video')).toHaveCount(0)
+  // Leaving the profile asks for the code
+  await page.locator('.pf-current').click()
+  await page.locator('.pf-item', { hasText: 'Ali' }).click()
+  await expect(page.getByRole('dialog', { name: 'Parent code' })).toBeVisible()
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  // Settings is closed without the code
+  await page.locator('.sidebar').getByRole('button', { name: 'Settings' }).click()
+  await expect(page.locator('.pin-gate')).toBeVisible()
+})

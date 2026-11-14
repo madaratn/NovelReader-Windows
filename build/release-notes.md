@@ -1,3 +1,22 @@
+## NovelReader 0.30.0
+
+- **Les autres noms d'un titre** : « Chercher sur mes autres sources » essaie aussi les noms dans d'autres langues et les autres orthographes.
+  - Exemple : « L'Attaque des Titans », « Attack on Titan », « Shingeki no Kyojin ».
+  - Ces noms viennent d'AniList pour les animes, de TVmaze pour les séries et de Wikidata pour les films.
+  - Chaque résultat reste vérifié aussi strictement qu'avant : même titre, même saison, même année.
+- **Télécharger une saison entière** :
+  - Le menu du nombre d'épisodes propose « Le reste de la saison » et « Tous les suivants ».
+  - Sur le téléphone, avec **Wi‑Fi seulement**, les épisodes attendent le Wi‑Fi au lieu d'utiliser les données mobiles. Un téléchargement en cours s'arrête si le téléphone quitte le Wi‑Fi, puis reprend au retour du Wi‑Fi.
+  - La suppression automatique des épisodes vus reste dans Téléchargements.
+- **Profil enfant et code parental** (Réglages › Profils) :
+  - Tu définis un code de 4 à 8 chiffres, puis tu fais d'un profil un profil enfant. Tu peux aussi y choisir des genres autorisés.
+  - Dans ce profil, les titres pour adultes (ecchi, horreur, etc.) ne s'ouvrent pas, et l'onglet Genres ne montre que les genres permis.
+  - Les Réglages, les sources et la sortie du profil demandent le code.
+  - Le code n'est jamais enregistré en clair. Après 5 erreurs, il faut attendre 30 secondes.
+  - Un titre dont la source ne donne pas les genres n'est pas bloqué.
+
+---
+
 ## NovelReader 0.29.1
 
 - **« Chercher sur mes autres sources » plus précis** : seul le même film ou la même série est retenu.
