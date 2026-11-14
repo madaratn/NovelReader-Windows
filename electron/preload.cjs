@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('novelReader',{
  backupReadAuto:(name)=>ipcRenderer.invoke('backup:readAuto',name),
  backupOpenFolder:()=>ipcRenderer.invoke('backup:openFolder'),
  appVersion:()=>ipcRenderer.invoke('app:version'),
+ miniWindow:(on)=>ipcRenderer.invoke('mini:set',!!on),
  profileList:()=>ipcRenderer.invoke('profile:list'),profileCreate:(n,pin)=>ipcRenderer.invoke('profile:create',n,pin),profileRename:(id,name,pin)=>ipcRenderer.invoke('profile:rename',{id,name,pin}),profileColor:(id,color)=>ipcRenderer.invoke('profile:color',{id,color}),profileRemove:(id,pin)=>ipcRenderer.invoke('profile:remove',id,pin),profileSwitch:(id,pin)=>ipcRenderer.invoke('profile:switch',id,pin),profileCheckPin:(pin)=>ipcRenderer.invoke('profile:check-pin',pin),profileParental:(o)=>ipcRenderer.invoke('profile:parental',o),
  anilistStatus:()=>ipcRenderer.invoke('anilist:status'),anilistLogin:(id)=>ipcRenderer.invoke('anilist:login',id),anilistToken:(token)=>ipcRenderer.invoke('anilist:token',{token}),anilistLogout:()=>ipcRenderer.invoke('anilist:logout'),anilistCall:(name,vars)=>ipcRenderer.invoke('anilist:call',{name,vars}),
  malStatus:()=>ipcRenderer.invoke('mal:status'),malLogin:(clientId,clientSecret)=>ipcRenderer.invoke('mal:login',{clientId,clientSecret}),malLogout:()=>ipcRenderer.invoke('mal:logout'),malCall:(name,vars)=>ipcRenderer.invoke('mal:call',{name,vars}),

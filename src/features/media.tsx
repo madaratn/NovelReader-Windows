@@ -9,6 +9,7 @@ import{EmptyState,Help,Cover,Icon,NoticeText,MoreMenu,GenreFilter}from'../ui/com
 import{titleInfo,matchScore,yearOf,searchQuery,sameTitle}from'../lib/title-match'
 import{parental,kidsBlock}from'./parental'
 import{altTitles}from'../lib/alt-titles'
+import{forYou,seedsOf,type ForYou}from'../lib/recommend'
 import{genreAllowed}from'../lib/parental'
 import{mediaPosKey,readMediaPos,mediaNorm,mediaCover,enrichMediaCover,episodeNo,seasonNo,orderedEpisodes,cleanEngineError,readWatchStats,watchDayKey,watchedCount,type MediaKind}from'../lib/media'
 import{engineFetch}from'../lib/engine'
@@ -213,7 +214,7 @@ export function CloudflarePanel(){
 // ---- Discover: Popular / Latest lists of one source, to browse without a title in mind
 const discoverCache=new Map<string,{rows:any[],page:number,more:boolean}>()
 export function MediaDiscover({kind,library,onAdd,onLibrary,onWatch,onFind}:{kind:MediaKind,library:any[],onAdd:(a:any)=>Promise<void>|void,onLibrary:()=>void,onWatch?:(a:any)=>Promise<void>|void,onFind?:(title:string)=>void}){
- const[sources,setSources]=useState<any[]|null>(null),[source,setSource]=useState(()=>lsGet('discoverSource:'+kind)||''),[tab,setTab]=useState<'popular'|'latest'|'genres'>(()=>{const v=lsGet('discoverTab:'+kind);return v==='latest'||v==='genres'&&onFind?v:'popular'})
+ const[sources,setSources]=useState<any[]|null>(null),[source,setSource]=useState(()=>lsGet('discoverSource:'+kind)||''),[tab,setTab]=useState<'popular'|'latest'|'genres'|'foryou'>(()=>{const v=lsGet('discoverTab:'+kind);return v==='latest'||(v==='genres'||v==='foryou')&&onFind?v:'popular'})
  const[rows,setRows]=useState<any[]>([]),[page,setPage]=useState(1),[more,setMore]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[adding,setAdding]=useState<string[]>([])
  const token=useRef(0),rowsRef=useRef<any[]>([])
  useEffect(()=>{let alive=true;engineFetch('/api/v1/sources').then((sr:any)=>{if(!alive)return;const list=(Array.isArray(sr)?sr:(sr?.anime||sr?.sources||sr?.items||[])).filter((x:any)=>x&&x.id!=null&&sourceFits(String(x.name||''),sectionOf(kind)));setSources(list);if(list.length&&!list.some((x:any)=>String(x.id)===source))setSource(String(list[0].id))}).catch((e:any)=>{if(alive){setSources([]);setError(cleanEngineError(e))}});return()=>{alive=false;token.current++}},[kind])
@@ -222,15 +223,16 @@ export function MediaDiscover({kind,library,onAdd,onLibrary,onWatch,onFind}:{kin
    const base=pg===1?[]:rowsRef.current,seen=new Set(base.map((x:any)=>x.url||x.path)),all=[...base,...list.filter((x:any)=>!seen.has(x.url||x.path))];rowsRef.current=all;setRows(all);setPage(pg);setMore(hasNext&&all0.length>0);discoverCache.set(key,{rows:all,page:pg,more:hasNext&&all0.length>0})
    const missing=list.filter((a:any)=>!mediaCover(a)&&a.url).slice(0,12);if(missing.length){const enriched=await Promise.all(missing.map(enrichMediaCover));if(my!==token.current)return;{const next=rowsRef.current.map((x:any)=>{const e=enriched.find((y:any)=>(y.url||y.path)===(x.url||x.path));return e&&mediaCover(e)?{...x,...e,thumbnail:mediaCover(e)}:x});rowsRef.current=next;setRows(next);discoverCache.set(key,{rows:next,page:pg,more:hasNext&&list.length>0})}}
   }catch(e:any){if(my===token.current){const msg=cleanEngineError(e);setError(tab==='latest'&&/latest|not supported|unsupported|404/i.test(msg)?t('This source has no list of latest releases. Try Popular.'):msg)}}finally{if(my===token.current)setLoading(false)}}
- useEffect(()=>{lsSet('discoverTab:'+kind,tab);if(source&&tab!=='genres'){lsSet('discoverSource:'+kind,source);load(1)}},[source,tab])
+ useEffect(()=>{lsSet('discoverTab:'+kind,tab);if(source&&tab!=='genres'&&tab!=='foryou'){lsSet('discoverSource:'+kind,source);load(1)}},[source,tab])
  const idOf=(a:any)=>kind==='Anime'?(a.id||a.url):kind.toLowerCase()+':'+(a.sourceId||'')+':'+(a.url||a.path)
  const inLib=(a:any)=>{const id=idOf(a),n=mediaNorm(a.title||a.name||'');return library.some(x=>x.id===id||(n&&mediaNorm(x.name||x.title||'')===n))}
  const add=async(a:any)=>{const k=a.url||a.path;setAdding(x=>[...x,k]);try{await onAdd(a)}finally{setAdding(x=>x.filter(y=>y!==k))}}
  const intro=kind==='Anime'?t('Browse what is popular or new on one of your anime sources.'):kind==='Series'?t('Browse what is popular or new on one of your series sources.'):t('Browse what is popular or new on one of your movie sources.')
  return <div className="media-search-page media-discover books-search-ui"><header><div><h1>{t('Discover')}</h1><p>{intro}</p></div></header>
   {sources&&sources.length===0&&!error&&<section className="panel lib-empty"><h2>{t('No video source installed')}</h2><p>{t('Install a source in Sources first, then come back here.')}</p></section>}
-  {sources&&sources.length>0&&<div className="discover-bar"><div className="shelftabs" role="tablist" aria-label={t('Lists')}>{(onFind?['popular','latest','genres'] as const:['popular','latest'] as const).map(x=><button key={x} role="tab" aria-selected={tab===x} className={'shelftab'+(tab===x?' on':'')} onClick={()=>setTab(x)}>{x==='popular'?t('Popular'):x==='latest'?t('Latest'):t('Genres')}</button>)}</div>{tab!=='genres'&&<><label>{t('Source')}<select value={source} onChange={e=>setSource(e.target.value)}>{sources.map((x:any)=><option key={x.id} value={String(x.id)}>{x.name||x.id}{x.lang?' ('+String(x.lang).toUpperCase()+')':''}</option>)}</select></label></>}</div>}
+  {sources&&sources.length>0&&<div className="discover-bar"><div className="shelftabs" role="tablist" aria-label={t('Lists')}>{(onFind?['popular','latest','genres','foryou'] as const:['popular','latest'] as const).map(x=><button key={x} role="tab" aria-selected={tab===x} className={'shelftab'+(tab===x?' on':'')} onClick={()=>setTab(x)}>{x==='popular'?t('Popular'):x==='latest'?t('Latest'):x==='genres'?t('Genres'):t('For you')}</button>)}</div>{tab!=='genres'&&tab!=='foryou'&&<><label>{t('Source')}<select value={source} onChange={e=>setSource(e.target.value)}>{sources.map((x:any)=><option key={x.id} value={String(x.id)}>{x.name||x.id}{x.lang?' ('+String(x.lang).toUpperCase()+')':''}</option>)}</select></label></>}</div>}
   {tab==='genres'&&onFind&&<GenreBrowse kind={kind} library={library} onFind={onFind} onLibrary={onLibrary}/>}
+  {tab==='foryou'&&onFind&&<ForYouBrowse kind={kind} library={library} onFind={onFind}/>}
   {!sources&&<div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading sources…')}</div></div>}
   {tab!=='genres'&&<>{error&&<div className="anime-toast error"><NoticeText text={error}/></div>}
   {rows.length>0&&<div className="resultgrid">{rows.map((a:any,i:number)=>{const k=a.url||a.path||String(i),saved=inLib(a),busy=adding.includes(k);return <article className="resultcard" key={k}><Cover src={mediaCover(a)} name={a.title||a.name||kind}/><div className="resultmeta"><h3>{a.title||a.name||t('Untitled')}</h3><small>{a.sourceName}</small><div className="resultactions">{saved?<button className="inlib linkbtn" onClick={onLibrary}>{'✓ '+t('In your library')}</button>:<>{onWatch&&<button className="primary" onClick={()=>onWatch(a)}>{'▶ '+t('Watch')}</button>}<button className={onWatch?'':'primary'} disabled={busy} onClick={()=>add(a)}>{busy?t('Adding…'):onWatch?'＋ '+t('Add'):'＋ '+t('Add to library')}</button></>}</div></div></article>})}</div>}
@@ -253,6 +255,19 @@ function GenreBrowse({kind,library,onFind,onLibrary}:{kind:MediaKind,library:any
   {rows.length>0&&<div className="resultgrid">{rows.filter(x=>!kidsBlock(x)).map(x=>{const saved=inLib(x);return <article className="resultcard" key={x.id}><Cover src={x.cover} name={x.title}/><div className="resultmeta"><h3>{x.title}</h3><small>{[x.year,x.score?'★ '+x.score.toFixed(1):''].filter(Boolean).join(' · ')}</small><div className="resultactions">{saved?<button className="inlib linkbtn" onClick={onLibrary}>{'✓ '+t('In your library')}</button>:<button className="primary" onClick={()=>onFind(x.title)}>{'⌕ '+t('Find')}</button>}</div></div></article>})}</div>}
   {loading&&<div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading…')}</div></div>}
   {!loading&&!error&&rows.length>0&&rows.length%30===0&&<div className="discover-more"><button onClick={()=>load(page+1)}>{t('Load more')}</button></div>}
+ </>}
+// Discover › For you: "Because you liked X" rows (src/lib/recommend.ts).
+function ForYouBrowse({kind,library,onFind}:{kind:MediaKind,library:any[],onFind:(title:string)=>void}){
+ const[groups,setGroups]=useState<ForYou[]|null>(null),[error,setError]=useState('')
+ const seeds=seedsOf(library).length
+ useEffect(()=>{let alive=true;setGroups(null);setError('');forYou(kind,library).then(g=>{if(alive)setGroups(g)}).catch(e=>{if(alive){setGroups([]);setError(t('The suggestions could not be loaded ({e}). Check your internet connection and try again.',{e:String(e?.message||e)}))}});return()=>{alive=false}},[kind,library.length])
+ if(!seeds)return <EmptyState icon="compass" title={t('No suggestions yet')} text={t('Finish a title (shelf “Completed”) or watch a few episodes: suggestions will be based on them.')}/>
+ return <>
+  <p className="settings-help genre-note">{kind==='Anime'?t('Suggested by AniList users for the titles you finished or watched lately. “Find” looks for the title on your sources.'):t('Titles of the same genres, among the most watched on IMDb. “Find” looks for the title on your sources.')}</p>
+  {error&&<div className="anime-toast error"><NoticeText text={error}/></div>}
+  {groups===null&&<div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading…')}</div></div>}
+  {groups&&!groups.length&&!error&&<EmptyState icon="compass" title={t('No suggestions yet')} text={t('No suggestion was found for your titles. Finish or watch other titles, then come back.')}/>}
+  {groups&&groups.map(g=>{const items=g.items.filter(x=>!kidsBlock(x));if(!items.length)return null;return <section className="foryou-group" key={g.because}><h2>{t('Because you liked {name}',{name:g.because})}</h2><div className="resultgrid">{items.map(x=><article className="resultcard" key={x.id}><Cover src={x.cover} name={x.title}/><div className="resultmeta"><h3>{x.title}</h3><small>{[x.year,x.score?'★ '+x.score.toFixed(1):''].filter(Boolean).join(' · ')}</small><div className="resultactions"><button className="primary" onClick={()=>onFind(x.title)}>{'⌕ '+t('Find')}</button></div></div></article>)}</div></section>})}
  </>}
 const lastMediaSearch=new Map<string,{query:string,rows:any[],status:any}>()
 export function MediaSearch({kind,query,setQuery,library,onAdd,onSources,onWatch}:{kind:MediaKind,query:string,setQuery:(q:string)=>void,library:any[],onAdd:(a:any)=>void,onSources?:()=>void,onWatch?:(a:any)=>Promise<void>|void}){

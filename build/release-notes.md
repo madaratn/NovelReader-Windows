@@ -1,3 +1,16 @@
+## NovelReader 0.32.0
+
+- **Sous-titres lisibles en thème clair** : la couleur « Blanc » des sous-titres suivait la couleur du texte de l'app, presque noire en thème clair. Ils s'affichaient donc en noir sur l'ombre ou le fond noir. Ils sont maintenant toujours en vrai blanc (ou vrai jaune), que le thème soit clair ou sombre. Ça vaut pour tous les sous-titres : ceux de la source, ceux trouvés en ligne, ceux générés et ceux traduits.
+- **Découvrir › Pour toi** : des suggestions « Parce que tu as aimé… » pour les titres que tu as terminés (étagère « Terminés ») ou regardés dernièrement.
+  - Pour les animes, ce sont les recommandations des utilisateurs d'AniList.
+  - Pour les séries et les films, ce sont des titres des mêmes genres parmi les plus regardés sur IMDb, ceux qui partagent le plus de genres en premier.
+  - Les titres déjà dans ta bibliothèque ne sont pas proposés, et « Trouver » cherche le titre sur tes sources.
+- **Mini-lecteur sur PC** (menu ⋯ du lecteur › Mini-lecteur) :
+  - La fenêtre devient une petite vidéo dans le coin de l'écran, au-dessus de tes autres programmes, avec les sous-titres.
+  - Tu la déplaces par la barre du haut. « Retour à l'app » ou Échap rend à la fenêtre sa taille et sa place d'avant.
+
+---
+
 ## NovelReader 0.31.0
 
 - **Continuer ici** : si tu as commencé un épisode ou un chapitre sur ton téléphone, le PC te propose en haut de l'écran de « Continuer ici », à l'épisode et à la position où tu t'es arrêté. L'inverse marche aussi. Il faut que la synchronisation entre le PC et le téléphone soit activée.
