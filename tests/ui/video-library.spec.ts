@@ -951,3 +951,31 @@ test('subtitles stay white (or yellow) on the video in the light theme too', asy
   for (const [sel, color] of Object.entries(rules)) expect(color, sel).not.toMatch(/var\(/)
   expect(Object.entries(rules).find(([s]) => s.includes('cue-white'))?.[1]).toMatch(/#fff|255, 255, 255|white/i)
 })
+
+test('Cloudflare protection: Start waits for FlareSolverr, and says why when it stops', async ({ page }) => {
+  await openVideo(page, { mode: 'anime', 'lastPage:anime': 'animeSources', sourcesAdvanced: '1' })
+  await page.addInitScript(() => {
+    const w = window as any; w.__starts = 0
+    const iv = setInterval(() => { if (!w.novelReader) return; clearInterval(iv)
+      const base = { supported: true, installed: true, running: false, installing: false, progress: 0, url: 'http://127.0.0.1:8191' }
+      w.__st = { ...base, error: null }
+      w.novelReader.flareStatus = async () => w.__st
+      w.novelReader.flareReinstall = async () => ({ ...base, error: null })
+      w.novelReader.flareLog = async () => { w.__log = true; return true }
+      w.novelReader.flareStart = async () => { w.__starts++; await new Promise(r => setTimeout(r, 400))
+        w.__st = w.__starts === 1 ? { ...base, error: 'FlareSolverr stopped right after starting (code 3). An antivirus may have blocked it: allow it, or reinstall it.\nError: Chrome could not be started' } : { ...base, running: true, error: null }
+        return w.__st }
+    }, 0)
+  })
+  await page.goto('/')
+  const panel = page.locator('.anime-status', { hasText: 'Cloudflare protection' })
+  await expect(panel).toContainText('FlareSolverr is installed but not running.')
+  await panel.getByRole('button', { name: 'Start' }).click()
+  await expect(panel).toContainText('Starting FlareSolverr')
+  await expect(panel.locator('.flare-error')).toContainText('FlareSolverr stopped right after starting (code 3). An antivirus may have blocked it')
+  await expect(panel.locator('.flare-log')).toHaveText('Error: Chrome could not be started')
+  await panel.getByRole('button', { name: 'Show the log' }).click()
+  expect(await page.evaluate(() => (window as any).__log)).toBe(true)
+  await panel.getByRole('button', { name: 'Try again' }).click()
+  await expect(panel).toContainText('FlareSolverr is running')
+})

@@ -1216,6 +1216,14 @@ const FR: Record<string, string> = {
   'Could not check: none of the sources answered. Check your internet connection and try again.': 'Vérification impossible : aucune source n’a répondu. Vérifie ta connexion internet et réessaie.',
   'Could not load the movie:': 'Impossible de charger le film :',
   'The release dates could not be fetched:': 'Les dates de sortie n’ont pas pu être récupérées :',
+  'Starting FlareSolverr… it opens a browser first, this can take up to 45 seconds.': 'Démarrage de FlareSolverr… il ouvre d’abord un navigateur, cela peut prendre jusqu’à 45 secondes.',
+  'Try again': 'Réessayer',
+  'Reinstall': 'Réinstaller',
+  'Show the log': 'Voir le journal',
+  'code': 'code',
+  'FlareSolverr stopped right after starting{code}. An antivirus may have blocked it: allow it, or reinstall it.': 'FlareSolverr s’est arrêté juste après son lancement{code}. Un antivirus l’a peut-être bloqué : autorise-le, ou réinstalle-le.',
+  'FlareSolverr could not start: port {p} is already used by another program.': 'FlareSolverr n’a pas pu démarrer : le port {p} est déjà utilisé par un autre programme.',
+  'FlareSolverr is starting but does not answer yet (after {n} s). Wait a moment and check again.': 'FlareSolverr démarre mais ne répond pas encore (après {n} s). Attends un peu et réessaie.',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')
