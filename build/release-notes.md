@@ -1,3 +1,14 @@
+## NovelReader 0.35.0
+
+- **Sans internet, l'app dit clairement ce qui se passe** : chaque page a été vérifiée connexion coupée, et aucune ne reste à charger indéfiniment.
+  - « Vérifier les nouveaux chapitres / épisodes » disait « Tout est à jour » alors qu'aucune source n'avait répondu. Il dit maintenant que la vérification est impossible et qu'il faut vérifier la connexion.
+  - Les pages vidéo (Découvrir, Recherche, Calendrier) affichaient « Failed to fetch » ; elles expliquent maintenant le problème en français.
+  - Une série qui ne s'ouvrait pas affichait une fenêtre système ; c'est maintenant un message dans la page, comme pour les animes.
+  - Un film qui ne se chargeait pas disait « Cette source n'a pas renvoyé de film lisible » ; il dit maintenant pourquoi.
+- **Démarrage plus léger** : le code de lecture des flux vidéo (HLS) n'est plus chargé au lancement, seulement quand une vidéo en a besoin. L'app charge environ 40 % de code en moins au démarrage (1,5 Mo → 0,9 Mo).
+
+---
+
 ## NovelReader 0.34.0
 
 - **Historique partagé entre le PC et le téléphone** :

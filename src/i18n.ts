@@ -1212,6 +1212,10 @@ const FR: Record<string, string> = {
   'Phone': 'Téléphone',
   'What you read and watched, day by day (on the PC and the phone when they are synced).': 'Ce que tu as lu et regardé, jour par jour (sur le PC et le téléphone quand ils sont synchronisés).',
   'What you read and watched this year (on the PC and the phone when they are synced).': 'Ce que tu as lu et regardé cette année (sur le PC et le téléphone quand ils sont synchronisés).',
+  'Could not open anime:': 'Impossible d’ouvrir l’anime :',
+  'Could not check: none of the sources answered. Check your internet connection and try again.': 'Vérification impossible : aucune source n’a répondu. Vérifie ta connexion internet et réessaie.',
+  'Could not load the movie:': 'Impossible de charger le film :',
+  'The release dates could not be fetched:': 'Les dates de sortie n’ont pas pu être récupérées :',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')
