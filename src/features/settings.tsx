@@ -5,6 +5,7 @@ import{party}from'./watch-party'
 import React,{useEffect,useRef,useState}from'react'
 import{SyncSettings}from'./sync'
 import{getThemePref,setThemePref}from'../lib/theme'
+import{fullLibraryJson,writeLibraryJson}from'../lib/chapter-store'
 import type{ThemePref}from'../lib/theme'
 import type{FolderSync}from'./sync'
 import{t,plural,LANGS}from'../i18n'
@@ -21,12 +22,14 @@ import{TvSettings}from'./tv'
 // Everything the app keeps in localStorage is user data (library, progress,
 // preferences) except cached plugin code, which is re-downloaded on demand.
 export const BACKUP_SKIP=(k:string)=>k.startsWith('plugin:')
-export function collectBackup():BackupPayload{const data:Record<string,string>={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i)!;if(!BACKUP_SKIP(k)){const v=localStorage.getItem(k);if(v!=null)data[k]=v}}return{app:'NovelReader',version:1,exportedAt:Date.now(),data}}
+export function collectBackup():BackupPayload{const data:Record<string,string>={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i)!;if(!BACKUP_SKIP(k)){const v=localStorage.getItem(k);if(v!=null)data[k]=v}}if(data.library!=null)data.library=fullLibraryJson();return{app:'NovelReader',version:1,exportedAt:Date.now(),data}}
 export async function applyBackup(payload:BackupPayload){
  // Safety copy of the current data first, so a restore can always be undone.
  try{await window.novelReader.backupAuto(collectBackup(),true)}catch{}
  const keep:Record<string,string>={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i)!;if(BACKUP_SKIP(k))keep[k]=localStorage.getItem(k)||''}
- localStorage.clear();for(const[k,v]of Object.entries(keep))localStorage.setItem(k,v);for(const[k,v]of Object.entries(payload.data))localStorage.setItem(k,v)
+ localStorage.clear();for(const[k,v]of Object.entries(keep))localStorage.setItem(k,v);for(const[k,v]of Object.entries(payload.data)){if(k==='library')continue;try{localStorage.setItem(k,v)}catch{}}
+ // The library last: its chapter lists go to their own store first (src/lib/chapter-store.ts).
+ if(payload.data.library!=null){writeLibraryJson(payload.data.library);await new Promise(r=>setTimeout(r,400))}
  location.reload()
 }
 

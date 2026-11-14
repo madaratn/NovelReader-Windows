@@ -2,12 +2,12 @@
 // stick out of the screen or make the page scroll sideways (tests/layout-audit.ts).
 import { test, expect, type Page } from '@playwright/test'
 import { setup, novel } from './helpers'
-import { layoutProblems, SIZES } from '../layout-audit'
+import { layoutProblems, SIZES, openSettings, openHistory, openYear, historySeed } from '../layout-audit'
 
 const LONG = 'The Extraordinarily Long Title Of A Story That Never Seems To End Volume Twelve'
 const vid = (kind: string, i: number, name: string) => ({ id: kind + i, name, sourceId: '42', sourceName: 'Mapple', url: '/' + kind + '/' + i, thumbnail: '', episodes: kind === 'movie' ? 1 : 8, genres: ['Drama', 'Mystery'], addedAt: Date.now() - i * 3600_000 })
 const PAGES: [string, string][] = [
-  ['books', 'library'], ['books', 'discover'], ['books', 'search'], ['books', 'sources'], ['books', 'history'], ['books', 'year'], ['books', 'notes'],
+  ['books', 'library'], ['books', 'discover'], ['books', 'search'], ['books', 'sources'], ['books', 'notes'],
   ['anime', 'anime'], ['anime', 'animeDiscover'], ['anime', 'animeSearch'], ['anime', 'animeSources'], ['anime', 'calendar'], ['anime', 'downloads'],
   ['series', 'series'], ['series', 'seriesDiscover'], ['series', 'seriesSearch'], ['series', 'seriesSources'],
   ['movies', 'movies'], ['movies', 'movieDiscover'], ['movies', 'movieSearch'], ['movies', 'movieSources'], ['movies', 'localVideos'], ['movies', 'archive'],
@@ -18,6 +18,7 @@ async function prepare(page: Page) {
     library: [novel('n1', LONG, 120, { author: 'An Author With A Rather Long Pen Name' }), novel('n2', 'Shadow Slave', 40)],
     reading: { n1: { index: 3 } },
     storage: {
+      ...historySeed(),
       sourcesAdvanced: '1',
       animeLibrary: JSON.stringify([vid('anime', 1, LONG), vid('anime', 2, 'Frieren')]),
       seriesLibrary: JSON.stringify([vid('series', 1, 'Lanterns'), vid('series', 2, LONG)]),
@@ -57,12 +58,13 @@ for (const [size, viewport] of Object.entries(SIZES)) {
     // Settings, each tab
     await page.evaluate(() => { localStorage.setItem('mode', 'books'); localStorage.setItem('lastPage:books', 'library') })
     await page.reload()
-    const side = page.locator('aside.sidebar').getByRole('button', { name: 'Settings' })
-    if (await side.isVisible().catch(() => false)) await side.click()
-    else { await page.locator('.m-bottom button').last().click(); await page.locator('.m-sheet-item', { hasText: 'Settings' }).click() }
+    await openSettings(page)
     const tabs = page.locator('.settings-tabs [role=tab]')
     await tabs.first().waitFor()
     for (let i = 0; i < await tabs.count(); i++) { await tabs.nth(i).click(); await check('settings › ' + (await tabs.nth(i).innerText()).trim()) }
+    // History and Your year
+    await page.reload(); await openHistory(page); await check('history')
+    await page.reload(); await openYear(page); await check('your year')
     // A book's page, and its reader
     await page.evaluate(() => { localStorage.setItem('lastPage:books', 'library') })
     await page.reload()

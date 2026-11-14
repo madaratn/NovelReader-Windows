@@ -3,6 +3,7 @@ import{Help}from'../ui/common'
 import { t } from '../i18n'
 import { lsGet, lsSet, timeAgo } from '../lib/util'
 import { mergeSync, pickSynced, changedKeys } from '../lib/syncMerge'
+import { fullLibraryJson, writeLibraryJson } from '../lib/chapter-store'
 import { NoticeText } from '../ui/common'
 import { PcLinkSettings } from './pc-link'
 
@@ -16,6 +17,8 @@ type SyncState = { status: SyncStatus | null, running: boolean, lastAt: number, 
 function localSnapshot(): Record<string, string> {
   const all: Record<string, string> = {}
   for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i)!; all[k] = localStorage.getItem(k) || '' }
+  // The library with its chapter lists (kept apart on this device: src/lib/chapter-store.ts).
+  if (all.library != null) all.library = fullLibraryJson()
   return pickSynced(all)
 }
 
@@ -38,10 +41,11 @@ export function useFolderSync({ library, onLibrary }: { library: any[], onLibrar
       const local = localSnapshot()
       const merged = remote ? mergeSync(local, remote.data) : local
       const changed = changedKeys(local, merged)
-      for (const k of changed) { if (merged[k] == null) localStorage.removeItem(k); else lsSet(k, merged[k]) }
+      for (const k of changed) { if (merged[k] == null) localStorage.removeItem(k); else if (k === 'library') writeLibraryJson(merged[k]); else lsSet(k, merged[k]) }
       if (changed.includes('library')) onLibraryRef.current(JSON.parse(merged.library || '[]'))
       if (changed.includes('annotations')) window.dispatchEvent(new Event('nr-annotations'))
       if (changed.includes('lastPlay')) window.dispatchEvent(new Event('nr-last-play'))
+      if (changed.includes('history')) window.dispatchEvent(new Event('nr-history'))
       if (changed.some(k => ['animeLibrary', 'seriesLibrary', 'movieLibrary'].includes(k) || k.startsWith('mediapos:') || k.startsWith('lastEpInfo:'))) window.dispatchEvent(new Event('nr-media-synced'))
       await api.syncWrite(merged)
       const from = remote && remote.deviceId !== status.deviceId ? remote.deviceName : ''

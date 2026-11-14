@@ -65,3 +65,19 @@ test('sync: the last title opened (and on which device) follows the most recent 
   assert.ok('lastPlay' in pickSynced({ lastPlay: pc, deviceTag: 'pc' }))
   assert.ok(!('deviceTag' in pickSynced({ lastPlay: pc, deviceTag: 'pc' })), 'the device itself is not synced')
 })
+
+test('sync: history of the PC and the phone together, one line per episode and day, Clear wins', () => {
+  const code4 = esbuild.buildSync({ entryPoints: [path.join(__dirname, '../../src/lib/syncMerge.ts')], bundle: true, format: 'cjs', platform: 'node', write: false, logLevel: 'silent' }).outputFiles[0].text
+  const m4 = { exports: {} }; new Function('module', 'exports', 'require', code4)(m4, m4.exports, require)
+  const { mergeSync, pickSynced } = m4.exports
+  const day = new Date(2026, 10, 14, 10).getTime(), H = 3600e3
+  const pc = [{ at: day + 2 * H, kind: 'books', id: 'a', name: 'Alpha', sub: 'Chapter 3', on: 'pc' }, { at: day, kind: 'series', id: 's', name: 'Lanterns', sub: 'Episode 1', on: 'pc' }]
+  const phone = [{ at: day + 3 * H, kind: 'series', id: 's', name: 'Lanterns', sub: 'Episode 1', on: 'phone' }, { at: day - 30 * H, kind: 'books', id: 'a', name: 'Alpha', sub: 'Chapter 2', on: 'phone' }]
+  const merged = JSON.parse(mergeSync({ history: JSON.stringify(pc) }, { history: JSON.stringify(phone) }).history)
+  assert.deepStrictEqual(merged.map(x => x.sub + '@' + x.on), ['Episode 1@phone', 'Chapter 3@pc', 'Chapter 2@phone'])
+  // "Clear" on one device: older lines do not come back from the other one
+  const out = mergeSync({ history: '[]', historyClearedAt: String(day + 2.5 * H) }, { history: JSON.stringify(phone) })
+  assert.deepStrictEqual(JSON.parse(out.history).map(x => x.sub), ['Episode 1'])
+  assert.strictEqual(out.historyClearedAt, String(day + 2.5 * H))
+  assert.ok('history' in pickSynced({ history: '[]' }))
+})

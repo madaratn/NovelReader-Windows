@@ -13,6 +13,9 @@
 // - mediapos:<key> (video position, watched flag) and lastEpInfo:<id>: most
 //   recent wins; lastEp:<id> follows lastEpInfo; prefServer:<id> kept if known.
 // - lastPlay (what was opened last, and on which device): most recent wins.
+// - history: both lists together (one line per chapter / episode and per day, the
+//   latest kept), newest first, 1000 lines; lines older than a "Clear" on any device
+//   (historyClearedAt, the latest) are dropped.
 // - watchStats: per day, the larger value.
 // Preferences (theme, language, layout…) stay per PC and are not synced.
 
@@ -21,7 +24,7 @@ export type SyncData = Record<string, string>
 export const MEDIA_LIBS = ['animeLibrary', 'seriesLibrary', 'movieLibrary']
 export const isSyncedKey = (k: string) =>
   k === 'library' || k === 'libraryRemoved' || k === 'annotations' || k === 'annotationsRemoved' || k === 'readingStats' || k.startsWith('reading:') ||
-  MEDIA_LIBS.includes(k) || k === 'mediaRemoved' || k === 'watchStats' || k.startsWith('mediapos:') || k.startsWith('lastEpInfo:') || k.startsWith('lastEp:') || k.startsWith('prefServer:') || k === 'lastPlay'
+  MEDIA_LIBS.includes(k) || k === 'mediaRemoved' || k === 'watchStats' || k.startsWith('mediapos:') || k.startsWith('lastEpInfo:') || k.startsWith('lastEp:') || k.startsWith('prefServer:') || k === 'lastPlay' || k === 'history' || k === 'historyClearedAt'
 
 export function pickSynced(all: Record<string, string>): SyncData {
   const out: SyncData = {}
@@ -48,6 +51,16 @@ function mergeNovel(local: any, remote: any) {
   return out
 }
 
+const dayKeyAt = (at: number) => { const d = new Date(at); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate() }
+export function mergeHistory(a: any[], b: any[], clearedAt = 0, max = 1000): any[] {
+  const best = new Map<string, any>()
+  for (const x of [...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])]) {
+    if (!x || !x.id || !(Number(x.at) > clearedAt)) continue
+    const k = x.kind + '|' + x.id + '|' + x.sub + '|' + dayKeyAt(Number(x.at))
+    const cur = best.get(k); if (!cur || Number(x.at) > Number(cur.at)) best.set(k, x)
+  }
+  return [...best.values()].sort((x, y) => Number(y.at) - Number(x.at)).slice(0, max)
+}
 export function mergeSync(local: SyncData, remote: SyncData): SyncData {
   const out: SyncData = {}
   // Library + removals
@@ -138,6 +151,12 @@ function mergeMedia(local: SyncData, remote: SyncData, out: SyncData) {
     } else if (k.startsWith('prefServer:') || (k.startsWith('lastEp:') && !keys.has('lastEpInfo:' + k.slice('lastEp:'.length)))) {
       const v = local[k] ?? remote[k]; if (v != null) out[k] = v
     }
+  }
+  // History of both devices, minus what was cleared.
+  if (local.history != null || remote.history != null || local.historyClearedAt != null || remote.historyClearedAt != null) {
+    const cleared = Math.max(Number(local.historyClearedAt) || 0, Number(remote.historyClearedAt) || 0)
+    out.history = JSON.stringify(mergeHistory(parse(local.history, []), parse(remote.history, []), cleared))
+    if (cleared) out.historyClearedAt = String(cleared)
   }
   const wl: Record<string, any> = parse(local.watchStats, {}), wr: Record<string, any> = parse(remote.watchStats, {})
   if (Object.keys(wl).length || Object.keys(wr).length) {

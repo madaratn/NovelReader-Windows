@@ -50,3 +50,35 @@ export const SIZES = {
   tablet: { width: 820, height: 1180 },
   window: { width: 1024, height: 640 },
 }
+
+// Pages that are not in the menu (Settings, History, Your year), opened the way a
+// person does, on the PC (sidebar) or the phone (top bar and More sheet).
+export async function openSettings(page: Page) {
+  const side = page.locator('aside.sidebar').getByRole('button', { name: 'Settings' })
+  if (await side.isVisible().catch(() => false)) return side.click()
+  await page.locator('.m-bottom button').last().click()
+  await page.locator('.m-sheet-item', { hasText: 'Settings' }).click()
+}
+export async function openHistory(page: Page) {
+  const home = page.locator('aside.sidebar .home-open, .m-top .m-home').first()
+  await home.click()
+  await page.locator('.home-panel').getByRole('button', { name: 'Whole history' }).click()
+  await page.locator('.history-page').waitFor()
+}
+export async function openYear(page: Page) {
+  await openHistory(page)
+  await page.locator('.history-page').getByRole('button', { name: /^🎉/ }).click()
+  await page.locator('.year-page').waitFor()
+}
+// Enough history for the Continue panel to offer "Whole history", and for "Your year".
+export function historySeed() {
+  const now = Date.now(), y = new Date().getFullYear()
+  const d = (n: number) => { const x = new Date(now - n * 86400e3); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0') }
+  const LONG = 'The Extraordinarily Long Title Of A Story That Never Seems To End Volume Twelve'
+  return {
+    history: JSON.stringify([0, 1, 2, 3].map(i => ({ at: now - i * 3600e3, kind: 'books', id: 'n1', name: LONG, sub: 'Chapter ' + (10 - i), on: i % 2 ? 'phone' : 'pc' }))),
+    readingStats: JSON.stringify({ [d(0)]: { c: 3, s: 1800 }, [d(1)]: { c: 2, s: 900 } }),
+    watchStats: JSON.stringify({ [d(0)]: { e: 1, s: 1500 } }),
+    _year: String(y),
+  }
+}

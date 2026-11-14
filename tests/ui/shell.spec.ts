@@ -219,8 +219,7 @@ test('Your year: time read and watched, titles followed the most, from the Histo
     },
   })
   await page.locator('.sidebar .home-open').click()
-  await page.locator('.home-panel').getByRole('button', { name: 'Whole history' }).click().catch(() => {})
-  if (!await page.locator('.history-page').isVisible()) await page.evaluate(() => { localStorage.setItem('lastPage:books', 'history') }), await page.reload()
+  await page.locator('.home-panel').getByRole('button', { name: 'Whole history' }).click()
   await page.getByRole('button', { name: 'Your year ' + y }).click()
   const yp = page.locator('.year-page')
   await expect(yp.locator('h1')).toHaveText('Your year ' + y)
