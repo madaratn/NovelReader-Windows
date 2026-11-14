@@ -808,3 +808,74 @@ test('Android: lock-screen controls follow the video, and the "Continue" widget 
   await page.evaluate(() => (window as any).__native.fire('widget:open', { kind: 'series', id: 'series1' }))
   await expect(page.locator('.media-hero h1')).toHaveText('Lanterns')
 })
+
+test('Android: kids profile — parent code for Settings and for leaving, stored hashed', async ({ page }) => {
+  await page.goto('/')
+  await page.waitForFunction(() => typeof (window as any).novelReader?.profileParental === 'function')
+  const sam = await page.evaluate(async () => { const nr = (window as any).novelReader; const p = await nr.profileCreate('Sam'); await nr.profileParental({ newPin: '1234' }); await nr.profileParental({ pin: '1234', id: p.id, kids: true }); return p.id })
+  expect(await page.evaluate(() => localStorage.getItem('nrProfiles'))).not.toContain('1234')
+  await Promise.all([page.waitForEvent('load'), page.evaluate((id) => (window as any).novelReader.profileSwitch(id), sam)])
+  await page.waitForFunction(() => typeof (window as any).novelReader?.profileSwitch === 'function')
+  // Settings asks for the code
+  await page.locator('.m-bottom button').last().click()
+  await page.locator('.m-sheet-item', { hasText: 'Settings' }).click()
+  const gate = page.locator('.pin-gate')
+  await expect(gate).toBeVisible()
+  await expect(page.locator('.profiles-panel')).toHaveCount(0)
+  await gate.getByLabel('Parent code').fill('0000')
+  await gate.getByRole('button', { name: 'Unlock' }).click()
+  await expect(gate.getByRole('alert')).toHaveText('Wrong code.')
+  await gate.getByLabel('Parent code').fill('1234')
+  await gate.getByRole('button', { name: 'Unlock' }).click()
+  await expect(page.locator('.profiles-panel')).toBeVisible()
+  await expect(page.locator('.profiles-panel .pf-row').nth(1)).toContainText('In use')
+  // Leaving the kids profile without the code is refused by the profile store itself
+  const err = await page.evaluate(() => (window as any).novelReader.profileSwitch('default').then(() => '', (e: any) => String(e.message)))
+  expect(err).toBe('Wrong parent code')
+  await Promise.all([page.waitForEvent('load'), page.evaluate(() => (window as any).novelReader.profileSwitch('default', '1234'))])
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('nrProfiles') || '{}').current)).toBe('default')
+})
+
+test('Android: download the rest of the season, on Wi-Fi only', async ({ page }) => {
+  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': '*' }
+  const started: string[] = []
+  await page.route('http://127.0.0.1:4567/**', async r => {
+    const u = new URL(r.request().url()), p = u.pathname
+    if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: cors })
+    const json = (b: any) => r.fulfill({ contentType: 'application/json', headers: cors, body: JSON.stringify(b) })
+    if (p === '/api/v1/health') return json({ status: 'ok', service: 'miwayomi', mangaSources: 0, animeSources: 1 })
+    if (p === '/api/v1/sources') return json({ manga: [], anime: [{ id: '42', name: 'Mapple', lang: 'en', type: 'anime', pkg: 'mapple' }] })
+    if (p.endsWith('/details')) return json({ url: '/series/1', title: 'Lanterns', description: 'A mystery.', status: 2, thumbnail_url: '' })
+    if (p.endsWith('/episodes')) return json([1, 2, 3, 4].map(n => ({ name: `S1 E${n}`, url: '/ep/1-' + n, episode_number: n, season: 1 })).concat([1, 2].map(n => ({ name: `S2 E${n}`, url: '/ep/2-' + n, episode_number: n, season: 2 }))))
+    if (p.endsWith('/videos')) return json([{ videoUrl: 'https://cdn.test/a.mp4', videoTitle: 'Zeus - 720p', headers: {} }])
+    if (p === '/api/v1/dl/start') { const b = r.request().postDataJSON(); started.push(b.episodeUrl); return json({ id: 'd' + started.length }) }
+    if (p === '/api/v1/dl/list') return json(started.map((u2, i) => ({ id: 'd' + (i + 1), kind: 'series', mediaId: 'series1', mediaName: 'Lanterns', episodeUrl: u2, episodeName: '', mediaKey: '', state: 'queued', progress: 0 })))
+    if (p.startsWith('/api/v1/dl/')) return json({ ok: true, bytes: 0, count: 0 })
+    return json([])
+  })
+  await page.route('https://api.tvmaze.com/**', r => r.fulfill({ status: 404, body: '{}' }))
+  await page.addInitScript(() => {
+    const w = window as any
+    localStorage.setItem('mode', 'series'); localStorage.setItem('lastPage:series', 'series')
+    localStorage.setItem('seriesLibrary', JSON.stringify([{ id: 'series1', name: 'Lanterns', sourceId: '42', sourceName: 'Mapple', url: '/series/1', addedAt: Date.now() }]))
+    // Watched up to S1 E2
+    localStorage.setItem('lastEpInfo:series1', JSON.stringify({ url: '/ep/1-2', name: 'S1 E2', n: 2, at: Date.now() }))
+    const listeners: any[] = []
+    w.__net = { state: { connected: true, unmetered: false, wifi: false }, set: (s: any) => { w.__net.state = s; listeners.forEach(f => f(s)) } }
+    w.Capacitor.Plugins = { ...(w.Capacitor.Plugins || {}), Net: { status: async () => w.__net.state, addListener: (n: string, f: any) => { listeners.push(f); return Promise.resolve({ remove() {} }) } } }
+  })
+  await page.goto('/')
+  await page.evaluate(() => localStorage.setItem('mediapos:series:series1:/ep/1-2', JSON.stringify({ t: 0, d: 0, done: true, at: Date.now() })))
+  await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
+  const box = page.locator('.batch-dl')
+  await box.getByLabel('How many episodes').selectOption({ label: 'The rest of the season' })
+  await box.getByLabel('Wi-Fi only').check()
+  // On mobile data: nothing starts, the episodes wait for Wi-Fi
+  await box.getByRole('button', { name: /Download the next episodes/ }).click()
+  await expect(box.locator('.batch-dl-msg')).toHaveText('2 episodes will download on Wi-Fi.')
+  expect(started).toEqual([])
+  await expect(page.locator('.ep-dl', { hasText: '📶' })).toHaveCount(2)
+  // Wi-Fi comes back: S1 E3 and E4 start (not season 2)
+  await page.evaluate(() => (window as any).__net.set({ connected: true, unmetered: true, wifi: true }))
+  await expect.poll(() => started.slice().sort()).toEqual(['/ep/1-3', '/ep/1-4'])
+})

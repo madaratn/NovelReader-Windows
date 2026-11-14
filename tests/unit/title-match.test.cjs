@@ -39,3 +39,17 @@ test('years are read from names and details', () => {
   assert.strictEqual(titleInfo('1917').words.join(' '), '1917') // a film called by a year
   assert.strictEqual(searchQuery('Dune (2021) [MULTI] VOSTFR'), 'Dune')
 })
+
+test('kids profiles: adult genres are refused, chosen genres are kept, unknown genres pass', () => {
+  const code2 = esbuild.buildSync({ entryPoints: [path.join(__dirname, '../../src/lib/parental.ts')], bundle: true, format: 'cjs', platform: 'node', write: false, logLevel: 'silent' }).outputFiles[0].text
+  const m2 = { exports: {} }; new Function('module', 'exports', 'require', code2)(m2, m2.exports, require)
+  const { kidsVerdict, genreAllowed } = m2.exports
+  assert.deepStrictEqual(kidsVerdict(['Comedy', 'Ecchi'], []), { ok: false, reason: 'adult' })
+  assert.deepStrictEqual(kidsVerdict('Action, Horror', []), { ok: false, reason: 'adult' })
+  assert.deepStrictEqual(kidsVerdict(['Action'], ['Animation', 'Comedy']), { ok: false, reason: 'genre' })
+  assert.deepStrictEqual(kidsVerdict(['Comédie', 'Aventure'], ['Comedy']), { ok: true })
+  assert.deepStrictEqual(kidsVerdict([], ['Comedy']), { ok: true })
+  assert.strictEqual(genreAllowed('Horror', []), false)
+  assert.strictEqual(genreAllowed('Drama', ['Comedy']), false)
+  assert.strictEqual(genreAllowed('Drama', []), true)
+})
