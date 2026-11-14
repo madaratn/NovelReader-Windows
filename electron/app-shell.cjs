@@ -31,7 +31,7 @@ function createWindowState({ app, screen }) {
     const save = () => {
       clearTimeout(timer)
       timer = setTimeout(() => {
-        if (win.isDestroyed()) return
+        if (win.isDestroyed() || win.__nrMini) return // the mini player's size is not the window's
         const maximized = win.isMaximized()
         const b = maximized || win.isMinimized() ? win.getNormalBounds() : win.getBounds()
         try { fs.mkdirSync(path.dirname(file()), { recursive: true }); fs.writeFileSync(file(), JSON.stringify({ ...b, maximized })) } catch {}

@@ -1177,6 +1177,16 @@ const FR: Record<string, string> = {
   'on your PC': 'sur ton PC',
   '{what} — opened {where} {ago}': '{what} — ouvert {where} {ago}',
   'Continue here': 'Continuer ici',
+  'For you': 'Pour toi',
+  'No suggestions yet': 'Pas encore de suggestions',
+  'Finish a title (shelf “Completed”) or watch a few episodes: suggestions will be based on them.': 'Termine un titre (étagère « Terminés ») ou regarde quelques épisodes : les suggestions partiront de là.',
+  'Suggested by AniList users for the titles you finished or watched lately. “Find” looks for the title on your sources.': 'Suggérés par les utilisateurs d’AniList pour les titres que tu as finis ou regardés dernièrement. « Trouver » cherche le titre sur tes sources.',
+  'Titles of the same genres, among the most watched on IMDb. “Find” looks for the title on your sources.': 'Des titres des mêmes genres, parmi les plus regardés sur IMDb. « Trouver » cherche le titre sur tes sources.',
+  'No suggestion was found for your titles. Finish or watch other titles, then come back.': 'Aucune suggestion trouvée pour tes titres. Termine ou regarde d’autres titres, puis reviens.',
+  'Because you liked {name}': 'Parce que tu as aimé {name}',
+  'The suggestions could not be loaded ({e}). Check your internet connection and try again.': 'Les suggestions n’ont pas pu être chargées ({e}). Vérifie ta connexion internet et réessaie.',
+  'Back to the app': 'Retour à l’app',
+  'Back to the app (Esc)': 'Retour à l’app (Échap)',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')
