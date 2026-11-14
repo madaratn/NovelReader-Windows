@@ -726,7 +726,8 @@ test('source of a title: pick another source it was found on, or look for more',
 })
 
 test('release calendar: next episodes of the library, day by day, and on the title page', async ({ page }) => {
-  const now = Date.now(), inHours = (h: number) => now + h * 3600e3
+  // Lanterns in 3 h (today or just after midnight); Frieren on later days at 20:00, whatever the hour the test runs.
+  const now = Date.now(), inHours = (h: number) => now + h * 3600e3, day = (n: number) => { const d = new Date(); d.setHours(20, 0, 0, 0); d.setDate(d.getDate() + n); return d.getTime() }
   await openVideo(page, {
     mode: 'anime', 'lastPage:anime': 'anime', lang: 'en',
     animeLibrary: JSON.stringify([item('anime', 1, 'Frieren (2023)'), item('anime', 2, 'Old Finished Show')]),
@@ -736,7 +737,7 @@ test('release calendar: next episodes of the library, day by day, and on the tit
   await page.route('https://graphql.anilist.co/**', async r => {
     const body = r.request().postDataJSON(); asked.push(...Object.values(body.variables) as string[])
     const data: any = {}
-    Object.entries(body.variables).forEach(([k, v], i) => { data['a' + i] = v === 'Frieren' ? { status: 'RELEASING', airingSchedule: { nodes: [{ airingAt: Math.round(inHours(26) / 1000), episode: 12 }, { airingAt: Math.round(inHours(26 + 168) / 1000), episode: 13 }] } } : { status: 'FINISHED', airingSchedule: { nodes: [] } } })
+    Object.entries(body.variables).forEach(([k, v], i) => { data['a' + i] = v === 'Frieren' ? { status: 'RELEASING', airingSchedule: { nodes: [{ airingAt: Math.round(day(2) / 1000), episode: 12 }, { airingAt: Math.round(day(9) / 1000), episode: 13 }] } } : { status: 'FINISHED', airingSchedule: { nodes: [] } } })
     await r.fulfill({ contentType: 'application/json', body: JSON.stringify({ data }) })
   })
   await page.route('https://api.tvmaze.com/singlesearch/**', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ name: 'Lanterns', _embedded: { nextepisode: { season: 2, number: 3, name: 'The Well', airstamp: new Date(inHours(3)).toISOString() } } }) }))
