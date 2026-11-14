@@ -40,7 +40,7 @@ export function YearPage({libs,onBack,onOpen}:{libs:Libs,onBack:()=>void,onOpen:
  const empty=!y.readS&&!y.chapters&&!y.watchS&&!y.episodes&&!y.top.length
  const month=new Date(y.year,y.bestMonth,15).toLocaleDateString(getLang(),{month:'long'})
  const kind=(k:string)=>k==='books'?t('Book'):k==='anime'?t('Anime'):k==='series'?t('Series'):t('Movie')
- return <div className="year-page"><header><div><button className="backbtn" onClick={onBack}>{'← '+t('Back')}</button><h1>{t('Your year {y}',{y:y.year})}</h1><p>{t('What you read and watched this year on this device.')}</p></div></header>
+ return <div className="year-page"><header><div><button className="backbtn" onClick={onBack}>{'← '+t('Back')}</button><h1>{t('Your year {y}',{y:y.year})}</h1><p>{t('What you read and watched this year (on the PC and the phone when they are synced).')}</p></div></header>
   {empty?<p className="settings-help">{t('Nothing yet this year. Read or watch something and come back!')}</p>:<>
   <div className="year-tiles">
    <div><b>{fmtDuration(y.readS)}</b><small>{t('of reading')}</small></div>

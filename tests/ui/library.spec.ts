@@ -150,3 +150,64 @@ test('Continue panel: one line per title (its last episode); the whole history o
   await hist.getByRole('button', { name: '← Back' }).click()
   await expect(hist).toHaveCount(0)
 })
+
+test('History: lines from the phone (synced) say so', async ({ page }) => {
+  const now = Date.now()
+  await open(page, { library: [novel('mol', 'Mother of Learning', 108)], storage: { history: JSON.stringify([
+    { at: now - 60e3, kind: 'books', id: 'mol', name: 'Mother of Learning', sub: 'Chapter 12', on: 'phone' },
+    { at: now - 120e3, kind: 'books', id: 'mol', name: 'Mother of Learning', sub: 'Chapter 11', on: 'pc' }]) } })
+  await page.locator('.sidebar .home-open').click()
+  await page.locator('.home-panel').getByRole('button', { name: 'Whole history' }).click()
+  const lines = page.locator('.history-page .home-history li')
+  await expect(lines.nth(0)).toContainText('📱 Phone')
+  await expect(lines.nth(1)).toContainText('💻 PC')
+})
+
+test('long chapter lists are kept apart: the library stays small in storage, nothing is lost after a restart, backups carry them', async ({ page }) => {
+  // 12 novels of 2,500 chapters: about 1.2 MB inline (the old format)
+  const lib = Array.from({ length: 12 }, (_, i) => novel('big' + i, 'Long novel ' + i, 2500))
+  await open(page, { library: lib, reading: { big3: { index: 1999 } } })
+  await expect.poll(() => page.evaluate(() => (localStorage.getItem('library') || '').length)).toBeLessThan(20000)
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('library')!))
+  expect(saved.every((n: any) => n.chaptersInStore === 1 && n.chapters === undefined && n.chapterCount === 2500)).toBe(true)
+  // After a restart the novels still have all their chapters
+  await page.reload()
+  await page.locator('.novelcard, .libcard', { hasText: 'Long novel 3' }).first().click()
+  await expect(page.locator('main')).toContainText('Chapter 2500')
+  // A backup carries the chapter lists (a restore elsewhere has them)
+  await page.locator('aside.sidebar').getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('tab', { name: 'Library & sync' }).click()
+  await page.getByRole('button', { name: 'Back up now' }).click()
+  await expect.poll(() => page.evaluate(() => { const a = JSON.parse(sessionStorage.getItem('__autos') || '[]'); return a.length ? JSON.parse(a[0].p.data.library)[3].chapters?.length : 0 })).toBe(2500)
+  // Restoring it on an empty library: the chapters are there after the restart
+  await page.evaluate(() => localStorage.setItem('library', '[]'))
+  await page.reload()
+  await page.locator('aside.sidebar').getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('tab', { name: 'Library & sync' }).click()
+  const restore = page.locator('.settings-row').first().locator('button')
+  await restore.click()
+  await Promise.all([page.waitForEvent('load'), restore.click()])
+  await expect.poll(() => page.evaluate(() => (localStorage.getItem('library') || '').length)).toBeLessThan(20000)
+  await page.reload()
+  await page.locator('.novelcard, .libcard', { hasText: 'Long novel 7' }).first().click()
+  await expect(page.locator('main')).toContainText('Chapter 2500')
+})
+
+test('big library: the first cards at once, the next ones while scrolling, and back to the same place', async ({ page }) => {
+  await open(page, { library: Array.from({ length: 300 }, (_, i) => novel('n' + i, 'Novel ' + i, 3)) })
+  const cards = page.locator('.libgrid .libcard')
+  await expect(cards).toHaveCount(60)
+  for (let i = 0; i < 6 && await cards.count() < 300; i++) { await cards.last().scrollIntoViewIfNeeded(); await page.waitForTimeout(150) }
+  await expect(cards).toHaveCount(300)
+  // Open a novel far down, come back: the list is still all there, at the same place
+  await cards.nth(250).scrollIntoViewIfNeeded()
+  const y = await page.evaluate(() => window.scrollY), name = (await cards.nth(250).locator('h3, h2').first().innerText()).trim()
+  await cards.nth(250).locator('.libcard-cover').click()
+  await expect(page.locator('.novelhead h1')).toHaveText(name)
+  await page.locator('.backbtn').first().click()
+  await expect(cards).toHaveCount(300)
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(y - 200)
+  // A filter starts again from the top
+  await page.locator('main input[type=search], .libfilter input, main input').first().fill('Novel 1')
+  await expect(cards.first()).toContainText('Novel 1')
+})

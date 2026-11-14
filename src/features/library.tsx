@@ -2,7 +2,7 @@ import React,{useEffect,useRef,useState}from'react'
 import{t,plural}from'../i18n'
 import{ReadingStats}from'../features/stats'
 import{lsGet,lsSet,timeAgo}from'../lib/util'
-import{EmptyState,Cover,Icon,MoreMenu,GenreFilter}from'../ui/common'
+import{EmptyState,Cover,Icon,MoreMenu,GenreFilter,useShowMore}from'../ui/common'
 import{useAnnotations}from'./annotations'
 
 // ---- Novel library ----------------------------------------------------------
@@ -24,6 +24,7 @@ export function NovelLibrary({library,updates,onCheckUpdates,onOpen,onDetails,on
  const pickGenre=(g:string)=>{setGenre(g);lsSet('libraryGenre',g)}
  const counts=Object.fromEntries(SHELVES.map(x=>[x.id,rows.filter(r=>r.shelf===x.id).length])) as Record<Shelf,number>
  const shown=rows.filter(x=>shelf==='all'||x.shelf===shelf).filter(x=>!genre||(x.n.genres||[]).includes(genre)).filter(x=>!q||(x.n.name+' '+(x.n.author||'')+' '+(x.n.source?.name||'')).toLowerCase().includes(q)).sort((a,b)=>sort==='title'?String(a.n.name).localeCompare(String(b.n.name)):sort==='added'?(b.n.addedAt||0)-(a.n.addedAt||0):sort==='unread'?b.left-a.left:((Number(b.n.newChapters)>0?1:0)-(Number(a.n.newChapters)>0?1:0))||((b.r?.at||0)-(a.r?.at||0))||((b.n.addedAt||0)-(a.n.addedAt||0)))
+ const showMore=useShowMore(shown.length,{reset:[shelf,q,genre,sort],keep:'books'})
  const last=rows.filter(x=>x.r?.at).sort((a,b)=>(b.r!.at!)-(a.r!.at!))[0]
  const lastTitle=(x:typeof rows[number])=>{const c=x.n.chapters?.[x.r!.index];return c?.name||c?.title||t('Chapter {n}',{n:x.r!.index+1})}
  return <>
@@ -41,7 +42,7 @@ export function NovelLibrary({library,updates,onCheckUpdates,onOpen,onDetails,on
     <button className="lib-update" disabled={updates.running} onClick={onCheckUpdates} title={updates.at?t('Last check: {when}',{when:timeAgo(updates.at)}):undefined}>{updates.running?t('Checking {done}/{total}…',{done:updates.done,total:updates.total}):t('Check for new chapters')}</button>
     <label className="lib-sort">{t('Sort')}<select value={sort} onChange={e=>{const v=e.target.value as LibSort;setSort(v);lsSet('librarySort',v)}}><option value="recent">{t('Recently read')}</option><option value="added">{t('Recently added')}</option><option value="title">{t('Title A–Z')}</option><option value="unread">{t('Most unread')}</option></select></label></div>
    {!updates.running&&updates.at>0&&updates.total>0&&<p className="lib-update-status" role="status">{updates.found?plural(updates.found,'{n} novel has new chapters.','{n} novels have new chapters.'):t('Everything is up to date.')}{updates.failed?' '+plural(updates.failed,'{n} source did not answer.','{n} sources did not answer.'):''}</p>}
-   {shown.length===0?<EmptyState icon="grid" title={q?t('No novel matches “{q}”.',{q:filter}):t('No novel on this shelf yet.')} action={q?t('Clear the filter'):undefined} onAction={()=>setFilter('')}/>:<section className="libgrid">{shown.map(({n,r,total,done,left,shelf:sh})=><article className="libcard" key={n.id} onClick={e=>{if(!(e.target as HTMLElement).closest('button,select,a,label,.more-menu'))onDetails(n)}}>
+   {shown.length===0?<EmptyState icon="grid" title={q?t('No novel matches “{q}”.',{q:filter}):t('No novel on this shelf yet.')} action={q?t('Clear the filter'):undefined} onAction={()=>setFilter('')}/>:<><section className="libgrid">{shown.slice(0,showMore.limit).map(({n,r,total,done,left,shelf:sh})=><article className="libcard" key={n.id} onClick={e=>{if(!(e.target as HTMLElement).closest('button,select,a,label,.more-menu'))onDetails(n)}}>
     <button className="libcard-cover" onClick={()=>onDetails(n)} aria-label={t('Chapters of {name}',{name:n.name})} title={t('Show chapters')}><Cover src={n.cover} name={n.name}/></button>
     <div className="libcard-meta">
      <h2 title={n.name}><button className="libtitle" onClick={()=>onDetails(n)}>{n.name}</button></h2>
@@ -50,7 +51,7 @@ export function NovelLibrary({library,updates,onCheckUpdates,onOpen,onDetails,on
      <div className="libbar" title={t('{done} of {total} chapters',{done,total})}><span style={{width:(total?Math.min(100,done/total*100):0)+'%'}}/></div>
      <small>{r?`${done} / ${total} · ${t('{n} left',{n:left})}${r.at?' · '+timeAgo(r.at):''}`:plural(total,'{n} chapter','{n} chapters')+' · '+t('not started')}</small>
      <div className="libraryactions"><button className="primary" onClick={()=>onOpen(n)}>{r?t('Continue · Ch. {n}',{n:r.index+1}):t('Start reading')}</button><MoreMenu><label className="more-field"><span>{t('Shelf')}</span><select className="shelfselect" value={sh} aria-label={t('Shelf')} onChange={e=>onShelf(n,e.target.value as Shelf)}>{SHELVES.map(x=><option key={x.id} value={x.id}>{t(x.label)}</option>)}</select></label><button className="removebtn" role="menuitem" onClick={()=>setUndo(onRemove(n))}><Icon name="trash" inline/>{t('Remove from the library')}</button></MoreMenu></div>
-    </div></article>)}</section>}
+    </div></article>)}</section>{showMore.more}</>}
   </>}
   {undo&&<div className="anime-toast ok lib-undo" role="status"><span>{t('Removed “{name}”.',{name:undo.novel.name})}</span><div><button className="undo-btn" onClick={()=>{onRestore(undo);setUndo(null)}}>{t('Undo')}</button><button aria-label={t('Dismiss')} onClick={()=>setUndo(null)}>×</button></div></div>}
  </>
@@ -85,6 +86,9 @@ export function NovelDetail({novel,filter,setFilter,loading,onBack,onOpenChapter
   .filter(x=>!q||x.label.toLowerCase().includes(q)||String(x.i+1)===q||String(x.i+1).startsWith(q)&&/^\d+$/.test(q))
   .filter(x=>!hideRead||x.i>=current)
  if(newestFirst)rows.reverse()
+ // Long novels: the rows around the current chapter at once, the rest while scrolling.
+ const curPos=rows.findIndex(r=>r.i===current)
+ const rowsMore=useShowMore(rows.length,{first:Math.max(200,curPos+100),step:300,reset:[novel.id,q,hideRead,newestFirst]})
  const jumpToCurrent=(smooth=true)=>{const el=listRef.current?.querySelector<HTMLElement>('.chapterrow.current');if(el&&listRef.current){const box=listRef.current;box.scrollTo({top:el.offsetTop-box.offsetTop-box.clientHeight/2+el.clientHeight/2,behavior:smooth?'smooth':'auto'})}}
  useEffect(()=>{requestAnimationFrame(()=>jumpToCurrent(false))},[novel.id])
  useEffect(()=>{if(!loading)setClicked(-1)},[loading])
@@ -112,9 +116,9 @@ export function NovelDetail({novel,filter,setFilter,loading,onBack,onOpenChapter
     <div className="rs-seg chapter-order" role="radiogroup" aria-label={t('Order')}><button role="radio" aria-checked={!newestFirst} className={!newestFirst?'on':''} onClick={()=>{setNewestFirst(false);lsSet('chapterOrder','asc')}}>{t('Oldest first')}</button><button role="radio" aria-checked={newestFirst} className={newestFirst?'on':''} onClick={()=>{setNewestFirst(true);lsSet('chapterOrder','desc')}}>{t('Newest first')}</button></div>
     <label className="hideread"><input type="checkbox" checked={hideRead} onChange={e=>{setHideRead(e.target.checked);lsSet('chapterHideRead',e.target.checked?'1':'0')}}/> {t('Hide read')}</label></div>
    <small className="chaptercount">{rows.length===total?plural(total,'{n} chapter','{n} chapters'):t('{done} of {total} chapters',{done:rows.length,total})}</small>
-   {rows.length===0?<p className="chapterempty">{t('No chapter matches.')}</p>:<div className="chapterlist" ref={listRef}>{rows.map(({c,i,label})=>{const state=i<current?'read':i===current?'current':'';return <button className={'chapterrow '+state} disabled={loading} onClick={()=>open(c,i)} key={(c.path||c.url||'chapter')+i} aria-current={state==='current'?'true':undefined}>
+   {rows.length===0?<p className="chapterempty">{t('No chapter matches.')}</p>:<div className="chapterlist" ref={listRef}>{rows.slice(0,rowsMore.limit).map(({c,i,label})=>{const state=i<current?'read':i===current?'current':'';return <button className={'chapterrow '+state} disabled={loading} onClick={()=>open(c,i)} key={(c.path||c.url||'chapter')+i} aria-current={state==='current'?'true':undefined}>
     <span className="chaptername">{state==='read'&&<span className="chaptercheck" aria-label={t('Read')}>✓</span>}{label}</span>{offline.has(c.path||c.url)&&<span className="offline-mark" title={t('Available offline')} aria-label={t('Available offline')}>⤓</span>}
-    <small>{loading&&clicked===i?t('Loading…'):state==='current'?t('Reading · Ch. {n}',{n:i+1}):t('Ch. {n}',{n:i+1})}</small></button>})}</div>}
+    <small>{loading&&clicked===i?t('Loading…'):state==='current'?t('Reading · Ch. {n}',{n:i+1}):t('Ch. {n}',{n:i+1})}</small></button>})}{rowsMore.more}</div>}
   </section>
  </>
 }
