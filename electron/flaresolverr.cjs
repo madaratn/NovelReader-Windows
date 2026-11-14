@@ -46,7 +46,7 @@ function createFlareSolverr({ app }) {
   }
 
   async function status() {
-    return { supported: process.platform === 'win32', installed: !!exePath(), running: await running(), url: URL_BASE, ...state }
+    return { supported: process.platform === 'win32', installed: !!exePath(), running: await running(), starting: !!proc, url: URL_BASE, log: logFile(), ...state }
   }
 
   function getJson(url) {
@@ -76,13 +76,48 @@ function createFlareSolverr({ app }) {
       { windowsHide: true, timeout: 10 * 60_000 }, err => (err ? reject(err) : resolve())))
   }
 
+  // What FlareSolverr printed, kept in <userData>/flaresolverr/flaresolverr.log: when
+  // it stops at once, the last lines say why (port taken, blocked by an antivirus…).
+  const logFile = () => path.join(root, 'flaresolverr.log')
+  let lastLines = []
+  const keep = chunk => { const lines = String(chunk).split(/\r?\n/).filter(l => l.trim()); lastLines = [...lastLines, ...lines].slice(-30); try { fs.appendFileSync(logFile(), chunk) } catch {} }
+  let exitInfo = null
   function start() {
     if (proc) return true
     const exe = exePath(); if (!exe) return false
-    proc = spawn(exe, [], { cwd: path.dirname(exe), windowsHide: true, stdio: 'ignore', env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', LOG_LEVEL: 'warning' } })
-    proc.on('exit', () => { proc = null })
-    proc.on('error', e => { state.error = String(e.message || e); proc = null })
+    state.error = null; exitInfo = null; lastLines = []
+    try { fs.writeFileSync(logFile(), '--- ' + new Date().toISOString() + ' ' + exe + '\n') } catch {}
+    try {
+      proc = spawn(exe, [], { cwd: path.dirname(exe), windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', LOG_LEVEL: 'info', HEADLESS: 'true' } })
+    } catch (e) { state.error = String(e.message || e); proc = null; return false }
+    const me = proc
+    me.stdout && me.stdout.on('data', keep)
+    me.stderr && me.stderr.on('data', keep)
+    me.on('exit', code => { if (proc === me) proc = null; exitInfo = { code, at: Date.now() }; keep('[exited with code ' + code + ']\n') })
+    me.on('error', e => { state.error = String(e.message || e); if (proc === me) proc = null })
     return true
+  }
+
+  // Started and answering? Waits up to `ms` (FlareSolverr opens a browser first, which
+  // takes 5 to 30 s); stops early when it exits. The error says why in plain words.
+  async function startAndWait(ms = 45000) {
+    if (await running()) return status()
+    if (!exePath()) throw new Error('FlareSolverr is not installed.')
+    if (!proc && !start()) throw new Error(state.error || 'FlareSolverr could not be started.')
+    const t0 = Date.now()
+    while (Date.now() - t0 < ms) {
+      if (await running()) { state.error = null; return status() }
+      if (!proc) break
+      await new Promise(r => setTimeout(r, 1000))
+    }
+    const tail = lastLines.slice(-6).join('\n')
+    if (!proc) {
+      const busyPort = /address already in use|10048|only one usage of each socket/i.test(tail)
+      state.error = (busyPort ? 'FlareSolverr could not start: port ' + PORT + ' is already used by another program.' : 'FlareSolverr stopped right after starting' + (exitInfo && exitInfo.code != null ? ' (code ' + exitInfo.code + ')' : '') + '. An antivirus may have blocked it: allow it, or reinstall it.') + (tail ? '\n' + tail : '')
+    } else {
+      state.error = 'FlareSolverr is starting but does not answer yet (after ' + Math.round(ms / 1000) + ' s). Wait a moment and check again.' + (tail ? '\n' + tail : '')
+    }
+    return status()
   }
 
   async function install() {
@@ -99,14 +134,22 @@ function createFlareSolverr({ app }) {
       await expand(zip, root)
       fs.rmSync(zip, { force: true })
       state.progress = 100
-      start()
     } catch (e) { state.error = String(e.message || e); throw e } finally { state.installing = false }
-    return status()
+    return startAndWait()
   }
 
-  function stop() { if (proc) { try { proc.kill() } catch {} proc = null } }
+  // The whole tree: FlareSolverr starts a browser of its own, which would otherwise
+  // keep running (and keep the port) after NovelReader quits.
+  function stop() {
+    if (!proc) return
+    const pid = proc.pid; proc = null
+    if (process.platform === 'win32' && pid) { try { execFile('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true }, () => {}) } catch {} }
+    else { try { process.kill(pid) } catch {} }
+  }
+  // Removes the installed copy (to install it again cleanly).
+  async function reinstall() { stop(); await new Promise(r => setTimeout(r, 1500)); try { fs.rmSync(root, { recursive: true, force: true }) } catch {} return install() }
 
-  return { status, install, start, stop, url: URL_BASE }
+  return { status, install, start, startAndWait, stop, reinstall, url: URL_BASE, _logLines: () => lastLines }
 }
 
 module.exports = { createFlareSolverr }

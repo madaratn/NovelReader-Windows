@@ -173,7 +173,9 @@ ipcMain.handle('dl:usage',dlIpc(()=>dlApi().usage()))
 ipcMain.handle('dl:base',dlIpc(()=>dlApi().base()))
 ipcMain.handle('dl:openFolder',dlIpc(async()=>{const r=dlApi().root;fs.mkdirSync(r,{recursive:true});await shell.openPath(r);return true}))
 ipcMain.handle('flare:install',()=>flareApi().install())
-ipcMain.handle('flare:start',async()=>{flareApi().start();await new Promise(r=>setTimeout(r,2500));return flareApi().status()})
+ipcMain.handle('flare:start',()=>flareApi().startAndWait())
+ipcMain.handle('flare:reinstall',()=>flareApi().reinstall())
+ipcMain.handle('flare:log',()=>{try{shell.openPath(path.join(app.getPath('userData'),'flaresolverr','flaresolverr.log'))}catch{}return true})
 ipcMain.handle('anime:miwayomiFetch', async(_e,{path,method='GET',body})=>{
  if(typeof path!=='string'||!path.startsWith('/')) throw new Error('Invalid Miwayomi path');
  return miwayomiRequest(path,{method,body:body==null?undefined:JSON.stringify(body)});

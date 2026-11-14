@@ -1402,3 +1402,7 @@ html.mini-mode .mini-on .player-stage video{width:100vw!important;height:100vh!i
 .year-title button,.year-title b{text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .year-title small{color:var(--text-2)}
 .year-genres{display:flex;flex-wrap:wrap;gap:6px}
+/* Cloudflare protection: what FlareSolverr printed when it stopped */
+.flare-error{display:grid;gap:6px;color:var(--danger,#e06c75);white-space:pre-line;overflow-wrap:anywhere}
+.flare-log{display:block;max-height:120px;overflow:auto;padding:6px 8px;border-radius:6px;background:var(--bg);color:var(--text-2);font-size:11.5px;white-space:pre-wrap}
+.flare-actions{display:flex;gap:8px;flex-wrap:wrap}

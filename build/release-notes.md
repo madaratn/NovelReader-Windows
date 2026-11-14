@@ -1,3 +1,12 @@
+## NovelReader 0.35.2
+
+- **Protection Cloudflare (FlareSolverr)** : « Lancer » ne laissait que 2,5 secondes à FlareSolverr pour démarrer, alors qu'il ouvre d'abord un navigateur, ce qui prend souvent 10 à 30 secondes.
+  - « Lancer » attend maintenant jusqu'à 45 secondes, et affiche « Démarrage… » pendant ce temps.
+  - Si FlareSolverr s'arrête, l'app dit pourquoi : port déjà utilisé, antivirus, etc. Elle montre aussi ses dernières lignes de journal, avec les boutons « Réessayer », « Réinstaller » et « Voir le journal ».
+  - En quittant NovelReader, le navigateur de FlareSolverr est maintenant fermé aussi. Avant, il pouvait rester ouvert et bloquer le lancement suivant.
+
+---
+
 ## NovelReader 0.35.1
 
 - **Mise à jour et désinstallation sur PC** : l'installateur ferme maintenant NovelReader lui-même, y compris quand il tourne près de l'horloge. Avant, Windows refusait de remplacer ses fichiers avec le message « le fichier est ouvert dans NovelReader » (v8_context_snapshot.bin).
