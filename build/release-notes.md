@@ -1,3 +1,9 @@
+## NovelReader 0.35.1
+
+- **Mise à jour et désinstallation sur PC** : l'installateur ferme maintenant NovelReader lui-même, y compris quand il tourne près de l'horloge. Avant, Windows refusait de remplacer ses fichiers avec le message « le fichier est ouvert dans NovelReader » (v8_context_snapshot.bin).
+
+---
+
 ## NovelReader 0.35.0
 
 - **Sans internet, l'app dit clairement ce qui se passe** : chaque page a été vérifiée connexion coupée, et aucune ne reste à charger indéfiniment.
