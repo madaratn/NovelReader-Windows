@@ -173,7 +173,7 @@ test('long chapter lists are kept apart: the library stays small in storage, not
   // After a restart the novels still have all their chapters
   await page.reload()
   await page.locator('.novelcard, .libcard', { hasText: 'Long novel 3' }).first().click()
-  await expect(page.locator('main')).toContainText('Chapter 2500')
+  await expect(page.locator('main')).toContainText('2500 chapters') // the end of the list is drawn while scrolling
   // A backup carries the chapter lists (a restore elsewhere has them)
   await page.locator('aside.sidebar').getByRole('button', { name: 'Settings' }).click()
   await page.getByRole('tab', { name: 'Library & sync' }).click()
@@ -190,7 +190,7 @@ test('long chapter lists are kept apart: the library stays small in storage, not
   await expect.poll(() => page.evaluate(() => (localStorage.getItem('library') || '').length)).toBeLessThan(20000)
   await page.reload()
   await page.locator('.novelcard, .libcard', { hasText: 'Long novel 7' }).first().click()
-  await expect(page.locator('main')).toContainText('Chapter 2500')
+  await expect(page.locator('main')).toContainText('2500 chapters') // the end of the list is drawn while scrolling
 })
 
 test('big library: the first cards at once, the next ones while scrolling, and back to the same place', async ({ page }) => {
