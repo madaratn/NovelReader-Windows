@@ -41,6 +41,7 @@ export function useFolderSync({ library, onLibrary }: { library: any[], onLibrar
       for (const k of changed) { if (merged[k] == null) localStorage.removeItem(k); else lsSet(k, merged[k]) }
       if (changed.includes('library')) onLibraryRef.current(JSON.parse(merged.library || '[]'))
       if (changed.includes('annotations')) window.dispatchEvent(new Event('nr-annotations'))
+      if (changed.includes('lastPlay')) window.dispatchEvent(new Event('nr-last-play'))
       if (changed.some(k => ['animeLibrary', 'seriesLibrary', 'movieLibrary'].includes(k) || k.startsWith('mediapos:') || k.startsWith('lastEpInfo:'))) window.dispatchEvent(new Event('nr-media-synced'))
       await api.syncWrite(merged)
       const from = remote && remote.deviceId !== status.deviceId ? remote.deviceName : ''
