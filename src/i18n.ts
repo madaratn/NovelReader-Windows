@@ -1173,6 +1173,10 @@ const FR: Record<string, string> = {
   '{n} episode on this phone': '{n} épisode sur ce téléphone',
   '{n} episodes on this phone': '{n} épisodes sur ce téléphone',
   'Download on Wi-Fi only (episodes wait for Wi-Fi instead of using mobile data)': 'Télécharger en Wi‑Fi seulement (les épisodes attendent le Wi‑Fi au lieu d’utiliser les données mobiles)',
+  'on your phone': 'sur ton téléphone',
+  'on your PC': 'sur ton PC',
+  '{what} — opened {where} {ago}': '{what} — ouvert {where} {ago}',
+  'Continue here': 'Continuer ici',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

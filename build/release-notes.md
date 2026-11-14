@@ -1,3 +1,12 @@
+## NovelReader 0.31.0
+
+- **Continuer ici** : si tu as commencé un épisode ou un chapitre sur ton téléphone, le PC te propose en haut de l'écran de « Continuer ici », à l'épisode et à la position où tu t'es arrêté. L'inverse marche aussi. Il faut que la synchronisation entre le PC et le téléphone soit activée.
+- **Affichage vérifié partout** : chaque page de l'app est maintenant contrôlée automatiquement en taille petit téléphone, téléphone, tablette et petite fenêtre PC. Rien ne doit dépasser de l'écran.
+  - Corrigé : le bouton « Installer le pack anime » sortait de l'écran sur les petits téléphones.
+  - Plus généralement, sur toutes les lignes « texte + bouton » des pages Sources, le bouton passe sous le texte quand il manque de place.
+
+---
+
 ## NovelReader 0.30.1
 
 - **Sources vidéo › Avancé** : sur téléphone, les cadres « Moteur vidéo », « Cloudflare » et « Dépôts d'extensions » ne sortent plus de l'écran. Les adresses longues sont coupées avec « … », et les boutons passent sous le texte.

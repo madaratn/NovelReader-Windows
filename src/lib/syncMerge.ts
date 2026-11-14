@@ -12,6 +12,7 @@
 //   (mediaRemoved), larger episode count, latest status (shelfAt) wins.
 // - mediapos:<key> (video position, watched flag) and lastEpInfo:<id>: most
 //   recent wins; lastEp:<id> follows lastEpInfo; prefServer:<id> kept if known.
+// - lastPlay (what was opened last, and on which device): most recent wins.
 // - watchStats: per day, the larger value.
 // Preferences (theme, language, layout…) stay per PC and are not synced.
 
@@ -20,7 +21,7 @@ export type SyncData = Record<string, string>
 export const MEDIA_LIBS = ['animeLibrary', 'seriesLibrary', 'movieLibrary']
 export const isSyncedKey = (k: string) =>
   k === 'library' || k === 'libraryRemoved' || k === 'annotations' || k === 'annotationsRemoved' || k === 'readingStats' || k.startsWith('reading:') ||
-  MEDIA_LIBS.includes(k) || k === 'mediaRemoved' || k === 'watchStats' || k.startsWith('mediapos:') || k.startsWith('lastEpInfo:') || k.startsWith('lastEp:') || k.startsWith('prefServer:')
+  MEDIA_LIBS.includes(k) || k === 'mediaRemoved' || k === 'watchStats' || k.startsWith('mediapos:') || k.startsWith('lastEpInfo:') || k.startsWith('lastEp:') || k.startsWith('prefServer:') || k === 'lastPlay'
 
 export function pickSynced(all: Record<string, string>): SyncData {
   const out: SyncData = {}
@@ -129,7 +130,7 @@ function mergeMedia(local: SyncData, remote: SyncData, out: SyncData) {
   }
   const keys = new Set([...Object.keys(local), ...Object.keys(remote)])
   for (const k of keys) {
-    if (k.startsWith('mediapos:') || k.startsWith('lastEpInfo:')) {
+    if (k.startsWith('mediapos:') || k.startsWith('lastEpInfo:') || k === 'lastPlay') {
       const a = parse<any>(local[k], null), b = parse<any>(remote[k], null)
       const win = !a ? b : !b ? a : (Number(b.at) || 0) > (Number(a.at) || 0) ? b : a
       if (win) out[k] = JSON.stringify(win)

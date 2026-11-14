@@ -53,3 +53,15 @@ test('kids profiles: adult genres are refused, chosen genres are kept, unknown g
   assert.strictEqual(genreAllowed('Drama', ['Comedy']), false)
   assert.strictEqual(genreAllowed('Drama', []), true)
 })
+
+test('sync: the last title opened (and on which device) follows the most recent one', () => {
+  const code3 = esbuild.buildSync({ entryPoints: [path.join(__dirname, '../../src/lib/syncMerge.ts')], bundle: true, format: 'cjs', platform: 'node', write: false, logLevel: 'silent' }).outputFiles[0].text
+  const m3 = { exports: {} }; new Function('module', 'exports', 'require', code3)(m3, m3.exports, require)
+  const { mergeSync, pickSynced } = m3.exports
+  const pc = JSON.stringify({ kind: 'series', id: 's1', name: 'Lanterns', sub: 'Episode 4', at: 1000, dev: 'pc', on: 'pc' })
+  const phone = JSON.stringify({ kind: 'series', id: 's1', name: 'Lanterns', sub: 'Episode 5', at: 2000, dev: 'ph', on: 'phone' })
+  assert.strictEqual(mergeSync({ lastPlay: pc }, { lastPlay: phone }).lastPlay, phone)
+  assert.strictEqual(mergeSync({ lastPlay: phone }, { lastPlay: pc }).lastPlay, phone)
+  assert.ok('lastPlay' in pickSynced({ lastPlay: pc, deviceTag: 'pc' }))
+  assert.ok(!('deviceTag' in pickSynced({ lastPlay: pc, deviceTag: 'pc' })), 'the device itself is not synced')
+})
