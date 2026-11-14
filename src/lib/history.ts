@@ -1,19 +1,22 @@
-// History: what was read and watched, newest first (kept on this device, 300 lines).
+// History: what was read and watched, newest first (1000 lines), shared between the
+// PC and the phone by the sync (src/lib/syncMerge.ts: mergeHistory).
 // One line per chapter / episode and per day: reopening the same one moves it up.
 export type HistoryKind='books'|'anime'|'series'|'movies'
-export type HistoryLine={at:number,kind:HistoryKind,id:string,name:string,sub:string}
-const MAX=300
+export type HistoryLine={at:number,kind:HistoryKind,id:string,name:string,sub:string,on?:'phone'|'pc'}
+export const HISTORY_MAX=1000
+const MAX=HISTORY_MAX
+const here=():'phone'|'pc'=>(window as any).Capacitor?.getPlatform?.()==='android'?'phone':'pc'
 export const dayOf=(at:number)=>{const d=new Date(at);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 export function readHistory():HistoryLine[]{try{const l=JSON.parse(localStorage.getItem('history')||'[]');return Array.isArray(l)?l:[]}catch{return[]}}
 export function logHistory(line:Omit<HistoryLine,'at'>,at=Date.now()){
  if(!line.id||!line.name)return
  const day=dayOf(at),rest=readHistory().filter(x=>!(x.kind===line.kind&&x.id===line.id&&x.sub===line.sub&&dayOf(x.at)===day))
- try{localStorage.setItem('history',JSON.stringify([{...line,at},...rest].slice(0,MAX)))}catch{}
+ try{localStorage.setItem('history',JSON.stringify([{...line,at,on:here()},...rest].slice(0,MAX)))}catch{}
  // Synced to the other devices: "continue where you stopped on the PC / the phone".
- try{localStorage.setItem('lastPlay',JSON.stringify({...line,at,dev:deviceTag(),on:(window as any).Capacitor?.getPlatform?.()==='android'?'phone':'pc'}))}catch{}}
+ try{localStorage.setItem('lastPlay',JSON.stringify({...line,at,dev:deviceTag(),on:here()}))}catch{}}
 // This device (not synced).
 export function deviceTag(){let d='';try{d=localStorage.getItem('deviceTag')||'';if(!d){d=Math.random().toString(36).slice(2,10);localStorage.setItem('deviceTag',d)}}catch{}return d}
-export function clearHistory(){try{localStorage.removeItem('history')}catch{}}
+export function clearHistory(){try{localStorage.removeItem('history');localStorage.setItem('historyClearedAt',String(Date.now()))}catch{}}
 /** Lines grouped by day, newest day first. */
 export function historyDays(list=readHistory()):{day:string,lines:HistoryLine[]}[]{
  const out:{day:string,lines:HistoryLine[]}[]=[]

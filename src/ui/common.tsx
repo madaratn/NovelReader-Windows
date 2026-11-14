@@ -120,3 +120,21 @@ export function GenreFilter({lists,value,onChange}:{lists:string[][],value:strin
  const chip=(g:string,n:number|null,label?:string)=><button key={g||'all'} role="tab" aria-selected={value===g} className={'chip'+(value===g?' on':'')} onClick={()=>onChange(value===g&&g?'':g)}>{label||t(g)}{n!=null&&<small> {n}</small>}</button>
  return <div className="genre-chips lib-genres" role="tablist" aria-label={t('Genres')}>{chip('',null,t('All genres'))}{top.map(([g,n])=>chip(g,n))}
   {rest.length>0&&<select aria-label={t('More genres')} value={rest.some(([g])=>g===value)?value:''} onChange={e=>onChange(e.target.value)}><option value="">{t('More genres…')}</option>{rest.map(([g,n])=><option key={g} value={g}>{t(g)+' ('+n+')'}</option>)}</select>}</div>}
+
+// Long lists (big libraries, 2,000-chapter novels): the first items are drawn at once,
+// the next ones as the end of the list comes near, so the screen opens and reacts
+// quickly. `reset` values start again from the top (a new filter, another shelf).
+// `keep` remembers how far the list went while the app runs, so coming back to it
+// (and to the place you were) shows as much as before.
+const shownSoFar=new Map<string,number>()
+export function useShowMore(total:number,{first=60,step=120,reset=[] as any[],keep=''}={}){
+ const[limit,setLimitState]=React.useState(()=>Math.max(first,keep?shownSoFar.get(keep)||0:0))
+ const setLimit=(v:number|((l:number)=>number))=>setLimitState(l=>{const n=typeof v==='function'?v(l):v;if(keep)shownSoFar.set(keep,n);return n})
+ const ref=React.useRef<HTMLDivElement|null>(null),mounted=React.useRef(false)
+ React.useEffect(()=>{if(!mounted.current){mounted.current=true;return}setLimit(first)},reset)
+ React.useEffect(()=>{const el=ref.current;if(!el||limit>=total||typeof IntersectionObserver==='undefined'){if(typeof IntersectionObserver==='undefined')setLimit(total);return}
+  const io=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting))setLimit(l=>Math.min(total,l+step))},{rootMargin:'1200px 0px'})
+  io.observe(el);return()=>io.disconnect()},[limit,total])
+ const more=limit<total?<div ref={ref} className="show-more-sentinel" aria-hidden="true"/>:null
+ return{limit,more,showAll:()=>setLimit(total)}
+}

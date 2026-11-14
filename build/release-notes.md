@@ -1,3 +1,18 @@
+## NovelReader 0.34.0
+
+- **Historique partagé entre le PC et le téléphone** :
+  - Quand la synchronisation est activée, la page Historique et « Ton année » regroupent ce que tu as lu et regardé sur les deux appareils. Chaque ligne indique 📱 Téléphone ou 💻 PC.
+  - L'historique garde maintenant 1 000 lignes au lieu de 300.
+  - « Effacer » sur un appareil efface aussi sur l'autre.
+- **Plus rapide avec une grande bibliothèque** : avec 1 500 romans, sur un appareil lent, la bibliothèque s'affiche en 1 à 2 s au lieu de 7 s, et le panneau « Continuer » s'ouvre en 0,5 s au lieu de 10 s.
+  - Les bibliothèques et les longues listes de chapitres n'affichent d'abord que les premières cartes ; la suite se charge pendant que tu fais défiler.
+  - En revenant d'un roman, tu retrouves l'endroit où tu étais dans la bibliothèque.
+- **Plus de risque de perdre ta bibliothèque** : les listes de chapitres sont maintenant rangées à part. Avant, une bibliothèque avec beaucoup de longs romans pouvait remplir la mémoire de l'app ; à partir de là, chaque changement était perdu sans prévenir.
+  - Le passage au nouveau rangement est automatique au premier lancement.
+  - Les sauvegardes et la synchronisation gardent les chapitres.
+
+---
+
 ## NovelReader 0.33.0
 
 - **Livres › Découvrir › Pour toi** : des romans des mêmes genres que ceux que tu as terminés ou que tu lis en ce moment, sous la forme « Parce que tu as aimé X · Fantasy ».
