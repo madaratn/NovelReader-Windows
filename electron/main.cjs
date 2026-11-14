@@ -131,13 +131,15 @@ async function miwayomiRequest(pathname, init={}) {
 ipcMain.handle('anime:miwayomiStatus', async()=>{try{const health=await miwayomiRequest('/api/v1/health');return {online:true,baseUrl:MIWAYOMI_BASE,health}}catch(e){if(!miwayomiProcess)startMiwayomi();return {online:false,starting:!!miwayomiProcess,baseUrl:MIWAYOMI_BASE,error:String(e.message||e)}}});
 // ---- Problem report (electron/diagnostics.cjs) -------------------------------
 // ---- Profiles (electron/profiles.cjs) -----------------------------------------
-ipcMain.handle('profile:list',()=>({list:profiles.list(),current:profiles.current()}))
-ipcMain.handle('profile:create',(_e,name)=>profiles.create(name))
-ipcMain.handle('profile:rename',(_e,{id,name})=>profiles.rename(String(id),name))
+ipcMain.handle('profile:list',()=>({list:profiles.list(),current:profiles.current(),pin:profiles.hasPin()}))
+ipcMain.handle('profile:check-pin',(_e,pin)=>profiles.checkPin(String(pin||'')))
+ipcMain.handle('profile:parental',(_e,o)=>profiles.parental(o&&typeof o==='object'?o:{}))
+ipcMain.handle('profile:create',(_e,name,pin)=>{if(profiles.guarded())profiles.needPin(pin);return profiles.create(name)})
+ipcMain.handle('profile:rename',(_e,{id,name,pin})=>{if(profiles.guarded())profiles.needPin(pin);return profiles.rename(String(id),name)})
 ipcMain.handle('profile:color',(_e,{id,color})=>profiles.setColor(String(id),String(color)))
-ipcMain.handle('profile:remove',async(_e,id)=>{const part=profiles.partition(String(id));profiles.remove(String(id));if(part){try{await session.fromPartition(part).clearStorageData()}catch{}}return true})
+ipcMain.handle('profile:remove',async(_e,id,pin)=>{if(profiles.hasPin())profiles.needPin(pin);const part=profiles.partition(String(id));profiles.remove(String(id));if(part){try{await session.fromPartition(part).clearStorageData()}catch{}}return true})
 // Switching opens a new window on the other profile's storage and closes this one.
-ipcMain.handle('profile:switch',(_e,id)=>{profiles.select(String(id));const old=mainWindow;setTimeout(()=>{createWindow();if(old&&!old.isDestroyed())old.close()},50);return true})
+ipcMain.handle('profile:switch',(_e,id,pin)=>{if(String(id)!==profiles.current()&&profiles.guarded())profiles.needPin(pin);profiles.select(String(id));const old=mainWindow;setTimeout(()=>{createWindow();if(old&&!old.isDestroyed())old.close()},50);return true})
 // Weekly source check published by .github/workflows/source-scan.yml.
 ipcMain.handle('books:status',async()=>{const r=await fetch('https://github.com/madaratn/NovelReader-Windows/releases/download/source-status/book-status.json',{redirect:'follow'});if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
 ipcMain.handle('sources:status',async()=>{const r=await fetch('https://github.com/madaratn/NovelReader-Windows/releases/download/source-status/source-status.json',{redirect:'follow'});if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
