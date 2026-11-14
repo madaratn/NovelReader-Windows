@@ -25,6 +25,8 @@ export function splitError(raw:string){const plain=splitErrorRaw(raw);
  // Only for messages that carry a technical tail ("Could not load video: fetch failed").
  const m=/^([^:]{3,60}:)\s+(.+)$/s.exec(plain.summary);const tail=m?m[2]+' '+plain.details:'';const nice=m&&/[a-z_]{3,}|\d{3}/i.test(m[2])?friendlyError(tail):''
  if(nice&&nice!==m![2])return{summary:m![1]+' '+nice,details:(plain.details||plain.summary)}
+ // A bare network message ("Failed to fetch") gets the plain explanation too.
+ if(!m&&/^(failed to fetch|fetch failed|load failed|networkerror|typeerror: (failed|network)|net::err_)/i.test(plain.summary)){const n=friendlyError(plain.summary);if(n&&n!==plain.summary)return{summary:n,details:plain.details||plain.summary}}
  return plain}
 function splitErrorRaw(raw:string){let t=String(raw||'').replace(/Error invoking remote method '[^']+':\s*(Error:\s*)?/g,'').trim();const cut=t.search(/\s(Engine:|Caused by|\d{4}-\d\d-\d\dT\d\d:\d\d|at [a-z][\w$]*\.[\w$.]+\()|\s—\s|\s\|\s|\n/);let summary=(cut>0?t.slice(0,cut):t).trim();if(summary.length>240)summary=summary.slice(0,237)+'…';return{summary,details:summary===t?'':t}}
 export function NoticeText({text}:{text:string}){const{summary,details}=splitError(text);const[copied,setCopied]=useState(false);return <div className="notice-text"><span>{summary}</span>{details&&<details className="notice-details"><summary>{t('Technical details')}</summary><pre>{details.replace(/\s\|\s/g,'\n')}</pre><button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(details);setCopied(true);setTimeout(()=>setCopied(false),1500)}catch{}}}>{copied?t('Copied'):t('Copy details')}</button></details>}</div>}

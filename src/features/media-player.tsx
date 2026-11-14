@@ -7,7 +7,10 @@ import{useMediaSession}from'./media-session'
 import{useCast}from'./cast'
 import{useAudioFix}from'./audio-fix'
 import React,{useEffect,useRef,useState}from'react'
-import Hls from'hls.js'
+import type HlsT from'hls.js'
+// hls.js (about a third of the app's code) is loaded when a video needs it, not at start.
+let Hls:any=null
+export const loadHls=():Promise<any>=>Hls?Promise.resolve(Hls):import('hls.js').then(m=>(Hls=m.default))
 import{t,plural}from'../i18n'
 import{lsGet,lsSet}from'../lib/util'
 import{Help,NoticeText,Icon,MoreMenu}from'../ui/common'
@@ -91,7 +94,7 @@ function YouTubeVideo({video,onNext,onPrev,onPlaying}:PlayerProps){
  </div>
 }
 function RemoteVideo({video,mediaKey,onNext,onPrev,onUnsupported,variants,onVariant,onPlaying,info}:PlayerProps){
- const ref=useRef<HTMLVideoElement>(null),audioRef=useRef<HTMLAudioElement>(null),hlsRef=useRef<Hls|null>(null),audioHlsRef=useRef<Hls|null>(null),externalAudioStarted=useRef(false),lastSave=useRef(0),[playError,setPlayError]=useState(''),[adNotice,setAdNotice]=useState('')
+ const ref=useRef<HTMLVideoElement>(null),audioRef=useRef<HTMLAudioElement>(null),hlsRef=useRef<HlsT|null>(null),audioHlsRef=useRef<HlsT|null>(null),externalAudioStarted=useRef(false),lastSave=useRef(0),[playError,setPlayError]=useState(''),[adNotice,setAdNotice]=useState('')
  const watchTick=useRef({t:0,acc:0}),[subStyle,setSubStyle]=useState<{size:string,color:string,bg:string,offset:number}>(()=>{try{const saved=JSON.parse(localStorage.getItem('subStyle')||'{}');return{size:'m',color:'white',bg:'shadow',...saved,offset:0}}catch{return{size:'m',color:'white',bg:'shadow',offset:0}}}),[subPanel,setSubPanel]=useState(false),[hlsAudios,setHlsAudios]=useState<any[]>([]),[nowT,setNowT]=useState(0),[nextIn,setNextIn]=useState<number|null>(null),[elAudios,setElAudios]=useState<any[]>([]),[extSubs,setExtSubs]=useState<any[]>([]),[hlsSubs,setHlsSubs]=useState<any[]>([]),[audioIndex,setAudioIndex]=useState(0),[subIndex,setSubIndex]=useState(-1),[rate,setRate]=useState(()=>Number(localStorage.getItem('novelreader:player:rate')||'1'))
  const sourceAudios=Array.isArray(video?.audioTracks)?video.audioTracks:Array.isArray(video?.audio)?video.audio:[],sourceSubs=Array.isArray(video?.subtitleTracks)?video.subtitleTracks:Array.isArray(video?.subtitles)?video.subtitles:Array.isArray(video?.tracks)?video.tracks:[]
  const key=mediaKey||String(video?.streamUrl||'')
@@ -165,7 +168,9 @@ function RemoteVideo({video,mediaKey,onNext,onPrev,onUnsupported,variants,onVari
  const hlsProbe=useRef('')
  const refused=useRef('')
  const sniffHls=async()=>{const u=String(video?.streamUrl||'');refused.current='';if(!u.includes('/api/v1/proxy?')||hlsProbe.current===u)return false;hlsProbe.current=u;try{const r=await fetch(u,{headers:{Range:'bytes=0-1023'}});const text=(await r.text()).replace(/^\uFEFF/,'').trimStart();if(text.startsWith('#EXTM3U')){console.log('[novelreader] stream is an HLS playlist without .m3u8, switching');setAsHls(u);return true}if(r.status>=400||/^<(!doctype|html)/i.test(text))refused.current=r.status>=400?String(r.status):'HTML'}catch{}return false}
- useEffect(()=>{const el=ref.current;if(!el||!video?.streamUrl)return;window.dispatchEvent(new Event('nr-player-reload'));externalAudioStarted.current=false;setPlayError('');setNowT(0);setNextIn(null);setHlsAudios([]);setElAudios([]);setHlsSubs([]);setAudioIndex(0);setSubIndex(-1);const url0=String(video.streamUrl),url=asHls===url0?url0.replace('/api/v1/proxy?','/api/v1/hls?'):url0;const raw=String(video.videoUrl||video.url||video.link||'').toLowerCase();const streamRaw=url.toLowerCase();let hls:Hls|null=null;let netFails=0
+ const[hlsLoaded,setHlsLoaded]=useState(!!Hls)
+ useEffect(()=>{loadHls().then(()=>setHlsLoaded(true)).catch(()=>{})},[])
+ useEffect(()=>{const el=ref.current;if(!el||!video?.streamUrl)return;{const u=String(video.streamUrl).toLowerCase(),r=String(video.videoUrl||video.url||video.link||'').toLowerCase();if(!Hls&&(r.includes('.m3u8')||r.includes('/playlist')||u.includes('/api/v1/hls?')||asHls)){loadHls().then(()=>setHlsLoaded(true)).catch(()=>{});return}}window.dispatchEvent(new Event('nr-player-reload'));externalAudioStarted.current=false;setPlayError('');setNowT(0);setNextIn(null);setHlsAudios([]);setElAudios([]);setHlsSubs([]);setAudioIndex(0);setSubIndex(-1);const url0=String(video.streamUrl),url=asHls===url0?url0.replace('/api/v1/proxy?','/api/v1/hls?'):url0;const raw=String(video.videoUrl||video.url||video.link||'').toLowerCase();const streamRaw=url.toLowerCase();let hls:HlsT|null=null;let netFails=0
   const ready=()=>{restoreVolume(el);syncElementAudio(el);const p=readMediaPos(key);if(p&&!p.done&&p.t>5&&p.t<(el.duration||Infinity)-10)el.currentTime=p.t;if(!externalAudioStarted.current&&sourceAudios.some((x:any)=>x?.streamUrl)){const preferred=Math.max(0,sourceAudios.findIndex((x:any)=>/english/i.test(String(x?.lang||x?.language||x?.name||x?.label||''))));externalAudioStarted.current=true;console.log('[novelreader] external-audio-autostart',{preferred,lang:sourceAudios[preferred]?.lang||sourceAudios[preferred]?.language||''});setTimeout(()=>setAudio(preferred),0)}}
   const syncTracks=()=>{if(!hls)return;const aa=[...(hls.audioTracks||[])],ss=[...(hls.subtitleTracks||[])];setHlsAudios(aa);setHlsSubs(ss);const ai=hls.audioTrack>=0?hls.audioTrack:(aa.length?0:-1);if(ai>=0&&hls.audioTrack!==ai)hls.audioTrack=ai;setAudioIndex(ai>=0?ai:0);setSubIndex(hls.subtitleTrack??-1);console.log('[novelreader] hls-tracks',{audioTrack:hls.audioTrack,audioTracks:aa.map((x:any,i:number)=>({i,name:x?.name,lang:x?.lang,default:x?.default,groupId:x?.groupId,url:x?.url})),subtitleTrack:hls.subtitleTrack,subtitleTracks:ss.map((x:any,i:number)=>({i,name:x?.name,lang:x?.lang,default:x?.default,groupId:x?.groupId,url:x?.url}))})}
   const logHlsManifest=async()=>{if(!import.meta.env.DEV)return;try{const r=await fetch(url);const body=await r.text();const all=body.split(/\r?\n/).filter(Boolean),lines=all.slice(0,80);const tags=lines.filter(x=>x.startsWith('#EXT-X-STREAM-INF')||x.startsWith('#EXT-X-MEDIA')||x.startsWith('#EXT-X-MAP')||x.startsWith('#EXT-X-KEY'));const media=all.filter(x=>!x.startsWith('#')).slice(0,3);console.log('[novelreader] hls-manifest',{status:r.status,type:r.headers.get('content-type'),tags,media,preview:lines.slice(0,30)});const codecs=tags.flatMap(x=>Array.from(x.matchAll(/CODECS="([^"]+)"/g)).map(m=>m[1]));console.log('[novelreader] hls-codecs',{codecs:[...new Set(codecs)]});console.log('[novelreader] media-capabilities',{aac:el.canPlayType('audio/mp4; codecs="mp4a.40.2"'),ac3:el.canPlayType('audio/mp4; codecs="ac-3"'),eac3:el.canPlayType('audio/mp4; codecs="ec-3"'),mp3:el.canPlayType('audio/mpeg')})}catch(e:any){console.warn('[novelreader] hls-manifest probe failed',e?.message||String(e))}}
@@ -189,7 +194,7 @@ function RemoteVideo({video,mediaKey,onNext,onPrev,onUnsupported,variants,onVari
    else if(stalled>=10){stalled=0;save(el);if(onUnsupported){console.warn('[novelreader] playback-stall: switching server');setPlayError(t('This server stopped sending the video. Switching to another server at the same position…'));hls?.destroy();setTimeout(()=>onUnsupported(),250)}else{setPlayError(t('The video is stuck. Pick another quality or server.'))}}},2000)
   const kick=()=>{if(el.readyState<3)hls?.startLoad(el.currentTime)};el.addEventListener('play',kick)
   return()=>{window.clearInterval(watch);window.clearInterval(npWatch);el.removeEventListener('play',kick);save(el);el.removeEventListener('loadedmetadata',ready);hls?.destroy();hlsRef.current=null;el.removeAttribute('src');el.load()}
- },[video?.streamUrl,key,asHls])
+ },[video?.streamUrl,key,asHls,hlsLoaded])
  const choices=(variants||[]).filter(Boolean),label=(v:any,i:number)=>String(v.videoTitle||v.title||v.quality||v.resolution||('Stream '+(i+1)))
  // Sources like Anichi publish sub and dub as separate streams ("HD-1 - Sub - 1080p" /
  // "HD-1 - Dub - 1080p"); offer them as an Audio choice that switches stream.

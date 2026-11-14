@@ -31,7 +31,10 @@ async function settled(page: Page, where: string, problems: string[]) {
   const text = (await page.locator('main').innerText().catch(() => '')).trim()
   if (text.length < 15) problems.push(where + ': empty page')
   const said = await page.locator('main [role=status], main [role=alert], main .anime-toast, main .searchstatus, main .empty, main .emptystate, main .lib-update-status').allInnerTexts().catch(() => [])
-  console.log('OFFLINE | ' + where + ' | ' + took + ' ms | ' + said.map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean).join(' ¦ ').slice(0, 400))
+  // Said in plain words, and true: no raw network error, nothing claiming all is fine.
+  const words = said.join(' ')
+  if (/Failed to fetch|TypeError|ERR_INTERNET|Everything is up to date|did not return a playable/i.test(words)) problems.push(where + ': unclear or wrong message — ' + words.replace(/\s+/g, ' ').slice(0, 160))
+  console.log('OFFLINE | ' + where + ' | ' + took + ' ms | ' + said.map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean).join(' ¦ ').slice(0, 400) + (said.length ? '' : ' || MAIN: ' + text.replace(/\s+/g, ' ').slice(0, 260)))
 }
 
 test('without internet, every page says so and stops loading', async ({ page }) => {
@@ -44,21 +47,21 @@ test('without internet, every page says so and stops loading', async ({ page }) 
 
   // Books
   await go('books', 'library'); await settled(page, 'books library', problems)
-  await page.getByRole('button', { name: /Check for new chapters|Check for updates/ }).first().click().catch(() => {}); await settled(page, 'books: check for new chapters', problems)
+  await page.getByRole('button', { name: /Check for new chapters|Check for updates/ }).first().click({ timeout: 3000 }).catch(() => {}); await settled(page, 'books: check for new chapters', problems)
   await page.locator('.novelcard, .libcard').first().locator('.libcard-cover').click(); await settled(page, 'book page', problems)
-  await page.getByRole('button', { name: /Continue · Ch\./ }).first().click().catch(() => {}); await settled(page, 'book: open a chapter', problems)
+  await page.getByRole('button', { name: /Continue · Ch\./ }).first().click({ timeout: 3000 }).catch(() => {}); await settled(page, 'book: open a chapter', problems)
   await go('books', 'search'); await page.locator('main input').first().fill('alpha'); await page.locator('main input').first().press('Enter'); await settled(page, 'books search', problems)
   await go('books', 'discover'); await settled(page, 'books discover › popular', problems)
-  for (const tab of ['Latest', 'For you']) { await page.getByRole('tab', { name: tab }).click().catch(() => {}); await settled(page, 'books discover › ' + tab, problems) }
+  for (const tab of ['Latest', 'For you']) { await page.getByRole('tab', { name: tab }).click({ timeout: 3000 }).catch(() => {}); await settled(page, 'books discover › ' + tab, problems) }
   await go('books', 'sources'); await settled(page, 'book sources', problems)
 
   // Videos
   for (const [mode, lib, disc, search, src] of [['anime', 'anime', 'animeDiscover', 'animeSearch', 'animeSources'], ['series', 'series', 'seriesDiscover', 'seriesSearch', 'seriesSources'], ['movies', 'movies', 'movieDiscover', 'movieSearch', 'movieSources']]) {
     await go(mode, lib); await settled(page, mode + ' library', problems)
-    await page.locator('.libcard').first().locator('.libcard-cover').click().catch(() => {}); await settled(page, mode + ' title page', problems)
-    await page.locator('.media-hero .primary').first().click().catch(() => {}); await settled(page, mode + ': play', problems)
+    await page.locator('.libcard').first().locator('.libcard-cover').click({ timeout: 3000 }).catch(() => {}); await settled(page, mode + ' title page', problems)
+    await page.locator('.media-hero .primary').first().click({ timeout: 3000 }).catch(() => {}); await settled(page, mode + ': play', problems)
     await go(mode, disc); await settled(page, mode + ' discover', problems)
-    for (const tab of ['Latest', 'Genres', 'For you']) { await page.getByRole('tab', { name: tab }).click().catch(() => {}); await settled(page, mode + ' discover › ' + tab, problems) }
+    for (const tab of ['Latest', 'Genres', 'For you']) { await page.getByRole('tab', { name: tab }).click({ timeout: 3000 }).catch(() => {}); await settled(page, mode + ' discover › ' + tab, problems) }
     await go(mode, search); await page.locator('main input').first().fill('test'); await page.locator('main input').first().press('Enter'); await settled(page, mode + ' search', problems)
     await go(mode, src); await settled(page, mode + ' sources', problems)
   }
