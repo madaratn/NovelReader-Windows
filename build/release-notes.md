@@ -1,3 +1,16 @@
+## NovelReader 0.33.0
+
+- **Livres › Découvrir › Pour toi** : des romans des mêmes genres que ceux que tu as terminés ou que tu lis en ce moment, sous la forme « Parce que tu as aimé X · Fantasy ».
+  - Ils viennent de tes propres sources de livres : « Lire » les ouvre tout de suite, et « ＋ Ajouter » les met dans ta bibliothèque.
+  - Les romans que tu as déjà ne sont pas proposés.
+- **Ton année** (Historique › 🎉 Ton année 2026) :
+  - ton temps de lecture et de visionnage, et les chapitres et épisodes terminés ;
+  - le nombre de jours actifs et ta plus longue série de jours d'affilée ;
+  - ton mois le plus chargé, les titres que tu as le plus suivis et tes genres préférés.
+  - Tout est calculé à partir de ce que l'app a déjà noté sur cet appareil.
+
+---
+
 ## NovelReader 0.32.0
 
 - **Sous-titres lisibles en thème clair** : la couleur « Blanc » des sous-titres suivait la couleur du texte de l'app, presque noire en thème clair. Ils s'affichaient donc en noir sur l'ombre ou le fond noir. Ils sont maintenant toujours en vrai blanc (ou vrai jaune), que le thème soit clair ou sombre. Ça vaut pour tous les sous-titres : ceux de la source, ceux trouvés en ligne, ceux générés et ceux traduits.
