@@ -1,3 +1,9 @@
+## NovelReader 0.30.1
+
+- **Sources vidéo › Avancé** : sur téléphone, les cadres « Moteur vidéo », « Cloudflare » et « Dépôts d'extensions » ne sortent plus de l'écran. Les adresses longues sont coupées avec « … », et les boutons passent sous le texte.
+
+---
+
 ## NovelReader 0.30.0
 
 - **Les autres noms d'un titre** : « Chercher sur mes autres sources » essaie aussi les noms dans d'autres langues et les autres orthographes.
