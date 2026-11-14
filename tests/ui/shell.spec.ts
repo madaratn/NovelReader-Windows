@@ -191,3 +191,47 @@ test('navigation: going back returns to the same place in the list; the current 
   await page.locator('.sidebar .brand').click()
   await expect(page.locator('.nav-item[aria-current=page]')).toHaveText('Library')
 })
+
+test('books Discover › For you: novels of the genres of a finished novel, from the sources, readable at once', async ({ page }) => {
+  await open(page, { library: [{ ...novel('a', 'Alpha', 10), genres: ['Fantasy', 'Romance'], shelf: 'completed' } as any, { ...novel('b', 'Beta', 10), genres: ['Action'] } as any], reading: { b: { index: 2 } } })
+  await nav(page, 'Discover')
+  await page.getByRole('tab', { name: 'For you' }).click()
+  const groups = page.locator('.foryou-group')
+  // Alpha (finished) first: its first genre the source knows is Romance; then Beta (being read): Action
+  await expect(groups.locator('h2')).toHaveText(['Because you liked Alpha · Romance', 'Because you liked Beta · Action'])
+  await expect(groups.first().locator('.resultcard h3').first()).toHaveText('Genre romance novel')
+  await groups.first().locator('.resultcard').first().getByRole('button', { name: /Read/ }).click()
+  await expect(page.locator('main h1')).toHaveText('Shadow Slave')
+})
+
+test('Your year: time read and watched, titles followed the most, from the History page', async ({ page }) => {
+  const y = new Date().getFullYear(), d = (m: number, day: number) => `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  const at = (m: number, day: number) => new Date(y, m - 1, day, 20).getTime()
+  await open(page, {
+    library: [{ ...novel('a', 'Alpha', 10), genres: ['Fantasy'] } as any],
+    storage: {
+      readingStats: JSON.stringify({ [d(1, 10)]: { c: 3, s: 1800 }, [d(1, 11)]: { c: 2, s: 1200 }, [d(1, 12)]: { c: 1, s: 600 }, [d(3, 1)]: { c: 1, s: 300 }, [(y - 1) + '-12-31']: { c: 50, s: 99999 } }),
+      watchStats: JSON.stringify({ [d(1, 13)]: { e: 2, s: 2700 } }),
+      seriesLibrary: JSON.stringify([{ id: 'series1', name: 'Lanterns', sourceId: '42', url: '/s/1', genres: ['Mystery'] }]),
+      history: JSON.stringify([
+        { at: at(1, 10), kind: 'books', id: 'a', name: 'Alpha', sub: 'Chapter 1' }, { at: at(1, 11), kind: 'books', id: 'a', name: 'Alpha', sub: 'Chapter 4' }, { at: at(1, 12), kind: 'books', id: 'a', name: 'Alpha', sub: 'Chapter 6' },
+        { at: at(1, 13), kind: 'series', id: 'series1', name: 'Lanterns', sub: 'Episode 1' }]),
+    },
+  })
+  await page.locator('.sidebar .home-open').click()
+  await page.locator('.home-panel').getByRole('button', { name: 'Whole history' }).click().catch(() => {})
+  if (!await page.locator('.history-page').isVisible()) await page.evaluate(() => { localStorage.setItem('lastPage:books', 'history') }), await page.reload()
+  await page.getByRole('button', { name: 'Your year ' + y }).click()
+  const yp = page.locator('.year-page')
+  await expect(yp.locator('h1')).toHaveText('Your year ' + y)
+  const tiles = yp.locator('.year-tiles > div')
+  await expect(tiles.nth(0)).toContainText('1 h 5 min') // 3900 s of reading (last year's not counted)
+  await expect(tiles.nth(1)).toContainText('7')
+  await expect(tiles.nth(2)).toContainText('45 min')
+  await expect(tiles.nth(3)).toContainText('2')
+  await expect(tiles.nth(5)).toContainText('4') // 10, 11, 12, 13 January
+  await expect(yp.locator('.year-line')).toContainText('January')
+  await expect(yp.locator('.year-top li').first()).toContainText('Alpha')
+  await expect(yp.locator('.year-top li').first()).toContainText('3 days')
+  await expect(yp.locator('.year-genres .chip')).toHaveText(['Fantasy', 'Mystery'])
+})
