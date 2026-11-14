@@ -130,6 +130,9 @@ async function miwayomiRequest(pathname, init={}) {
 }
 ipcMain.handle('anime:miwayomiStatus', async()=>{try{const health=await miwayomiRequest('/api/v1/health');return {online:true,baseUrl:MIWAYOMI_BASE,health}}catch(e){if(!miwayomiProcess)startMiwayomi();return {online:false,starting:!!miwayomiProcess,baseUrl:MIWAYOMI_BASE,error:String(e.message||e)}}});
 // ---- Problem report (electron/diagnostics.cjs) -------------------------------
+// ---- Mini player (electron/mini-window.cjs) ----------------------------------------
+const mini=require('./mini-window.cjs').createMiniWindow({screen,getWindow:()=>mainWindow})
+ipcMain.handle('mini:set',(_e,on)=>on?mini.enter():mini.exit())
 // ---- Profiles (electron/profiles.cjs) -----------------------------------------
 ipcMain.handle('profile:list',()=>({list:profiles.list(),current:profiles.current(),pin:profiles.hasPin()}))
 ipcMain.handle('profile:check-pin',(_e,pin)=>profiles.checkPin(String(pin||'')))

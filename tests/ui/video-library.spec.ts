@@ -877,3 +877,77 @@ test('continue here what was opened on the phone: a bar offers it, and opens the
   await page.reload()
   await expect(page.locator('.resume-banner')).toHaveCount(0)
 })
+
+test('Discover › For you: "Because you liked" a finished anime (AniList), titles already in the library left out', async ({ page }) => {
+  await openVideo(page, { mode: 'anime', 'lastPage:anime': 'animeDiscover', 'discoverTab:Anime': 'foryou',
+    animeLibrary: JSON.stringify([item('anime', 1, 'Frieren', { shelf: 'completed', shelfAt: Date.now() }), item('anime', 2, 'Dungeon Meshi')]) })
+  await page.route('https://graphql.anilist.co/**', async r => {
+    const body = r.request().postDataJSON()
+    if (!String(body.query).includes('recommendations')) return r.fulfill({ contentType: 'application/json', body: '{"data":{}}' })
+    const rec = (id: number, title: string) => ({ rating: 50, mediaRecommendation: { id, title: { english: title, romaji: title }, synonyms: [], seasonYear: 2023, coverImage: { large: '' }, averageScore: 85, genres: ['Adventure'], isAdult: false } })
+    await r.fulfill({ contentType: 'application/json', body: JSON.stringify({ data: { a0: { title: { english: "Frieren: Beyond Journey's End", romaji: 'Sousou no Frieren' }, recommendations: { nodes: [rec(1, 'Dungeon Meshi'), rec(2, 'Mushishi'), rec(3, 'Spice and Wolf')] } } } }) })
+  })
+  await page.goto('/')
+  await expect(page.getByRole('tab', { name: 'For you' })).toHaveAttribute('aria-selected', 'true')
+  const group = page.locator('.foryou-group')
+  await expect(group.locator('h2')).toHaveText('Because you liked Frieren')
+  await expect(group.locator('.resultcard h3')).toHaveText(['Mushishi', 'Spice and Wolf'])
+  await group.locator('.resultcard', { hasText: 'Mushishi' }).getByRole('button', { name: 'Find' }).click()
+  await expect(page.locator('main input').first()).toHaveValue('Mushishi')
+})
+
+test('mini player on the PC: the window becomes a small video window above the others, subtitles included', async ({ page }) => {
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns')]) })
+  const clip = require('node:fs').readFileSync(require('node:path').join(__dirname, 'fixtures', 'clip.webm'))
+  await page.route('http://127.0.0.1:4567/api/v1/proxy**', r => r.fulfill({ status: 200, body: clip, headers: { 'Content-Type': 'video/webm', 'Access-Control-Allow-Origin': '*' } }))
+  await page.addInitScript(() => { const w = window as any; w.__mini = [] as boolean[]; const iv = setInterval(() => { if (w.novelReader) { w.novelReader.miniWindow = async (on: boolean) => { w.__mini.push(on); return on }; clearInterval(iv) } }, 0) })
+  await page.goto('/')
+  await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
+  await page.locator('.media-hero .primary').click()
+  await expect(page.locator('.remote-player video')).toBeVisible()
+  await page.getByRole('button', { name: 'More player options' }).click()
+  await page.getByRole('menuitem', { name: 'Mini player' }).click()
+  await expect.poll(() => page.evaluate(() => (window as any).__mini)).toEqual([true])
+  await expect(page.locator('html')).toHaveClass(/mini-mode/)
+  // Only the video, filling the window; the rest of the app is hidden
+  const vp = page.viewportSize()!, box = (await page.locator('.remote-player video').boundingBox())!
+  expect(Math.round(box.width)).toBe(vp.width); expect(Math.round(box.height)).toBe(vp.height)
+  await expect(page.locator('aside.sidebar')).toBeHidden()
+  // Back to the app (button or Esc)
+  await page.locator('.player-stage').hover()
+  await page.getByRole('button', { name: 'Back to the app' }).click()
+  await expect.poll(() => page.evaluate(() => (window as any).__mini)).toEqual([true, false])
+  await expect(page.locator('html')).not.toHaveClass(/mini-mode/)
+  await expect(page.locator('aside.sidebar')).toBeVisible()
+})
+
+test('Discover › For you (series): titles of the same genres, the closest first', async ({ page }) => {
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'seriesDiscover', 'discoverTab:Series': 'foryou',
+    seriesLibrary: JSON.stringify([item('series', 1, 'Dark', { shelf: 'completed', shelfAt: Date.now() })]) })
+  await page.route('https://v3-cinemeta.strem.io/**', r => {
+    const u = decodeURIComponent(r.request().url())
+    const m = (id: string, name: string, genres: string[], rating = '8.0') => ({ imdb_id: id, id, name, genres, imdbRating: rating, releaseInfo: '2019', poster: '' })
+    if (u.includes('search=Dark')) return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ metas: [m('tt5753856', 'Dark', ['Crime', 'Drama', 'Mystery'])] }) })
+    if (u.includes('genre=Crime')) return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ metas: [m('tt5753856', 'Dark', ['Crime', 'Drama']), m('tt1', 'Only Crime', ['Crime'], '9.0'), m('tt2', 'Crime and Drama', ['Crime', 'Drama'], '7.0')] }) })
+    if (u.includes('genre=Drama')) return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ metas: [m('tt2', 'Crime and Drama', ['Crime', 'Drama'], '7.0'), m('tt3', 'Only Drama', ['Drama'], '8.5')] }) })
+    return r.fulfill({ contentType: 'application/json', body: '{"metas":[]}' })
+  })
+  await page.goto('/')
+  const group = page.locator('.foryou-group')
+  await expect(group.locator('h2')).toHaveText('Because you liked Dark')
+  await expect(group.locator('.resultcard h3')).toHaveText(['Crime and Drama', 'Only Crime', 'Only Drama'])
+})
+
+test('subtitles stay white (or yellow) on the video in the light theme too', async ({ page }) => {
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'series', appTheme: 'light', seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns')]) })
+  await page.goto('/')
+  await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
+  await page.locator('.media-hero .primary').click()
+  const stage = page.locator('.player-stage')
+  await expect(stage).toBeVisible()
+  // (getComputedStyle cannot read ::cue: the subtitle rules themselves are checked)
+  const rules = await page.evaluate(() => { const out: Record<string, string> = {}; for (const sh of Array.from(document.styleSheets)) { let list: CSSRuleList; try { list = sh.cssRules } catch { continue } for (const r of Array.from(list)) { const sr = r as CSSStyleRule; if (sr.selectorText && sr.selectorText.includes('::cue') && sr.style.color) out[sr.selectorText] = sr.style.color } } return out })
+  expect(Object.keys(rules).length).toBeGreaterThan(0)
+  for (const [sel, color] of Object.entries(rules)) expect(color, sel).not.toMatch(/var\(/)
+  expect(Object.entries(rules).find(([s]) => s.includes('cue-white'))?.[1]).toMatch(/#fff|255, 255, 255|white/i)
+})
