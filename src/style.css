@@ -1358,3 +1358,15 @@ html.android .home-card{transition:none}
 .sources-advanced-body input:not([type=checkbox]):not([type=radio]){min-width:0;max-width:100%}
 .sources-advanced-body input[type=checkbox]{flex:none;width:20px;height:20px}
 @media (max-width:600px){.sources-advanced>summary{flex-wrap:wrap;padding:14px}.sources-advanced-body{padding:0 10px 12px}.sources-advanced-body .engine-row>button,.sources-advanced-body .engine-row>.primary{flex:1 1 100%;white-space:normal}}
+/* Continue here what was opened on the other device */
+.resume-banner{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 16px;padding:10px 12px;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:var(--radius-md);background:var(--bg-raised);min-width:0}
+.resume-icon{font-size:1.4rem;flex:none}
+.resume-text{display:grid;gap:2px;flex:1 1 200px;min-width:0}
+.resume-text b{color:var(--text-strong);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.resume-text small{color:var(--text-2)}
+.resume-banner .primary{flex:none}
+.resume-close{flex:none;border:0;background:none;color:var(--text-3);font-size:1.3rem;cursor:pointer;padding:4px 8px}
+/* Rows "text + button" (sources, engine…): the button goes under the text when there is no room. */
+.engine-row{flex-wrap:wrap}
+.engine-row>div{flex:1 1 260px;min-width:0}
+@media (max-width:600px){.engine-row>button,.engine-row>.primary{flex:1 1 100%;white-space:normal}}

@@ -8,7 +8,11 @@ export function readHistory():HistoryLine[]{try{const l=JSON.parse(localStorage.
 export function logHistory(line:Omit<HistoryLine,'at'>,at=Date.now()){
  if(!line.id||!line.name)return
  const day=dayOf(at),rest=readHistory().filter(x=>!(x.kind===line.kind&&x.id===line.id&&x.sub===line.sub&&dayOf(x.at)===day))
- try{localStorage.setItem('history',JSON.stringify([{...line,at},...rest].slice(0,MAX)))}catch{}}
+ try{localStorage.setItem('history',JSON.stringify([{...line,at},...rest].slice(0,MAX)))}catch{}
+ // Synced to the other devices: "continue where you stopped on the PC / the phone".
+ try{localStorage.setItem('lastPlay',JSON.stringify({...line,at,dev:deviceTag(),on:(window as any).Capacitor?.getPlatform?.()==='android'?'phone':'pc'}))}catch{}}
+// This device (not synced).
+export function deviceTag(){let d='';try{d=localStorage.getItem('deviceTag')||'';if(!d){d=Math.random().toString(36).slice(2,10);localStorage.setItem('deviceTag',d)}}catch{}return d}
 export function clearHistory(){try{localStorage.removeItem('history')}catch{}}
 /** Lines grouped by day, newest day first. */
 export function historyDays(list=readHistory()):{day:string,lines:HistoryLine[]}[]{

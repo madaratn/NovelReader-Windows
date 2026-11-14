@@ -856,3 +856,24 @@ test('kids profile: a title with adult genres does not play, the Genres tab hide
   await page.locator('.sidebar').getByRole('button', { name: 'Settings' }).click()
   await expect(page.locator('.pin-gate')).toBeVisible()
 })
+
+test('continue here what was opened on the phone: a bar offers it, and opens the title', async ({ page }) => {
+  const at = Date.now() - 20 * 60e3
+  await openVideo(page, { mode: 'books', 'lastPage:books': 'library', deviceTag: 'thispc',
+    seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns')]),
+    'lastEpInfo:series1': JSON.stringify({ url: '/ep/5', name: 'S1 E5', n: 5, at }),
+    lastPlay: JSON.stringify({ kind: 'series', id: 'series1', name: 'Lanterns', sub: 'Episode 5', at, dev: 'myphone', on: 'phone' }) })
+  await page.goto('/')
+  const bar = page.locator('.resume-banner')
+  await expect(bar).toContainText('Lanterns')
+  await expect(bar).toContainText('on your phone 20 min ago')
+  await bar.getByRole('button', { name: 'Continue here' }).click()
+  await expect(page.locator('.media-hero h1')).toHaveText('Lanterns')
+  await expect(bar).toHaveCount(0)
+  // Not shown again for the same play, nor for what this PC opened itself
+  await page.reload()
+  await expect(page.locator('.resume-banner')).toHaveCount(0)
+  await page.evaluate(() => localStorage.setItem('lastPlay', JSON.stringify({ kind: 'series', id: 'series1', name: 'Lanterns', sub: 'Episode 6', at: Date.now(), dev: 'thispc', on: 'pc' })))
+  await page.reload()
+  await expect(page.locator('.resume-banner')).toHaveCount(0)
+})
