@@ -879,3 +879,19 @@ test('Android: download the rest of the season, on Wi-Fi only', async ({ page })
   await page.evaluate(() => (window as any).__net.set({ connected: true, unmetered: true, wifi: true }))
   await expect.poll(() => started.slice().sort()).toEqual(['/ep/1-3', '/ep/1-4'])
 })
+
+test('Android: Video sources › Advanced stays inside the screen (long repository addresses)', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('mode', 'anime'); localStorage.setItem('lastPage:anime', 'animeSources'); localStorage.setItem('sourcesAdvanced', '1')
+    localStorage.setItem('animeRepos', JSON.stringify([{ name: 'Yūzōnō', url: 'https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json', enabled: true }, { name: 'salmanbappi', url: 'https://raw.githubusercontent.com/salmanbappi/extensions-repository-with-a-very-long-name/main/index.min.json', enabled: true }]))
+  })
+  await page.goto('/')
+  await expect(page.locator('.sources-advanced-body')).toBeVisible()
+  const over = await page.evaluate(() => {
+    const vw = document.documentElement.clientWidth
+    return [...document.querySelectorAll('.sources-advanced, .sources-advanced-body *')].filter(e => { const r = e.getBoundingClientRect(); return r.width && r.right > vw + 1 }).map(e => (e.className || e.tagName).toString().slice(0, 40)).slice(0, 8)
+  })
+  expect(over).toEqual([])
+  expect(await page.evaluate(() => document.scrollingElement!.scrollWidth <= window.innerWidth)).toBe(true)
+  if (process.env.SHOT) await page.locator('.sources-advanced').screenshot({ path: process.env.SHOT })
+})

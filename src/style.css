@@ -1345,3 +1345,16 @@ html.android .home-card{transition:none}
 .pf-parent{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
 .pf-parent h3{margin:0 0 4px}
 .pf-avatar.kids{box-shadow:0 0 0 2px var(--bg),0 0 0 4px #f0c040}
+/* Sources › Advanced: the panels inside keep to the width of the page (a grid item
+   would otherwise grow to its longest line: repository addresses, nowrap buttons). */
+.sources-advanced{min-width:0;max-width:100%}
+.sources-advanced-body{grid-template-columns:minmax(0,1fr)}
+.sources-advanced-body>*{min-width:0;max-width:100%}
+.sources-advanced-body .engine-row{flex-wrap:wrap}
+.sources-advanced-body .engine-row>div{flex:1 1 220px;min-width:0}
+.sources-advanced-body .engine-row p{overflow-wrap:anywhere}
+.sources-advanced-body .repo-row{min-width:0}
+.sources-advanced-body .repo-row label{flex:1 1 auto}
+.sources-advanced-body input:not([type=checkbox]):not([type=radio]){min-width:0;max-width:100%}
+.sources-advanced-body input[type=checkbox]{flex:none;width:20px;height:20px}
+@media (max-width:600px){.sources-advanced>summary{flex-wrap:wrap;padding:14px}.sources-advanced-body{padding:0 10px 12px}.sources-advanced-body .engine-row>button,.sources-advanced-body .engine-row>.primary{flex:1 1 100%;white-space:normal}}
