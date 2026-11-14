@@ -1384,3 +1384,21 @@ html.mini-mode .mini-on .player-stage video{width:100vw!important;height:100vh!i
 .player-stage:hover .mini-bar,.mini-bar:focus-within{opacity:1}
 .mini-drag{flex:1;min-width:0;color:#fff;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;-webkit-app-region:drag;cursor:move;padding:4px 2px}
 .mini-bar button{-webkit-app-region:no-drag;flex:none;padding:4px 10px;border:0;border-radius:6px;background:rgba(255,255,255,.18);color:#fff;font-size:12px;cursor:pointer}
+.foryou-group h2 small{font-size:var(--fs-sm);font-weight:400;color:var(--text-3)}
+/* Your year */
+.year-page header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.year-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;max-width:900px}
+.year-tiles>div{display:grid;gap:4px;padding:14px;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--bg-raised)}
+.year-tiles b{font-size:1.5rem;color:var(--text-strong);font-variant-numeric:tabular-nums}
+.year-tiles small{color:var(--text-2)}
+.year-line{margin:16px 0;color:var(--text-strong)}
+.year-block{margin-top:22px;max-width:900px}
+.year-block h2{margin:0 0 10px;font-size:var(--fs-lg,1.15rem)}
+.year-top{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.year-top li{display:flex;align-items:center;gap:12px;min-width:0}
+.year-top .cover,.year-top img{flex:none;width:40px;height:56px;border-radius:6px;object-fit:cover}
+.year-rank{flex:none;width:26px;text-align:center;font-weight:700;font-size:1.2rem;color:var(--text-accent)}
+.year-title{display:grid;gap:2px;min-width:0}
+.year-title button,.year-title b{text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.year-title small{color:var(--text-2)}
+.year-genres{display:flex;flex-wrap:wrap;gap:6px}
