@@ -10,7 +10,7 @@ contextBridge.exposeInMainWorld('novelReader',{
  miwayomiFetch:(path,method='GET',body)=>ipcRenderer.invoke('anime:miwayomiFetch',{path,method,body}),
  dlStart:(p)=>ipcRenderer.invoke('dl:start',p),dlList:()=>ipcRenderer.invoke('dl:list'),dlCancel:(id)=>ipcRenderer.invoke('dl:cancel',id),dlRemove:(id)=>ipcRenderer.invoke('dl:remove',id),dlClear:()=>ipcRenderer.invoke('dl:clear'),dlUsage:()=>ipcRenderer.invoke('dl:usage'),dlConfigure:(o)=>ipcRenderer.invoke('dl:configure',o),dlBase:()=>ipcRenderer.invoke('dl:base'),dlOpenFolder:()=>ipcRenderer.invoke('dl:openFolder'),
  onDownloadsChanged:(cb)=>{const h=()=>{try{cb()}catch{}};ipcRenderer.on('dl:changed',h);return()=>ipcRenderer.removeListener('dl:changed',h)},
- flareStatus:()=>ipcRenderer.invoke('flare:status'),flareInstall:()=>ipcRenderer.invoke('flare:install'),flareStart:()=>ipcRenderer.invoke('flare:start'),
+ flareStatus:()=>ipcRenderer.invoke('flare:status'),flareInstall:()=>ipcRenderer.invoke('flare:install'),flareStart:()=>ipcRenderer.invoke('flare:start'),flareReinstall:()=>ipcRenderer.invoke('flare:reinstall'),flareLog:()=>ipcRenderer.invoke('flare:log'),
  localFolders:()=>ipcRenderer.invoke('local:folders'),
  localAddFolder:()=>ipcRenderer.invoke('local:addFolder'),
  localRemoveFolder:(folder)=>ipcRenderer.invoke('local:removeFolder',folder),

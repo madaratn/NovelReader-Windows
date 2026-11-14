@@ -726,7 +726,8 @@ test('source of a title: pick another source it was found on, or look for more',
 })
 
 test('release calendar: next episodes of the library, day by day, and on the title page', async ({ page }) => {
-  const now = Date.now(), inHours = (h: number) => now + h * 3600e3
+  // Lanterns in 3 h (today or just after midnight); Frieren on later days at 20:00, whatever the hour the test runs.
+  const now = Date.now(), inHours = (h: number) => now + h * 3600e3, day = (n: number) => { const d = new Date(); d.setHours(20, 0, 0, 0); d.setDate(d.getDate() + n); return d.getTime() }
   await openVideo(page, {
     mode: 'anime', 'lastPage:anime': 'anime', lang: 'en',
     animeLibrary: JSON.stringify([item('anime', 1, 'Frieren (2023)'), item('anime', 2, 'Old Finished Show')]),
@@ -736,7 +737,7 @@ test('release calendar: next episodes of the library, day by day, and on the tit
   await page.route('https://graphql.anilist.co/**', async r => {
     const body = r.request().postDataJSON(); asked.push(...Object.values(body.variables) as string[])
     const data: any = {}
-    Object.entries(body.variables).forEach(([k, v], i) => { data['a' + i] = v === 'Frieren' ? { status: 'RELEASING', airingSchedule: { nodes: [{ airingAt: Math.round(inHours(26) / 1000), episode: 12 }, { airingAt: Math.round(inHours(26 + 168) / 1000), episode: 13 }] } } : { status: 'FINISHED', airingSchedule: { nodes: [] } } })
+    Object.entries(body.variables).forEach(([k, v], i) => { data['a' + i] = v === 'Frieren' ? { status: 'RELEASING', airingSchedule: { nodes: [{ airingAt: Math.round(day(2) / 1000), episode: 12 }, { airingAt: Math.round(day(9) / 1000), episode: 13 }] } } : { status: 'FINISHED', airingSchedule: { nodes: [] } } })
     await r.fulfill({ contentType: 'application/json', body: JSON.stringify({ data }) })
   })
   await page.route('https://api.tvmaze.com/singlesearch/**', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ name: 'Lanterns', _embedded: { nextepisode: { season: 2, number: 3, name: 'The Well', airstamp: new Date(inHours(3)).toISOString() } } }) }))
@@ -950,4 +951,32 @@ test('subtitles stay white (or yellow) on the video in the light theme too', asy
   expect(Object.keys(rules).length).toBeGreaterThan(0)
   for (const [sel, color] of Object.entries(rules)) expect(color, sel).not.toMatch(/var\(/)
   expect(Object.entries(rules).find(([s]) => s.includes('cue-white'))?.[1]).toMatch(/#fff|255, 255, 255|white/i)
+})
+
+test('Cloudflare protection: Start waits for FlareSolverr, and says why when it stops', async ({ page }) => {
+  await openVideo(page, { mode: 'anime', 'lastPage:anime': 'animeSources', sourcesAdvanced: '1' })
+  await page.addInitScript(() => {
+    const w = window as any; w.__starts = 0
+    const iv = setInterval(() => { if (!w.novelReader) return; clearInterval(iv)
+      const base = { supported: true, installed: true, running: false, installing: false, progress: 0, url: 'http://127.0.0.1:8191' }
+      w.__st = { ...base, error: null }
+      w.novelReader.flareStatus = async () => w.__st
+      w.novelReader.flareReinstall = async () => ({ ...base, error: null })
+      w.novelReader.flareLog = async () => { w.__log = true; return true }
+      w.novelReader.flareStart = async () => { w.__starts++; await new Promise(r => setTimeout(r, 400))
+        w.__st = w.__starts === 1 ? { ...base, error: 'FlareSolverr stopped right after starting (code 3). An antivirus may have blocked it: allow it, or reinstall it.\nError: Chrome could not be started' } : { ...base, running: true, error: null }
+        return w.__st }
+    }, 0)
+  })
+  await page.goto('/')
+  const panel = page.locator('.anime-status', { hasText: 'Cloudflare protection' })
+  await expect(panel).toContainText('FlareSolverr is installed but not running.')
+  await panel.getByRole('button', { name: 'Start' }).click()
+  await expect(panel).toContainText('Starting FlareSolverr')
+  await expect(panel.locator('.flare-error')).toContainText('FlareSolverr stopped right after starting (code 3). An antivirus may have blocked it')
+  await expect(panel.locator('.flare-log')).toHaveText('Error: Chrome could not be started')
+  await panel.getByRole('button', { name: 'Show the log' }).click()
+  expect(await page.evaluate(() => (window as any).__log)).toBe(true)
+  await panel.getByRole('button', { name: 'Try again' }).click()
+  await expect(panel).toContainText('FlareSolverr is running')
 })
