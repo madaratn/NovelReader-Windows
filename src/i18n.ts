@@ -1226,6 +1226,8 @@ const FR: Record<string, string> = {
   'FlareSolverr is starting but does not answer yet (after {n} s). Wait a moment and check again.': 'FlareSolverr démarre mais ne répond pas encore (après {n} s). Attends un peu et réessaie.',
   'This stream cannot be decoded on this device. Trying another stream…': 'Ce flux ne peut pas être décodé sur cet appareil. Essai d\'un autre flux…',
   'This stream cannot be decoded on this device. Pick another quality or server.': 'Ce flux ne peut pas être décodé sur cet appareil. Choisissez une autre qualité ou un autre serveur.',
+  'Display': 'Affichage',
+  'Covers': 'Couvertures',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

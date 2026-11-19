@@ -50,6 +50,7 @@ export async function setup(page: Page, s: Setup = {}) {
   storage.lang = s.lang || 'en'
   if (storage.whatsNewSeen == null) storage.whatsNewSeen = NOTES_VERSION
   if (storage.homeAtStart == null) storage.homeAtStart = '0' // the "Continue" panel stays closed at start in the tests
+  if (storage.cardView == null) storage.cardView = 'list' // the detailed list, unless a test asks for the covers (the app's default)
   if (s.library) storage.library = JSON.stringify(s.library)
   for (const [id, r] of Object.entries(s.reading || {})) storage['reading:' + id] = JSON.stringify({ path: 'ch-' + (r.index + 1), at: Date.now() - 2 * 3600_000, ...r })
   await page.addInitScript(([storage, newChapters, videos, slow]) => {

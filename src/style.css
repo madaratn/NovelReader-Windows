@@ -1459,11 +1459,68 @@ html.mini-mode .mini-on .player-stage video{width:100vw!important;height:100vh!i
 .engine-row button.help-more,.settings-block button.help-more,.panel button.help-more{all:unset;cursor:pointer;color:var(--text-accent);font-weight:600;font-size:inherit;white-space:nowrap}
 .engine-row button.help-more:hover,.settings-block button.help-more:hover,.panel button.help-more:hover{text-decoration:underline}
 .engine-row button.help-more:focus-visible,.settings-block button.help-more:focus-visible,.panel button.help-more:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
+/* The player keeps the shape of a screen while the video loads and from one stream to
+   the next: the page under it does not jump when the picture arrives. */
+.remote-player .player-stage video{aspect-ratio:16/9}
 /* "Mark as watched" on an episode: a faint tick says what the round button is for. */
 .ep-watch:not(.on)::before{content:'✓';color:var(--text-3)}
 /* Lists that scroll inside the page (chapters, episodes): their rows end where the bar
    above them ends, with or without a scroll bar (it sits in the margin). */
 @media (min-width:701px){.chapterlist{margin-right:-16px;padding-right:6px;scrollbar-gutter:stable}}
+/* ---- Covers: the libraries and Discover as a wall of covers ---------------------------
+   (lib/card-view.ts; the list stays one click away.) Same cards, laid out upright: the
+   cover on top, the progress as a line under it, the title on two lines, one line of
+   facts, then the main button and "⋯". */
+.view-toggle{display:inline-flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--bg-sunken);flex:none;align-self:flex-start}
+.view-toggle button{display:grid;place-items:center;width:var(--h-md);height:calc(var(--h-lg) - 8px);padding:0;border:0;border-radius:var(--radius-sm);background:transparent;color:var(--text-2);cursor:pointer}
+.view-toggle button .icon{width:18px;height:18px}
+.view-toggle button:hover{color:var(--text)}
+.view-toggle button.on{background:var(--bg-accent);color:var(--on-accent)}
+.discover-bar .view-toggle{margin:0 0 8px}
+.discover-bar:has(.view-toggle){justify-content:flex-end}
+.discover-bar:has(.view-toggle) .shelftabs{margin-right:auto}
+.discover-bar .view-toggle button{height:calc(var(--h-md) - 8px)}
+.libgrid.posters,.resultgrid.posters,.media-page .libgrid.posters,.media-page.books-ui .libgrid.posters,html.android .libgrid.posters,html.android .resultgrid.posters{grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:18px 16px;align-items:stretch}
+.libgrid.posters .libcard,.media-page .libgrid.posters .libcard,.media-page.books-ui .libgrid.posters .libcard{position:relative;display:flex;flex-direction:column;gap:0;min-height:0;padding:0;border-radius:var(--radius-md)}
+.libgrid.posters .libcard-cover{display:block;width:100%;overflow:hidden;border-radius:calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 0}
+.libgrid.posters .libcard .libcover,.resultgrid.posters .resultcard .libcover,.media-page .libgrid.posters .libcard-cover .libcover,.media-page.books-ui .libgrid.posters .libcard-cover .libcover{width:100%;height:auto;aspect-ratio:2/3;border-radius:0;font-size:34px;transition:scale .25s var(--ease)}
+.libgrid.posters .libcover.placeholder,.resultgrid.posters .libcover.placeholder{display:grid}
+@media (hover:hover){.libgrid.posters .libcard:hover .libcover,.resultgrid.posters .resultcard:hover .libcover{scale:1.04}}
+.libgrid.posters .libcard-meta{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;padding:10px 10px 10px}
+.libgrid.posters .libcard-meta h2,.resultgrid.posters .resultmeta h3{margin:0;font-size:var(--fs-md);line-height:1.3;font-weight:700}
+.libgrid.posters .libtitle,.resultgrid.posters .resultmeta h3{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.libgrid.posters .libcard-meta>p{display:none}
+.libgrid.posters .libcard-meta>small,.resultgrid.posters .resultmeta>small{display:block;font-size:var(--fs-xs);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}
+.libgrid.posters .libbar{order:-1;height:3px;margin:-10px -10px 7px;border-radius:0}
+.libgrid.posters .newbadge{position:absolute;top:8px;left:8px;z-index:2;background:var(--bg-accent);color:var(--on-accent);box-shadow:0 2px 8px rgba(0,0,0,.35)}
+.libgrid.posters .libcard .libraryactions{display:flex;gap:6px;margin-top:auto;padding-top:7px}
+.libgrid.posters .libcard .libraryactions>.primary{flex:1;min-width:0;min-height:var(--h-sm);padding-left:6px;padding-right:6px;font-size:var(--fs-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.libgrid.posters .libcard .more-btn{width:var(--h-sm);height:var(--h-sm)}
+.resultgrid.posters .resultcard{display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden}
+.resultgrid.posters .resultmeta{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;padding:10px}
+.resultgrid.posters .resultactions{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto;padding-top:7px}
+.resultgrid.posters .resultactions button{flex:1 1 auto;min-width:0;min-height:var(--h-sm);padding-left:6px;padding-right:6px;font-size:var(--fs-sm)}
+.resultgrid.posters .resultactions .inlib,.resultgrid.posters .resultactions button.inlib{justify-content:flex-start;padding:0;border:0;background:none;white-space:normal;text-align:left;line-height:1.25;font-size:var(--fs-sm)}
+.skeleton-grid.posters .skeleton-card{display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden}
+.skeleton-grid.posters .skeleton-card>.skeleton:first-child{height:auto;aspect-ratio:2/3;border-radius:0}
+.skeleton-grid.posters .skeleton-card>div{padding:10px}
+.skeleton-grid.posters .skeleton-card>div>.skeleton:nth-child(3){width:100%;margin-top:8px}
+/* Phone: two covers side by side (three from 480 px), fingers on the buttons. */
+@media (max-width:600px){
+ .libgrid.posters,.resultgrid.posters,.media-page .libgrid.posters,.media-page.books-ui .libgrid.posters,html.android .libgrid.posters,html.android .resultgrid.posters{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 10px}
+ .app.phone .libgrid.posters .libcard .libraryactions>.primary,.app.phone .resultgrid.posters .resultactions button{min-height:44px}
+ .app.phone .libgrid.posters .libcard .more-btn{width:44px;height:44px}
+ /* The filter and the display choice on one row, the check and the sort on the next. */
+ .lib-toolbar:has(>.view-toggle){grid-template-columns:minmax(0,1fr) auto auto}
+ .lib-toolbar:has(>.view-toggle)>.searchbar{grid-column:1/span 2}
+ .lib-toolbar>.view-toggle{grid-column:3;justify-self:end}
+ .lib-toolbar:has(>.view-toggle)>.lib-update{grid-column:1}
+ .lib-toolbar:has(>.view-toggle)>.lib-sort{grid-column:2/span 2;justify-self:end}
+ .app.phone .view-toggle{gap:6px;padding:0;border:0;background:transparent}
+ .app.phone .view-toggle button{width:44px;height:44px;border:1px solid var(--line);background:var(--bg-sunken)}
+ .app.phone .view-toggle button.on{background:var(--bg-accent);border-color:var(--line-accent-solid)}
+}
+@media (min-width:480px) and (max-width:600px){.libgrid.posters,.resultgrid.posters,.media-page .libgrid.posters,.media-page.books-ui .libgrid.posters,html.android .libgrid.posters,html.android .resultgrid.posters{grid-template-columns:repeat(3,minmax(0,1fr))}}
 /* ---- Motion --------------------------------------------------------------------------
    Short and quiet. A page fades in, a window opens from 97 %, the phone's sheet rises,
    a menu drops from its button, a message fades in, a button gives a little under the

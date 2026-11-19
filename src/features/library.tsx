@@ -2,7 +2,8 @@ import React,{useEffect,useRef,useState}from'react'
 import{t,plural}from'../i18n'
 import{ReadingStats}from'../features/stats'
 import{lsGet,lsSet,timeAgo}from'../lib/util'
-import{EmptyState,Cover,Icon,MoreMenu,GenreFilter,useShowMore}from'../ui/common'
+import{EmptyState,Cover,Icon,MoreMenu,GenreFilter,useShowMore,ViewToggle}from'../ui/common'
+import{useCardView}from'../lib/card-view'
 import{useAnnotations}from'./annotations'
 
 // ---- Novel library ----------------------------------------------------------
@@ -19,7 +20,7 @@ export function NovelLibrary({library,updates,onCheckUpdates,onOpen,onDetails,on
  const[shelf,setShelf]=useState<'all'|Shelf>(()=>{const v=lsGet('libraryShelf');return v&&SHELVES.some(x=>x.id===v)?v as Shelf:'all'}),[filter,setFilter]=useState(''),[sort,setSort]=useState<LibSort>(()=>(lsGet('librarySort') as LibSort)||'recent'),[undo,setUndo]=useState<Removed|null>(null)
  useEffect(()=>{if(!undo)return;const t=setTimeout(()=>setUndo(null),7000);return()=>clearTimeout(t)},[undo])
  const rows=library.map(n=>{const r=readingOf(n.id),total=Number(n.chapterCount)||n.chapters?.length||0,done=r?r.index+1:0;return{n,r,total,done,left:Math.max(0,total-done),shelf:shelfOf(n,r,total)}})
- const q=filter.trim().toLowerCase()
+ const q=filter.trim().toLowerCase(),posters=useCardView()[0]==='posters'
  const[genre,setGenre]=useState(()=>lsGet('libraryGenre')||'')
  const pickGenre=(g:string)=>{setGenre(g);lsSet('libraryGenre',g)}
  const counts=Object.fromEntries(SHELVES.map(x=>[x.id,rows.filter(r=>r.shelf===x.id).length])) as Record<Shelf,number>
@@ -38,11 +39,11 @@ export function NovelLibrary({library,updates,onCheckUpdates,onOpen,onDetails,on
    {!q&&<ReadingStats/>}
    <div className="shelftabs" role="tablist" aria-label={t('Shelves')}>{([['all',t('All'),rows.length]] as [string,string,number][]).concat(SHELVES.map(x=>[x.id,t(x.label),counts[x.id]] as [string,string,number])).map(([id,label,n])=><button key={id} role="tab" aria-selected={shelf===id} className={'shelftab'+(shelf===id?' on':'')} onClick={()=>{setShelf(id as any);lsSet('libraryShelf',id)}}>{label} <small>{n}</small></button>)}</div>
    <GenreFilter lists={library.map(n=>n.genres||[])} value={genre} onChange={pickGenre}/>
-   <div className="lib-toolbar"><div className="searchbar"><input placeholder={t('Filter by title, author or source…')} value={filter} onChange={e=>setFilter(e.target.value)} aria-label={t('Filter by title, author or source…')}/></div>
+   <div className="lib-toolbar"><div className="searchbar"><input placeholder={t('Filter by title, author or source…')} value={filter} onChange={e=>setFilter(e.target.value)} aria-label={t('Filter by title, author or source…')}/></div><ViewToggle/>
     <button className="lib-update" disabled={updates.running} onClick={onCheckUpdates} title={updates.at?t('Last check: {when}',{when:timeAgo(updates.at)}):undefined}>{updates.running?t('Checking {done}/{total}…',{done:updates.done,total:updates.total}):t('Check for new chapters')}</button>
     <label className="lib-sort">{t('Sort')}<select value={sort} onChange={e=>{const v=e.target.value as LibSort;setSort(v);lsSet('librarySort',v)}}><option value="recent">{t('Recently read')}</option><option value="added">{t('Recently added')}</option><option value="title">{t('Title A–Z')}</option><option value="unread">{t('Most unread')}</option></select></label></div>
    {!updates.running&&updates.at>0&&updates.total>0&&<p className="lib-update-status" role="status">{updates.failed>=updates.total&&!updates.found?t('Could not check: none of the sources answered. Check your internet connection and try again.'):<>{updates.found?plural(updates.found,'{n} novel has new chapters.','{n} novels have new chapters.'):t('Everything is up to date.')}{updates.failed?' '+plural(updates.failed,'{n} source did not answer.','{n} sources did not answer.'):''}</>}</p>}
-   {shown.length===0?<EmptyState icon="grid" title={q?t('No novel matches “{q}”.',{q:filter}):t('No novel on this shelf yet.')} action={q?t('Clear the filter'):undefined} onAction={()=>setFilter('')}/>:<><section className="libgrid">{shown.slice(0,showMore.limit).map(({n,r,total,done,left,shelf:sh})=><article className="libcard" key={n.id} onClick={e=>{if(!(e.target as HTMLElement).closest('button,select,a,label,.more-menu'))onDetails(n)}}>
+   {shown.length===0?<EmptyState icon="grid" title={q?t('No novel matches “{q}”.',{q:filter}):t('No novel on this shelf yet.')} action={q?t('Clear the filter'):undefined} onAction={()=>setFilter('')}/>:<><section className={'libgrid'+(posters?' posters':'')}>{shown.slice(0,showMore.limit).map(({n,r,total,done,left,shelf:sh})=><article className="libcard" key={n.id} onClick={e=>{if(!(e.target as HTMLElement).closest('button,select,a,label,.more-menu'))onDetails(n)}}>
     <button className="libcard-cover" onClick={()=>onDetails(n)} aria-label={n.name+' · '+t('Show chapters')} title={t('Show chapters')}><Cover src={n.cover} name={n.name}/></button>
     <div className="libcard-meta">
      <h2 title={n.name}><button className="libtitle" onClick={()=>onDetails(n)}>{n.name}</button></h2>
@@ -50,7 +51,7 @@ export function NovelLibrary({library,updates,onCheckUpdates,onOpen,onDetails,on
      <p>{[n.author,n.source?.name].filter(Boolean).join(' · ')}</p>
      <div className="libbar" title={t('{done} of {total} chapters',{done,total})}><span style={{width:(total?Math.min(100,done/total*100):0)+'%'}}/></div>
      <small>{r?`${done} / ${total} · ${t('{n} left',{n:left})}${r.at?' · '+timeAgo(r.at):''}`:plural(total,'{n} chapter','{n} chapters')+' · '+t('not started')}</small>
-     <div className="libraryactions"><button className="primary" onClick={()=>onOpen(n)}>{r?t('Continue · Ch. {n}',{n:r.index+1}):t('Start reading')}</button><MoreMenu><label className="more-field"><span>{t('Shelf')}</span><select className="shelfselect" value={sh} aria-label={t('Shelf')} onChange={e=>onShelf(n,e.target.value as Shelf)}>{SHELVES.map(x=><option key={x.id} value={x.id}>{t(x.label)}</option>)}</select></label><button className="removebtn" onClick={()=>setUndo(onRemove(n))}><Icon name="trash" inline/>{t('Remove from the library')}</button></MoreMenu></div>
+     <div className="libraryactions"><button className="primary" onClick={()=>onOpen(n)} aria-label={posters&&r?t('Continue · Ch. {n}',{n:r.index+1}):undefined}>{posters?<><Icon name="playsolid" inline/>{r?t('Ch. {n}',{n:r.index+1}):t('Read')}</>:r?t('Continue · Ch. {n}',{n:r.index+1}):t('Start reading')}</button><MoreMenu><label className="more-field"><span>{t('Shelf')}</span><select className="shelfselect" value={sh} aria-label={t('Shelf')} onChange={e=>onShelf(n,e.target.value as Shelf)}>{SHELVES.map(x=><option key={x.id} value={x.id}>{t(x.label)}</option>)}</select></label><button className="removebtn" onClick={()=>setUndo(onRemove(n))}><Icon name="trash" inline/>{t('Remove from the library')}</button></MoreMenu></div>
     </div></article>)}</section>{showMore.more}</>}
   </>}
   {undo&&<div className="anime-toast ok lib-undo" role="status"><span>{t('Removed “{name}”.',{name:undo.novel.name})}</span><div><button className="undo-btn" onClick={()=>{onRestore(undo);setUndo(null)}}>{t('Undo')}</button><button aria-label={t('Dismiss')} onClick={()=>setUndo(null)}>×</button></div></div>}

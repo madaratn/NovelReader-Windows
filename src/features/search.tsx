@@ -2,7 +2,8 @@ import React,{useEffect,useRef,useState}from'react'
 import{t,plural,getLang}from'../i18n'
 import type{Plugin}from'../lib/types'
 import{lsGet,lsSet,timeAgo}from'../lib/util'
-import{EmptyState,Help,Cover,NoticeText,SkeletonCards}from'../ui/common'
+import{EmptyState,Help,Cover,NoticeText,SkeletonCards,ViewToggle}from'../ui/common'
+import{useCardView}from'../lib/card-view'
 import{BOOK_DEAD_DAYS,bookAsideReason,bookSetAside,keepBookSource,loadBookStatus,noteBookResult}from'../lib/book-status'
 
 // ---- Global search (novels, manhwa, manhua, manga) ------------------------------
@@ -180,20 +181,22 @@ async function bookForYou(plugins:Plugin[],library:any[]):Promise<BookRow[]>{
  bookForYouCache.set(key,rows);return rows
 }
 function BookForYou({plugins,library,onAdd,onPreview}:{plugins:Plugin[],library:any[],onAdd:(h:SearchHit)=>Promise<any>,onPreview?:(h:SearchHit)=>Promise<void>}){
+ const posters=useCardView()[0]==='posters'
  const[rows,setRows]=useState<BookRow[]|null>(null),[busy,setBusy]=useState(''),[err,setErr]=useState('')
  const seeds=bookSeeds(library).length
  useEffect(()=>{let alive=true;setRows(null);bookForYou(plugins,library).then(r=>{if(alive)setRows(r)}).catch(()=>{if(alive)setRows([])});return()=>{alive=false}},[plugins.length,library.length])
  if(!seeds)return <EmptyState icon="compass" title={t('No suggestions yet')} text={t('Read a few novels (or finish one): suggestions of the same genres will appear here, from your sources.')}/>
- if(rows===null)return <><div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading…')}</div></div><SkeletonCards n={4}/></>
+ if(rows===null)return <><div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading…')}</div></div><SkeletonCards n={4} posters={posters}/></>
  if(!rows.length)return <EmptyState icon="compass" title={t('No suggestions yet')} text={t('Your sources have no list for the genres of your novels. Try Popular, or install other sources.')}/>
  const act=async(key:string,f:()=>Promise<any>)=>{setBusy(key);setErr('');try{await f()}catch(e:any){setErr(String(e?.message||e))}finally{setBusy('')}}
  return <>
   <p className="settings-help genre-note">{t('Novels of the same genres as the ones you finished or are reading, from your sources.')}</p>
   {err&&<div className="anime-toast error"><NoticeText text={err}/></div>}
-  {rows.map(r=><section className="foryou-group" key={r.because}><h2>{t('Because you liked {name}',{name:r.because})}<small>{' · '+r.genre}</small></h2><div className="resultgrid">{r.hits.map(h=>{const k=h.plugin.id+':'+h.novel.path,inLib=library.some(x=>x.id===k);return <article className="resultcard" key={k}><Cover src={h.novel.cover||''} name={h.novel.name}/><div className="resultmeta"><h3>{h.novel.name}</h3><small>{h.plugin.name}</small><div className="resultactions">{inLib?<span className="inlib">{'✓ '+t('In your library')}</span>:<>{onPreview&&<button className="primary" disabled={!!busy} onClick={()=>act('r'+k,()=>onPreview(h))}>{busy==='r'+k?t('Opening…'):'📖 '+t('Read')}</button>}<button disabled={!!busy} onClick={()=>act('a'+k,()=>onAdd(h))}>{busy==='a'+k?t('Adding…'):'＋ '+t('Add')}</button></>}</div></div></article>})}</div></section>)}
+  {rows.map(r=><section className="foryou-group" key={r.because}><h2>{t('Because you liked {name}',{name:r.because})}<small>{' · '+r.genre}</small></h2><div className={'resultgrid'+(posters?' posters':'')}>{r.hits.map(h=>{const k=h.plugin.id+':'+h.novel.path,inLib=library.some(x=>x.id===k);return <article className="resultcard" key={k}><Cover src={h.novel.cover||''} name={h.novel.name}/><div className="resultmeta"><h3>{h.novel.name}</h3><small>{h.plugin.name}</small><div className="resultactions">{inLib?<span className="inlib">{'✓ '+t('In your library')}</span>:<>{onPreview&&<button className="primary" disabled={!!busy} onClick={()=>act('r'+k,()=>onPreview(h))}>{busy==='r'+k?t('Opening…'):'📖 '+t('Read')}</button>}<button disabled={!!busy} onClick={()=>act('a'+k,()=>onAdd(h))}>{busy==='a'+k?t('Adding…'):'＋ '+t('Add')}</button></>}</div></div></article>})}</div></section>)}
  </>
 }
 export function NovelDiscover({plugins,ensurePlugins,library,onAdd,onOpen,onPreview}:{plugins:Plugin[],ensurePlugins:()=>Promise<Plugin[]>,library:any[],onAdd:(h:SearchHit)=>Promise<any>,onOpen:(item:any)=>void,onPreview?:(h:SearchHit)=>Promise<void>}){
+ const posters=useCardView()[0]==='posters'
  const[list,setList]=useState<Plugin[]>(plugins),[source,setSource]=useState(()=>lsGet('novelDiscoverSource')||''),[tab,setTab]=useState<'popular'|'latest'|'foryou'>(()=>{const v=lsGet('novelDiscoverTab');return v==='latest'||v==='foryou'?v:'popular'})
  const[rows,setRows]=useState<any[]>([]),[page,setPage]=useState(1),[more,setMore]=useState(false),[loading,setLoading]=useState(false),[err,setErr]=useState(''),[adding,setAdding]=useState('')
  const token=useRef(0),rowsRef=useRef<any[]>([])
@@ -211,15 +214,15 @@ export function NovelDiscover({plugins,ensurePlugins,library,onAdd,onOpen,onPrev
  const saved=(n:any)=>plugin&&library.find(x=>x.id===plugin.id+':'+n.path)
  const add=async(n:any)=>{if(!plugin)return;setAdding(n.path);setErr('');try{await onAdd({plugin,novel:n})}catch(e:any){setErr(t('Could not add novel:')+' '+String(e?.message||e))}finally{setAdding('')}}
  return <div className="media-search-page media-discover books-search-ui"><header><div><h1>{t('Discover')}</h1><p>{t('Browse what is popular or new on one of your book sources.')}</p></div></header>
-  {choices.length>0&&<div className="discover-bar"><div className="shelftabs" role="tablist" aria-label={t('Lists')}>{(['popular','latest','foryou'] as const).map(x=><button key={x} role="tab" aria-selected={tab===x} className={'shelftab'+(tab===x?' on':'')} onClick={()=>setTab(x)}>{x==='popular'?t('Popular'):x==='latest'?t('Latest'):t('For you')}</button>)}</div>{tab!=='foryou'&&<><label>{t('Source')}<select value={source} onChange={e=>setSource(e.target.value)}>{choices.map(p=><option key={p.id} value={p.id}>{p.name}{p.lang?' ('+p.lang+')':''}</option>)}</select></label>{genres.length>0&&<label>{t('Genre')}<select value={genre} onChange={e=>setGenre(e.target.value)}><option value="">{t('All genres')}</option>{genres.map(g=><option key={String(g.value)} value={String(g.value)}>{g.label}</option>)}</select></label>}</>}</div>}
+  {choices.length>0&&<div className="discover-bar"><div className="shelftabs" role="tablist" aria-label={t('Lists')}>{(['popular','latest','foryou'] as const).map(x=><button key={x} role="tab" aria-selected={tab===x} className={'shelftab'+(tab===x?' on':'')} onClick={()=>setTab(x)}>{x==='popular'?t('Popular'):x==='latest'?t('Latest'):t('For you')}</button>)}</div>{tab!=='foryou'&&<><label>{t('Source')}<select value={source} onChange={e=>setSource(e.target.value)}>{choices.map(p=><option key={p.id} value={p.id}>{p.name}{p.lang?' ('+p.lang+')':''}</option>)}</select></label>{genres.length>0&&<label>{t('Genre')}<select value={genre} onChange={e=>setGenre(e.target.value)}><option value="">{t('All genres')}</option>{genres.map(g=><option key={String(g.value)} value={String(g.value)}>{g.label}</option>)}</select></label>}</>}<ViewToggle/></div>}
   {tab==='foryou'&&<BookForYou plugins={choices} library={library} onAdd={onAdd} onPreview={onPreview}/>}
   {tab!=='foryou'&&<>
   {!list.length&&!err&&<div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading sources…')}</div></div>}
   {err&&<div className="anime-toast error"><NoticeText text={err}/></div>}
   {rows.length>0&&<h2 className="sr-only">{tab==='latest'?t('Latest'):t('Popular')}</h2>}
-  {rows.length>0&&<div className="resultgrid">{rows.map((n:any)=>{const item=saved(n);return <article className="resultcard" key={n.path}><Cover src={n.cover||''} name={n.name||'?'}/><div className="resultmeta"><h3>{n.name}</h3><small>{plugin?.name}</small><div className="resultactions">{item?<button className="inlib" onClick={()=>onOpen(item)}>{'✓ '+t('Open')}</button>:<>{onPreview&&plugin&&<button className="primary" disabled={!!adding} onClick={async()=>{setAdding('read:'+n.path);setErr('');try{await onPreview({plugin,novel:n})}catch(e:any){setErr(t('Could not open this title:')+' '+String(e?.message||e))}finally{setAdding('')}}}>{adding==='read:'+n.path?t('Opening…'):t('Read')}</button>}<button className={onPreview?'':'primary'} disabled={!!adding} onClick={()=>add(n)}>{adding===n.path?t('Adding…'):(onPreview?'＋ '+t('Add'):'＋ '+t('Add to library'))}</button></>}</div></div></article>})}</div>}
+  {rows.length>0&&<div className={'resultgrid'+(posters?' posters':'')}>{rows.map((n:any)=>{const item=saved(n);return <article className="resultcard" key={n.path}><Cover src={n.cover||''} name={n.name||'?'}/><div className="resultmeta"><h3>{n.name}</h3><small>{plugin?.name}</small><div className="resultactions">{item?<button className="inlib" onClick={()=>onOpen(item)}>{'✓ '+t('Open')}</button>:<>{onPreview&&plugin&&<button className="primary" disabled={!!adding} onClick={async()=>{setAdding('read:'+n.path);setErr('');try{await onPreview({plugin,novel:n})}catch(e:any){setErr(t('Could not open this title:')+' '+String(e?.message||e))}finally{setAdding('')}}}>{adding==='read:'+n.path?t('Opening…'):t('Read')}</button>}<button className={onPreview?'':'primary'} disabled={!!adding} onClick={()=>add(n)}>{adding===n.path?t('Adding…'):(onPreview?'＋ '+t('Add'):'＋ '+t('Add to library'))}</button></>}</div></div></article>})}</div>}
   {loading&&<div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading…')}</div></div>}
-  {loading&&rows.length===0&&<SkeletonCards/>}
+  {loading&&rows.length===0&&<SkeletonCards posters={posters}/>}
   {!loading&&!err&&plugin&&rows.length===0&&<EmptyState icon="compass" title={t('Nothing here')} text={t('This source returned an empty list. Try another source.')}/>}
   {!loading&&more&&rows.length>0&&<div className="discover-more"><button onClick={()=>load(page+1)}>{t('Load more')}</button></div>}
   </>}

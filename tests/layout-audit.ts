@@ -76,7 +76,7 @@ export async function crampedProblems(page: Page): Promise<string[]> {
     const controls = Array.from(document.querySelectorAll('button,[role=tab],[role=button],a[href],summary,select')).filter(shown)
     for (const el of controls) {
       const s = getComputedStyle(el), h = el as HTMLElement
-      if (el.tagName === 'SELECT') continue
+      if (el.tagName === 'SELECT' || !(el.textContent || '').trim()) continue // (a cover that grows a little under the pointer has no label to cut)
       if (h.scrollWidth > h.clientWidth + 2) {
         // Only the text of the button itself: a badge placed on its corner is meant to stick out.
         const range = document.createRange(); range.selectNodeContents(el); const tr = range.getBoundingClientRect(), br = el.getBoundingClientRect()

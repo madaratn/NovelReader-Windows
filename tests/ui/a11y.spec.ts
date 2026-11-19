@@ -21,7 +21,7 @@ async function prepare(page: Page, theme: string) {
   await setup(page, {
     library: [{ ...novel('n1', LONG, 30), genres: ['Fantasy'] } as any, novel('n2', 'Shadow Slave', 12)],
     reading: { n1: { index: 3 } },
-    storage: { ...historySeed(), appTheme: theme, animeLibrary: JSON.stringify([vid('anime', 1, 'Frieren')]), seriesLibrary: JSON.stringify([vid('series', 1, 'Lanterns')]), movieLibrary: JSON.stringify([vid('movie', 1, 'Dune')]) },
+    storage: { ...historySeed(), appTheme: theme, cardView: 'posters', animeLibrary: JSON.stringify([vid('anime', 1, 'Frieren')]), seriesLibrary: JSON.stringify([vid('series', 1, 'Lanterns')]), movieLibrary: JSON.stringify([vid('movie', 1, 'Dune')]) },
   })
   // A series that really plays, for the player's own bar, menu and full screen.
   const clip = fs.readFileSync(path.join(__dirname, 'fixtures', 'clip.webm'))
@@ -88,6 +88,12 @@ for (const [theme, phone] of [['dark', false], ['light', false], ['dark', true],
     await page.locator('.player-more .more-btn').click(); await page.locator('.player-more .more-pop').waitFor(); await axeProblems(page, 'player menu', found); await page.keyboard.press('Escape')
     await page.locator('.player-trackbar .player-full').click(); await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(true); await axeProblems(page, 'player, full screen', found)
     await page.locator('.player-trackbar .player-full').click(); await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(false)
+    // The other display of the libraries and Discover: the detailed list.
+    await page.evaluate(() => localStorage.setItem('cardView', 'list'))
+    for (const [mode, p] of [['books', 'library'], ['books', 'discover'], ['series', 'series'], ['series', 'seriesDiscover']]) {
+      await page.evaluate(([m, x]) => { localStorage.setItem('mode', m); localStorage.setItem('lastPage:' + m, x) }, [mode, p])
+      await page.reload(); await page.locator('main').waitFor(); await axeProblems(page, mode + ' › ' + p + ' (list)', found)
+    }
     const report = [...found.entries()].map(([id, e]) => `${id} [${e.impact}] ${e.help} — ${e.pages.size} page(s)\n    ` + e.examples.join('\n    '))
     console.log('AXE ' + theme + (phone ? ' phone' : '') + '\n' + report.join('\n'))
     expect(report, report.join('\n')).toEqual([])

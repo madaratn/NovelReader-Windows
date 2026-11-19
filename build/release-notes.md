@@ -1,3 +1,13 @@
+## NovelReader 0.38.0
+
+- **Affichage en couvertures** : les bibliothèques (livres, anime, séries, films) et Découvrir montrent maintenant vos titres comme un mur de couvertures, plusieurs par ligne sur PC et tablette, deux par ligne sur téléphone.
+  - La progression est une ligne sous la couverture, « +3 nouveaux » une pastille dessus.
+  - Le bouton sous chaque couverture reprend la lecture (« Ch. 42 ») ou ouvre les épisodes ; la couverture et le titre ouvrent la fiche, comme avant.
+- **Liste détaillée toujours disponible** : les deux boutons à côté du filtre (couvertures / liste) changent l'affichage. Le choix est gardé et vaut pour toute l'application.
+- Le menu « ⋯ » d'une carte reste entièrement dans l'écran, même sur une carte étroite au bord gauche.
+
+---
+
 ## NovelReader 0.37.0
 
 - **Plein écran complet (PC)** : le plein écran montre maintenant tout le lecteur, pas seulement l'image.

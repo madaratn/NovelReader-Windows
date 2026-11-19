@@ -15,12 +15,14 @@ const PAGES: [string, string][] = [
   ['movies', 'movies'], ['movies', 'movieDiscover'], ['movies', 'movieSearch'], ['movies', 'movieSources'], ['movies', 'localVideos'], ['movies', 'archive'],
 ]
 
-async function prepare(page: Page) {
+async function prepare(page: Page, view: 'posters' | 'list' = 'posters', lang: 'en' | 'fr' = 'en') {
   await setup(page, {
+    lang,
     library: [novel('n1', LONG, 120, { author: 'An Author With A Rather Long Pen Name' }), novel('n2', 'Shadow Slave', 40)],
     reading: { n1: { index: 3 } },
     storage: {
       ...historySeed(),
+      cardView: view,
       sourcesAdvanced: '1',
       animeLibrary: JSON.stringify([vid('anime', 1, LONG), vid('anime', 2, 'Frieren')]),
       seriesLibrary: JSON.stringify([vid('series', 1, 'Lanterns'), vid('series', 2, LONG)]),
@@ -84,6 +86,55 @@ for (const [size, viewport] of Object.entries(SIZES)) {
     await page.locator('.media-hero .primary').click()
     await page.waitForTimeout(800)
     await check('series page, playing')
+    expect(found, JSON.stringify(found, null, 1)).toEqual({})
+  })
+}
+
+// The detailed list (the other display of the libraries and Discover), at the two ends.
+for (const size of ['smallPhone', 'window'] as const) {
+  test(`layout at ${size} size, list display: the libraries and Discover`, async ({ page }) => {
+    test.setTimeout(120_000)
+    const viewport = SIZES[size]
+    await page.setViewportSize(viewport)
+    await prepare(page, 'list')
+    const found: Record<string, string[]> = {}, min = viewport.width <= 600 ? 44 : 24
+    await page.goto('/')
+    for (const [mode, name] of PAGES.filter(([, p]) => /^(library|discover|anime|animeDiscover|series|seriesDiscover|movies|movieDiscover)$/.test(p))) {
+      await page.evaluate(([m, p]) => { localStorage.setItem('mode', m); localStorage.setItem('lastPage:' + m, p) }, [mode, name])
+      await page.reload(); await page.locator('main').waitFor(); await page.waitForTimeout(250)
+      const p = [...await layoutProblems(page), ...(await smallTargets(page, min)).map(x => 'smaller than ' + min + ' px: ' + x), ...await crampedProblems(page), ...await nativeLook(page)]
+      if (p.length) { found[mode + ' › ' + name] = p; console.log('LAYOUT list ' + size + ' | ' + mode + ' › ' + name + ' | ' + p.join(' ; ')) }
+    }
+    expect(found, JSON.stringify(found, null, 1)).toEqual({})
+  })
+}
+
+// In French (longer words: "Vérifier les nouveaux chapitres", "Dans votre bibliothèque"…),
+// every page of the menus, in both displays, at the two ends.
+for (const size of ['smallPhone', 'window'] as const) for (const view of ['posters', 'list'] as const) {
+  test(`layout in French at ${size} size, ${view === 'posters' ? 'covers' : 'list'}: every page of the menus`, async ({ page }) => {
+    test.setTimeout(120_000)
+    const viewport = SIZES[size]
+    await page.setViewportSize(viewport)
+    await prepare(page, view, 'fr')
+    const found: Record<string, string[]> = {}, min = viewport.width <= 600 ? 44 : 24
+    await page.goto('/')
+    for (const [mode, name] of PAGES) {
+      await page.evaluate(([m, p]) => { localStorage.setItem('mode', m); localStorage.setItem('lastPage:' + m, p) }, [mode, name])
+      await page.reload(); await page.locator('main').waitFor(); await page.waitForTimeout(250)
+      const p = [...await layoutProblems(page), ...(await smallTargets(page, min)).map(x => 'smaller than ' + min + ' px: ' + x), ...await crampedProblems(page), ...await nativeLook(page)]
+      if (p.length) { found[mode + ' › ' + name] = p; console.log('LAYOUT fr ' + size + ' ' + view + ' | ' + mode + ' › ' + name + ' | ' + p.join(' ; ')) }
+    }
+    // A title's page and its player, with the French labels.
+    await page.evaluate(() => { localStorage.setItem('mode', 'series'); localStorage.setItem('lastPage:series', 'series') })
+    await page.reload()
+    await page.locator('.libcard', { hasText: 'Lanterns' }).locator('.libcard-cover').click()
+    await page.locator('.media-hero').waitFor(); await page.waitForTimeout(300)
+    for (const [where, go] of [['series page', async () => {}], ['series page, playing', async () => { await page.locator('.media-hero .primary').click(); await page.waitForTimeout(800) }]] as const) {
+      await go()
+      const p = [...await layoutProblems(page), ...(await smallTargets(page, min)).map(x => 'smaller than ' + min + ' px: ' + x), ...await crampedProblems(page), ...await nativeLook(page)]
+      if (p.length) { found[where] = p; console.log('LAYOUT fr ' + size + ' ' + view + ' | ' + where + ' | ' + p.join(' ; ')) }
+    }
     expect(found, JSON.stringify(found, null, 1)).toEqual({})
   })
 }

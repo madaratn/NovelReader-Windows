@@ -33,7 +33,7 @@ for (const theme of ['dark', 'light'] as const) {
     test.setTimeout(180_000)
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.route('https://img.test/**', r => { const n = Number(/(\d+)\.svg/.exec(r.request().url())?.[1] || 0); return r.fulfill({ contentType: 'image/svg+xml', body: COVER((n * 47) % 360) }) })
-    await setup(page, { library: LIB, reading: { mol: { index: 41, progress: 0.4 } }, storage: { appTheme: theme,
+    await setup(page, { library: LIB, reading: { mol: { index: 41, progress: 0.4 } }, storage: { appTheme: theme, cardView: process.env.VIEW || 'posters',
       seriesLibrary: JSON.stringify([item(1, 'Lanterns', { newEpisodes: 2 }), item(2, 'The Bear'), item(3, 'Dune Prophecy', { shelf: 'completed' }), item(4, 'Severance')]),
       'lastEpInfo:series1': JSON.stringify({ url: '/ep/3', name: 'S1 E3', n: 3, at: Date.now() - 60_000 }), 'mediapos:series:series1:/ep/3': JSON.stringify({ t: 300, d: 1200, at: Date.now() - 60_000 }) } })
     await engine(page)
