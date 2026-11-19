@@ -1,6 +1,6 @@
 ## NovelReader 0.38.0
 
-- **Affichage en couvertures** : les bibliothèques (livres, anime, séries, films) et Découvrir montrent maintenant vos titres comme un mur de couvertures, plusieurs par ligne sur PC et tablette, deux par ligne sur téléphone.
+- **Affichage en couvertures** : les bibliothèques (livres, anime, séries, films) et Découvrir montrent maintenant tes titres comme un mur de couvertures, plusieurs par ligne sur PC et tablette, deux par ligne sur téléphone.
   - La progression est une ligne sous la couverture, « +3 nouveaux » une pastille dessus.
   - Le bouton sous chaque couverture reprend la lecture (« Ch. 42 ») ou ouvre les épisodes ; la couverture et le titre ouvrent la fiche, comme avant.
 - **Liste détaillée toujours disponible** : les deux boutons à côté du filtre (couvertures / liste) changent l'affichage. Le choix est gardé et vaut pour toute l'application.
@@ -19,7 +19,7 @@
   - Touche F, double-clic sur l'image ou bouton « Plein écran » au-dessus de la vidéo.
 - **Moteur vidéo qui se relance tout seul** : si le moteur n'a pas fini de démarrer ou s'est arrêté (mémoire, antivirus, sortie de veille), la demande l'attend et le relance au lieu d'échouer avec « fetch failed ».
 - **Flux impossible à décoder** : deux réparations sont tentées, puis le lecteur passe à un autre flux à la même position, au lieu de rester bloqué sur une image figée.
-- **Lecture des livres** : le chapitre suivant est chargé pendant que vous lisez, donc « Chapitre suivant » s'ouvre tout de suite.
+- **Lecture des livres** : le chapitre suivant est chargé pendant que tu lis, donc « Chapitre suivant » s'ouvre tout de suite.
 - **Finition de l'interface** :
   - Plus aucun bouton, liste ou case avec l'aspect gris du navigateur : tout est dessiné par l'application, en thème sombre et clair (cases à cocher, menu « ⋯ », listes, barres de défilement sombres).
   - Même police partout (Inter, fournie avec l'application), sur PC et sur téléphone.
