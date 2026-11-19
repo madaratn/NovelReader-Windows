@@ -95,7 +95,7 @@ export function MobileNav({mode,page,onMode,onPage,onSearch,onHome,extra}:{mode:
    {main.map(it=><button key={it.page} className={'m-tab'+(current===it.page?' active':'')} aria-current={current===it.page?'page':undefined} aria-label={t(it.label)} onClick={()=>go(it.page)}><Icon name={it.icon}/><span>{t(SHORT[it.label]||it.label)}</span></button>)}
    <button className={'m-tab'+(more||page==='settings'||rest.some(i=>i.page===current)?' active':'')} aria-expanded={more} aria-label={t('More')} onClick={()=>setMore(m=>!m)}><Icon name="more"/><span>{t('More')}</span></button>
   </nav>
-  {more&&<div className="m-sheet-backdrop" onClick={()=>setMore(false)}><div className="m-sheet" role="dialog" aria-label={t('More')} onClick={e=>e.stopPropagation()}>
+  {more&&<div className="m-sheet-backdrop" onClick={()=>setMore(false)}><div className="m-sheet" role="dialog" aria-modal="true" aria-label={t('More')} onClick={e=>e.stopPropagation()} onKeyDown={e=>{if(e.key==='Escape'){e.stopPropagation();setMore(false)}}}>
    {rest.map(it=><button key={it.page} className={'m-sheet-item'+(current===it.page?' active':'')} aria-current={current===it.page?'page':undefined} onClick={()=>go(it.page)}><Icon name={it.icon}/><span>{t(it.label)}</span></button>)}
    <button className={'m-sheet-item'+(page==='settings'?' active':'')} aria-current={page==='settings'?'page':undefined} onClick={()=>go('settings')}><Icon name="gear"/><span>{t('Settings')}</span></button>
    {extra&&<div className="m-sheet-extra">{extra}</div>}

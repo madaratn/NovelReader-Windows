@@ -52,6 +52,7 @@
    the tokens). */
 :root{color-scheme:dark}
 *{scrollbar-width:thin;scrollbar-color:var(--bg-strong) transparent}
+html{scrollbar-width:auto} /* the page's own bar keeps its full width (easier to grab) */
 :where(button){border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--bg-raised);color:var(--text);cursor:pointer}
 :where(button:hover:not(:disabled)){border-color:var(--line-accent-dim)}
 :where(select){min-height:var(--h-sm);padding:0 8px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background-color:var(--bg-raised);color:var(--text);cursor:pointer}
@@ -550,7 +551,7 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .series-title-row p{margin:0;color:var(--text-3);font-size:var(--fs-sm);white-space:nowrap}
 .media-episodes .episodebadge{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:var(--fs-2xs);line-height:1;color:var(--text-accent-strong)}
 .media-episodes .episodebadge b{font-size:var(--fs-lg);color:var(--text-accent)}
-.media-episodes .episodecard.active .episodebadge,.media-episodes .episodecard.active .episodebadge b{color:var(--text-strong)}
+.media-episodes .episodecard.active .episodebadge,.media-episodes .episodecard.active .episodebadge b{color:var(--on-accent)}
 @media(max-width:700px){.series-title-row{align-items:flex-start;flex-direction:column;gap:8px}.series-title-row p{white-space:normal}}
 
 /* ---- Bookmarks, highlights and notes ------------------------------------------------- */
@@ -650,7 +651,8 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .episodecell{position:relative}
 .episodecell .episodecard{width:100%;position:relative;overflow:hidden}
 .episodecard.watched .episodetitle{color:var(--text-3)}
-.episodecard.watched .episodebadge{opacity:.6}
+/* A watched episode is quieter: a real grey, not a transparency (the text stays readable). */
+.episodecard.watched:not(.active) .episodebadge,.media-episodes .episodecard.watched:not(.active) .episodebadge,.media-episodes .episodecard.watched:not(.active) .episodebadge b{color:var(--text-3)}
 .episodeprog{position:absolute;left:0;bottom:0;height:3px;background:var(--bg-accent)}
 .ep-watch{position:absolute;top:-6px;right:-6px;width:22px;height:22px;padding:0;border:1px solid var(--line-strong);border-radius:50%;background:var(--bg-raised);color:var(--text-strong);font-size:var(--fs-xs);line-height:20px;cursor:pointer;opacity:0;transition:opacity .15s}
 .episodecell:hover .ep-watch,.ep-watch:focus-visible,.ep-watch.on{opacity:1}
@@ -1457,6 +1459,8 @@ html.mini-mode .mini-on .player-stage video{width:100vw!important;height:100vh!i
 .engine-row button.help-more,.settings-block button.help-more,.panel button.help-more{all:unset;cursor:pointer;color:var(--text-accent);font-weight:600;font-size:inherit;white-space:nowrap}
 .engine-row button.help-more:hover,.settings-block button.help-more:hover,.panel button.help-more:hover{text-decoration:underline}
 .engine-row button.help-more:focus-visible,.settings-block button.help-more:focus-visible,.panel button.help-more:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
+/* "Mark as watched" on an episode: a faint tick says what the round button is for. */
+.ep-watch:not(.on)::before{content:'✓';color:var(--text-3)}
 /* Lists that scroll inside the page (chapters, episodes): their rows end where the bar
    above them ends, with or without a scroll bar (it sits in the margin). */
 @media (min-width:701px){.chapterlist{margin-right:-16px;padding-right:6px;scrollbar-gutter:stable}}

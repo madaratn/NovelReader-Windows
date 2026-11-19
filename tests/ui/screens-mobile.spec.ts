@@ -16,7 +16,7 @@ for (const [name, w, h] of SIZES) {
     await setup(page, { library: LIB, reading: { mol: { index: 249 } } }); await page.goto('/'); await page.waitForTimeout(600)
     const shot = async (p: string) => { await page.waitForTimeout(400); await page.screenshot({ path: `${DIR}/${name}-${p}.png`, fullPage: false }) }
     const go = async (label: string) => {
-      if (await page.locator('.m-bottom').count()) {
+      if (await page.locator('.m-bottom').isVisible().catch(() => false)) {
         const tab = page.locator('.m-bottom').getByRole('button', { name: label, exact: true })
         if (await tab.count()) return tab.click()
         await page.locator('.m-bottom').getByRole('button', { name: 'More' }).click()
@@ -26,7 +26,8 @@ for (const [name, w, h] of SIZES) {
     }
     await shot('1-library')
     await go('Discover'); await page.waitForTimeout(800); await shot('2-discover')
-    await go('Global Search'); await page.fill('main input', 'shadow'); await page.keyboard.press('Enter'); await page.waitForTimeout(1500); await shot('3-search')
+    if (await page.locator('.m-bottom').isVisible().catch(() => false)) await go('Global Search'); else { await page.locator('.qs-open').click(); await page.locator('.qs-all').click() }
+    await page.fill('main input', 'shadow'); await page.keyboard.press('Enter'); await page.waitForTimeout(1500); await shot('3-search')
     await go('Sources'); await shot('4-sources')
     await go('Settings'); await shot('5-settings')
     await go('Library'); await page.locator('.libtitle').first().click(); await page.waitForTimeout(500); await shot('6-novel')

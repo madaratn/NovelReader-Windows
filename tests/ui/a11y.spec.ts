@@ -3,6 +3,8 @@
 // headings, landmarks, ARIA… Pages are opened the way a person does.
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
+import fs from 'node:fs'
+import path from 'node:path'
 import { setup, novel } from './helpers'
 import { openSettings, openHistory, openYear, historySeed, tourOverlays } from '../layout-audit'
 
@@ -21,6 +23,20 @@ async function prepare(page: Page, theme: string) {
     reading: { n1: { index: 3 } },
     storage: { ...historySeed(), appTheme: theme, animeLibrary: JSON.stringify([vid('anime', 1, 'Frieren')]), seriesLibrary: JSON.stringify([vid('series', 1, 'Lanterns')]), movieLibrary: JSON.stringify([vid('movie', 1, 'Dune')]) },
   })
+  // A series that really plays, for the player's own bar, menu and full screen.
+  const clip = fs.readFileSync(path.join(__dirname, 'fixtures', 'clip.webm'))
+  await page.route('http://127.0.0.1:4567/api/v1/proxy**', r => r.fulfill({ status: 200, body: clip, headers: { 'Content-Type': 'video/webm', 'Access-Control-Allow-Origin': '*' } }))
+  await page.addInitScript(() => {
+    const w = window as any, base = w.novelReader
+    w.novelReader = { ...base, miwayomiStatus: async () => ({ online: true, baseUrl: 'http://127.0.0.1:4567' }),
+      miwayomiFetch: async (p: string) => {
+        if (p.includes('/details')) return { title: 'Lanterns', description: 'A mystery.', genre: ['Drama'], status: 2 }
+        if (p.includes('/episodes')) return [1, 2, 3].map(n => ({ name: 'S1 E' + n + ' - Episode ' + n, url: '/ep/' + n, episode_number: n }))
+        if (p.includes('/videos')) return [{ videoUrl: 'https://cdn.test/a.webm', videoTitle: 'Zeus - 1080p', headers: {}, timestamps: [{ start: 0, end: 30, name: 'Intro', type: 'Opening' }] }, { videoUrl: 'https://cdn.test/b.webm', videoTitle: 'Hermes - 720p', headers: {} }]
+        if (p.includes('/sources')) return { anime: [{ id: '42', name: 'Mapple', lang: 'en' }] }
+        return []
+      } }
+  })
 }
 
 export async function axeProblems(page: Page, where: string, out: Map<string, { impact: string, help: string, pages: Set<string>, examples: string[] }>) {
@@ -28,7 +44,12 @@ export async function axeProblems(page: Page, where: string, out: Map<string, { 
   // "Visible text is part of the name": axe skips text it takes for an icon font, a guess
   // made by drawing it — which depends on the fonts of the machine. Every text counts here,
   // so the result is the same on every machine.
-  const r = await new AxeBuilder({ page }).options({ checks: { 'label-content-name-mismatch': { options: { pixelThreshold: 2, occurrenceThreshold: 1e9 } } } } as any).withTags(TAGS).analyze()
+  // With a window open over the page, the window is what is checked: the page behind its
+  // veil was checked without it (and its colours, dimmed by the veil, are not what is read).
+  const modal = await page.locator('[aria-modal="true"]').count()
+  let axe = new AxeBuilder({ page }).options({ checks: { 'label-content-name-mismatch': { options: { pixelThreshold: 2, occurrenceThreshold: 1e9 } } } } as any).withTags(TAGS)
+  if (modal) axe = axe.include('[aria-modal="true"]')
+  const r = await axe.analyze()
   for (const v of r.violations) {
     const e = out.get(v.id) || { impact: String(v.impact), help: v.help, pages: new Set<string>(), examples: [] }
     e.pages.add(where)
@@ -62,6 +83,11 @@ for (const [theme, phone] of [['dark', false], ['light', false], ['dark', true],
     await page.getByRole('button', { name: /Continue · Ch\.|Start reading/ }).first().click(); await page.locator('.readerpage').waitFor(); await axeProblems(page, 'reader', found)
     await page.evaluate(() => { localStorage.setItem('mode', 'series'); localStorage.setItem('lastPage:series', 'series') }); await page.reload()
     await page.locator('.libcard', { hasText: 'Lanterns' }).locator('.libcard-cover').click(); await page.locator('.media-hero').waitFor(); await axeProblems(page, 'series page', found)
+    // The player: its bar, its "⋯" menu, then the whole of it in full screen.
+    await page.locator('.media-hero .primary').click(); await page.locator('.remote-player video').waitFor(); await axeProblems(page, 'player', found)
+    await page.locator('.player-more .more-btn').click(); await page.locator('.player-more .more-pop').waitFor(); await axeProblems(page, 'player menu', found); await page.keyboard.press('Escape')
+    await page.locator('.player-trackbar .player-full').click(); await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(true); await axeProblems(page, 'player, full screen', found)
+    await page.locator('.player-trackbar .player-full').click(); await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(false)
     const report = [...found.entries()].map(([id, e]) => `${id} [${e.impact}] ${e.help} — ${e.pages.size} page(s)\n    ` + e.examples.join('\n    '))
     console.log('AXE ' + theme + (phone ? ' phone' : '') + '\n' + report.join('\n'))
     expect(report, report.join('\n')).toEqual([])

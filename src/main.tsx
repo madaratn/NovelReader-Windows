@@ -1,6 +1,7 @@
 import{LangBar,useLangChoice}from'./ui/lang-bar'
 import{logHistory}from'./lib/history'
 import{readAhead,takeAhead}from'./lib/read-ahead'
+import{installModalFocus}from'./lib/modal-focus'
 import{handleBack}from'./platform/tv'
 import{HomePanel,HistoryPage,continueItems,homeAtStart,usePcInbox,type HomeItem,type Incoming}from'./features/home'
 import{WhatsNew}from'./features/whats-new'
@@ -500,5 +501,6 @@ const DEVICE=(window as any).Capacitor?.isNativePlatform?.()?(window as any).Cap
  // Build-time self-test (CI, iPhone simulator): only YouTube's player, to see on a
  // screenshot that an embedded video is accepted from inside the app.
  if(import.meta.env.VITE_SELFTEST==='yt'){const{AnimeVideo}=await import('./features/media-player');createRoot(document.getElementById('root')!).render(<div style={{padding:'60px 0'}}><p id="selftest">selftest origin: {location.origin}</p><AnimeVideo video={{youtube:'jNQXAC9IVRw',streamUrl:'youtube:jNQXAC9IVRw',videoTitle:'YouTube'}} mediaKey="selftest"/></div>);return}
+ installModalFocus()
  createRoot(document.getElementById('root')!).render(<ErrorBoundary full><App/></ErrorBoundary>)
 })()
