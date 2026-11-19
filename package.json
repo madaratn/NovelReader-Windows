@@ -37,7 +37,7 @@
     "webtorrent": "~2.8.5"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.11.0",
+    "@axe-core/playwright": "4.14.0",
     "@capacitor/android": "^6.2.3",
     "@capacitor/cli": "^6.2.3",
     "@capacitor/core": "^6.2.3",
@@ -45,7 +45,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
-    "axe-core": "^4.11.0",
+    "axe-core": "4.14.1",
     "concurrently": "^9.1.2",
     "electron": "^34.0.0",
     "electron-builder": "^26.0.12",

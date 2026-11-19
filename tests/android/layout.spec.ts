@@ -1,7 +1,7 @@
 // The Android app (phone and tablet): every main page fits the screen (tests/layout-audit.ts).
 import { test, expect } from '@playwright/test'
 import fs from 'fs'
-import { layoutProblems, openSettings, openHistory, openYear, historySeed } from '../layout-audit'
+import { layoutProblems, smallTargets, crampedProblems, openSettings, openHistory, openYear, historySeed } from '../layout-audit'
 const NOTES = (/^##\s*NovelReader\s+([\d.]+)/m.exec(fs.readFileSync('build/release-notes.md', 'utf8')) || [])[1] || ''
 
 const LONG = 'The Extraordinarily Long Title Of A Story That Never Seems To End Volume Twelve'
@@ -32,16 +32,19 @@ for (const viewport of [{ width: 360, height: 740 }, { width: 412, height: 915 }
       void long
     }, [LONG, JSON.stringify([vid('anime', 1, LONG)]), JSON.stringify([vid('series', 1, LONG)]), JSON.stringify([vid('movie', 1, LONG)]), NOTES, historySeed()] as any)
     const found: Record<string, string[]> = {}
+    // Wider than the screen, too small for a finger (44 px on the phone layout), a label cut, buttons over one another.
+    const min = viewport.width <= 600 ? 44 : 24
+    const problems = async () => [...await layoutProblems(page), ...(await smallTargets(page, min)).map(x => 'smaller than ' + min + ' px: ' + x), ...await crampedProblems(page)]
     await page.goto('/')
     for (const [mode, name] of PAGES) {
       await page.evaluate(([m, p]) => { localStorage.setItem('mode', m); localStorage.setItem('lastPage:' + m, p) }, [mode, name])
       await page.reload()
       await page.locator('main').waitFor()
       await page.waitForTimeout(250)
-      const p = await layoutProblems(page)
+      const p = await problems()
       if (p.length) { found[mode + ' › ' + name] = p; console.log('LAYOUT ' + viewport.width + ' | ' + mode + ' › ' + name + ' | ' + p.join(' ; ')) }
     }
-    const extra = async (name: string, go: () => Promise<any>) => { await page.evaluate(() => { localStorage.setItem('mode', 'books'); localStorage.setItem('lastPage:books', 'library') }); await page.reload(); await go(); await page.waitForTimeout(300); const p = await layoutProblems(page); if (p.length) { found[name] = p; console.log('LAYOUT ' + viewport.width + ' | ' + name + ' | ' + p.join(' ; ')) } }
+    const extra = async (name: string, go: () => Promise<any>) => { await page.evaluate(() => { localStorage.setItem('mode', 'books'); localStorage.setItem('lastPage:books', 'library') }); await page.reload(); await go(); await page.waitForTimeout(300); const p = await problems(); if (p.length) { found[name] = p; console.log('LAYOUT ' + viewport.width + ' | ' + name + ' | ' + p.join(' ; ')) } }
     await extra('settings', () => openSettings(page))
     await extra('history', () => openHistory(page))
     await extra('your year', () => openYear(page))

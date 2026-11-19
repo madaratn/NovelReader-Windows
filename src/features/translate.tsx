@@ -31,7 +31,7 @@ export function TranslateControl({active,busy,onTranslate,onOriginal,novelId}:{a
  useEffect(()=>{setAuto(!!autoTranslateFor(novelId))},[novelId])
  if(!window.novelReader.translate)return null
  return <span className="translate-ctl">
-  <button className={'themebtn translate-toggle'+(active?' on':'')} aria-pressed={active} disabled={busy} title={active?t('Show the original'):t('Translate this chapter')} aria-label={active?t('Show the original'):t('Translate this chapter')} onClick={()=>active?onOriginal():onTranslate(lang)}>{busy?'…':'文A'}</button>
+  <button className={'themebtn translate-toggle'+(active?' on':'')} aria-pressed={active} disabled={busy} title={active?t('Show the original'):t('Translate this chapter')} aria-label={active?t('Show the original'):t('Translate this chapter')} onClick={()=>active?onOriginal():onTranslate(lang)}>{busy?'…':<span className="glyph" data-glyph="文A" aria-hidden="true"/>}</button>
   <button className="themebtn translate-more" aria-expanded={open} aria-label={t('Translation settings')} title={t('Translation settings')} onClick={()=>setOpen(o=>!o)}>▾</button>
   {open&&<div className="translate-menu" role="dialog" aria-label={t('Translation settings')}>
    <label>{t('Translate into')}<select value={lang} onChange={e=>{setLang(e.target.value);lsSet('translateTo',e.target.value);if(auto)setAutoTranslate(novelId,e.target.value);if(active)onTranslate(e.target.value)}}>{TRANSLATE_LANGS.map(([c,n])=><option key={c} value={c}>{n}</option>)}</select></label>

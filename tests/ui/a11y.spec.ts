@@ -4,7 +4,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { setup, novel } from './helpers'
-import { openSettings, openHistory, openYear, historySeed } from '../layout-audit'
+import { openSettings, openHistory, openYear, historySeed, tourOverlays } from '../layout-audit'
 
 const LONG = 'The Extraordinarily Long Title Of A Story'
 const vid = (kind: string, i: number, name: string) => ({ id: kind + i, name, sourceId: '42', sourceName: 'Mapple', url: '/' + kind + '/' + i, episodes: 8, genres: ['Drama'], addedAt: Date.now() - i * 1000 })
@@ -13,7 +13,7 @@ const PAGES: [string, string][] = [
   ['anime', 'anime'], ['anime', 'animeDiscover'], ['anime', 'animeSearch'], ['anime', 'animeSources'], ['anime', 'calendar'], ['anime', 'downloads'],
   ['series', 'series'], ['movies', 'movies'], ['movies', 'localVideos'],
 ]
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag2aaa', 'wcag21a', 'wcag21aa', 'wcag21aaa', 'wcag22aa']
+const TAGS = ['wcag2a', 'wcag2aa', 'wcag2aaa', 'wcag21a', 'wcag21aa', 'wcag21aaa', 'wcag22aa', 'best-practice']
 
 async function prepare(page: Page, theme: string) {
   await setup(page, {
@@ -25,7 +25,10 @@ async function prepare(page: Page, theme: string) {
 
 export async function axeProblems(page: Page, where: string, out: Map<string, { impact: string, help: string, pages: Set<string>, examples: string[] }>) {
   await page.waitForTimeout(300)
-  const r = await new AxeBuilder({ page }).withTags(TAGS).analyze()
+  // "Visible text is part of the name": axe skips text it takes for an icon font, a guess
+  // made by drawing it — which depends on the fonts of the machine. Every text counts here,
+  // so the result is the same on every machine.
+  const r = await new AxeBuilder({ page }).options({ checks: { 'label-content-name-mismatch': { options: { pixelThreshold: 2, occurrenceThreshold: 1e9 } } } } as any).withTags(TAGS).analyze()
   for (const v of r.violations) {
     const e = out.get(v.id) || { impact: String(v.impact), help: v.help, pages: new Set<string>(), examples: [] }
     e.pages.add(where)
@@ -51,6 +54,7 @@ for (const [theme, phone] of [['dark', false], ['light', false], ['dark', true],
       await axeProblems(page, mode + ' › ' + p, found)
     }
     await page.evaluate(() => { localStorage.setItem('mode', 'books'); localStorage.setItem('lastPage:books', 'library') }); await page.reload()
+    await page.locator('.libcard').first().waitFor(); await tourOverlays(page, where => axeProblems(page, where, found))
     await openSettings(page); await axeProblems(page, 'settings', found)
     await page.reload(); await openHistory(page); await axeProblems(page, 'history', found)
     await page.reload(); await openYear(page); await axeProblems(page, 'your year', found)
@@ -60,6 +64,24 @@ for (const [theme, phone] of [['dark', false], ['light', false], ['dark', true],
     await page.locator('.libcard', { hasText: 'Lanterns' }).locator('.libcard-cover').click(); await page.locator('.media-hero').waitFor(); await axeProblems(page, 'series page', found)
     const report = [...found.entries()].map(([id, e]) => `${id} [${e.impact}] ${e.help} — ${e.pages.size} page(s)\n    ` + e.examples.join('\n    '))
     console.log('AXE ' + theme + (phone ? ' phone' : '') + '\n' + report.join('\n'))
+    expect(report, report.join('\n')).toEqual([])
+  })
+}
+
+// The first-launch guide and the "What's new" window: shown once each, checked too.
+for (const [theme, phone] of [['dark', false], ['light', true]] as const) for (const what of ['welcome guide', "what's new"] as const) {
+  test(`accessibility (WCAG AAA), ${theme} theme${phone ? ', phone size' : ''}: ${what}`, async ({ page }) => {
+    test.setTimeout(120_000)
+    if (phone) await page.setViewportSize({ width: 390, height: 844 })
+    const found = new Map<string, any>()
+    await setup(page, what === 'welcome guide' ? { onboarded: false, storage: { appTheme: theme } } : { storage: { appTheme: theme, whatsNewSeen: '0.1.0' } })
+    await page.goto('/')
+    if (what === 'welcome guide') {
+      await page.locator('.welcome').waitFor()
+      for (let step = 1; step <= 3; step++) { await axeProblems(page, 'welcome, step ' + step, found); if (step < 3) await page.locator('.welcome-actions .primary').click() }
+    } else { await page.locator('.whats-new').waitFor(); await axeProblems(page, "what's new", found) }
+    const report = [...found.entries()].map(([id, e]) => `${id} [${e.impact}] ${e.help} — ${e.pages.size} page(s)\n    ` + e.examples.join('\n    '))
+    console.log('AXE ' + what + ' ' + theme + (phone ? ' phone' : '') + '\n' + report.join('\n'))
     expect(report, report.join('\n')).toEqual([])
   })
 }

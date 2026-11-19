@@ -72,7 +72,7 @@ export const ICONS:Record<string,string>={
 }
 // inline: sized to the text around it (in a button label, a title).
 export function Icon({name,inline}:{name:string,inline?:boolean}){return <svg className={'icon'+(inline?' inline':'')} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={ICONS[name]||''}/></svg>}
-export function Cover({src,name}:{src?:string,name:string}){const[failed,setFailed]=useState(false);if(src&&!failed)return <img className="libcover" src={src} alt="" loading="lazy" onError={()=>setFailed(true)}/>;const h=hueOf(name);return <div className="libcover placeholder" aria-hidden="true" style={{background:`linear-gradient(150deg,hsl(${h} 45% 32%),hsl(${(h+40)%360} 50% 18%))`}}>{initials(name)}</div>}
+export function Cover({src,name}:{src?:string,name:string}){const[failed,setFailed]=useState(false);if(src&&!failed)return <img className="libcover" src={src} alt="" loading="lazy" onError={()=>setFailed(true)}/>;const h=hueOf(name);return <div className="libcover placeholder" aria-hidden="true" data-initials={initials(name)} style={{background:`linear-gradient(150deg,hsl(${h} 45% 32%),hsl(${(h+40)%360} 50% 18%))`}}/>}
 
 // ---- Error boundary: a crashing page shows a recovery screen, not a black window
 export class ErrorBoundary extends React.Component<{children:React.ReactNode,resetKey?:string,onHome?:()=>void,full?:boolean},{error:any}>{
@@ -96,7 +96,7 @@ export class ErrorBoundary extends React.Component<{children:React.ReactNode,res
 export function MoreMenu({label,children,className='',up=false}:{label?:string,children:React.ReactNode,className?:string,up?:boolean}){
  const[open,setOpen]=React.useState(false),ref=React.useRef<HTMLDivElement>(null)
  React.useEffect(()=>{if(!open)return;const out=(e:MouseEvent)=>{if(ref.current&&!ref.current.contains(e.target as Node))setOpen(false)};const esc=(e:KeyboardEvent)=>{if(e.key==='Escape'){e.stopPropagation();setOpen(false)}};document.addEventListener('mousedown',out);document.addEventListener('keydown',esc,true);return()=>{document.removeEventListener('mousedown',out);document.removeEventListener('keydown',esc,true)}},[open])
- return <div ref={ref} className={'more-menu'+(open?' open':'')+(up?' up':'')+(className?' '+className:'')}><button type="button" className="more-btn" aria-haspopup="menu" aria-expanded={open} aria-label={label||t('More actions')} title={label||t('More actions')} onClick={()=>setOpen(o=>!o)}><Icon name="more"/></button>{open&&<div className="more-pop" role="menu" onClick={e=>{if((e.target as HTMLElement).closest('button'))setOpen(false)}}>{children}</div>}</div>
+ return <div ref={ref} className={'more-menu'+(open?' open':'')+(up?' up':'')+(className?' '+className:'')}><button type="button" className="more-btn" aria-expanded={open} aria-label={label||t('More actions')} title={label||t('More actions')} onClick={()=>setOpen(o=>!o)}><Icon name="more"/></button>{open&&<div className="more-pop" role="group" aria-label={label||t('More actions')} onClick={e=>{if((e.target as HTMLElement).closest('button'))setOpen(false)}}>{children}</div>}</div>
 }
 
 // Help text: one plain sentence; when the text is long, the rest opens on demand
