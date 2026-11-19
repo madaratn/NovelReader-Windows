@@ -1430,7 +1430,10 @@ input[type=checkbox],input[type=radio]{width:20px;height:20px;flex:none;margin:2
 .app.phone .stats-bars{gap:0}
 .app.phone .stats-chart{margin-inline:-3px}
 .ep-watch{width:24px;height:24px;line-height:22px}
+.notice-details summary{min-height:24px;padding:4px 0}
+.pf-color{width:24px;height:24px}
+html.android .pf-color{width:32px;height:32px;min-height:32px}
 .app.phone .rs-seg{flex-wrap:wrap}.app.phone .settings-block,.app.phone .settings-block>*{min-width:0;max-width:100%}
-.app.phone .pf-colors{display:flex;flex-wrap:wrap;width:100%}.app.phone .pf-color{width:44px;height:44px}
+.app.phone .pf-colors{display:flex;flex-wrap:wrap;width:100%}.app.phone .pf-colors .pf-color{width:44px;height:44px;min-height:44px}
 .app.phone label:has(>input[type=checkbox]),.app.phone label:has(>input[type=radio]){min-height:44px;display:flex;align-items:center;gap:8px}
 .app.phone input[type=checkbox],.app.phone input[type=radio]{width:24px;height:24px}
