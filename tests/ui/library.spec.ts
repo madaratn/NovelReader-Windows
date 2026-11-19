@@ -144,7 +144,7 @@ test('Continue panel: one line per title (its last episode); the whole history o
   const hist = page.locator('.history-page')
   await expect(hist.locator('h1')).toHaveText('History')
   await expect(hist.locator('.home-history li')).toHaveCount(7)
-  await expect(hist.locator('.home-history h4')).toHaveText(['Today', 'Yesterday'])
+  await expect(hist.locator('.home-history h2')).toHaveText(['Today', 'Yesterday'])
   await hist.getByRole('tab', { name: 'Books' }).click()
   await expect(hist.locator('.home-history li')).toHaveCount(2)
   await hist.getByRole('button', { name: '← Back' }).click()

@@ -1,3 +1,13 @@
+## NovelReader 0.36.0
+
+- **Accessibilité au niveau le plus exigeant (WCAG AAA)**, vérifiée automatiquement sur chaque page, en thème sombre et clair, sur PC et téléphone :
+  - **Contrastes 7:1** : les textes discrets (dates, sous-titres de cartes, aides), les liens violets, le texte des boutons violets et les textes secondaires du lecteur (4 thèmes) sont plus lisibles. Le thème clair est recalculé avec la même règle.
+  - **Boutons assez grands** : au moins 44 px sur téléphone (pour le doigt) et 24 px sur PC, cases à cocher comprises.
+  - Plus de texte rendu pâle par transparence : il garde une vraie couleur lisible.
+  - **Lecteurs d'écran** : le nom de chaque bouton contient le texte affiché, les listes de Découvrir et l'historique ont de vrais titres, les menus « ⋯ », la recherche partout, le panneau Continuer, le guide de bienvenue et « Nouveautés » sont vérifiés eux aussi.
+
+---
+
 ## NovelReader 0.35.2
 
 - **Protection Cloudflare (FlareSolverr)** : « Lancer » ne laissait que 2,5 secondes à FlareSolverr pour démarrer, alors qu'il ouvre d'abord un navigateur, ce qui prend souvent 10 à 30 secondes.

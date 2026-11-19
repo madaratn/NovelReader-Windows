@@ -118,7 +118,7 @@ export function LocalVideos(){
     onPause={e=>{save(e.currentTarget);tick(x=>x+1)}}
     onEnded={e=>{save(e.currentTarget,true);tick(x=>x+1);step(1)}}
     onError={e=>{const c=e.currentTarget.error?.code;setPlayError(c===4?t('This file uses a format or codec the built-in player cannot decode (common with HEVC/H.265 video or AC3/DTS audio in MKV files). An MP4 with H.264 video and AAC audio will play.'):t('The file could not be read. It may have been moved, renamed or deleted — try Rescan.'))}}>{tracks.track}</video>
-   {playError&&<div className="anime-toast error"><NoticeText text={playError}/><button onClick={()=>setPlayError('')}>×</button></div>}
+   {playError&&<div className="anime-toast error"><NoticeText text={playError}/><button aria-label={t('Dismiss')} onClick={()=>setPlayError('')}>×</button></div>}
    <TrackControls tr={tracks}/>
    <div className="player-row"><div className="libraryactions"><button disabled={!neighbour(-1)} onClick={()=>step(-1)} title={t('Previous')+' (P)'}>← {t('Previous')}</button><button disabled={!next} onClick={()=>step(1)} title={t('Next')+' (N)'}>{t('Next')} →</button><button onClick={()=>{if(ref.current)ref.current.pause();setCurrent(null)}}>{t('Close player')}</button></div>
     <small className="player-hint">{next?<>{t('Up next:')} <b>{next.relPath.split(/[\\/]/).pop()}</b> · </>:null}{playerKeys()} · {t('N/P next/previous')}{tracks.subs.some(x=>x.supported)?' · '+t('C subtitles'):''}{tracks.audio.length>1?' · '+t('A audio'):''}</small></div>
@@ -171,12 +171,12 @@ export function ArchivePage(){
   {(playing||starting)&&<section className="panel local-player"><h2>{playing?playing.title+' — '+playing.info.fileName:starting}</h2>
    {playing&&<video ref={archiveVideoRef} key={playing.info.streamUrl} src={playing.info.streamUrl} controls autoPlay onLoadedMetadata={e=>restoreVolume(e.currentTarget)} onVolumeChange={e=>rememberVolume(e.currentTarget)} onError={e=>{const c=e.currentTarget.error?.code;setPlayError(c===4?t('This file uses a format or codec the built-in player cannot decode. Try the MP4 version of the item.'):t('Playback failed while reading the torrent stream.'))}}/>}
    <p className={'torrent-status state-'+(status?.state||'starting')}>{label}{status&&status.progress!=null&&status.state!=='done'&&<span className="localbar"><span style={{width:Math.floor((status.progress||0)*100)+'%'}}/></span>}</p>
-   {playError&&<div className="anime-toast error"><NoticeText text={playError}/><button onClick={()=>setPlayError('')}>×</button></div>}
+   {playError&&<div className="anime-toast error"><NoticeText text={playError}/><button aria-label={t('Dismiss')} onClick={()=>setPlayError('')}>×</button></div>}
    <div className="player-row"><div className="libraryactions"><button onClick={close}>{t('Stop and close')}</button></div><small className="player-hint">{playerKeys()}</small></div>
   </section>}
-  {!playing&&!starting&&playError&&<div className="anime-toast error"><NoticeText text={playError}/><button onClick={()=>setPlayError('')}>×</button></div>}
+  {!playing&&!starting&&playError&&<div className="anime-toast error"><NoticeText text={playError}/><button aria-label={t('Dismiss')} onClick={()=>setPlayError('')}>×</button></div>}
   <div className="searchbar"><input placeholder={t('Search, e.g. Popeye, Superman, Night of the Living Dead…')} value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>e.key==='Enter'&&doSearch()}/><button className="primary" disabled={searching} onClick={doSearch}>{searching?t('Searching…'):t('Search')}</button></div>
-  {error&&<div className="anime-toast error"><NoticeText text={error}/><button onClick={()=>setError('')}>×</button></div>}
+  {error&&<div className="anime-toast error"><NoticeText text={error}/><button aria-label={t('Dismiss')} onClick={()=>setError('')}>×</button></div>}
   {item&&<section className="panel"><h2>{item.title}</h2>
    {!item.hasTorrent?<p>{t('This item has no torrent on archive.org.')}</p>:item.files.length===0?<p>{t('No video files in this item.')}</p>:<div className="scanlist">{item.files.map(f=><div className="scanrow" key={f.name}><span>{f.name}</span><small>{f.format}{f.size?' · '+fmtMB(f.size):''}</small><button className="primary" disabled={!!starting} onClick={()=>play(f)}>{starting===f.name?t('Starting…'):t('Play')}</button></div>)}</div>}
    <div className="libraryactions"><button onClick={()=>setItem(null)}>← {t('Back to results')}</button></div>

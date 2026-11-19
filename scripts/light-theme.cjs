@@ -44,6 +44,8 @@ function fromHsl({ h, s, l }, a = 1) {
 const lum = ({ r, g, b }) => (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
 const relLum = ({ r, g, b }) => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b) }
 const contrastOnWhite = c => 1.05 / (relLum(c) + 0.05)
+const contrastOn = (c, bg) => (relLum(bg) + 0.05) / (relLum(c) + 0.05)
+const SURFACE = { r: 0xe2, g: 0xe5, b: 0xee } // the darkest light surface under text
 
 function role(prop) {
   // Design tokens (top of style.css) are named after their role.
@@ -67,7 +69,7 @@ function mapColor(c, kind) {
   if (kind === 'bg') {
     if (col.r === 0 && col.g === 0 && col.b === 0 && col.a === 1) return c // video backgrounds stay black
     if (col.a < 1 && L < 0.1) return col.a > 0.8 ? 'rgba(255,255,255,0.92)' : toHex({ r: 20, g: 22, b: 35, a: 0.32 }) // overlays
-    if (L > 0.3) return c // accents (primary buttons), yellows, light surfaces
+    if (L > 0.3 || (s > 0.5 && L > 0.18)) return c // accents (primary buttons), yellows, light surfaces
     if (!neutral) return toHex(fromHsl({ h, s: Math.min(0.75, Math.max(0.35, s)), l: 0.94 })) // tinted surfaces: chips, toasts, badges
     const nl = L <= 0.05 ? 0.955 : L <= 0.085 ? 1 : L <= 0.105 ? 0.965 : L <= 0.14 ? 0.93 : 0.9
     return toHex(fromHsl({ h, s: Math.min(s, 0.25), l: nl }, col.a))
@@ -80,11 +82,11 @@ function mapColor(c, kind) {
   }
   if (kind === 'text') {
     if (L < 0.25) return c // already dark (text on yellow highlights, sepia)
-    if (neutral) return toHex(fromHsl({ h, s: Math.min(s, 0.2), l: Math.min(0.42, 0.06 + (1 - L) * 0.9) }, col.a))
-    if (h >= 235 && h <= 275) return col.a < 1 ? toHex({ r: 88, g: 71, b: 209, a: col.a }) : '#5847d1' // brand violet
-    let nl = 0.42, out = fromHsl({ h, s: Math.max(0.45, Math.min(0.7, s)), l: nl }, col.a)
-    while (contrastOnWhite(out) < 5 && nl > 0.15) { nl -= 0.02; out = fromHsl({ h, s: Math.max(0.45, Math.min(0.7, s)), l: nl }, col.a) }
-    return toHex(out)
+    // WCAG AAA: 7:1 against the darkest light surface text sits on (chips, kbd, active rows).
+    const darkEnough = (sat, l0) => { let nl = l0, out = fromHsl({ h, s: sat, l: nl }, col.a); while (contrastOn(out, SURFACE) < 7.1 && nl > 0.05) { nl -= 0.01; out = fromHsl({ h, s: sat, l: nl }, col.a) } return toHex(out) }
+    if (neutral) return darkEnough(Math.min(s, 0.2), Math.min(0.42, 0.06 + (1 - L) * 0.9))
+    if (h >= 235 && h <= 275) return col.a < 1 ? toHex({ r: 66, g: 50, b: 176, a: col.a }) : '#4232b0' // brand violet (7.5:1 on its tint)
+    return darkEnough(Math.max(0.45, Math.min(0.7, s)), 0.42)
   }
   return c
 }
@@ -97,7 +99,7 @@ function onAccentBackground(decls) {
   if (/var\(--accent/.test(m[1])) return true
   const c = (m[1].match(COLOR_RE) || [])[0]; COLOR_RE.lastIndex = 0
   const col = c && parseColor(c); if (!col) return false
-  const { s } = toHsl(col); return lum(col) > 0.3 && s > 0.3
+  const { s } = toHsl(col); return (lum(col) > 0.3 && s > 0.3) || (lum(col) > 0.18 && s > 0.5)
 }
 
 function transformDecls(decls) {
