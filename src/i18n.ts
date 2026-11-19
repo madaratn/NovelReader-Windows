@@ -67,7 +67,7 @@ const FR: Record<string, string> = {
   'Unknown author': 'Auteur inconnu', '{done} / {total} read': '{done} / {total} lus', 'last read {when}': 'lu {when}',
   'Show current chapter': 'Voir le chapitre en cours', 'Filter by title or chapter number…': 'Filtrer par titre ou numéro de chapitre…',
   'Order': 'Ordre', 'Oldest first': 'Plus anciens d’abord', 'Newest first': 'Plus récents d’abord', 'Hide read': 'Masquer les lus',
-  'No chapter matches.': 'Aucun chapitre ne correspond.', 'Read': 'Lu',
+  'No chapter matches.': 'Aucun chapitre ne correspond.', 'Read': 'Lire', 'Already read': 'Déjà lu',
   'Reading · Ch. {n}': 'En cours · Ch. {n}', 'Ch. {n}': 'Ch. {n}', 'Chapter {n}': 'Chapitre {n}', 'Loading…': 'Chargement…',
   // Reader
   'Chapters': 'Chapitres', 'Chapter position': 'Position dans le roman', 'Reading settings': 'Réglages de lecture',

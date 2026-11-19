@@ -5,6 +5,8 @@
   - Le bouton sous chaque couverture reprend la lecture (« Ch. 42 ») ou ouvre les épisodes ; la couverture et le titre ouvrent la fiche, comme avant.
 - **Liste détaillée toujours disponible** : les deux boutons à côté du filtre (couvertures / liste) changent l'affichage. Le choix est gardé et vaut pour toute l'application.
 - Le menu « ⋯ » d'une carte reste entièrement dans l'écran, même sur une carte étroite au bord gauche.
+- **Lecteur vidéo** : le cadre garde la forme d'un écran pendant le chargement, donc la page ne saute plus quand l'image arrive.
+- **Français** : le bouton « Lire » de Découvrir et de la recherche s'affichait « Lu » ; « Bibliothèque » tient en entier dans la barre du bas du téléphone.
 
 ---
 

@@ -973,6 +973,9 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
  .m-tab span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
  .m-tab .icon{width:22px;height:22px}
  .m-tab.active{color:var(--text-accent-strong)}
+ /* French: "Bibliothèque" in full under its icon, on the narrowest phones too. */
+ html[lang=fr] .m-tab{padding-left:0;padding-right:0}
+ html[lang=fr] .m-tab span{font-size:var(--fs-2xs);letter-spacing:-.02em}
  .m-tab.active .icon{background:rgba(139,124,255,.16);border-radius:999px;padding:2px 10px;width:44px;box-sizing:border-box}
  .m-sheet-backdrop{display:block;position:fixed;inset:0;z-index:130;background:rgba(5,6,9,.55)}
  .m-sheet{position:absolute;left:8px;right:8px;bottom:calc(74px + env(safe-area-inset-bottom));display:grid;gap:4px;padding:10px;max-height:70vh;overflow:auto;background:var(--side-bg);border:1px solid var(--side-border);border-radius:var(--radius-lg);box-shadow:0 20px 50px rgba(0,0,0,.45)}
@@ -1510,6 +1513,7 @@ html.mini-mode .mini-on .player-stage video{width:100vw!important;height:100vh!i
  .libgrid.posters,.resultgrid.posters,.media-page .libgrid.posters,.media-page.books-ui .libgrid.posters,html.android .libgrid.posters,html.android .resultgrid.posters{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 10px}
  .app.phone .libgrid.posters .libcard .libraryactions>.primary,.app.phone .resultgrid.posters .resultactions button{min-height:44px}
  .app.phone .libgrid.posters .libcard .more-btn{width:44px;height:44px}
+ .app.phone .libgrid.posters .libcard-meta{gap:0}
  /* The filter and the display choice on one row, the check and the sort on the next. */
  .lib-toolbar:has(>.view-toggle){grid-template-columns:minmax(0,1fr) auto auto}
  .lib-toolbar:has(>.view-toggle)>.searchbar{grid-column:1/span 2}

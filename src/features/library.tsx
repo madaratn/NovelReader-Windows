@@ -118,7 +118,7 @@ export function NovelDetail({novel,filter,setFilter,loading,onBack,onOpenChapter
     <label className="hideread"><input type="checkbox" checked={hideRead} onChange={e=>{setHideRead(e.target.checked);lsSet('chapterHideRead',e.target.checked?'1':'0')}}/> {t('Hide read')}</label></div>
    <small className="chaptercount">{rows.length===total?plural(total,'{n} chapter','{n} chapters'):t('{done} of {total} chapters',{done:rows.length,total})}</small>
    {rows.length===0?<p className="chapterempty">{t('No chapter matches.')}</p>:<div className="chapterlist" ref={listRef}>{rows.slice(0,rowsMore.limit).map(({c,i,label})=>{const state=i<current?'read':i===current?'current':'';return <button className={'chapterrow '+state} disabled={loading} onClick={()=>open(c,i)} key={(c.path||c.url||'chapter')+i} aria-current={state==='current'?'true':undefined}>
-    <span className="chaptername">{state==='read'&&<span className="chaptercheck" aria-label={t('Read')}>✓</span>}{label}</span>{offline.has(c.path||c.url)&&<span className="offline-mark" title={t('Available offline')} aria-label={t('Available offline')}>⤓</span>}
+    <span className="chaptername">{state==='read'&&<span className="chaptercheck" aria-label={t('Already read')}>✓</span>}{label}</span>{offline.has(c.path||c.url)&&<span className="offline-mark" title={t('Available offline')} aria-label={t('Available offline')}>⤓</span>}
     <small>{loading&&clicked===i?t('Loading…'):state==='current'?t('Reading · Ch. {n}',{n:i+1}):t('Ch. {n}',{n:i+1})}</small></button>})}{rowsMore.more}</div>}
   </section>
  </>
