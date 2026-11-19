@@ -101,7 +101,7 @@ test('reactions fly over everyone\'s video; in fullscreen the chat shows over th
   // The video's own fullscreen button is replaced by ours, which keeps the overlay
   expect(await video(b).evaluate((v: any) => v.controlsList.contains('nofullscreen'))).toBe(true)
   await b.locator('.po-bar').getByRole('button', { name: 'Fullscreen' }).click()
-  await expect.poll(() => b.evaluate(() => document.fullscreenElement?.className || '')).toContain('player-stage')
+  await expect.poll(() => b.evaluate(() => document.fullscreenElement?.className || '')).toContain('media-player-top')
   await a.locator('.wp-say input').fill('look at that')
   await a.locator('.wp-say input').press('Enter')
   await expect(b.locator('.po-line')).toContainText('Ali look at that')

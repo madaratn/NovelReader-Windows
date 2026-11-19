@@ -9,7 +9,7 @@ export type ReaderTheme='dark'|'sepia'|'light'|'black'
 export type ReaderPrefs={theme:ReaderTheme,size:number,leading:number,width:'narrow'|'medium'|'wide'|'full',font:'serif'|'sans'}
 export const READER_DEFAULTS:ReaderPrefs={theme:'dark',size:20,leading:1.85,width:'full',font:'serif'}
 export const READER_WIDTHS={narrow:'640px',medium:'760px',wide:'920px',full:'none'}
-export const READER_FONTS={serif:"Georgia,'Iowan Old Style','Palatino Linotype',serif",sans:"'Segoe UI',Inter,system-ui,sans-serif"}
+export const READER_FONTS={serif:"Georgia,'Iowan Old Style','Palatino Linotype',serif",sans:"'Inter Variable',Inter,'Segoe UI',system-ui,sans-serif"}
 export const READER_THEMES:{id:ReaderTheme,label:string}[]=[{id:'dark',label:'Dark'},{id:'sepia',label:'Sepia'},{id:'light',label:'Light'},{id:'black',label:'Black'}]
 export function loadReaderPrefs():ReaderPrefs{let saved:any={};try{saved=JSON.parse(localStorage.getItem('readerPrefs')||'{}')||{}}catch{}const legacy=lsGet('readerTheme');const appLight=document.documentElement.dataset.theme==='light';const p={...READER_DEFAULTS,...(legacy==='light'||(!legacy&&appLight)?{theme:'light'}:{}),...saved};return{theme:READER_THEMES.some(t=>t.id===p.theme)?p.theme:'dark',size:clamp(Number(p.size)||20,14,32),leading:clamp(Number(p.leading)||1.85,1.3,2.4),width:p.width in READER_WIDTHS?p.width:'full',font:p.font==='sans'?'sans':'serif'}}
 export function ReaderSettings({prefs,onChange,onClose}:{prefs:ReaderPrefs,onChange:(p:Partial<ReaderPrefs>)=>void,onClose:()=>void}){

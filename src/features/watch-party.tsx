@@ -10,6 +10,7 @@ import{t,plural}from'../i18n'
 import{lsGet,lsSet}from'../lib/util'
 import{engineFetch}from'../lib/engine'
 import{Icon}from'../ui/common'
+import{fullShell,shellOf,togglePlayerFull}from'./player-full'
 
 export type PartyMedia={kind:'anime'|'series'|'movie',sourceId:string,sourceName?:string,sourcePkg?:string,url:string,name:string,cover?:string,id?:string}
 // What a PC needs to show the same episode; episodeNumber lets a PC without the source find it elsewhere.
@@ -538,16 +539,18 @@ export function PartyOverlay(){
  const inputRef=useRef<HTMLInputElement>(null),seq=useRef(0)
  // Find the player (it comes and goes with the pages).
  useEffect(()=>{if(!active){setStage(null);return}const look=()=>setStage(document.querySelector('.media-player-top .player-stage') as HTMLElement|null);look();const iv=setInterval(look,1000);return()=>clearInterval(iv)},[active])
- // The video's own fullscreen button would hide this layer: use ours instead.
- useEffect(()=>{const v=stage?.querySelector('video') as any;if(!v?.controlsList)return;v.controlsList.add('nofullscreen');const dbl=(e:MouseEvent)=>{if((e.target as HTMLElement).closest('.po-bar,.po-say'))return;e.preventDefault();toggleFull()};stage!.addEventListener('dblclick',dbl);return()=>{v.controlsList.remove('nofullscreen');stage!.removeEventListener('dblclick',dbl)}},[stage])
- useEffect(()=>{const f=()=>setFull(!!stage&&document.fullscreenElement===stage);f();document.addEventListener('fullscreenchange',f);return()=>document.removeEventListener('fullscreenchange',f)},[stage])
+ // Full screen is the whole player (features/player-full.ts), so this layer stays over the picture.
+ // Where the player keeps the system's full screen (Android), the video's own button would
+ // hide this layer: ours takes its place, on the picture's frame.
+ useEffect(()=>{if(!stage||shellOf(stage))return;const v=stage.querySelector('video') as any;if(!v?.controlsList)return;v.controlsList.add('nofullscreen');const dbl=(e:MouseEvent)=>{if((e.target as HTMLElement).closest('.po-bar,.po-say'))return;e.preventDefault();toggleFull()};stage.addEventListener('dblclick',dbl);return()=>{v.controlsList.remove('nofullscreen');stage.removeEventListener('dblclick',dbl)}},[stage])
+ useEffect(()=>{const f=()=>{const fs=document.fullscreenElement;setFull(!!stage&&!!fs&&(fs===stage||(fs===fullShell()&&fs.contains(stage))))};f();document.addEventListener('fullscreenchange',f);return()=>document.removeEventListener('fullscreenchange',f)},[stage])
  useEffect(()=>party.onReact(r=>{const id=++seq.current;setFlies(fs=>[...fs.slice(-24),{id,emoji:r.emoji,name:r.mine?'':r.name,x:8+Math.random()*30}]);setTimeout(()=>setFlies(fs=>fs.filter(f=>f.id!==id)),3200)}),[])
  // Chat lines fade out after 10 s.
  useEffect(()=>{if(!full)return;const iv=setInterval(()=>tick(x=>x+1),1000);return()=>clearInterval(iv)},[full])
  // In fullscreen: Enter (or T) to write a message.
  useEffect(()=>{if(!full)return;const k=(e:KeyboardEvent)=>{if(typing||e.ctrlKey||e.altKey||e.metaKey)return;if(e.key==='Enter'||e.key==='t'||e.key==='T'){if((e.target as HTMLElement)?.tagName==='INPUT')return;e.preventDefault();setTyping(true)}};window.addEventListener('keydown',k);return()=>window.removeEventListener('keydown',k)},[full,typing])
  useEffect(()=>{if(typing)setTimeout(()=>inputRef.current?.focus(),0)},[typing])
- function toggleFull(){if(!stage)return;if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});else stage.requestFullscreen().catch(()=>{})}
+ function toggleFull(){if(!stage||togglePlayerFull(stage))return;if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});else stage.requestFullscreen().catch(()=>{})}
  if(!active||!stage)return null
  const recent=snap.chat.filter(c=>c.at>=since&&Date.now()-c.at<10000).slice(-4)
  return createPortal(<div className={'party-overlay'+(full?' full':'')}>

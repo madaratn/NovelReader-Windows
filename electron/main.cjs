@@ -85,7 +85,8 @@ function startMiwayomi(){
  const java=path.join(root,'jre','bin',process.platform==='win32'?'javaw.exe':'java');
  if(!fs.existsSync(jar)||!fs.existsSync(java)){console.warn('Bundled Anime engine not prepared. Run npm run prepare:anime-engine');return false}
  const data=path.join(app.getPath('userData'),'miwayomi'); fs.mkdirSync(data,{recursive:true});
- miwayomiLogs.length=0;
+ // A restart keeps the lines of the run that stopped (they say why), for the problem report.
+ if(miwayomiLogs.length)pushMiwayomiLog('stderr','---- engine started again ----');
  miwayomiProcess=spawn(java,['-jar',jar,'--host','127.0.0.1','--port','4567','--no-open','--data',data],{windowsHide:true,stdio:['ignore','pipe','pipe']});
  miwayomiProcess.stdout?.on('data',d=>pushMiwayomiLog('stdout',d));
  miwayomiProcess.stderr?.on('data',d=>pushMiwayomiLog('stderr',d));
@@ -128,6 +129,8 @@ async function miwayomiRequest(pathname, init={}) {
     throw e;
   } finally { clearTimeout(timer) }
 }
+// A request that finds the engine down starts it again and waits for it (electron/engine-supervisor.cjs).
+const engineSupervisor=require('./engine-supervisor.cjs').createEngineSupervisor({request:miwayomiRequest,health:()=>miwayomiRequest('/api/v1/health'),isRunning:()=>Boolean(miwayomiProcess),start:startMiwayomi,log:m=>pushMiwayomiLog('stderr','[supervisor] '+m)});
 ipcMain.handle('anime:miwayomiStatus', async()=>{try{const health=await miwayomiRequest('/api/v1/health');return {online:true,baseUrl:MIWAYOMI_BASE,health}}catch(e){if(!miwayomiProcess)startMiwayomi();return {online:false,starting:!!miwayomiProcess,baseUrl:MIWAYOMI_BASE,error:String(e.message||e)}}});
 // ---- Problem report (electron/diagnostics.cjs) -------------------------------
 // ---- Mini player (electron/mini-window.cjs) ----------------------------------------
@@ -178,7 +181,7 @@ ipcMain.handle('flare:reinstall',()=>flareApi().reinstall())
 ipcMain.handle('flare:log',()=>{try{shell.openPath(path.join(app.getPath('userData'),'flaresolverr','flaresolverr.log'))}catch{}return true})
 ipcMain.handle('anime:miwayomiFetch', async(_e,{path,method='GET',body})=>{
  if(typeof path!=='string'||!path.startsWith('/')) throw new Error('Invalid Miwayomi path');
- return miwayomiRequest(path,{method,body:body==null?undefined:JSON.stringify(body)});
+ return engineSupervisor.call(path,{method,body:body==null?undefined:JSON.stringify(body)});
 });
 
 
@@ -372,6 +375,6 @@ async function runSmokeTest(win){
 app.whenReady().then(()=>{try{bookWeb=createBookWeb({session,BrowserWindow,log:m=>console.log(m)});runner.configure(bookWeb)}catch(e){console.warn('[books] web',e)}registerLocalProtocol();if(SMOKE_TEST){runSmokeTest(createWindow());return}if(!bg.startedInBackground)splash.start();try{flareApi().start()}catch{}startMiwayomi();createWindow();updater.start()})
 // The video engine (Java) must really be gone before an update replaces the files:
 // on Windows it is closed with its whole process tree, and waited for.
-function stopEngineNow(){const p=miwayomiProcess;if(!p)return;miwayomiProcess=null;try{if(process.platform==='win32'&&p.pid)require('child_process').spawnSync('taskkill',['/pid',String(p.pid),'/T','/F'],{windowsHide:true,timeout:5000});else p.kill()}catch{try{p.kill()}catch{}}}
+function stopEngineNow(){engineSupervisor.stop();const p=miwayomiProcess;if(!p)return;miwayomiProcess=null;try{if(process.platform==='win32'&&p.pid)require('child_process').spawnSync('taskkill',['/pid',String(p.pid),'/T','/F'],{windowsHide:true,timeout:5000});else p.kill()}catch{try{p.kill()}catch{}}}
 app.on('before-quit',()=>{stopEngineNow();try{flare&&flare.stop()}catch{}try{videoDl&&videoDl.close()}catch{}})
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()})

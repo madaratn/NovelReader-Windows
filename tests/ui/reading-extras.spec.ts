@@ -23,6 +23,36 @@ test('download the next chapters, then read them without a connection', async ({
   await expect(page.locator('.chapterrow .offline-mark')).toHaveCount(0)
 })
 
+test('the next chapter is fetched while the current one is read: "Next" opens at once', async ({ page, context }) => {
+  await open(page, { library: [novel('n1', 'The Lantern Road', 5)] })
+  // The site takes 1.5 s to answer each chapter.
+  await page.evaluate(() => { const w = window as any, real = w.novelReader.parseChapter; w.novelReader.parseChapter = async (...a: any[]) => { await new Promise(r => setTimeout(r, 1500)); return real(...a) } })
+  const calls = () => page.evaluate(() => (window as any).__calls.parseChapter)
+  await page.locator('.libcard .primary').click()
+  await expect(page.locator('.readerbar-title small')).toHaveText('Chapter 1: The Road')
+  expect(await calls()).toBe(1)
+  // A moment later chapter 2 has been asked for (and only that one), and then received.
+  await expect.poll(calls, { timeout: 8000 }).toBe(2)
+  await page.waitForTimeout(500)
+  expect(await calls()).toBe(2)
+  // "Next" shows chapter 2 without waiting for the site again.
+  const t0 = Date.now()
+  await page.keyboard.press('ArrowRight')
+  await expect(page.locator('.readerbar-title small')).toHaveText('Chapter 2: The Road')
+  expect(Date.now() - t0).toBeLessThan(1200)
+  await expect(page.locator('.readercontent')).toContainText('Paragraph 1 of chapter 2.')
+  // Going back to a chapter asks the site as before (nothing stale is kept).
+  await expect.poll(calls, { timeout: 8000 }).toBe(3) // chapter 3, ahead
+  await page.keyboard.press('ArrowLeft')
+  await expect(page.locator('.readerbar-title small')).toHaveText('Chapter 1: The Road')
+  expect(await calls()).toBe(4)
+  // Without a connection nothing is fetched ahead.
+  await context.setOffline(true)
+  const before = await calls()
+  await page.waitForTimeout(2200)
+  expect(await calls()).toBe(before)
+})
+
 test('import an LNReader (Android) backup', async ({ page }) => {
   await page.addInitScript(() => {
     const ch = (n: number) => Array.from({ length: n }, (_, i) => ({ name: `Chapter ${i + 1}`, path: `/c/${i + 1}` }))

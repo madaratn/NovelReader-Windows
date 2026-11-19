@@ -97,6 +97,28 @@ export async function crampedProblems(page: Page): Promise<string[]> {
   })
 }
 
+// Controls left with the look of the browser (grey bevelled button, white list, sunken
+// field): every button, list and field of the app is drawn by its style sheet.
+export async function nativeLook(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const out = new Map<string, number>()
+    for (const el of Array.from(document.querySelectorAll('button,select,input,textarea'))) {
+      const b = el.getBoundingClientRect(); if (b.width < 2 || b.height < 2) continue
+      const s = getComputedStyle(el); if (s.visibility === 'hidden' || Number(s.opacity) === 0) continue
+      const tag = el.tagName.toLowerCase(), type = (el as HTMLInputElement).type
+      let why = ''
+      if (tag === 'button' && s.borderTopStyle === 'outset') why = 'browser button'
+      else if (tag === 'select' && /^rgb\((118, 118, 118|133, 133, 133)\)$/.test(s.borderTopColor)) why = 'browser list'
+      else if (tag === 'input' && (type === 'checkbox' || type === 'radio')) { if (s.appearance !== 'none') why = 'browser ' + type }
+      else if ((tag === 'input' && type !== 'range' && type !== 'file' && type !== 'color') || tag === 'textarea') { if (s.borderTopStyle === 'inset') why = 'browser field' }
+      if (!why) continue
+      const k = why + ': ' + tag + '.' + String(el.getAttribute('class') || '').split(/\s+/).slice(0, 2).join('.') + ' "' + ((el.textContent || '').trim() || el.getAttribute('aria-label') || el.getAttribute('placeholder') || '').replace(/\s+/g, ' ').slice(0, 18) + '" in ' + (el.parentElement ? el.parentElement.tagName.toLowerCase() + '.' + String(el.parentElement.getAttribute('class') || '').split(/\s+/)[0] : '')
+      out.set(k, (out.get(k) || 0) + 1)
+    }
+    return [...out.entries()].map(([k, n]) => k + (n > 1 ? ' ×' + n : '')).slice(0, 20)
+  })
+}
+
 export const SIZES = {
   phone: { width: 390, height: 844 },
   smallPhone: { width: 360, height: 740 },
