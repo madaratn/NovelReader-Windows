@@ -205,7 +205,9 @@ function RemoteVideo({video,mediaKey,onNext,onPrev,onUnsupported,variants,onVari
    else if(stalled===5){const b=el.buffered;for(let i=0;i<b.length;i++){if(b.start(i)>el.currentTime&&b.start(i)-el.currentTime<3){console.warn('[novelreader] playback-stall: skipping buffer hole');el.currentTime=b.start(i)+0.05;return}}el.currentTime=el.currentTime+0.1;hls?.recoverMediaError()}
    else if(stalled>=10){stalled=0;save(el);if(onUnsupported){console.warn('[novelreader] playback-stall: switching server');setPlayError(t('This server stopped sending the video. Switching to another server at the same position…'));hls?.destroy();setTimeout(()=>onUnsupported(),250)}else{setPlayError(t('The video is stuck. Pick another quality or server.'))}}},2000)
   const kick=()=>{if(el.readyState<3)hls?.startLoad(el.currentTime)};el.addEventListener('play',kick)
-  return()=>{window.clearInterval(watch);window.clearInterval(npWatch);el.removeEventListener('play',kick);save(el);el.removeEventListener('loadedmetadata',ready);hls?.destroy();hlsRef.current=null;el.removeAttribute('src');el.load()}
+  // The app is closed while it plays: the position is kept to the second.
+  const bye=()=>save(el);window.addEventListener('pagehide',bye)
+  return()=>{window.clearInterval(watch);window.clearInterval(npWatch);el.removeEventListener('play',kick);window.removeEventListener('pagehide',bye);save(el);el.removeEventListener('loadedmetadata',ready);hls?.destroy();hlsRef.current=null;el.removeAttribute('src');el.load()}
  },[video?.streamUrl,key,asHls,hlsWaited])
  const choices=(variants||[]).filter(Boolean),label=(v:any,i:number)=>String(v.videoTitle||v.title||v.quality||v.resolution||('Stream '+(i+1)))
  // Sources like Anichi publish sub and dub as separate streams ("HD-1 - Sub - 1080p" /
