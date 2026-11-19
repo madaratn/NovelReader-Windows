@@ -17,7 +17,7 @@ export function ReadingStats(){
  let streak=0;{const d=new Date();if(!(all[dayKey(d)]?.c||0)&&!((all[dayKey(d)]?.s||0)>=60))d.setDate(d.getDate()-1);for(;;){const x=all[dayKey(d)];if(x&&(x.c>0||x.s>=60)){streak++;d.setDate(d.getDate()-1)}else break}}
  if(!Object.keys(all).length)return null
  const max=Math.max(1,...days.map(d=>d.c))
- const label=(d:typeof days[number])=>d.date.toLocaleDateString(getLang(),{weekday:'long',day:'numeric',month:'short'})+' · '+plural(d.c,'{n} chapter','{n} chapters')+(d.s>=60?' · '+fmtDuration(d.s):'')
+ const label=(d:typeof days[number])=>d.date.toLocaleDateString(getLang(),{weekday:'short'})+' — '+d.date.toLocaleDateString(getLang(),{weekday:'long',day:'numeric',month:'short'})+' · '+plural(d.c,'{n} chapter','{n} chapters')+(d.s>=60?' · '+fmtDuration(d.s):'')
  return <section className="panel stats">
   <button className="stats-head" aria-expanded={open} onClick={()=>{setOpen(!open);lsSet('statsOpen',open?'0':'1')}}><span>{t('Your reading this week')}</span><small>{plural(week.c,'{n} chapter','{n} chapters')} · {fmtDuration(week.s)}</small><span className="stats-chev" aria-hidden="true">{open?'▾':'▸'}</span></button>
   {open&&<div className="stats-body">
