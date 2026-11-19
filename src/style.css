@@ -1414,5 +1414,7 @@ html.mini-mode .mini-on .player-stage video{width:100vw!important;height:100vh!i
 input[type=checkbox],input[type=radio]{width:20px;height:20px;flex:none;margin:2px}
 .app.phone button,.app.phone select,.app.phone summary,.app.phone [role=tab],.app.phone [role=button],.app.phone input:not([type=checkbox]):not([type=radio]):not([type=range]){min-height:44px}
 .app.phone button,.app.phone [role=tab]{min-width:44px}
+.app.phone .rs-seg{flex-wrap:wrap}.app.phone .settings-block,.app.phone .settings-block>*{min-width:0;max-width:100%}
+.app.phone .pf-colors{display:flex;flex-wrap:wrap;width:100%}.app.phone .pf-color{width:44px;height:44px}
 .app.phone label:has(>input[type=checkbox]),.app.phone label:has(>input[type=radio]){min-height:44px;display:flex;align-items:center;gap:8px}
 .app.phone input[type=checkbox],.app.phone input[type=radio]{width:24px;height:24px}
