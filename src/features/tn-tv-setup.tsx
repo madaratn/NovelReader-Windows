@@ -20,6 +20,6 @@ export function TntvSetup(){
   <div className="tntv-key">
    {on?<><span className="tntv-on">{'✓ '+t('Turned on')}</span><button disabled={busy} onClick={()=>{setTntv(false);setOn(false);setMsg(null)}}>{t('Turn off')}</button></>
     :<button className="primary" disabled={busy} onClick={activate}>{busy?t('Checking…'):t('Turn on')}</button>}</div>
-  {msg&&<div className={'anime-toast '+(msg.ok?'ok':'error')}><span>{msg.text}</span><button onClick={()=>setMsg(null)}>×</button></div>}
+  {msg&&<div className={'anime-toast '+(msg.ok?'ok':'error')}><span>{msg.text}</span><button aria-label={t('Dismiss')} onClick={()=>setMsg(null)}>×</button></div>}
  </div></div>
 }

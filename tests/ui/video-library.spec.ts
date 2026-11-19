@@ -907,7 +907,7 @@ test('mini player on the PC: the window becomes a small video window above the o
   await page.locator('.media-hero .primary').click()
   await expect(page.locator('.remote-player video')).toBeVisible()
   await page.getByRole('button', { name: 'More player options' }).click()
-  await page.getByRole('menuitem', { name: 'Mini player' }).click()
+  await page.getByRole('button', { name: 'Mini player' }).click()
   await expect.poll(() => page.evaluate(() => (window as any).__mini)).toEqual([true])
   await expect(page.locator('html')).toHaveClass(/mini-mode/)
   // Only the video, filling the window; the rest of the app is hidden

@@ -54,6 +54,6 @@ export function PcLinkSettings({sync}:{sync?:any}){
   :<><div className="libraryactions"><button className="primary" disabled={busy} onClick={()=>setScan(true)}>{t('Scan the QR code')}</button></div>{scan&&<QrScanner onClose={()=>setScan(false)} onText={x=>{setScan(false);setText(x);link(x)}}/>}
   <div className="tntv-key"><input value={text} onChange={e=>setText(e.target.value)} placeholder="192.168.1.5:4580/abcdefghjk" aria-label={t('Link shown on the PC')} autoCapitalize="none" autoCorrect="off" spellCheck={false} inputMode="url" onKeyDown={e=>{if(e.key==='Enter')link()}}/>
    <button disabled={busy||!text.trim()} onClick={()=>link()}>{busy?t('Checking…'):t('Link')}</button></div></>}
-  {msg&&<div className={'anime-toast '+(msg.ok?'ok':'error')} role={msg.ok?'status':'alert'}><span>{msg.text}</span><button onClick={()=>setMsg(null)}>×</button></div>}
+  {msg&&<div className={'anime-toast '+(msg.ok?'ok':'error')} role={msg.ok?'status':'alert'}><span>{msg.text}</span><button aria-label={t('Dismiss')} onClick={()=>setMsg(null)}>×</button></div>}
   {sync?.error&&base&&<div className="anime-toast error" role="alert"><NoticeText text={t(sync.error)}/></div>}
  </section>}
