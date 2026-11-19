@@ -72,7 +72,14 @@ export const ICONS:Record<string,string>={
 }
 // inline: sized to the text around it (in a button label, a title).
 export function Icon({name,inline}:{name:string,inline?:boolean}){return <svg className={'icon'+(inline?' inline':'')} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={ICONS[name]||''}/></svg>}
-export function Cover({src,name}:{src?:string,name:string}){const[failed,setFailed]=useState(false);if(src&&!failed)return <img className="libcover" src={src} alt="" loading="lazy" onError={()=>setFailed(true)}/>;const h=hueOf(name);return <div className="libcover placeholder" aria-hidden="true" data-initials={initials(name)} style={{background:`linear-gradient(150deg,hsl(${h} 45% 32%),hsl(${(h+40)%360} 50% 18%))`}}/>}
+// A cover: its picture, or the initials on a colour made from the name. The same colour
+// shows while the picture loads, and the picture comes in softly. A cover whose address
+// changes (details that arrive later) is tried again, even after a first failure.
+export function Cover({src,name}:{src?:string,name:string}){const[failed,setFailed]=useState(false),[loaded,setLoaded]=useState(false);useEffect(()=>{setFailed(false);setLoaded(false)},[src]);const h=hueOf(name),bg=`linear-gradient(150deg,hsl(${h} 45% 32%),hsl(${(h+40)%360} 50% 18%))`;if(src&&!failed)return <img className={'libcover'+(loaded?' loaded':'')} src={src} alt="" loading="lazy" style={loaded?undefined:{background:bg}} onLoad={()=>setLoaded(true)} onError={()=>setFailed(true)}/>;return <div className="libcover placeholder" aria-hidden="true" data-initials={initials(name)} style={{background:bg}}/>}
+// The shapes of the cards (or rows) that are coming, while a list loads. Not announced:
+// the status line beside them says "Loading…".
+export function SkeletonCards({n=6}:{n?:number}){return <div className="resultgrid skeleton-grid" aria-hidden="true">{Array.from({length:n},(_,i)=><div className="skeleton-card" key={i}><div className="skeleton"/><div><div className="skeleton"/><div className="skeleton"/><div className="skeleton"/></div></div>)}</div>}
+export function SkeletonRows({n=6}:{n?:number}){return <div className="skeleton-rows" aria-hidden="true">{Array.from({length:n},(_,i)=><div className="skeleton" key={i}/>)}</div>}
 
 // ---- Error boundary: a crashing page shows a recovery screen, not a black window
 export class ErrorBoundary extends React.Component<{children:React.ReactNode,resetKey?:string,onHome?:()=>void,full?:boolean},{error:any}>{

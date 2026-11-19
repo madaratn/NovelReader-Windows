@@ -103,6 +103,10 @@ test('advertisement escape switches to another playable stream', async ({ page }
     mode: 'series', 'lastPage:series': 'series',
     seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns')])
   })
+  // Streams that really play: a stream that fails is left by the player itself, and
+  // the button would then find no other one to move to.
+  const clip = require('node:fs').readFileSync(require('node:path').join(__dirname, 'fixtures', 'clip.webm'))
+  await page.route('http://127.0.0.1:4567/api/v1/proxy**', r => r.fulfill({ status: 200, body: clip, headers: { 'Content-Type': 'video/webm', 'Access-Control-Allow-Origin': '*' } }))
   await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
   await page.locator('.media-hero .primary').click()
   const quality = page.locator('.player-trackbar label', { hasText: 'Quality' }).locator('select')

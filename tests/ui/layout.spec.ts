@@ -4,7 +4,7 @@
 // two buttons are drawn over one another (tests/layout-audit.ts).
 import { test, expect, type Page } from '@playwright/test'
 import { setup, novel } from './helpers'
-import { layoutProblems, smallTargets, crampedProblems, tourOverlays, SIZES, openSettings, openHistory, openYear, historySeed } from '../layout-audit'
+import { layoutProblems, smallTargets, crampedProblems, nativeLook, tourOverlays, SIZES, openSettings, openHistory, openYear, historySeed } from '../layout-audit'
 
 const LONG = 'The Extraordinarily Long Title Of A Story That Never Seems To End Volume Twelve'
 const vid = (kind: string, i: number, name: string) => ({ id: kind + i, name, sourceId: '42', sourceName: 'Mapple', url: '/' + kind + '/' + i, thumbnail: '', episodes: kind === 'movie' ? 1 : 8, genres: ['Drama', 'Mystery'], addedAt: Date.now() - i * 3600_000 })
@@ -50,7 +50,7 @@ for (const [size, viewport] of Object.entries(SIZES)) {
     await prepare(page)
     const found: Record<string, string[]> = {}
     const min = viewport.width <= 600 ? 44 : 24 // the phone layout is used with fingers
-    const check = async (where: string) => { await page.waitForTimeout(250); const p = [...await layoutProblems(page), ...(await smallTargets(page, min)).map(x => 'smaller than ' + min + ' px: ' + x), ...await crampedProblems(page)]; if (p.length) { found[where] = p; console.log('LAYOUT ' + size + ' | ' + where + ' | ' + p.join(' ; ')) } }
+    const check = async (where: string) => { await page.waitForTimeout(250); const p = [...await layoutProblems(page), ...(await smallTargets(page, min)).map(x => 'smaller than ' + min + ' px: ' + x), ...await crampedProblems(page), ...await nativeLook(page)]; if (p.length) { found[where] = p; console.log('LAYOUT ' + size + ' | ' + where + ' | ' + p.join(' ; ')) } }
     await page.goto('/')
     for (const [mode, name] of PAGES) {
       await page.evaluate(([m, p]) => { localStorage.setItem('mode', m); localStorage.setItem('lastPage:' + m, p) }, [mode, name])

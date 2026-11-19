@@ -42,8 +42,23 @@
   --radius-sm:8px;--radius-md:12px;--radius-lg:16px;--radius-pill:999px;
   --fs-2xs:11px;--fs-xs:12px;--fs-sm:13px;--fs-md:14px;--fs-lg:16px;--fs-xl:18px;--fs-2xl:20px;--fs-3xl:24px;--fs-4xl:30px;
   --ease:cubic-bezier(.2,.7,.2,1);--speed:.16s;
+  /* One typeface everywhere: Inter comes with the app (same letters and widths on every PC and phone). */
+  --font-ui:'Inter Variable',Inter,'Segoe UI',system-ui,Arial,sans-serif;
 }
-*{box-sizing:border-box}body{margin:0;background:var(--bg-page);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif}.app{display:flex;min-height:100vh}aside{width:230px;background:var(--bg-sunken);border-right:1px solid var(--line);padding:28px 18px;display:flex;flex-direction:column;gap:8px}.brand{font-weight:900;letter-spacing:1px;margin:0 8px 28px}.brand span{color:var(--text-accent-strong)}aside button,.reader>button{border:0;background:transparent;color:var(--text-3);text-align:left;padding:12px 14px;border-radius:var(--radius-sm);font-size:var(--fs-lg);cursor:pointer}aside button:hover,aside button.active{background:var(--bg-raised);color:var(--text-strong)}.grow{flex:1}.version{color:#666;font-size:var(--fs-xs);padding:10px}main{flex:1;padding:44px 48px}header{display:flex;justify-content:space-between;align-items:center;margin-bottom:32px}h1{margin:0 0 8px}header p,.meta p,.panel p{color:var(--text-3)}.primary{background:var(--bg-accent)!important;color:var(--on-accent)!important;border:0;border-radius:var(--radius-sm);padding:12px 16px!important;cursor:pointer}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:18px}.card,.panel{background:var(--bg-surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:18px;display:flex;gap:18px}.cover{width:110px;height:150px;border-radius:var(--radius-md);background:linear-gradient(145deg,#2b3040,#12151c);display:flex;align-items:center;justify-content:center;font-size:var(--fs-4xl);font-weight:900;color:var(--text-accent-strong)}.meta{flex:1}.row{display:flex;align-items:center;gap:10px}.row h2{margin:0}.badge{font-size:var(--fs-2xs);background:var(--bg-accent-soft);color:var(--text-accent);padding:6px 8px;border-radius:var(--radius-lg)}.bar{height:6px;background:var(--bg-strong);border-radius:var(--radius-md);margin:16px 0}.bar i{display:block;height:100%;background:var(--bg-accent-bright);border-radius:var(--radius-md)}.panel{display:block;margin-bottom:18px}.source{display:flex;justify-content:space-between;padding:16px 0;border-top:1px solid var(--line)}.source span{color:var(--text-3)}.reader{max-width:780px;margin:auto;font-family:Georgia,serif;font-size:var(--fs-2xl);line-height:1.85}.readerHead{display:flex;justify-content:space-between;color:var(--text-3);font-family:Segoe UI,Arial,sans-serif;font-size:var(--fs-sm);margin:36px 0}.reader h1{text-align:center;margin-bottom:44px}@media(max-width:800px){aside{width:170px}main{padding:28px 24px}.grid{grid-template-columns:1fr}}
+/* ---- Base controls ---------------------------------------------------------------
+   Nothing keeps the look of the browser. A button, a list or a field that no rule
+   below styles still gets the app's look; :where() weighs nothing, so every rule
+   below wins over these (and the light theme makes no copy of them: they only use
+   the tokens). */
+:root{color-scheme:dark}
+*{scrollbar-width:thin;scrollbar-color:var(--bg-strong) transparent}
+html{scrollbar-width:auto} /* the page's own bar keeps its full width (easier to grab) */
+:where(button){border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--bg-raised);color:var(--text);cursor:pointer}
+:where(button:hover:not(:disabled)){border-color:var(--line-accent-dim)}
+:where(select){min-height:var(--h-sm);padding:0 8px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background-color:var(--bg-raised);color:var(--text);cursor:pointer}
+:where(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color])){min-height:var(--h-sm);padding:0 10px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background-color:var(--bg-sunken);color:var(--text)}
+:where(textarea){padding:8px 10px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background-color:var(--bg-sunken);color:var(--text)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg-page);color:var(--text);font-family:var(--font-ui)}.app{display:flex;min-height:100vh}aside{width:230px;background:var(--bg-sunken);border-right:1px solid var(--line);padding:28px 18px;display:flex;flex-direction:column;gap:8px}.brand{font-weight:900;letter-spacing:1px;margin:0 8px 28px}.brand span{color:var(--text-accent-strong)}aside button,.reader>button{border:0;background:transparent;color:var(--text-3);text-align:left;padding:12px 14px;border-radius:var(--radius-sm);font-size:var(--fs-lg);cursor:pointer}aside button:hover,aside button.active{background:var(--bg-raised);color:var(--text-strong)}.grow{flex:1}.version{color:#666;font-size:var(--fs-xs);padding:10px}main{flex:1;padding:44px 48px}header{display:flex;justify-content:space-between;align-items:center;margin-bottom:32px}h1{margin:0 0 8px}header p,.meta p,.panel p{color:var(--text-3)}.primary{background:var(--bg-accent)!important;color:var(--on-accent)!important;border:0;border-radius:var(--radius-sm);padding:12px 16px!important;cursor:pointer}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:18px}.card,.panel{background:var(--bg-surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:18px;display:flex;gap:18px}.cover{width:110px;height:150px;border-radius:var(--radius-md);background:linear-gradient(145deg,#2b3040,#12151c);display:flex;align-items:center;justify-content:center;font-size:var(--fs-4xl);font-weight:900;color:var(--text-accent-strong)}.meta{flex:1}.row{display:flex;align-items:center;gap:10px}.row h2{margin:0}.badge{font-size:var(--fs-2xs);background:var(--bg-accent-soft);color:var(--text-accent);padding:6px 8px;border-radius:var(--radius-lg)}.bar{height:6px;background:var(--bg-strong);border-radius:var(--radius-md);margin:16px 0}.bar i{display:block;height:100%;background:var(--bg-accent-bright);border-radius:var(--radius-md)}.panel{display:block;margin-bottom:18px}.source{display:flex;justify-content:space-between;padding:16px 0;border-top:1px solid var(--line)}.source span{color:var(--text-3)}.reader{max-width:780px;margin:auto;font-family:Georgia,serif;font-size:var(--fs-2xl);line-height:1.85}.readerHead{display:flex;justify-content:space-between;color:var(--text-3);font-family:var(--font-ui);font-size:var(--fs-sm);margin:36px 0}.reader h1{text-align:center;margin-bottom:44px}@media(max-width:800px){aside{width:170px}main{padding:28px 24px}.grid{grid-template-columns:1fr}}
 .searchbar{display:flex;margin-bottom:18px}.searchbar input{width:100%;background:var(--bg-surface);border:1px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;color:var(--text-strong);font-size:var(--fs-lg)}.sourcegrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:10px}.sourcecard{display:flex;align-items:center;gap:12px;background:var(--bg-surface);border:1px solid var(--line);border-radius:var(--radius-md);padding:12px}.sourcecard img{width:46px;height:46px;border-radius:var(--radius-sm);object-fit:cover}.sourcecard>div{display:flex;flex:1;min-width:0;flex-direction:column;gap:4px}.sourcecard small{color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sourcecard button{border:1px solid var(--line-strong);background:var(--bg-active);color:var(--text-3);border-radius:var(--radius-sm);padding:8px 12px}.sourcecard button:disabled{cursor:not-allowed}
 
 .sourcecard button.installed{color:var(--text-accent);border-color:var(--line-accent-solid)}.sourcecard button:not(:disabled){cursor:pointer}
@@ -200,7 +215,7 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .readprogress{position:absolute;left:0;right:0;bottom:-1px;height:2px}
 .readprogress span{display:block;height:100%;background:var(--r-accent);transition:width .12s linear}
 
-.readersettings{position:absolute;right:0;top:calc(100% + 8px);width:min(360px,calc(100vw - 32px));display:flex;flex-direction:column;gap:14px;padding:16px;background:var(--bg-surface);color:var(--text);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:0 16px 48px rgba(0,0,0,.45);font-family:'Segoe UI',Inter,system-ui,sans-serif;font-size:var(--fs-md);line-height:1.4}
+.readersettings{position:absolute;right:0;top:calc(100% + 8px);width:min(360px,calc(100vw - 32px));display:flex;flex-direction:column;gap:14px;padding:16px;background:var(--bg-surface);color:var(--text);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:0 16px 48px rgba(0,0,0,.45);font-family:var(--font-ui);font-size:var(--fs-md);line-height:1.4}
 .rs-row{display:flex;flex-direction:column;gap:8px}.rs-row>span{color:var(--text-3);font-size:var(--fs-sm)}
 .rs-themes{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .rs-swatch{min-height:40px;border-radius:var(--radius-sm);border:2px solid transparent;cursor:pointer;font:inherit;font-size:var(--fs-sm)}
@@ -315,7 +330,7 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .crash .panel{max-width:760px;border-color:var(--line-danger)}
 .crash h2{margin-top:0}.crash p{color:var(--text-2);line-height:1.5}
 .crash .anime-toast{position:static;margin-top:14px}
-.crash-full{min-height:100vh;display:grid;place-items:center;padding:24px;background:var(--bg-page);color:var(--text);font-family:Inter,'Segoe UI',Arial,sans-serif}
+.crash-full{min-height:100vh;display:grid;place-items:center;padding:24px;background:var(--bg-page);color:var(--text);font-family:var(--font-ui)}
 
 /* ---- Welcome guide ---------------------------------------------------------------- */
 .welcome-overlay{z-index:120}
@@ -344,7 +359,7 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .readerpage .tts-toggle.on{border-color:var(--r-accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--r-accent) 35%,transparent)}
 .readercontent.tts-on h1,.readercontent.tts-on p,.readercontent.tts-on li,.readercontent.tts-on blockquote{cursor:pointer}
 .readercontent .tts-current{background:color-mix(in srgb,var(--r-accent) 18%,transparent);border-radius:6px;box-shadow:0 0 0 6px color-mix(in srgb,var(--r-accent) 18%,transparent);transition:background .2s}
-.tts-panel{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:40;width:min(760px,calc(100vw - 32px));display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:12px 44px 12px 16px;background:var(--bg-surface);color:var(--text);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:0 16px 48px rgba(0,0,0,.45);font-family:'Segoe UI',Inter,system-ui,sans-serif;font-size:var(--fs-md)}
+.tts-panel{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:40;width:min(760px,calc(100vw - 32px));display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:12px 44px 12px 16px;background:var(--bg-surface);color:var(--text);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:0 16px 48px rgba(0,0,0,.45);font-family:var(--font-ui);font-size:var(--fs-md)}
 .tts-main{display:flex;align-items:center;gap:8px}
 .tts-btn{width:40px;height:40px;display:grid;place-items:center;border:1px solid var(--line-strong);border-radius:50%;background:var(--bg-raised);color:var(--text);font-size:var(--fs-md);cursor:pointer}
 .tts-btn.tts-play{width:48px;height:48px;background:var(--bg-accent);border-color:var(--line-accent-solid);color:var(--on-accent);font-size:var(--fs-lg)}
@@ -443,7 +458,7 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .settings-block button.danger{border-color:var(--line-danger)!important;color:var(--text-danger)!important;background:var(--bg-danger)!important}
 
 /* ---- Find in chapter ---------------------------------------------------------------- */
-.findbar{position:absolute;right:0;top:calc(100% + 8px);display:flex;align-items:center;gap:6px;padding:8px;background:var(--bg-surface);border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:0 12px 36px rgba(0,0,0,.4);font-family:'Segoe UI',Inter,system-ui,sans-serif;z-index:5}
+.findbar{position:absolute;right:0;top:calc(100% + 8px);display:flex;align-items:center;gap:6px;padding:8px;background:var(--bg-surface);border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:0 12px 36px rgba(0,0,0,.4);font-family:var(--font-ui);z-index:5}
 .findbar input{width:240px;min-height:34px;padding:0 10px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-sunken);color:var(--text);font:inherit;font-size:var(--fs-md)}
 .findbar input:focus{outline:none;border-color:var(--line-accent-solid)}
 .findbar button{width:32px;height:32px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--bg-raised);color:var(--text);cursor:pointer}
@@ -536,7 +551,7 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .series-title-row p{margin:0;color:var(--text-3);font-size:var(--fs-sm);white-space:nowrap}
 .media-episodes .episodebadge{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:var(--fs-2xs);line-height:1;color:var(--text-accent-strong)}
 .media-episodes .episodebadge b{font-size:var(--fs-lg);color:var(--text-accent)}
-.media-episodes .episodecard.active .episodebadge,.media-episodes .episodecard.active .episodebadge b{color:var(--text-strong)}
+.media-episodes .episodecard.active .episodebadge,.media-episodes .episodecard.active .episodebadge b{color:var(--on-accent)}
 @media(max-width:700px){.series-title-row{align-items:flex-start;flex-direction:column;gap:8px}.series-title-row p{white-space:normal}}
 
 /* ---- Bookmarks, highlights and notes ------------------------------------------------- */
@@ -546,14 +561,14 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .readercontent .flash{animation:nrflash 1.8s ease-out}
 @keyframes nrflash{0%,40%{background:color-mix(in srgb,var(--r-accent) 28%,transparent);box-shadow:0 0 0 8px color-mix(in srgb,var(--r-accent) 28%,transparent);border-radius:6px}100%{background:transparent;box-shadow:none}}
 .readerpage .bm-toggle{font-size:15px;font-weight:400}.readerpage .bm-toggle.on{border-color:var(--r-accent)}
-.selbar{position:fixed;z-index:60;transform:translate(-50%,calc(-100% - 10px));display:flex;align-items:center;gap:6px;padding:6px 8px;background:var(--bg-surface);border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:0 10px 30px rgba(0,0,0,.45);font-family:'Segoe UI',Inter,system-ui,sans-serif}
+.selbar{position:fixed;z-index:60;transform:translate(-50%,calc(-100% - 10px));display:flex;align-items:center;gap:6px;padding:6px 8px;background:var(--bg-surface);border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:0 10px 30px rgba(0,0,0,.45);font-family:var(--font-ui)}
 .selcolor{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.25);cursor:pointer}
 .selcolor.c-yellow,.notekind.c-yellow{background:#ffcf5c}.selcolor.c-green,.notekind.c-green{background:var(--bg-ok-solid)}.selcolor.c-pink,.notekind.c-pink{background:#ff8db8}
 .seltext{min-height:28px;padding:0 10px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--bg-raised);color:var(--text);font:inherit;font-size:var(--fs-sm);cursor:pointer}
 .selnote{display:flex;flex-direction:column;gap:6px;width:280px}.selnote textarea{min-height:70px;resize:vertical;padding:8px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-sunken);color:var(--text);font:inherit;font-size:var(--fs-md)}
 .selnote>div{display:flex;justify-content:flex-end;gap:6px}.selnote button{min-height:30px;padding:0 12px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--bg-raised);color:var(--text);font:inherit;font-size:var(--fs-sm);cursor:pointer}.selnote button.primary{background:var(--bg-accent);border-color:var(--line-accent-solid);color:var(--on-accent)}
 .selnote.inline{width:auto;max-width:640px;margin:6px 0}
-.selsaved{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:70;padding:8px 14px;border-radius:var(--radius-md);background:var(--bg-ok);border:1px solid var(--line-ok);color:var(--text-ok);font-size:var(--fs-md);font-family:'Segoe UI',Inter,system-ui,sans-serif}
+.selsaved{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:70;padding:8px 14px;border-radius:var(--radius-md);background:var(--bg-ok);border:1px solid var(--line-ok);color:var(--text-ok);font-size:var(--fs-md);font-family:var(--font-ui)}
 .notesgroup h2{display:flex;align-items:baseline;gap:8px;margin:0 0 10px;font-size:var(--fs-xl)}.notesgroup h2 small{color:var(--text-3);font-weight:500;font-size:var(--fs-sm)}
 .noteslist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
 .noteitem{padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--bg-sunken)}
@@ -636,7 +651,8 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .episodecell{position:relative}
 .episodecell .episodecard{width:100%;position:relative;overflow:hidden}
 .episodecard.watched .episodetitle{color:var(--text-3)}
-.episodecard.watched .episodebadge{opacity:.6}
+/* A watched episode is quieter: a real grey, not a transparency (the text stays readable). */
+.episodecard.watched:not(.active) .episodebadge,.media-episodes .episodecard.watched:not(.active) .episodebadge,.media-episodes .episodecard.watched:not(.active) .episodebadge b{color:var(--text-3)}
 .episodeprog{position:absolute;left:0;bottom:0;height:3px;background:var(--bg-accent)}
 .ep-watch{position:absolute;top:-6px;right:-6px;width:22px;height:22px;padding:0;border:1px solid var(--line-strong);border-radius:50%;background:var(--bg-raised);color:var(--text-strong);font-size:var(--fs-xs);line-height:20px;cursor:pointer;opacity:0;transition:opacity .15s}
 .episodecell:hover .ep-watch,.ep-watch:focus-visible,.ep-watch.on{opacity:1}
@@ -847,6 +863,36 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
 /* Watch party over the video */
 .player-stage:fullscreen{display:flex;align-items:center;justify-content:center;background:#000}
 .player-stage:fullscreen video{max-height:100vh!important;height:100%;width:100%}
+/* ---- Player in full screen: the whole player, not the picture alone ----------------
+   (features/player-full.ts) It is the player's section that fills the screen: its
+   title and the track bar lie over the top of the picture and hide with the pointer
+   after 3 s; panels and messages float over it; "Skip intro" and "Next episode" stay;
+   "Extracting…" shows between two episodes. Always dark, whatever the theme of the app,
+   like everything drawn over the picture ("Skip intro", the countdown, the party's
+   chat): the colour tokens are set again to their dark values there. */
+.media-fs-name{display:none}
+.media-player-top:fullscreen,.player-stage{color-scheme:dark;--focus:#b3a8ff;--accent:#8b7cff;--text-2:#b4b9c8;--text-3:#adb2c3;--bg-page:#090a0d;--bg-sunken:#0d1016;--bg-surface:#11141b;--bg-raised:#161a24;--bg-active:#1d2130;--bg-strong:#2b3040;--bg-accent:#523bcd;--bg-accent-bright:#8b7cff;--bg-accent-soft:#201c3d;--bg-ok:#173025;--bg-ok-solid:#3fb37f;--bg-danger:#2a171c;--bg-danger-solid:#d9545f;--bg-warn:#231d12;--bg-info:#132033;--text-strong:#ffffff;--text:#e6e8ef;--text-accent:#b8afff;--text-accent-strong:#b0a8ff;--text-ok:#86d9ab;--text-danger:#f4a0aa;--text-warn:#f2c879;--text-info:#9cc7f5;--line:#262b3a;--line-strong:#353b50;--line-accent:#6258c4;--line-accent-dim:#3d3578;--line-accent-solid:#523bcd;--line-accent-strong:#8b7cff;--line-ok:#3d765b;--line-danger:#8a4552;--line-warn:#5a4a24;--line-info:#355078}
+.media-player-top:fullscreen{position:relative;width:100vw;height:100vh;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;overflow:hidden;background:#000!important;color:#e6e8ef!important;box-shadow:none!important}
+.media-player-top:fullscreen .media-fs-name{display:inline}
+.media-player-top:fullscreen .media-player-title{position:absolute;z-index:7;top:0;left:0;right:0;margin:0;padding:14px 20px 0;align-items:baseline;flex-direction:row;pointer-events:none;transition:opacity .25s var(--ease)}
+.media-player-top:fullscreen .media-player-title>div{min-width:0}
+.media-player-top:fullscreen .media-kicker{display:none}
+.media-player-top:fullscreen .media-player-title h2{margin:0;color:#ffffff;font-size:var(--fs-xl);text-shadow:0 1px 3px rgba(0,0,0,.6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.media-player-top:fullscreen .media-player-title>small{color:#e6e8ef;white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.media-player-top:fullscreen .remote-player{position:absolute;inset:0}
+.media-player-top:fullscreen .player-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#000}
+.media-player-top:fullscreen .player-stage video{width:100%!important;height:100%!important;max-height:none!important;border:0!important;border-radius:0!important;box-shadow:none!important}
+.media-player-top:fullscreen .player-trackbar{position:absolute;z-index:6;top:0;left:0;right:0;margin:0;padding:52px 20px 40px;background:linear-gradient(rgba(0,0,0,.86),rgba(0,0,0,.5) 62%,rgba(0,0,0,0));transition:opacity .25s var(--ease),translate .25s var(--ease)}
+.media-player-top:fullscreen .remote-player.idle .player-trackbar{opacity:0;translate:0 -10px;pointer-events:none}
+.media-player-top:fullscreen:has(.remote-player.idle) .media-player-title{opacity:0}
+.media-player-top:fullscreen:has(.remote-player.idle),.media-player-top:fullscreen .remote-player.idle video{cursor:none}
+.media-player-top:fullscreen .sub-panel,.media-player-top:fullscreen .sub-finder,.media-player-top:fullscreen .audio-fix-note{position:absolute;z-index:8;top:112px;right:20px;margin:0;max-width:min(520px,calc(100vw - 40px));max-height:calc(100vh - 220px);overflow:auto;background:rgba(17,20,27,.96);box-shadow:0 18px 50px rgba(0,0,0,.5)}
+.media-player-top:fullscreen .remote-player>.anime-toast{position:absolute;z-index:8;left:50%;top:112px;translate:-50% 0;width:max-content;max-width:min(760px,calc(100vw - 40px));margin:0}
+.media-player-top:fullscreen .player-row{display:none}
+.media-player-top:fullscreen .player-skip,.media-player-top:fullscreen .player-next{right:28px;bottom:96px}
+.media-player-top:fullscreen .player-skipped{left:28px;bottom:96px}
+.media-player-top:fullscreen .player-loading{position:absolute;inset:0;min-height:0;border-radius:0;background:#000;color:#e6e8ef;font-size:var(--fs-lg)}
+.media-player-top:fullscreen>.anime-toast,.media-player-top:fullscreen>p:not(.player-loading){position:absolute;left:50%;top:50%;translate:-50% -50%;width:max-content;max-width:min(760px,calc(100vw - 40px));margin:0}
 .party-overlay{position:absolute;inset:0;pointer-events:none;z-index:5;overflow:hidden}
 .po-bar{position:absolute;left:12px;top:12px;display:flex;gap:4px;padding:4px;border-radius:999px;background:rgba(10,12,18,.72);opacity:0;transition:opacity .2s;pointer-events:auto}
 .player-stage:hover .po-bar,.po-bar:focus-within{opacity:1}
@@ -972,7 +1018,6 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
  html.android .app:not(.collapsed) .sidebar .brand-row{justify-content:space-between}
  html.android .sidebar .collapse-btn{display:inline-grid;place-items:center;min-width:40px;min-height:40px}
  html.android .app.collapsed .sidebar .brand-row{flex-direction:column;gap:10px}
-}
 }
 @media (min-width:601px) and (max-width:1180px){
  html.android main{padding:28px 24px}
@@ -1337,7 +1382,7 @@ html.android .home-card{transition:none}
 .pin-form h2{margin:0;font-size:var(--fs-lg,1.15rem);color:var(--text-strong)}
 .pin-form p{margin:0;color:var(--text-2)}
 .pin-form input{font-size:1.6rem;letter-spacing:.5em;text-align:center;padding:10px;min-width:0}
-.pin-form small[role=alert]{color:var(--danger,#e06c75)}
+.pin-form small[role=alert]{color:var(--text-danger)}
 .pin-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 .pin-gate{max-width:420px;margin:40px auto}
 .pf-kids{flex-basis:100%;display:grid;gap:8px;padding:4px 0 6px 44px}
@@ -1345,7 +1390,7 @@ html.android .home-card{transition:none}
 .pf-genres small{flex-basis:100%;color:var(--text-2)}
 .pf-parent{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
 .pf-parent h3{margin:0 0 4px}
-.pf-avatar.kids{box-shadow:0 0 0 2px var(--bg),0 0 0 4px #f0c040}
+.pf-avatar.kids{box-shadow:0 0 0 2px var(--bg-sunken),0 0 0 4px #f0c040}
 /* Sources › Advanced: the panels inside keep to the width of the page (a grid item
    would otherwise grow to its longest line: repository addresses, nowrap buttons). */
 .sources-advanced{min-width:0;max-width:100%}
@@ -1403,15 +1448,71 @@ html.mini-mode .mini-on .player-stage video{width:100vw!important;height:100vh!i
 .year-title small{color:var(--text-2)}
 .year-genres{display:flex;flex-wrap:wrap;gap:6px}
 /* Cloudflare protection: what FlareSolverr printed when it stopped */
-.flare-error{display:grid;gap:6px;color:var(--danger,#e06c75);white-space:pre-line;overflow-wrap:anywhere}
-.flare-log{display:block;max-height:120px;overflow:auto;padding:6px 8px;border-radius:6px;background:var(--bg);color:var(--text-2);font-size:11.5px;white-space:pre-wrap}
+.flare-error{display:grid;gap:6px;color:var(--text-danger);white-space:pre-line;overflow-wrap:anywhere}
+.flare-log{display:block;max-height:120px;overflow:auto;padding:6px 8px;border-radius:var(--radius-sm);background:var(--bg-sunken);color:var(--text-2);font-size:var(--fs-xs);white-space:pre-wrap}
 .flare-actions{display:flex;gap:8px;flex-wrap:wrap}
+/* ---- Finish: small things put right ------------------------------------------------ */
+/* Several offers in one panel (Sources › Add sources): a line and some air between them. */
+.panel>.engine-row:not(:first-child){margin-top:16px;padding-top:16px;border-top:1px solid var(--line);border-radius:0}
+/* "More" at the end of a help sentence stays a word of that sentence, also where the
+   buttons of the row are boxed. */
+.engine-row button.help-more,.settings-block button.help-more,.panel button.help-more{all:unset;cursor:pointer;color:var(--text-accent);font-weight:600;font-size:inherit;white-space:nowrap}
+.engine-row button.help-more:hover,.settings-block button.help-more:hover,.panel button.help-more:hover{text-decoration:underline}
+.engine-row button.help-more:focus-visible,.settings-block button.help-more:focus-visible,.panel button.help-more:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
+/* "Mark as watched" on an episode: a faint tick says what the round button is for. */
+.ep-watch:not(.on)::before{content:'✓';color:var(--text-3)}
+/* Lists that scroll inside the page (chapters, episodes): their rows end where the bar
+   above them ends, with or without a scroll bar (it sits in the margin). */
+@media (min-width:701px){.chapterlist{margin-right:-16px;padding-right:6px;scrollbar-gutter:stable}}
+/* ---- Motion --------------------------------------------------------------------------
+   Short and quiet. A page fades in, a window opens from 97 %, the phone's sheet rises,
+   a menu drops from its button, a message fades in, a button gives a little under the
+   pointer, a bar grows to its new length. Only opacity for whole pages: a transform
+   there would move what is fixed to the window (toasts, the read-aloud bar) for the
+   time of the animation. Nothing moves when the system asks for reduced motion (rule
+   above). */
+@keyframes nr-fade-in{from{opacity:0}to{opacity:1}}
+@keyframes nr-pop-in{from{opacity:0;scale:.97}to{opacity:1;scale:1}}
+@keyframes nr-drop-in{from{opacity:0;translate:0 -4px}to{opacity:1;translate:0 0}}
+@keyframes nr-sheet-in{from{translate:0 40px;opacity:0}to{translate:0 0;opacity:1}}
+@keyframes nr-shimmer{from{background-position:120% 0}to{background-position:-120% 0}}
+main>*{animation:nr-fade-in .2s ease-out backwards}
+.qs-backdrop,.kbd-overlay,.pin-backdrop,.m-sheet-backdrop{animation:nr-fade-in .16s ease-out backwards}
+.qs,.kbd-dialog,.welcome,.pin-dialog{animation:nr-pop-in .2s var(--ease) backwards}
+.m-sheet{animation:nr-sheet-in .22s var(--ease) backwards}
+.more-pop,.readersettings,.findbar,.translate-menu,.pf-menu,.stats-tip{animation:nr-drop-in .14s var(--ease) backwards}
+.more-menu.up .more-pop,.pf-menu{animation-name:nr-fade-in}
+.anime-toast,.update-banner,.incoming-toast,.switch-note,.preview-bar,.player-skip,.player-next,.player-skipped{animation:nr-fade-in .2s ease-out backwards}
+.libbar span,.dl-row progress{transition:width .35s var(--ease)}
+/* A button gives a little when pressed (the small ones: a wide row would shrink too far). */
+.primary:active:not(:disabled),.libraryactions button:active:not(:disabled),.resultactions button:active:not(:disabled),.trackbtn:active:not(:disabled),.more-btn:active,.iconbtn:active,.chip:active,.settings-seg button:active,.rs-seg button:active,.lib-update:active:not(:disabled),.welcome-actions button:active,.engine-row button:active:not(:disabled),.sources-actions button:active:not(:disabled),.m-tab:active,.themebtn:active:not(:disabled){scale:.97}
+/* Waiting for a list: grey shapes of what is coming, with a slow sheen. */
+.skeleton{border-radius:var(--radius-sm);background-color:var(--bg-raised);background-image:linear-gradient(100deg,transparent 30%,var(--bg-strong) 50%,transparent 70%);background-size:220% 100%;background-repeat:no-repeat;animation:nr-shimmer 1.5s ease-in-out infinite}
+.skeleton-card{display:grid;grid-template-columns:88px minmax(0,1fr);gap:14px;padding:14px;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--bg-surface)}
+.skeleton-card>.skeleton:first-child{height:124px;border-radius:var(--radius-md)}
+.skeleton-card>div{display:grid;gap:10px;align-content:start;padding-top:4px}
+.skeleton-card>div>.skeleton{height:14px}
+.skeleton-card>div>.skeleton:nth-child(1){width:70%;height:18px}
+.skeleton-card>div>.skeleton:nth-child(2){width:40%}
+.skeleton-card>div>.skeleton:nth-child(3){width:55%;height:32px;margin-top:22px}
+.skeleton-rows{display:grid;gap:8px}
+.skeleton-rows>.skeleton{height:52px;border-radius:var(--radius-md)}
+/* A cover comes in softly when its picture arrives (its colour shows meanwhile). */
+@keyframes nr-cover-in{from{opacity:.35}to{opacity:1}}
+img.libcover.loaded{animation:nr-cover-in .3s ease-out}
 /* ---- Target sizes (WCAG 2.5.8 / 2.5.5) ---------------------------------------------
    With a mouse every control is at least 24 px; on the phone layout (fingers) at least
    44 px. Text-like buttons keep their look and get the room around them. */
 .backbtn,.libtitle,.linkbtn,.sidebar button.brand,.themebtn{min-height:24px}
 .backbtn,.libtitle,.linkbtn,.sidebar .brand{display:inline-flex;align-items:center}
-input[type=checkbox],input[type=radio]{width:20px;height:20px;flex:none;margin:2px}
+input[type=checkbox],input[type=radio]{appearance:none;-webkit-appearance:none;width:20px;height:20px;flex:none;margin:2px;border:1.5px solid var(--line-strong);border-radius:6px;background-color:var(--bg-sunken);background-position:center;background-repeat:no-repeat;background-size:14px 14px;cursor:pointer;vertical-align:-5px;transition:background-color var(--speed) var(--ease),border-color var(--speed) var(--ease),box-shadow var(--speed) var(--ease)}
+input[type=radio]{border-radius:50%}
+input[type=checkbox]:hover:not(:disabled),input[type=radio]:hover:not(:disabled){border-color:var(--line-accent-strong)}
+input[type=checkbox]:checked{border-color:var(--line-accent-solid);background-color:var(--bg-accent);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E")}
+input[type=checkbox]:indeterminate{border-color:var(--line-accent-solid);background-color:var(--bg-accent);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M4 8h8'/%3E%3C/svg%3E")}
+input[type=radio]:checked{border-color:var(--line-accent-solid);background-color:var(--bg-accent);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='3.4' fill='white'/%3E%3C/svg%3E")}
+input[type=checkbox]:focus-visible,input[type=radio]:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.5;cursor:default}
 .app.phone button,.app.phone select,.app.phone summary,.app.phone [role=tab],.app.phone [role=button],.app.phone input:not([type=checkbox]):not([type=radio]):not([type=range]){min-height:44px}
 /* Read by screen readers, not drawn (a heading that names a list, for instance). */
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}

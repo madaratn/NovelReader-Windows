@@ -2,7 +2,7 @@ import React,{useEffect,useRef,useState}from'react'
 import{t,plural,getLang}from'../i18n'
 import type{Plugin}from'../lib/types'
 import{lsGet,lsSet,timeAgo}from'../lib/util'
-import{EmptyState,Help,Cover,NoticeText}from'../ui/common'
+import{EmptyState,Help,Cover,NoticeText,SkeletonCards}from'../ui/common'
 import{BOOK_DEAD_DAYS,bookAsideReason,bookSetAside,keepBookSource,loadBookStatus,noteBookResult}from'../lib/book-status'
 
 // ---- Global search (novels, manhwa, manhua, manga) ------------------------------
@@ -184,7 +184,7 @@ function BookForYou({plugins,library,onAdd,onPreview}:{plugins:Plugin[],library:
  const seeds=bookSeeds(library).length
  useEffect(()=>{let alive=true;setRows(null);bookForYou(plugins,library).then(r=>{if(alive)setRows(r)}).catch(()=>{if(alive)setRows([])});return()=>{alive=false}},[plugins.length,library.length])
  if(!seeds)return <EmptyState icon="compass" title={t('No suggestions yet')} text={t('Read a few novels (or finish one): suggestions of the same genres will appear here, from your sources.')}/>
- if(rows===null)return <div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading…')}</div></div>
+ if(rows===null)return <><div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading…')}</div></div><SkeletonCards n={4}/></>
  if(!rows.length)return <EmptyState icon="compass" title={t('No suggestions yet')} text={t('Your sources have no list for the genres of your novels. Try Popular, or install other sources.')}/>
  const act=async(key:string,f:()=>Promise<any>)=>{setBusy(key);setErr('');try{await f()}catch(e:any){setErr(String(e?.message||e))}finally{setBusy('')}}
  return <>
@@ -219,6 +219,7 @@ export function NovelDiscover({plugins,ensurePlugins,library,onAdd,onOpen,onPrev
   {rows.length>0&&<h2 className="sr-only">{tab==='latest'?t('Latest'):t('Popular')}</h2>}
   {rows.length>0&&<div className="resultgrid">{rows.map((n:any)=>{const item=saved(n);return <article className="resultcard" key={n.path}><Cover src={n.cover||''} name={n.name||'?'}/><div className="resultmeta"><h3>{n.name}</h3><small>{plugin?.name}</small><div className="resultactions">{item?<button className="inlib" onClick={()=>onOpen(item)}>{'✓ '+t('Open')}</button>:<>{onPreview&&plugin&&<button className="primary" disabled={!!adding} onClick={async()=>{setAdding('read:'+n.path);setErr('');try{await onPreview({plugin,novel:n})}catch(e:any){setErr(t('Could not open this title:')+' '+String(e?.message||e))}finally{setAdding('')}}}>{adding==='read:'+n.path?t('Opening…'):t('Read')}</button>}<button className={onPreview?'':'primary'} disabled={!!adding} onClick={()=>add(n)}>{adding===n.path?t('Adding…'):(onPreview?'＋ '+t('Add'):'＋ '+t('Add to library'))}</button></>}</div></div></article>})}</div>}
   {loading&&<div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading…')}</div></div>}
+  {loading&&rows.length===0&&<SkeletonCards/>}
   {!loading&&!err&&plugin&&rows.length===0&&<EmptyState icon="compass" title={t('Nothing here')} text={t('This source returned an empty list. Try another source.')}/>}
   {!loading&&more&&rows.length>0&&<div className="discover-more"><button onClick={()=>load(page+1)}>{t('Load more')}</button></div>}
   </>}
