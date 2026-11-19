@@ -1224,6 +1224,8 @@ const FR: Record<string, string> = {
   'FlareSolverr stopped right after starting{code}. An antivirus may have blocked it: allow it, or reinstall it.': 'FlareSolverr s’est arrêté juste après son lancement{code}. Un antivirus l’a peut-être bloqué : autorise-le, ou réinstalle-le.',
   'FlareSolverr could not start: port {p} is already used by another program.': 'FlareSolverr n’a pas pu démarrer : le port {p} est déjà utilisé par un autre programme.',
   'FlareSolverr is starting but does not answer yet (after {n} s). Wait a moment and check again.': 'FlareSolverr démarre mais ne répond pas encore (après {n} s). Attends un peu et réessaie.',
+  'This stream cannot be decoded on this device. Trying another stream…': 'Ce flux ne peut pas être décodé sur cet appareil. Essai d\'un autre flux…',
+  'This stream cannot be decoded on this device. Pick another quality or server.': 'Ce flux ne peut pas être décodé sur cet appareil. Choisissez une autre qualité ou un autre serveur.',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

@@ -5,8 +5,10 @@ const FOCUSABLE='button:not([disabled]),a[href],input:not([disabled]):not([type=
 type Dir='up'|'down'|'left'|'right'
 const visible=(e:Element)=>{const r=e.getBoundingClientRect();if(r.width<2||r.height<2)return false;const s=getComputedStyle(e);return s.visibility!=='hidden'&&s.display!=='none'&&Number(s.opacity)>0.05}
 // Where the arrows may go: inside the open dialog / sheet when there is one.
+// (A window that is still fading in is open already: its opacity is not looked at.)
+const present=(e:Element)=>{const r=e.getBoundingClientRect();if(r.width<2||r.height<2)return false;const s=getComputedStyle(e);return s.visibility!=='hidden'&&s.display!=='none'}
 export function scope(doc:Document=document):Element{
- const open=Array.from(doc.querySelectorAll('[role="dialog"],.m-sheet')).filter(visible);return open.length?open[open.length-1]:doc.body}
+ const open=Array.from(doc.querySelectorAll('[role="dialog"],.m-sheet')).filter(present);return open.length?open[open.length-1]:doc.body}
 /** The control nearest to [from] in a direction (centre to centre, straight ahead preferred), or null. */
 export function nextFocus(from:Element|null,dir:Dir,root:Element=scope()):HTMLElement|null{
  const all=(Array.from(root.querySelectorAll(FOCUSABLE)) as HTMLElement[]).filter(e=>e!==from&&visible(e))

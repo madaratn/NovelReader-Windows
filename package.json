@@ -1,6 +1,6 @@
 {
   "name": "novel-reader-windows",
-  "version": "0.36.0",
+  "version": "0.37.0",
   "private": true,
   "description": "NovelReader — read web novels and watch your videos, on Windows and Android",
   "main": "electron/main.cjs",
@@ -41,6 +41,7 @@
     "@capacitor/android": "^6.2.3",
     "@capacitor/cli": "^6.2.3",
     "@capacitor/core": "^6.2.3",
+    "@fontsource-variable/inter": "5.3.0",
     "@playwright/test": "^1.56.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
@@ -52,6 +53,7 @@
     "extract-zip": "^2.0.1",
     "hls.js": "^1.6.13",
     "jsqr": "^1.4.0",
+    "postcss": "^8.5.0",
     "qrcode-generator": "^1.4.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

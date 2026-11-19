@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState}from'react'
 import{t,plural,getLang}from'../i18n'
 import{clamp,fmtMB,fmtSize,fmtTime,isTyping,lsGet,lsSet}from'../lib/util'
 import{Help,NoticeText}from'../ui/common'
+import{togglePlayerFull}from'./player-full'
 
 export function readPos(url:string):{t:number,d:number,done?:boolean,at?:number}|null{try{return JSON.parse(localStorage.getItem('localpos:'+url)||'null')}catch{return null}}
 // Shared player helpers: keyboard shortcuts and remembered volume.
@@ -17,7 +18,7 @@ export function useVideoShortcuts(ref:React.RefObject<HTMLVideoElement|null>,act
    if((k===' '&&(e.target as HTMLElement).tagName!=='BUTTON')||k==='k'){v.paused?v.play().catch(()=>{}):v.pause()}
    else if(k==='ArrowRight'||k==='l'){v.currentTime=Math.min(v.duration||Infinity,v.currentTime+10)}
    else if(k==='ArrowLeft'||k==='j'){v.currentTime=Math.max(0,v.currentTime-10)}
-   else if(k==='f'){const stage=v.closest('.player-stage') as HTMLElement|null;const whole=!!stage?.querySelector('.party-overlay');document.fullscreenElement?document.exitFullscreen().catch(()=>{}):(whole?stage!:v).requestFullscreen().catch(()=>{})}
+   else if(k==='f'){if(!togglePlayerFull(v)){document.fullscreenElement&&document.fullscreenElement!==document.documentElement?document.exitFullscreen().catch(()=>{}):v.requestFullscreen().catch(()=>{})}}
    else if(k==='m'){v.muted=!v.muted}
    else if(k==='n'&&optsRef.current.onNext){optsRef.current.onNext()}
    else if(k==='p'&&optsRef.current.onPrev){optsRef.current.onPrev()}

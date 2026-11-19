@@ -5,7 +5,7 @@ import React,{useEffect,useRef,useState}from'react'
 import{cachedScan,loadScan,scanFor,setAside,keepSource,DEAD_DAYS,SECTIONS,hasOverride,resultFits,setSourceSections,sourceFits,sourceSections,type VideoSection}from'../lib/source-kinds'
 import{t,plural,getLang}from'../i18n'
 import{lsGet,lsSet,timeAgo}from'../lib/util'
-import{EmptyState,Help,Cover,Icon,NoticeText,MoreMenu,GenreFilter,useShowMore}from'../ui/common'
+import{EmptyState,Help,Cover,Icon,NoticeText,MoreMenu,GenreFilter,useShowMore,SkeletonCards}from'../ui/common'
 import{titleInfo,matchScore,yearOf,searchQuery,sameTitle}from'../lib/title-match'
 import{parental,kidsBlock}from'./parental'
 import{altTitles}from'../lib/alt-titles'
@@ -241,6 +241,7 @@ export function MediaDiscover({kind,library,onAdd,onLibrary,onWatch,onFind}:{kin
   {rows.length>0&&<h2 className="sr-only">{tab==='latest'?t('Latest'):t('Popular')}</h2>}
   {rows.length>0&&<div className="resultgrid">{rows.map((a:any,i:number)=>{const k=a.url||a.path||String(i),saved=inLib(a),busy=adding.includes(k);return <article className="resultcard" key={k}><Cover src={mediaCover(a)} name={a.title||a.name||kind}/><div className="resultmeta"><h3>{a.title||a.name||t('Untitled')}</h3><small>{a.sourceName}</small><div className="resultactions">{saved?<button className="inlib linkbtn" onClick={onLibrary}>{'✓ '+t('In your library')}</button>:<>{onWatch&&<button className="primary" onClick={()=>onWatch(a)}>{'▶ '+t('Watch')}</button>}<button className={onWatch?'':'primary'} disabled={busy} onClick={()=>add(a)}>{busy?t('Adding…'):onWatch?'＋ '+t('Add'):'＋ '+t('Add to library')}</button></>}</div></div></article>})}</div>}
   {loading&&<div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading…')}</div></div>}
+  {loading&&rows.length===0&&<SkeletonCards/>}
   {!loading&&!error&&sources&&sources.length>0&&rows.length===0&&<EmptyState icon="compass" title={t('Nothing here')} text={t('This source returned an empty list. Try another source.')}/>}
   {!loading&&more&&rows.length>0&&<div className="discover-more"><button onClick={()=>load(page+1)}>{t('Load more')}</button></div>}</>}
  </div>}
@@ -259,6 +260,7 @@ function GenreBrowse({kind,library,onFind,onLibrary}:{kind:MediaKind,library:any
   {rows.length>0&&<h2 className="sr-only">{t(genre)}</h2>}
   {rows.length>0&&<div className="resultgrid">{rows.filter(x=>!kidsBlock(x)).map(x=>{const saved=inLib(x);return <article className="resultcard" key={x.id}><Cover src={x.cover} name={x.title}/><div className="resultmeta"><h3>{x.title}</h3><small>{[x.year,x.score?'★ '+x.score.toFixed(1):''].filter(Boolean).join(' · ')}</small><div className="resultactions">{saved?<button className="inlib linkbtn" onClick={onLibrary}>{'✓ '+t('In your library')}</button>:<button className="primary" onClick={()=>onFind(x.title)}>{'⌕ '+t('Find')}</button>}</div></div></article>})}</div>}
   {loading&&<div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading…')}</div></div>}
+  {loading&&rows.length===0&&<SkeletonCards/>}
   {!loading&&!error&&rows.length>0&&rows.length%30===0&&<div className="discover-more"><button onClick={()=>load(page+1)}>{t('Load more')}</button></div>}
  </>}
 // Discover › For you: "Because you liked X" rows (src/lib/recommend.ts).
@@ -271,6 +273,7 @@ function ForYouBrowse({kind,library,onFind}:{kind:MediaKind,library:any[],onFind
   <p className="settings-help genre-note">{kind==='Anime'?t('Suggested by AniList users for the titles you finished or watched lately. “Find” looks for the title on your sources.'):t('Titles of the same genres, among the most watched on IMDb. “Find” looks for the title on your sources.')}</p>
   {error&&<div className="anime-toast error"><NoticeText text={error}/></div>}
   {groups===null&&<div className="searchstatus running" role="status"><div className="searchstatus-text"><span className="spinner"/>{t('Loading…')}</div></div>}
+  {groups===null&&<SkeletonCards n={4}/>}
   {groups&&!groups.length&&!error&&<EmptyState icon="compass" title={t('No suggestions yet')} text={t('No suggestion was found for your titles. Finish or watch other titles, then come back.')}/>}
   {groups&&groups.map(g=>{const items=g.items.filter(x=>!kidsBlock(x));if(!items.length)return null;return <section className="foryou-group" key={g.because}><h2>{t('Because you liked {name}',{name:g.because})}</h2><div className="resultgrid">{items.map(x=><article className="resultcard" key={x.id}><Cover src={x.cover} name={x.title}/><div className="resultmeta"><h3>{x.title}</h3><small>{[x.year,x.score?'★ '+x.score.toFixed(1):''].filter(Boolean).join(' · ')}</small><div className="resultactions"><button className="primary" onClick={()=>onFind(x.title)}>{'⌕ '+t('Find')}</button></div></div></article>)}</div></section>})}
  </>}

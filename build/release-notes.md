@@ -1,3 +1,24 @@
+## NovelReader 0.37.0
+
+- **Plein écran complet (PC)** : le plein écran montre maintenant tout le lecteur, pas seulement l'image.
+  - « Passer l'intro », « Épisode suivant » et les messages restent visibles.
+  - Le titre, la qualité, l'audio, les sous-titres et le menu « ⋯ » sont en haut de l'image ; ils se cachent avec la souris après 3 secondes sans mouvement.
+  - Le plein écran est **gardé d'un épisode au suivant** et quand le lecteur change de qualité ou de serveur. Avant, il fallait le remettre à chaque épisode.
+  - Touche F, double-clic sur l'image ou bouton « Plein écran » au-dessus de la vidéo.
+- **Moteur vidéo qui se relance tout seul** : si le moteur n'a pas fini de démarrer ou s'est arrêté (mémoire, antivirus, sortie de veille), la demande l'attend et le relance au lieu d'échouer avec « fetch failed ».
+- **Flux impossible à décoder** : deux réparations sont tentées, puis le lecteur passe à un autre flux à la même position, au lieu de rester bloqué sur une image figée.
+- **Lecture des livres** : le chapitre suivant est chargé pendant que vous lisez, donc « Chapitre suivant » s'ouvre tout de suite.
+- **Finition de l'interface** :
+  - Plus aucun bouton, liste ou case avec l'aspect gris du navigateur : tout est dessiné par l'application, en thème sombre et clair (cases à cocher, menu « ⋯ », listes, barres de défilement sombres).
+  - Même police partout (Inter, fournie avec l'application), sur PC et sur téléphone.
+  - Transitions discrètes : les pages, fenêtres, menus et messages apparaissent en douceur ; les couvertures arrivent sans à-coup ; des formes grises remplacent le vide pendant le chargement de Découvrir. Rien ne bouge si Windows ou Android demande de réduire les animations.
+  - Tout ce qui s'affiche par-dessus la vidéo est sombre dans les deux thèmes (« Passer l'intro » était blanc sur blanc en plein écran clair).
+  - Sources : les offres de « Ajouter des sources » sont séparées, « Plus » reste un mot de la phrase.
+- **Clavier** : dans une fenêtre (recherche partout, Continuer, raccourcis…), Tab reste dans la fenêtre ; à la fermeture, le focus revient au bouton qui l'a ouverte.
+- **Corrections** : page trop serrée sur tablette Android (une règle d'affichage était ignorée), pastille de l'épisode en cours illisible en thème clair, épisodes vus rendus pâles par transparence.
+
+---
+
 ## NovelReader 0.36.0
 
 - **Accessibilité au niveau le plus exigeant (WCAG AAA)**, vérifiée automatiquement sur chaque page, en thème sombre et clair, sur PC et téléphone :
