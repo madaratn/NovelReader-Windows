@@ -6,6 +6,7 @@
 - **Liste détaillée toujours disponible** : les deux boutons à côté du filtre (couvertures / liste) changent l'affichage. Le choix est gardé et vaut pour toute l'application.
 - Le menu « ⋯ » d'une carte reste entièrement dans l'écran, même sur une carte étroite au bord gauche.
 - **Lecteur vidéo** : le cadre garde la forme d'un écran pendant le chargement, donc la page ne saute plus quand l'image arrive.
+- **Livres** : quand un site ne répond plus pendant l'ouverture d'un roman, l'application le dit après une minute au lieu d'attendre sans fin ; la vérification des nouveaux chapitres ne reste plus bloquée sur ce site.
 - **Français** : le bouton « Lire » de Découvrir et de la recherche s'affichait « Lu » ; « Bibliothèque » tient en entier dans la barre du bas du téléphone.
 
 ---
