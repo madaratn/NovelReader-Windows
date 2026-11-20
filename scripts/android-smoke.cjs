@@ -397,19 +397,33 @@ async function connect() {
   if (!cs.ok) { console.error('Cast scan failed on Android'); process.exit(1) }
   // In-app update (native Updater plugin): download the APK of the latest release,
   // then Android's installer must open over the app.
-  const upd = await evaluate(async () => {
+  // The newest APK is looked up from here, with the job's token: asked without one from
+  // the emulator, GitHub often answers "rate limit exceeded" to the shared addresses of
+  // its own runners, and the whole check failed on that after everything else had passed.
+  const newestApk = async () => {
+    const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN
+    for (const auth of token ? [{ Authorization: 'Bearer ' + token }, {}] : [{}]) {
+      try {
+        const rels = await (await fetch('https://api.github.com/repos/madaratn/NovelReader-Windows/releases?per_page=10', { headers: { Accept: 'application/vnd.github+json', ...auth } })).json()
+        if (!Array.isArray(rels)) { console.log('releases:', String(rels?.message || 'not a list').slice(0, 140)); continue }
+        const apk = rels.flatMap(r => r.assets || []).find(a => /^NovelReader-[\d.]+\.apk$/.test(a.name))
+        if (apk) return { name: apk.name, url: apk.browser_download_url, size: apk.size }
+      } catch (e) { console.log('releases:', e.message) }
+    }
+    return null
+  }
+  const apk = await newestApk()
+  if (!apk) { console.error('The releases could not be listed: the in-app update was not checked'); process.exit(1) }
+  const upd = await evaluate(async apk => {
     const up = window.Capacitor?.Plugins?.Updater
     if (!up) return { error: 'Updater plugin missing' }
-    const rels = await (await fetch('https://api.github.com/repos/madaratn/NovelReader-Windows/releases?per_page=10')).json()
-    const apk = rels.flatMap(r => r.assets || []).find(a => /^NovelReader-[\d.]+\.apk$/.test(a.name))
-    if (!apk) return { error: 'no apk in releases' }
     const pct = []
     up.addListener('progress', p => pct.push(p.percent))
     const t = Date.now()
-    const d = await up.download({ url: apk.browser_download_url, size: apk.size })
+    const d = await up.download({ url: apk.url, size: apk.size })
     const i = await up.install()
     return { apk: apk.name, size: d.size, seconds: Math.round((Date.now() - t) / 1000), lastPercent: pct[pct.length - 1], install: i }
-  })
+  }, apk)
   console.log('update:', JSON.stringify(upd))
   await sleep(4000)
   const top = require('child_process').execSync("adb shell dumpsys activity activities | grep -E 'topResumedActivity|mResumedActivity' | head -2").toString().trim()

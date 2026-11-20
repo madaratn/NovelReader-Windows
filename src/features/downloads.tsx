@@ -4,7 +4,7 @@
 import React,{useEffect,useState}from'react'
 import{t,plural,getLang}from'../i18n'
 import{EmptyState,Cover,NoticeText}from'../ui/common'
-import{cleanEngineError,mediaCover,episodeNo,seasonNo}from'../lib/media'
+import{cleanEngineError,mediaCover,episodeNo,seasonNo,seasonOrder,plainName}from'../lib/media'
 import{fmtUnit}from'../lib/util'
 import{fetchVideosCached,normalizeRemoteVideos,preferRemembered,AnimeVideo}from'./media-player'
 
@@ -61,7 +61,14 @@ const readJobs=():Job[]=>lsList(ARGS)
 const writeJobs=(l:Job[])=>{try{localStorage.setItem(ARGS,JSON.stringify(l.slice(-600)))}catch{}}
 const forgetJob=(key:string)=>{const l=readJobs(),rest=l.filter(j=>jobKey(j)!==key);if(rest.length!==l.length)writeJobs(rest)}
 // A job as a line of the list (what the engine does not know: waiting for Wi-Fi, cut, failed before the app closed).
-const jobItem=(j:Job,id:string):VideoDownload=>({id,kind:j.kind,mediaId:mediaIdOf(j.media),mediaName:String(j.media?.name||j.media?.title||''),cover:mediaCover(j.media)||'',episodeUrl:episodeKey(j.ep),episodeName:String(j.ep?.name||j.ep?.title||''),episodeNo:episodeNo(j.ep,j.index+1),mediaKey:playerKey(j.kind,j.media,j.ep,j.index),state:'queued',progress:0})
+// The name kept with a download says its season when the episode's own name does not
+// ("Episode 5" of a second season, of "Saison 1hs"…): several seasons of a title can be
+// kept, and "Episode 5" alone would not tell which one this is.
+const dlName=(ep:any)=>{const name=plainName(ep?.name||ep?.title||''),s=seasonNo(ep),tag=ep?.season_films?'':ep?.season_name?plainName(ep.season_name):s>1&&seasonNo({name})!==s?'S'+s:'';return tag&&name?tag+' · '+name:name}
+// Downloads of one title: by season, then by episode.
+const dlTag=(d:VideoDownload)=>{const n=String(d.episodeName||''),i=n.indexOf(' · ');return i>0?n.slice(0,i):''}
+const dlOrder=(a:VideoDownload,b:VideoDownload)=>seasonOrder(seasonNo({name:a.episodeName}),seasonNo({name:b.episodeName}))||dlTag(a).localeCompare(dlTag(b))||(a.episodeNo||0)-(b.episodeNo||0)
+const jobItem=(j:Job,id:string):VideoDownload=>({id,kind:j.kind,mediaId:mediaIdOf(j.media),mediaName:String(j.media?.name||j.media?.title||''),cover:mediaCover(j.media)||'',episodeUrl:episodeKey(j.ep),episodeName:dlName(j.ep),episodeNo:episodeNo(j.ep,j.index+1),mediaKey:playerKey(j.kind,j.media,j.ep,j.index),state:'queued',progress:0})
 function waitingItems():VideoDownload[]{return waitList().map(j=>({...jobItem(j,'wifi:'+jobKey(j)),wifi:true}))}
 
 // ---- Downloads that failed or were cut are taken up again -------------------------
@@ -180,7 +187,7 @@ export async function startEpisodeDownload(kind:DlKind,media:any,ep:any,index=0,
  const cap=Number(localStorage.getItem('dlMaxHeight'))||0,hOf=(c:any)=>Number((/(\d{3,4})p/i.exec(c.title)||[])[1])||0
  if(cap)candidates.sort((a:any,b:any)=>{const ha=hOf(a),hb=hOf(b),fa=!ha||ha<=cap,fb=!hb||hb<=cap;return(fb?1:0)-(fa?1:0)||(fa?hb-ha:ha-hb)})
  if(!candidates.length)throw new Error(t('This episode has no stream that can be downloaded.'))
- const r=await api().dlStart({kind,mediaId:mediaIdOf(media),mediaName:String(media.name||media.title||''),cover:mediaCover(media)||'',episodeUrl:url,episodeName:String(ep?.name||ep?.title||''),episodeNo:episodeNo(ep,index+1),mediaKey:playerKey(kind,media,ep,index),candidates})
+ const r=await api().dlStart({kind,mediaId:mediaIdOf(media),mediaName:String(media.name||media.title||''),cover:mediaCover(media)||'',episodeUrl:url,episodeName:dlName(ep),episodeNo:episodeNo(ep,index+1),mediaKey:playerKey(kind,media,ep,index),candidates})
  {const l=readJobs(),j=l.find(x=>jobKey(x)===key);if(j){Object.assign(j,{live:true,at:Date.now(),id:String(r?.id||j.id||''),hold:undefined,due:undefined,err:undefined});writeJobs(l)}}
  refreshDownloads();return r
  }finally{starting.delete(key)}
@@ -286,6 +293,6 @@ export function DownloadsPage(){
   {active.length>0&&<section className="panel"><h2>{t('In progress')}</h2><ul className="downloads-list">{active.map(d=><li key={d.id} className={'dl-row '+d.state}><div><b>{d.mediaName}</b><small>{d.kind==='movie'?kindLabel(d.kind):d.episodeName||t('Episode {n}',{n:d.episodeNo||''})}</small>{d.state==='error'?<NoticeText text={downloadError(d.error||'')}/>:<div className="libbar"><span style={{width:Math.round(d.progress*100)+'%'}}/></div>}</div><span className="dl-state">{stateText(d)}</span><span className="dl-actions">{d.state==='error'&&canRetry(d)&&<button className="primary" onClick={()=>{setNote('');retryDownload(d).catch((e:any)=>setNote(cleanEngineError(e)))}}>{t('Retry')}</button>}<button onClick={()=>cancelDownload(d.id)}>{d.state==='error'?t('Remove'):t('Cancel')}</button></span></li>)}</ul></section>}
   {done.length===0&&active.length===0&&<EmptyState icon="download" title={t('No downloads yet')} text={t('Open an anime, a series or a movie and use the ⤓ button on an episode to keep it on this PC.')}/>}
   {[...groups.values()].map(g=>{const first=g[0];return <section className="panel dl-group" key={first.kind+first.mediaId}><div className="dl-head"><Cover src={first.cover||''} name={first.mediaName}/><div><span className="media-kicker">{kindLabel(first.kind)}</span><h2>{first.mediaName}</h2><small>{plural(g.length,'{n} video','{n} videos')+' · '+fmtBytes(g.reduce((n,d)=>n+(d.size||0),0))}</small></div></div>
-   <ul className="downloads-list">{g.sort((a,b)=>(a.episodeNo||0)-(b.episodeNo||0)).map(d=><li key={d.id} className={'dl-row'+(playing?.id===d.id?' on':'')}><div><b>{d.kind==='movie'?first.mediaName:d.episodeName||t('Episode {n}',{n:d.episodeNo||''})}</b><small>{fmtBytes(d.size||0)}{d.subtitles?.length?' · '+plural(d.subtitles.length,'{n} subtitle','{n} subtitles'):''}</small></div><button className="primary" onClick={()=>setPlaying(d)}>{'▶ '+t('Play')}</button><button onClick={()=>{removeDownload(d);if(playing?.id===d.id)setPlaying(null)}}>{t('Delete')}</button></li>)}</ul></section>})}
+   <ul className="downloads-list">{g.sort(dlOrder).map(d=><li key={d.id} className={'dl-row'+(playing?.id===d.id?' on':'')}><div><b>{d.kind==='movie'?first.mediaName:d.episodeName||t('Episode {n}',{n:d.episodeNo||''})}</b><small>{fmtBytes(d.size||0)}{d.subtitles?.length?' · '+plural(d.subtitles.length,'{n} subtitle','{n} subtitles'):''}</small></div><button className="primary" onClick={()=>setPlaying(d)}>{'▶ '+t('Play')}</button><button onClick={()=>{removeDownload(d);if(playing?.id===d.id)setPlaying(null)}}>{t('Delete')}</button></li>)}</ul></section>})}
  </div>
 }

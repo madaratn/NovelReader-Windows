@@ -14,11 +14,13 @@ const ID = process.env.TEST_ARCHIVE_ID || 'popeye_taxi-turvey'
 const assert = (cond, msg) => { if (!cond) { console.error('FAIL:', msg); process.exit(1) } console.log('ok  -', msg) }
 const cacheRoot = path.join(os.tmpdir(), 'nr-torrent-test')
 
-const results = await archive.search('popeye')
+// archive.org is slow at times: a late answer is asked for again before the check gives up.
+const patient = async (what, f) => { for (let i = 1; ; i++) { try { return await f() } catch (e) { if (i >= 3) throw e; console.log(`  (${what}: ${e.message} - asked again in 5 s)`); await new Promise(r => setTimeout(r, 5000)) } } }
+const results = await patient('search', () => archive.search('popeye'))
 console.log('search sample:', results.slice(0, 3).map(r => `${r.identifier} (${r.title})`).join(' | '))
 assert(results.length > 0, 'archive search returns results')
 
-const details = await archive.files(ID)
+const details = await patient('files', () => archive.files(ID))
 const mp4 = details.files.find(f => /\.mp4$/i.test(f.name))
 assert(details.hasTorrent, 'item has an archive.org torrent')
 assert(mp4, 'item lists an MP4 file: ' + (mp4 && mp4.name))

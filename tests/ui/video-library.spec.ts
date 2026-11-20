@@ -796,6 +796,74 @@ test('sources broken for more than 10 days are set aside from searches, listed i
   await expect.poll(async () => (await page.evaluate(() => (window as any).__searched)).sort()).toEqual(['50', '51', '52', '54'])
 })
 
+test('seasons as real sources write them: each season in its own group, films and specials apart', async ({ page }) => {
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify([item('series', 1, 'Game of Thrones')]) })
+  await page.evaluate(() => {
+    const w = window as any, f = w.novelReader.miwayomiFetch
+    // "S08 - Episode 6: …" (4KHDHub), the number some sites send beside the name (109 for season 2 episode 9),
+    // a film listed beside the seasons (German sites), and a title that says a season in passing
+    const rows: [string, number][] = [['S08 - Episode 6: The Iron Throne', 6], ['S08 - Episode 1: Winterfell', 1], ['S02 - Episode 10: Valar Morghulis', 110], ['S02 - Episode 9: Blackwater', 109], ['S01 - Episode 10: Fire and Blood', 10], ['S01 - Episode 2: Season 8 is far away', 2], ['S01 - Episode 1: Winter Is Coming', 1], ['Film 1 : The Last Watch (2019)', 1]]
+    w.novelReader.miwayomiFetch = async (p: string, m?: string, b?: any) => p.includes('/episodes') ? rows.map(([name, n], i) => ({ name, url: '/ep/' + i, episode_number: n })) : f(p, m, b)
+  })
+  await page.locator('.libcard', { hasText: 'Game of Thrones' }).getByRole('button', { name: 'Show episodes' }).click()
+  await expect(page.locator('.season-chips .chip')).toHaveText([/Season 1\s*3/, /Season 2\s*2/, /Season 8\s*2/, /Films and specials\s*1/, 'All seasons'])
+  // Season 1 holds season 1 only, in order
+  await expect(page.locator('.episodetitle')).toHaveText(['S01 - Episode 1: Winter Is Coming', 'S01 - Episode 2: Season 8 is far away', 'S01 - Episode 10: Fire and Blood'])
+  await expect(page.locator('.episodebadge')).toHaveText(['S1E1', 'S1E2', 'S1E10'])
+  // The episode number is the one of the name, not the code sent beside it
+  await page.locator('.season-chips').getByRole('tab', { name: /Season 2/ }).click()
+  await expect(page.locator('.episodebadge')).toHaveText(['S2E9', 'S2E10'])
+  await page.locator('.season-chips').getByRole('tab', { name: /Season 8/ }).click()
+  await expect(page.locator('.episodetitle')).toHaveText(['S08 - Episode 1: Winterfell', 'S08 - Episode 6: The Iron Throne'])
+  // Films and specials: after the seasons, without a season number
+  await page.locator('.season-chips').getByRole('tab', { name: /Films and specials/ }).click()
+  await expect(page.locator('.episodebadge')).toHaveText(['E1'])
+  await page.locator('.season-chips').getByRole('tab', { name: 'All seasons' }).click()
+  await expect(page.locator('.season-head')).toHaveText(['Season 1', 'Season 2', 'Season 8', 'Films and specials'])
+})
+
+test('a source that lists its seasons one by one: each is asked for, and called what the source calls it', async ({ page }) => {
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify([item('series', 1, 'Naruto')]) })
+  await page.evaluate(() => {
+    const w = window as any, f = w.novelReader.miwayomiFetch
+    // As Anime-Sama answers: no episode for the title itself, a list of seasons, films with a number each
+    const seasons = [
+      { title: 'Naruto Saison 1', url: '/catalogue/naruto/saison1/vostfr', season_number: 1 },
+      { title: 'Naruto Saison 1hs', url: '/catalogue/naruto/saison1hs/vostfr', season_number: 2 },
+      { title: 'Naruto et la Princesse des neiges', url: '/catalogue/naruto/film/vostfr#0', season_number: 3 },
+      { title: 'La Légende de la pierre de Guelel', url: '/catalogue/naruto/film/vostfr#1', season_number: 3.1 },
+      { title: 'Naruto Kai', url: '/catalogue/naruto/kai/vostfr', season_number: 4 }
+    ]
+    const numbered = (n: number) => Array.from({ length: n }, (_, i) => ({ name: 'Episode ' + (n - i), episode_number: n - i, scanlator: 'VOSTFR, VF' }))
+    w.__asked = [] as string[]
+    w.novelReader.miwayomiFetch = async (p: string, m?: string, b?: any) => {
+      const url = decodeURIComponent((/[?&]url=([^&]*)/.exec(p) || [])[1] || '')
+      if (p.includes('/details')) return { title: 'Naruto', description: 'A ninja.', status: 2 }
+      if (p.includes('/seasons')) { w.__asked.push('seasons ' + url); return { seasons } }
+      if (p.includes('/episodes')) {
+        w.__asked.push('episodes ' + url)
+        if (url === '/series/1') return []
+        const list = url.includes('/film/') ? [{ name: 'Film', episode_number: 1, scanlator: 'VOSTFR' }] : numbered(url.includes('saison1hs') || url.includes('/kai/') ? 2 : 3)
+        return list.map((e, i) => ({ ...e, url: url + '?ep=' + i }))
+      }
+      return f(p, m, b)
+    }
+  })
+  await page.locator('.libcard', { hasText: 'Naruto' }).getByRole('button', { name: 'Show episodes' }).click()
+  await expect(page.locator('.season-chips .chip')).toHaveText([/Season 1\s*3/, /Saison 1hs\s*2/, /Films\s*2/, /Kai\s*2/, 'All seasons'])
+  expect(await page.evaluate(() => (window as any).__asked.slice().sort())).toEqual(['episodes /catalogue/naruto/film/vostfr#0', 'episodes /catalogue/naruto/film/vostfr#1', 'episodes /catalogue/naruto/kai/vostfr', 'episodes /catalogue/naruto/saison1/vostfr', 'episodes /catalogue/naruto/saison1hs/vostfr', 'episodes /series/1', 'seasons /series/1'])
+  await expect(page.locator('.episodebadge')).toHaveText(['S1E1', 'S1E2', 'S1E3'])
+  // A season with a name of its own: no "S2" that the source never said
+  await page.locator('.season-chips').getByRole('tab', { name: /Saison 1hs/ }).click()
+  await expect(page.locator('.episodebadge')).toHaveText(['E1', 'E2'])
+  // Each film is called by its title
+  await page.locator('.season-chips').getByRole('tab', { name: /Films/ }).click()
+  await expect(page.locator('.episodetitle')).toHaveText(['Naruto et la Princesse des neiges', 'La Légende de la pierre de Guelel'])
+  await page.locator('.season-chips').getByRole('tab', { name: 'All seasons' }).click()
+  await expect(page.locator('.season-head')).toHaveText(['Season 1', 'Saison 1hs', 'Films', 'Kai'])
+  await expect(page.locator('.episodecell')).toHaveCount(9)
+})
+
 test('source of a title: pick another source it was found on, or look for more', async ({ page }) => {
   await openVideo(page, { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns', { alternates: [{ sourceId: '43', sourceName: 'Kodi', url: '/series/1' }] })]) })
   await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
