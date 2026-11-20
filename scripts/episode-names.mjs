@@ -13,7 +13,7 @@ const ONLY = (process.env.ONLY || '').split(',').map(s => s.trim().toLowerCase()
 const [SHARD, SHARDS] = (process.env.SHARD || '1/1').split('/').map(Number)
 const QUERIES = (process.env.QUERIES || 'Attack on Titan|Game of Thrones|The Walking Dead|Naruto|One Piece|Breaking Bad').split('|').map(s => s.trim()).filter(Boolean)
 const repos = process.argv.slice(2)
-const MAX_EPISODES = 500, BUDGET = 90000
+const MAX_EPISODES = 500, BUDGET = 120000
 
 async function api(path, { method = 'GET', body, timeout = 30000 } = {}) {
   const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), timeout)
@@ -41,11 +41,11 @@ async function sampleSource(src) {
   const sid = encodeURIComponent(src.id), started = Date.now(), left = () => BUDGET - (Date.now() - started)
   const out = { id: src.id, name: src.name, lang: src.lang, titles: [], notes: [] }
   const picked = new Map()
-  try { for (const a of list(await api(`/api/v1/anime/${sid}/popular?page=1`, { timeout: 25000 }), 'animes', 'results', 'items', 'list').slice(0, 1)) picked.set(a.url || a.path, { how: 'popular', a }) }
+  try { for (const a of list(await api(`/api/v1/anime/${sid}/popular?page=1`, { timeout: 25000 }), 'animes', 'results', 'items', 'list').slice(0, 2)) picked.set(a.url || a.path, { how: 'popular', a }) }
   catch (e) { out.notes.push('popular: ' + e.message) }
   let found = 0
   for (const q of QUERIES) {
-    if (found >= 2 || left() < 45000) break
+    if (found >= 3 || left() < 45000) break
     try {
       const items = list(await api(`/api/v1/anime/${sid}/search?q=${encodeURIComponent(q)}&query=${encodeURIComponent(q)}&page=1`, { timeout: 25000 }), 'animes', 'results', 'items', 'list')
       // The entries that are this title (a source may list each season as its own entry).
