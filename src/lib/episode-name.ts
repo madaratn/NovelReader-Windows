@@ -158,7 +158,8 @@ export function readName(raw:any):NameRead{
  while((m=words.exec(rest))){
   const start=m.index,end=start+m[0].length,head=rest.slice(0,start),tail=rest.slice(end)
   const a=new RegExp('^'+SEP+NUM+'(?!\\d)').exec(tail)
-  const b=/(?<![\p{L}\p{N}.,])(\d{1,4}(?:\.\d{1,2})?)\s*(\.|º|ª)?\s*[:\-–]?\s*$/u.exec(head)
+  // (two episodes in one, "166 - 167 : الحلقة", go by the first)
+  const b=/(?<![\p{L}\p{N}.,])(\d{1,4}(?:\.\d{1,2})?)(?:\s*[-–]\s*\d{1,4})?\s*(\.|º|ª)?\s*[:\-–]?\s*$/u.exec(head)
   if(b&&b[2]){eps.push({from:b.index,to:end,n:Number(b[1])});continue} // "5. Bölüm"
   if(a){eps.push({from:start,to:end+a[0].length,n:Number(a[1])});continue}
   // "5 : الحلقة", "8 серия" - but "59 episodes" is a count
@@ -369,10 +370,15 @@ export function readEpisodes<T extends any[]>(list:T):T{
  const plain=rows.filter(x=>x.r.season==null)
  const repeats=(pick:(x:typeof rows[number])=>number|null)=>{const seen=new Set<string>();let n=0;for(const x of plain){const v=pick(x);if(v==null)continue;const k=x.s+':'+v+':'+(x.ep?.scanlator||'');if(seen.has(k))n++;else seen.add(k)}return n}
  const nameWins=repeats(x=>named(x)??x.f)<repeats(x=>x.f??named(x))
+ // A number sent that is far beyond anything in the list ("166167" beside "166 - 167") is a
+ // slip of the source, when it happens to a few episodes only.
+ const top=rows.reduce((m,x)=>Math.max(m,named(x)??0),rows.length)
+ const wild=(x:typeof rows[number])=>x.f!=null&&named(x)!=null&&x.f>2*top+10
+ const slips=rows.filter(wild).length*20<=rows.length
  for(const x of rows){
   const n=named(x)
   if(odd==='films'&&x.direct==null){x.e=null;continue}
-  if(n!=null&&(x.r.season!=null||x.packed!=null||x.f==null||fieldDead||fieldIsPlace||nameWins))x.e=n
+  if(n!=null&&(x.r.season!=null||x.packed!=null||x.f==null||fieldDead||fieldIsPlace||nameWins||(slips&&wild(x))))x.e=n
   else if(x.f!=null&&!fieldDead&&!fieldIsPlace)x.e=x.f
   else x.e=n??(fieldIsPlace?null:x.r.episode)
  }

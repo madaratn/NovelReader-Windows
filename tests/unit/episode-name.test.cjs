@@ -129,6 +129,12 @@ test('the number sent says nothing (the same for all, or none): the names, then 
   assert.deepStrictEqual(read([['Episode 2', 4], ['Episode 1', 3], ['Episode 2', 2], ['Episode 1', 1]]), ['S1E4', 'S1E3', 'S1E2', 'S1E1'])
 })
 
+test('two episodes in one, and a number sent that is a slip of the source (Anime Blkom)', () => {
+  const rows = []; for (let n = 220; n >= 150; n--) rows.push(n === 166 ? ['166 - 167 :الحلقة', 166167] : n === 165 ? ['165 - 166 :الحلقة', 165166] : [n + ' :الحلقة', n])
+  const got = read(rows)
+  assert.deepStrictEqual(got.slice(53, 57), ['S1E167', 'S1E166', 'S1E165', 'S1E164'])
+})
+
 test('a name sent as %-codes is read as the text it stands for', () => {
   const coded = '%D8%A7%D9%84%D8%A3%D8%AE%D9%8A%D8%B1%D8%A9 : %D8%A7%D9%84%D8%AD%D9%84%D9%82%D8%A9'
   assert.strictEqual(plainName(coded), 'الأخيرة : الحلقة')
