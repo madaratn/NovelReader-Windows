@@ -48,3 +48,15 @@ test('book sources may only reach web sites (no file, no local network)', () => 
   for (const u of ['file:///C:/Users/me/secret.txt', 'http://127.0.0.1:4567/api/v1/sources', 'http://localhost:4580/', 'http://192.168.1.5:4580/abc', 'http://10.0.0.1/', 'http://172.20.0.1/', 'http://[::1]/', 'data:text/html,x', 'javascript:alert(1)', 'not a url'])
     assert.equal(ok(u), false, u)
 })
+
+test('a call to a source has a time limit, and leaves no timer behind once it has answered', async () => {
+  const { _withDeadline: limit } = require('../../electron/plugin-runner.cjs')
+  // Answered in time: the value, and the process is free to end (no 60 s timer left).
+  assert.equal(await limit(Promise.resolve('ok'), 'Novel timeout', 60000), 'ok')
+  // Never answers (a site that stopped responding while a novel opens): said after the limit.
+  const t0 = Date.now()
+  await assert.rejects(() => limit(new Promise(() => {}), 'Novel timeout', 120), /Novel timeout/)
+  assert.ok(Date.now() - t0 >= 100 && Date.now() - t0 < 2000)
+  // A failure of the source itself is passed on as it is.
+  await assert.rejects(() => limit(Promise.reject(new Error('HTTP 503')), 'Novel timeout', 60000), /HTTP 503/)
+})

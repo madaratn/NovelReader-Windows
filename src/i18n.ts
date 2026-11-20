@@ -67,7 +67,7 @@ const FR: Record<string, string> = {
   'Unknown author': 'Auteur inconnu', '{done} / {total} read': '{done} / {total} lus', 'last read {when}': 'lu {when}',
   'Show current chapter': 'Voir le chapitre en cours', 'Filter by title or chapter number…': 'Filtrer par titre ou numéro de chapitre…',
   'Order': 'Ordre', 'Oldest first': 'Plus anciens d’abord', 'Newest first': 'Plus récents d’abord', 'Hide read': 'Masquer les lus',
-  'No chapter matches.': 'Aucun chapitre ne correspond.', 'Read': 'Lu',
+  'No chapter matches.': 'Aucun chapitre ne correspond.', 'Read': 'Lire', 'Already read': 'Déjà lu',
   'Reading · Ch. {n}': 'En cours · Ch. {n}', 'Ch. {n}': 'Ch. {n}', 'Chapter {n}': 'Chapitre {n}', 'Loading…': 'Chargement…',
   // Reader
   'Chapters': 'Chapitres', 'Chapter position': 'Position dans le roman', 'Reading settings': 'Réglages de lecture',
@@ -705,7 +705,7 @@ const FR: Record<string, string> = {
   'Update my MyAnimeList progress when I finish an anime episode': 'Mettre à jour ma progression MyAnimeList quand je finis un épisode d\'anime',
   'Reload my MyAnimeList list': 'Recharger ma liste MyAnimeList',
   'Show my MyAnimeList list': 'Afficher ma liste MyAnimeList',
-  'Your MyAnimeList list is empty.': 'Votre liste MyAnimeList est vide.',
+  'Your MyAnimeList list is empty.': 'Ta liste MyAnimeList est vide.',
   'On hold': 'En pause',
   'NovelReader has been updated to {v}.': 'NovelReader a été mis à jour en {v}.',
   'OK': 'OK',
@@ -760,7 +760,7 @@ const FR: Record<string, string> = {
   'NovelReader {v} is ready. It applies by itself when you are not using the app, without closing it.': 'NovelReader {v} est prêt. Il s\'applique tout seul quand tu n\'utilises pas l\'app, sans la fermer.',
   'Update now (1 second)': 'Mettre à jour maintenant (1 seconde)',
   'Recommended anime sources': 'Sources anime recommandées',
-  'Installs anime sources that worked in this week\'s check (One Piece, Naruto, Solo Leveling… and Chinese anime). Your other sources are not changed.': 'Installe les sources anime qui ont fonctionné lors de la vérification de la semaine (One Piece, Naruto, Solo Leveling… et animes chinois). Vos autres sources ne changent pas.',
+  'Installs anime sources that worked in this week\'s check (One Piece, Naruto, Solo Leveling… and Chinese anime). Your other sources are not changed.': 'Installe les sources anime qui ont fonctionné lors de la vérification de la semaine (One Piece, Naruto, Solo Leveling… et animes chinois). Tes autres sources ne changent pas.',
   'Install the anime pack': 'Installer le pack anime',
   'The camera is not allowed. Check Windows Settings › Privacy › Camera.': 'La caméra n\'est pas autorisée. Vérifie Paramètres Windows › Confidentialité › Caméra.',
   'No camera found.': 'Aucune caméra trouvée.',
@@ -815,7 +815,7 @@ const FR: Record<string, string> = {
   'Stop the AI subtitles': 'Arrêter les sous-titres IA',
   'In the player, 💬 Subtitles finds subtitles for any video: online for films and series, or written by AI on this PC.': 'Dans le lecteur, 💬 Sous-titres trouve des sous-titres pour n\'importe quelle vidéo : en ligne pour les films et séries, ou écrits par l\'IA sur ce PC.',
   'Online subtitles (Wyzie Subs)': 'Sous-titres en ligne (Wyzie Subs)',
-  'Free key, once: open sub.wyzie.io/redeem, get your key and paste it here. 1,000 searches a day.': 'Clé gratuite, une seule fois : ouvre sub.wyzie.io/redeem, récupère ta clé et colle-la ici. 1 000 recherches par jour.',
+  'Free key, once: open sub.wyzie.io/redeem, get your key and paste it here. 1,000 searches a day.': 'Clé gratuite, une seule fois : ouvre sub.wyzie.io/redeem, récupère ta clé et colle-la ici. 1 000 recherches par jour.',
   'Wyzie Subs key': 'Clé Wyzie Subs',
   'Saved': 'Enregistrée',
   'When a film or episode has no subtitles, add the best ones found online by itself': 'Quand un film ou un épisode n\'a pas de sous-titres, ajouter tout seul les meilleurs trouvés en ligne',
@@ -901,7 +901,7 @@ const FR: Record<string, string> = {
   'The PC could not be reached. Check that it is on, that NovelReader is open on it, and that the iPhone is on the same Wi-Fi.': 'Le PC est injoignable. Vérifie qu\'il est allumé, que NovelReader y est ouvert et que l\'iPhone est sur le même Wi-Fi.',
   'This is not the link shown on the PC. It looks like 192.168.1.5:4580/abcdefghjk.': 'Ce n\'est pas le lien affiché sur le PC. Il ressemble à 192.168.1.5:4580/abcdefghjk.',
   'Linked. Anime, series and movies now go through your PC.': 'Lié. Les animes, séries et films passent maintenant par ton PC.',
-  'Your PC answers.': 'Votre PC répond.',
+  'Your PC answers.': 'Ton PC répond.',
   'Videos through your PC': 'Vidéos par ton PC',
   'Books and Tunisian TV work on the iPhone alone. Anime, series and movies use NovelReader on your PC, on the same Wi-Fi: on the PC, open Settings › Videos on your iPhone, turn it on, and type the link shown there.': 'Les livres et Tunisian TV marchent sur l\'iPhone seul. Les animes, séries et films utilisent NovelReader sur ton PC, sur le même Wi-Fi : sur le PC, ouvre Réglages › Vidéos sur ton iPhone, active, puis tape ici le lien affiché.',
   'Linked PC:': 'PC lié :',
@@ -925,7 +925,7 @@ const FR: Record<string, string> = {
   'Or through Google Drive / OneDrive': 'Ou par Google Drive / OneDrive',
   'Works away from home too. On the PC, turn on sync in Settings with a Google Drive or OneDrive folder. Then choose here the file library-sync.json it wrote in the NovelReader folder.': 'Marche aussi hors de la maison. Sur le PC, active la synchronisation dans les Réglages avec un dossier Google Drive ou OneDrive. Choisis ensuite ici le fichier library-sync.json qu\'il a écrit dans le dossier NovelReader.',
   'Shared directly with your phone (Phone link below). Choose a folder to also sync between PCs or away from home.': 'Partagé directement avec ton téléphone (Lien avec le téléphone, ci-dessous). Choisis un dossier pour synchroniser aussi entre PC ou hors de la maison.',
-  'Your PC is not reachable right now. Sync resumes on the home Wi-Fi, with NovelReader open on the PC.': 'Votre PC est injoignable pour le moment. La synchronisation reprendra sur le Wi-Fi de la maison, avec NovelReader ouvert sur le PC.',
+  'Your PC is not reachable right now. Sync resumes on the home Wi-Fi, with NovelReader open on the PC.': 'Ton PC est injoignable pour le moment. La synchronisation reprendra sur le Wi-Fi de la maison, avec NovelReader ouvert sur le PC.',
   'The PC refused the code. Link it again in Settings.': 'Le PC a refusé le code. Lie-le de nouveau dans les Réglages.',
   'Continue': 'Reprendre',
   'Next episode after {ep}': 'Épisode suivant, après {ep}',
@@ -1225,7 +1225,11 @@ const FR: Record<string, string> = {
   'FlareSolverr could not start: port {p} is already used by another program.': 'FlareSolverr n’a pas pu démarrer : le port {p} est déjà utilisé par un autre programme.',
   'FlareSolverr is starting but does not answer yet (after {n} s). Wait a moment and check again.': 'FlareSolverr démarre mais ne répond pas encore (après {n} s). Attends un peu et réessaie.',
   'This stream cannot be decoded on this device. Trying another stream…': 'Ce flux ne peut pas être décodé sur cet appareil. Essai d\'un autre flux…',
-  'This stream cannot be decoded on this device. Pick another quality or server.': 'Ce flux ne peut pas être décodé sur cet appareil. Choisissez une autre qualité ou un autre serveur.',
+  'This stream cannot be decoded on this device. Pick another quality or server.': 'Ce flux ne peut pas être décodé sur cet appareil. Choisis une autre qualité ou un autre serveur.',
+  'Display': 'Affichage',
+  'Covers': 'Couvertures',
+  'No timer': 'Aucune',
+  'Show': 'Afficher',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')
@@ -1234,6 +1238,8 @@ export function t(key: string, vars?: Record<string, string | number>): string {
   // Phone / tablet: the same sentences, without "PC".
   if (onDevice()) out = out.replace(/\bthis PC\b/g, 'this device').replace(/\bce PC\b/g, 'cet appareil').replace(/\ba Windows notification\b/g, 'a notification').replace(/\bune notification Windows\b/g, 'une notification')
   if (vars) out = out.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m))
+  // French: a line never starts with ":", ";", "?", "!" or "»", nor ends with "«" (the space beside them does not break).
+  if (lang === 'fr') out = out.replace(/ (?=[:;?!»])/g, '\u00a0').replace(/« /g, '«\u00a0')
   return out
 }
 

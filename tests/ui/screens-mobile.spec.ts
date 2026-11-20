@@ -13,7 +13,7 @@ for (const [name, w, h] of SIZES) {
     test.setTimeout(120_000)
     await page.setViewportSize({ width: w, height: h })
     await page.addInitScript(() => { const add = () => document.documentElement?.classList.add('android'); add(); new MutationObserver(add).observe(document, { childList: true, subtree: false }) })
-    await setup(page, { library: LIB, reading: { mol: { index: 249 } } }); await page.goto('/'); await page.waitForTimeout(600)
+    await setup(page, { library: LIB, reading: { mol: { index: 249 } }, storage: { cardView: process.env.VIEW || 'posters' } }); await page.goto('/'); await page.waitForTimeout(600)
     const shot = async (p: string) => { await page.waitForTimeout(400); await page.screenshot({ path: `${DIR}/${name}-${p}.png`, fullPage: false }) }
     const go = async (label: string) => {
       if (await page.locator('.m-bottom').isVisible().catch(() => false)) {

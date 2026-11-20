@@ -30,3 +30,14 @@ if (missing.length) {
   process.exit(1)
 }
 console.log('All strings have a French translation.')
+
+// One voice: the app says "tu" ("Ta bibliothèque", "Choisis…"). A "vous", "votre" or
+// "Choisissez" slipped among them reads like another program talking.
+const values = [...i18n.matchAll(/'(?:[^'\\]|\\.)*'\s*:\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)")/g)].map(m => unq(m[1] ?? m[2] ?? ''))
+const formal = values.filter(v => /\b(vous|vos|votre|veuillez)\b/i.test(v) || /\b[a-zàâéèêëîïôûç]{3,}ez\b/i.test(v.replace(/\b(assez|chez|nez|rez)\b/gi, '')))
+if (formal.length) {
+  console.error(`\n${formal.length} French string(s) say "vous" (the app says "tu"):`)
+  for (const v of formal) console.error('  - ' + v.slice(0, 140))
+  process.exit(1)
+}
+console.log(`French voice: "tu" everywhere (${values.length} strings).`)

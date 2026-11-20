@@ -18,9 +18,9 @@ test('the light theme made from it parses too, and leaves the base layer alone',
  const light=lightTheme(css)
  const root=postcss.parse(light)
  assert.ok(root.nodes.length>300)
- // :where() rules weigh nothing on purpose; a copy scoped to the light theme would
- // outweigh the rules meant to win over them (a border back on borderless buttons).
- assert.ok(!/:where\(/.test(light))
+ // The base layer (:where(button)…) is made of tokens only and has no copy; the only
+ // :where() of the light theme is the scope of its copies, which adds no weight.
+ assert.ok(!/:where\((?!:root\[data-theme=light\]\)|\[data-theme=light\]\))/.test(light))
  // A ";" inside a value (data URI) would cut a declaration in two.
  root.walkDecls(d=>assert.ok(!/^\s*(utf8|base64)\b/.test(d.prop),'declaration cut at a ";": '+d.prop))
 })
@@ -49,4 +49,18 @@ test('the player in full screen and what is drawn over the picture are dark in b
  // and the light theme makes no copy of the full screen rules
  const light=lightTheme(css)
  assert.ok(!/:fullscreen|\.player-skip|\.player-next|\.po-bar|\.seek-flash|\.mini-bar/.test(light))
+})
+
+test('the light theme: copies weigh what their rule weighs, and carry "0" and "none"',()=>{
+ const light=lightTheme('.a{border:1px solid #101320;color:#e7e3dc}.b .a{border:0;background:none}html.android .c{color:#e7e3dc}body .d{box-shadow:none;outline:none}:root{--bg-x:#0b0d14}')
+ // the scope of a copy is inside :where(): no weight added, so the copy of the rule
+ // that wins in the dark theme wins in the light one
+ assert.match(light,/:where\(:root\[data-theme=light\]\) \.a\{border:1px solid #[0-9a-f]{6};color:#[0-9a-f]{6}\}/)
+ // a border taken away by a later rule stays away
+ assert.match(light,/:where\(:root\[data-theme=light\]\) \.b \.a\{border:0;background:none\}/)
+ assert.match(light,/:where\(:root\[data-theme=light\]\) body \.d\{box-shadow:none;outline:none\}/)
+ // a class of the root element ("html.android") is read on the root itself
+ assert.match(light,/html:where\(\[data-theme=light\]\)\.android \.c\{color:#[0-9a-f]{6}\}/)
+ // the tokens outweigh the dark ones
+ assert.match(light,/\n:root\[data-theme=light\]\{--bg-x:#[0-9a-f]{6}\}/)
 })

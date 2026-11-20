@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState}from'react'
 import{ReportButton}from'../features/report'
 import{t}from'../i18n'
 import{hueOf,initials}from'../lib/util'
+import{useCardView}from'../lib/card-view'
 
 // ---- Readable error messages -------------------------------------------
 // Engine errors can carry hundreds of lines of Java stack trace. Show one
@@ -59,8 +60,10 @@ export const ICONS:Record<string,string>={
  compass:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM15.5 8.5l-2 5-5 2 2-5z',
  download:'M12 4v11M7 10l5 5 5-5M5 20h14',
  grid:'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+ list:'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01',
  comics:'M4 4h16v16H4zM4 12h16M12 4v8',
  search:'M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM20 20l-4.8-4.8',
+ sort:'M7 4v16M3.5 16.5 7 20l3.5-3.5M17 20V4M13.5 7.5 17 4l3.5 3.5',
  plug:'M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0zM12 17v4',
  folder:'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
  archive:'M3 4h18v4H3zM5 8v12h14V8M10 12h4',
@@ -76,9 +79,11 @@ export function Icon({name,inline}:{name:string,inline?:boolean}){return <svg cl
 // shows while the picture loads, and the picture comes in softly. A cover whose address
 // changes (details that arrive later) is tried again, even after a first failure.
 export function Cover({src,name}:{src?:string,name:string}){const[failed,setFailed]=useState(false),[loaded,setLoaded]=useState(false);useEffect(()=>{setFailed(false);setLoaded(false)},[src]);const h=hueOf(name),bg=`linear-gradient(150deg,hsl(${h} 45% 32%),hsl(${(h+40)%360} 50% 18%))`;if(src&&!failed)return <img className={'libcover'+(loaded?' loaded':'')} src={src} alt="" loading="lazy" style={loaded?undefined:{background:bg}} onLoad={()=>setLoaded(true)} onError={()=>setFailed(true)}/>;return <div className="libcover placeholder" aria-hidden="true" data-initials={initials(name)} style={{background:bg}}/>}
+// Covers or list: the two ways the libraries and Discover show their titles (lib/card-view.ts).
+export function ViewToggle(){const[v,set]=useCardView();return <div className="view-toggle" role="group" aria-label={t('Display')}>{(['posters','list'] as const).map(x=><button key={x} type="button" aria-pressed={v===x} className={v===x?'on':''} onClick={()=>set(x)} title={x==='posters'?t('Covers'):t('List')} aria-label={x==='posters'?t('Covers'):t('List')}><Icon name={x==='posters'?'grid':'list'}/></button>)}</div>}
 // The shapes of the cards (or rows) that are coming, while a list loads. Not announced:
 // the status line beside them says "Loading…".
-export function SkeletonCards({n=6}:{n?:number}){return <div className="resultgrid skeleton-grid" aria-hidden="true">{Array.from({length:n},(_,i)=><div className="skeleton-card" key={i}><div className="skeleton"/><div><div className="skeleton"/><div className="skeleton"/><div className="skeleton"/></div></div>)}</div>}
+export function SkeletonCards({n=6,posters=false}:{n?:number,posters?:boolean}){return <div className={'resultgrid skeleton-grid'+(posters?' posters':'')} aria-hidden="true">{Array.from({length:n},(_,i)=><div className="skeleton-card" key={i}><div className="skeleton"/><div><div className="skeleton"/><div className="skeleton"/><div className="skeleton"/></div></div>)}</div>}
 export function SkeletonRows({n=6}:{n?:number}){return <div className="skeleton-rows" aria-hidden="true">{Array.from({length:n},(_,i)=><div className="skeleton" key={i}/>)}</div>}
 
 // ---- Error boundary: a crashing page shows a recovery screen, not a black window
@@ -101,9 +106,21 @@ export class ErrorBoundary extends React.Component<{children:React.ReactNode,res
 
 // "⋯" button with a small menu of less frequent actions (library cards, player).
 export function MoreMenu({label,children,className='',up=false}:{label?:string,children:React.ReactNode,className?:string,up?:boolean}){
- const[open,setOpen]=React.useState(false),ref=React.useRef<HTMLDivElement>(null)
+ const[open,setOpen]=React.useState(false),ref=React.useRef<HTMLDivElement>(null),pop=React.useRef<HTMLDivElement>(null)
+ // The menu opens under its button, to the left of it; near the left edge of the screen
+ // (a narrow card in the first column) it is moved back inside. Near the bottom (the last
+ // cards, over the phone's bottom bar) it opens upwards; with no room either way, the
+ // page moves to show it whole.
+ React.useLayoutEffect(()=>{const el=pop.current;if(!open||!el)return;el.style.right='';el.style.top='';el.style.bottom=''
+  const over=8-el.getBoundingClientRect().left;if(over>0)el.style.right=(-over)+'px'
+  if(up)return
+  const edge=(sel:string,side:'top'|'bottom',none:number)=>{const b=document.querySelector(sel);const r=b?b.getBoundingClientRect():null;return r&&r.height>0?r[side]:none}
+  const floor=edge('.m-bottom','top',window.innerHeight)-8,ceil=edge('.m-top','bottom',0)+8,r=el.getBoundingClientRect()
+  if(r.bottom<=floor)return
+  if((ref.current as HTMLElement).getBoundingClientRect().top-6-r.height>=ceil){el.style.top='auto';el.style.bottom='calc(100% + 6px)'}
+  else el.scrollIntoView({block:'nearest'})},[open])
  React.useEffect(()=>{if(!open)return;const out=(e:MouseEvent)=>{if(ref.current&&!ref.current.contains(e.target as Node))setOpen(false)};const esc=(e:KeyboardEvent)=>{if(e.key==='Escape'){e.stopPropagation();setOpen(false)}};document.addEventListener('mousedown',out);document.addEventListener('keydown',esc,true);return()=>{document.removeEventListener('mousedown',out);document.removeEventListener('keydown',esc,true)}},[open])
- return <div ref={ref} className={'more-menu'+(open?' open':'')+(up?' up':'')+(className?' '+className:'')}><button type="button" className="more-btn" aria-expanded={open} aria-label={label||t('More actions')} title={label||t('More actions')} onClick={()=>setOpen(o=>!o)}><Icon name="more"/></button>{open&&<div className="more-pop" role="group" aria-label={label||t('More actions')} onClick={e=>{if((e.target as HTMLElement).closest('button'))setOpen(false)}}>{children}</div>}</div>
+ return <div ref={ref} className={'more-menu'+(open?' open':'')+(up?' up':'')+(className?' '+className:'')}><button type="button" className="more-btn" aria-expanded={open} aria-label={label||t('More actions')} title={label||t('More actions')} onClick={()=>setOpen(o=>!o)}><Icon name="more"/></button>{open&&<div className="more-pop" ref={pop} role="group" aria-label={label||t('More actions')} onClick={e=>{if((e.target as HTMLElement).closest('button'))setOpen(false)}}>{children}</div>}</div>
 }
 
 // Help text: one plain sentence; when the text is long, the rest opens on demand
