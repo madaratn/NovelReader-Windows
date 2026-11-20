@@ -75,8 +75,10 @@ const starting=new Set<string>()
 let firstList=true,wake:any=null,restarts:Promise<void>=Promise.resolve()
 function failJob(j:Job,msg:string){
  const n=j.tries||0
+ // A full disk is not cured by asking again; a missing connection is not a failure of the download.
+ if(/no space left/i.test(msg))return Object.assign(j,{hold:undefined,due:undefined,err:msg})
  if(!online())return Object.assign(j,{hold:'net',due:undefined,err:msg})
- if(/no space left/i.test(msg)||n>=RETRY_AFTER.length)return Object.assign(j,{hold:undefined,due:undefined,err:msg||'failed'})
+ if(n>=RETRY_AFTER.length)return Object.assign(j,{hold:undefined,due:undefined,err:msg||'failed'})
  return Object.assign(j,{tries:n+1,hold:'retry',due:Date.now()+RETRY_AFTER[n],err:msg})
 }
 async function again(j:Job){

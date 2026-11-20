@@ -832,7 +832,8 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
 .wp-panel button.danger{border-color:var(--line-danger);background:var(--bg-danger);color:var(--text-danger)}
 .wp-panel .wp-x{width:36px;min-width:36px;padding:0;border:0;background:none;color:var(--text-2);font-size:var(--fs-xl)}
 .wp-body{display:flex;flex-direction:column;gap:10px;padding:12px;min-height:0;overflow:auto}
-.wp-panel.live .wp-body{flex:1;overflow:hidden}
+/* (auto, not hidden: with the phone keyboard open there is little room, and the message field must still be reachable) */
+.wp-panel.live .wp-body{flex:1;overflow:auto}
 .wp-top{display:flex;flex-direction:column;gap:8px;flex:0 1 auto;min-height:0;overflow:auto;margin:-2px;padding:2px}
 /* The voice and camera buttons share their lines (each group used to take its own). */
 .wp-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px}.wp-controls>.wp-voice{display:contents}
