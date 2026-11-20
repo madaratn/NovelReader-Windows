@@ -130,6 +130,10 @@ jobs:
           api-level: 34
           arch: x86_64
           target: google_apis
+          # The memory of a phone of today. With the default one the app often went away
+          # in the middle of the video checks, and the rest was then never checked.
+          ram-size: 4096M
+          cores: 3
           disable-animations: true
           script: SWEEP='${{ inputs.sweep || github.event_name == 'schedule' }}' DIAG_SOURCE='${{ inputs.diag_source }}' DIAG_QUERY='${{ inputs.diag_query }}' bash scripts/android-smoke.sh
       - name: Publish what works on Android (for the app)

@@ -84,11 +84,19 @@ public class SiteCheckPlugin extends Plugin {
         s.setSupportMultipleWindows(false);
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
+        // What to do when the process that draws pages goes away (set once "finish" exists).
+        final Runnable[] gone = new Runnable[1];
         // Only web pages: no other app, no file, no intent link.
         web.setWebViewClient(new WebViewClient() {
             @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
                 String scheme = r.getUrl().getScheme();
                 return !("https".equals(scheme) || "http".equals(scheme));
+            }
+            // That process is shared by the whole app: every page must say it copes with its
+            // loss, or the app is closed. This check ends as "not passed".
+            @Override public boolean onRenderProcessGone(WebView v, android.webkit.RenderProcessGoneDetail d) {
+                if (gone[0] != null) gone[0].run();
+                return true;
             }
         });
         box.addView(head, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -117,6 +125,7 @@ public class SiteCheckPlugin extends Plugin {
             call.resolve(r);
         };
         cancel.setOnClickListener(v -> finish.accept(false));
+        gone[0] = () -> { try { finish.accept(false); } catch (Exception e) { busy = false; } };
         tick[0] = () -> {
             if (done[0]) return;
             long waited = System.currentTimeMillis() - started;

@@ -84,7 +84,8 @@ object Engine {
                 addSingletonFactory {
                     nr.engine.dl.VideoDownloads(
                         File(app.getExternalFilesDir(null) ?: app.filesDir, "video-downloads"),
-                        okhttp3.OkHttpClient.Builder().readTimeout(java.time.Duration.ofSeconds(60)).build(),
+                        // A connection that sends nothing for 30 s is dropped and taken up again.
+                        okhttp3.OkHttpClient.Builder().readTimeout(java.time.Duration.ofSeconds(30)).build(),
                     ) { active -> onDownloadsActive?.accept(active) }
                 }
                 addSingletonFactory { nr.engine.cast.CastManager(app, okhttp3.OkHttpClient.Builder().readTimeout(java.time.Duration.ofSeconds(60)).build()) }

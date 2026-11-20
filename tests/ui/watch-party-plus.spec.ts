@@ -155,7 +155,9 @@ test('voice: the film gets quieter while someone speaks; push to talk with V', a
   // Push to talk
   const mic = () => b.evaluate(() => { const p = (window as any).__nrParty; return p.local.getAudioTracks()[0].enabled })
   expect(await mic()).toBe(true)
+  await b.locator('.wp-gear').click()
   await b.getByLabel('Push to talk (hold V)').check()
+  await b.locator('.wp-options').getByRole('button', { name: /Back/ }).click()
   expect(await mic()).toBe(false)
   await expect(b.locator('.wp-ptt')).toHaveText('Microphone off until you hold V')
   await b.locator('.wp-chat').click()
@@ -190,10 +192,12 @@ test('cameras: off by default, small bubbles for everyone when turned on, enlarg
   await expect(a.locator('.cam-bubble')).toHaveCount(2, { timeout: 15_000 })
   await expect(a.locator('.cam-bubble').nth(1)).toHaveText('Sara')
   // Hiding the others' cameras keeps only my own preview
+  await a.locator('.wp-gear').click()
   await a.getByLabel("Hide the others' cameras").check()
   await expect(a.locator('.cam-bubble')).toHaveCount(1)
   await a.getByLabel("Hide the others' cameras").uncheck()
   await expect(a.locator('.cam-bubble')).toHaveCount(2)
+  await a.locator('.wp-options').getByRole('button', { name: /Back/ }).click()
   // Ali turns his off: gone for Sara
   await a.getByRole('button', { name: 'Turn my camera off' }).click()
   await expect(b.locator('.cam-bubble')).toHaveCount(1, { timeout: 15_000 })

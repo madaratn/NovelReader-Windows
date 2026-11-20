@@ -4,7 +4,7 @@
 import React,{useEffect,useRef,useState}from'react'
 import{t}from'../i18n'
 import{fmtTime}from'../lib/util'
-import{Icon}from'../ui/common'
+import{Icon,useKeepInView}from'../ui/common'
 
 const nr=()=>window.novelReader as any
 type CastState={device:CastDevice,url:string,title:string}|null
@@ -20,7 +20,8 @@ const clean=(e:any)=>String(e?.message||e).replace(/^Error invoking remote metho
 export function useCast(ref:React.RefObject<HTMLVideoElement|null>,video:any,title:string){
  const[cast,setCast]=useState<CastState>(current),[menu,setMenu]=useState(false),[devices,setDevices]=useState<CastDevice[]|null>(null),[busy,setBusy]=useState(''),[error,setError]=useState(''),[st,setSt]=useState<{time:number,duration:number,playing:boolean}|null>(null),[diag,setDiag]=useState('')
  useEffect(()=>{const f=()=>setCast(current);subs.add(f);return()=>{subs.delete(f)}},[])
- const url=String(video?.streamUrl||'')
+ const url=String(video?.streamUrl||''),menuRef=useRef<HTMLDivElement>(null)
+ useKeepInView(menuRef,menu&&!cast)
  const subtitles=(Array.isArray(video?.subtitleTracks)?video.subtitleTracks:[]).map((s:any)=>({url:String(s?.streamUrl||s?.url||s?.file||''),lang:String(s?.lang||s?.language||''),label:String(s?.label||s?.lang||'')})).filter((s:any)=>/^http:\/\/(127\.0\.0\.1|localhost):/.test(s.url)).slice(0,4)
  // The PC video stays paused while the TV plays.
  useEffect(()=>{const v=ref.current;if(!v)return;if(cast){v.dataset.casting='1';v.pause()}else delete v.dataset.casting
@@ -36,7 +37,7 @@ export function useCast(ref:React.RefObject<HTMLVideoElement|null>,video:any,tit
  const ctl=(a:'play'|'pause'|'seek'|'volume',x?:number)=>nr().castControl(a,x).catch((e:any)=>setError(clean(e)))
  if(!castSupported()||!url)return{button:null,panel:null}
  const button=<div className="cast-wrap"><button className={'cast-btn'+(cast?' on':'')} onClick={()=>{if(cast)return;setMenu(m=>!m);if(!menu)scan()}} title={t('Play on a TV on the same Wi-Fi')}><Icon name="cast" inline/>{cast?t('On {name}',{name:cast.device.name}):t('Cast')}</button>
-  {menu&&!cast&&<div className="cast-menu" role="dialog" aria-label={t('Cast to a TV')}>
+  {menu&&!cast&&<div className="cast-menu" ref={menuRef} role="dialog" aria-label={t('Cast to a TV')}>
    <b>{t('TVs on this Wi-Fi')}</b>
    {devices==null?<p className="cast-help"><span className="spinner"/> {t('Looking for TVs…')}</p>:devices.length===0?<><p className="cast-help">{document.documentElement.classList.contains('android')?t('No TV found. Check that the TV is on and on the same Wi-Fi as this phone.'):t('No TV found. Check that the TV is on and on the same Wi-Fi as this PC, and allow NovelReader on private networks if Windows asks.')}</p>{diag&&<p className="cast-diag"><small>{diag}</small></p>}</>:
     <ul>{devices.map(d=><li key={d.id}><button disabled={!!busy} onClick={()=>send(d,ref.current?.currentTime||0)}><Icon name={d.kind==='cast'?'cast':'tv'} inline/>{d.name}<small>{d.kind==='cast'?'Chromecast':'DLNA'}</small>{busy===d.id&&<span className="spinner"/>}</button></li>)}</ul>}
