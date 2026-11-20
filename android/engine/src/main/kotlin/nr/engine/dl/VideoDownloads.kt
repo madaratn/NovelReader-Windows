@@ -85,7 +85,8 @@ class VideoDownloads(
         // part to go on from is deleted, and so is a part nobody came back to for a week.
         try {
             for (d in root.listFiles() ?: emptyArray()) {
-                if (!d.isDirectory) continue
+                // Only folders named like a download: what somebody put there by hand is not ours to delete.
+                if (!d.isDirectory || !OURS.matches(d.name)) continue
                 // (A meta.json, even one that cannot be read: never delete what may be a whole video.)
                 if (metaFile(d.name).exists()) continue
                 val parts = d.listFiles { f -> f.isDirectory && isPart(f.name) && hasData(f) }
@@ -121,6 +122,7 @@ class VideoDownloads(
         fun resolve(base: String, uri: String): String = try { URI(base).resolve(uri).toString() } catch (e: Exception) { uri }
 
         private const val WEEK = 7L * 24 * 3600 * 1000
+        private val OURS = Regex("^(anime|series|movie)_.*_[0-9a-f]{10}$")
         fun sha(s: String): String = MessageDigest.getInstance("SHA-1").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
         // Query fields that change at every visit (signatures, expiry dates): left out when
         // two links are compared to know whether they lead to the same file.
@@ -501,7 +503,7 @@ class VideoDownloads(
     fun clear(): Boolean {
         for (j in jobs.values) { j.aborted = true; j.hangUp() }
         jobs.clear()
-        root.listFiles()?.forEach { it.deleteRecursively() }
+        root.listFiles()?.forEach { if (OURS.matches(it.name)) it.deleteRecursively() }
         changed()
         return true
     }

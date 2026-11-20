@@ -31,6 +31,7 @@ const VOLATILE=/^(t|ts|time|e|exp|expires?|expiry|s|sig|sign|signature|st|token|
 const pathOf=u=>{try{let x=new URL(u);const up=x.searchParams.get('url');if(up&&/^https?:/i.test(up))x=new URL(up);const q=[...x.searchParams].filter(([k])=>!VOLATILE.test(k)).map(([k,v])=>k+'='+v).sort().join('&');return x.pathname+(q?'?'+q:'')}catch{return String(u)}}
 const sha=s=>crypto.createHash('sha1').update(String(s)).digest('hex')
 const WEEK=7*24*3600e3
+const OURS=/^(anime|series|movie)_.*_[0-9a-f]{10}$/
 
 function createVideoDownloads({root,log=()=>{},notify=()=>{},fetchImpl=globalThis.fetch,stallMs=30000,retryMs=600,patienceMs=90000}){
  fs.mkdirSync(root,{recursive:true})
@@ -70,7 +71,8 @@ function createVideoDownloads({root,log=()=>{},notify=()=>{},fetchImpl=globalThi
  // Left by an earlier run: a folder that holds neither a finished download (its
  // meta.json, even one that cannot be read: never delete what may be a whole video)
  // nor a part to go on from is deleted, and so is a part nobody came back to for a week.
- try{for(const d of fs.readdirSync(root,{withFileTypes:true})){if(!d.isDirectory())continue;const dir=path.join(root,d.name);if(fs.existsSync(metaFile(d.name)))continue;if(!names(dir).some(f=>isPart(f)&&hasData(path.join(dir,f)))||Date.now()-newest(dir)>WEEK)drop(dir)}}catch(e){log('cleanup skipped',String(e&&e.message||e))}
+ // Only folders named like a download: what somebody put there by hand is not ours to delete.
+ try{for(const d of fs.readdirSync(root,{withFileTypes:true})){if(!d.isDirectory()||!OURS.test(d.name))continue;const dir=path.join(root,d.name);if(fs.existsSync(metaFile(d.name)))continue;if(!names(dir).some(f=>isPart(f)&&hasData(path.join(dir,f)))||Date.now()-newest(dir)>WEEK)drop(dir)}}catch(e){log('cleanup skipped',String(e&&e.message||e))}
 
  const httpError=r=>{const e=new Error('HTTP '+r.status);e.status=r.status;return e}
  // The server said no: asking again would get the same answer.
@@ -270,7 +272,7 @@ function createVideoDownloads({root,log=()=>{},notify=()=>{},fetchImpl=globalThi
  // Cancelling leaves nothing behind (a failed download keeps its part until then).
  function cancel(id){const j=jobs.get(String(id));if(!j)return false;j.abort.abort();if(j.state==='queued'||j.state==='error'){jobs.delete(j.meta.id);drop(path.join(root,j.meta.id))}changed();return true}
  function remove(id){const sid=SAFE(id);cancel(sid);jobs.delete(sid);drop(path.join(root,sid));changed();return true}
- function clear(){for(const j of jobs.values())j.abort.abort();jobs.clear();queue.length=0;for(const id of names(root))drop(path.join(root,id));changed();return true}
+ function clear(){for(const j of jobs.values())j.abort.abort();jobs.clear();queue.length=0;for(const id of names(root))if(OURS.test(id))drop(path.join(root,id));changed();return true}
  function usage(){return{bytes:dirSize(root),count:list().filter(x=>x.state==='done').length,folder:root}}
 
  function serve(){

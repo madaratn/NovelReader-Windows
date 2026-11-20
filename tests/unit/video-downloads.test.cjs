@@ -191,9 +191,11 @@ test('closing the app keeps what is saved and the next start goes on from it; ca
   fs.mkdirSync(path.join(root,'movie_empty_0000000000','p0123456789'),{recursive:true})
   const old=path.join(root,'movie_old_0000000000','p0123456789');fs.mkdirSync(old,{recursive:true});fs.writeFileSync(path.join(old,'video.mp4'),'x');const longAgo=new Date(Date.now()-8*24*3600e3)
   for(const x of [path.join(old,'video.mp4'),old,path.dirname(old)])fs.utimesSync(x,longAgo,longAgo)
+  // …and a folder somebody put there by hand: not ours to delete
+  fs.mkdirSync(path.join(root,'Mes films'));fs.writeFileSync(path.join(root,'Mes films','film.mkv'),'x')
   const two=createVideoDownloads({root,...fast})
   try{
-   assert.deepEqual(fs.readdirSync(root),[id]);assert.deepEqual(two.list(),[],'an unfinished download is not listed as done')
+   assert.deepEqual(fs.readdirSync(root).sort(),['Mes films',id].sort());assert.deepEqual(two.list(),[],'an unfinished download is not listed as done')
    hang=false;const before=f.hits.length
    two.start({...p,candidates:[{url:f.base+'/film.mp4?token=2',type:'file'}]})
    const job=await waitDone(two,id);assert.equal(job.state,'done',job.error)

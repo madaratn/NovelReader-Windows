@@ -17,6 +17,10 @@ async function connect() {
 ;(async () => {
   const ws = new WebSocket(await connect())
   await new Promise((ok, ko) => { ws.onopen = ok; ws.onerror = ko })
+  // The app (or its page) going away in the middle used to end this script without a
+  // word and with success: nothing after that point had been checked. It is a failure.
+  let finished = false
+  ws.onclose = () => { if (!finished) { console.error('The app went away before the end of the checks (the connection to its page closed)'); process.exit(3) } }
   let id = 0; const waiting = new Map()
   ws.onmessage = m => { const d = JSON.parse(m.data); if (d.id && waiting.has(d.id)) { waiting.get(d.id)(d); waiting.delete(d.id) } }
   const evaluate = (fn, arg) => new Promise((ok, ko) => {
@@ -252,7 +256,8 @@ async function connect() {
     await sleep(6000)
     played = await evaluate(async () => {
       const wait = async (f, ms) => { for (let i = 0; i < ms / 250; i++) { const x = f(); if (x) return x; await new Promise(r => setTimeout(r, 250)) } return null }
-      const btn = await wait(() => [...document.querySelectorAll('.libcard button')].find(b => /Show episodes/.test(b.textContent)), 15000)
+      // (In the covers view the button shows "Episodes"; its full name is in aria-label.)
+      const btn = await wait(() => [...document.querySelectorAll('.libcard button')].find(b => /Show episodes/.test(b.getAttribute('aria-label') || b.textContent)), 15000)
       if (!btn) return { step: 'no library card', text: document.body.innerText.slice(0, 300) }
       btn.click()
       const go = await wait(() => document.querySelector('.media-hero .primary'), 30000)
@@ -372,6 +377,7 @@ async function connect() {
   console.log('foreground:', top)
   require('child_process').execSync('adb exec-out screencap -p > shots/android-update.png')
   const installerOpened = /packageinstaller|PackageInstaller/i.test(top)
+  finished = true
   ws.close()
   if (!installerOpened) { console.error('The update did not open Android\'s installer'); process.exit(1) }
   if (v.ok < 2) { console.error('Fewer than 2 video sources stream on Android'); process.exit(1) }

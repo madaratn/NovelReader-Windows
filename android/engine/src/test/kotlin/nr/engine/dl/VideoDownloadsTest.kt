@@ -238,9 +238,11 @@ class VideoDownloadsTest {
         val old = File(root, "movie_old_0000000000/p0123456789").apply { mkdirs() }
         val longAgo = System.currentTimeMillis() - 8L * 24 * 3600 * 1000
         File(old, "video.mp4").apply { writeText("x"); setLastModified(longAgo) }; old.setLastModified(longAgo); old.parentFile!!.setLastModified(longAgo)
+        // …and a folder somebody put there by hand: not ours to delete.
+        File(root, "Mes films").mkdirs(); File(root, "Mes films/film.mkv").writeText("x")
         routes["/film.mp4"] = { r -> r.ranged(film) }
         val q = quick()
-        assertEquals(listOf(id), root.list()!!.toList()); assertTrue("an unfinished download is not listed as done", q.list().isEmpty())
+        assertEquals(setOf(id, "Mes films"), root.list()!!.toSet()); assertTrue("an unfinished download is not listed as done", q.list().isEmpty())
         q.start(DlStart("movie", "m", "Film", "", "/m", "Film", 0.0, "k", listOf(DlCandidate(base() + "/film.mp4?token=2"))))
         val d = waitFor(id, q)
         assertEquals(d.error, "done", d.state)

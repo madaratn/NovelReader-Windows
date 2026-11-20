@@ -2,7 +2,7 @@
 
 - **Téléchargements : un échec est réessayé tout seul**, avec des liens neufs (ceux des sites expirent) : tout de suite, puis 2 et 10 minutes plus tard. Ensuite seulement il t'attend, avec la raison en clair et un bouton « Réessayer ».
 - **Coupure ou fermeture** : sans connexion, un téléchargement attend qu'elle revienne. Si tu fermes l'application, il reprend au prochain lancement ; avant, la file était oubliée sans rien dire.
-- **Reprise où il s'était arrêté** : un fichier continue à l'octet près, un flux garde les morceaux déjà enregistrés (quand le site le permet ; sinon il recommence). Une connexion qui ne répond plus est abandonnée après 30 secondes ; avant, elle bloquait toute la file sans fin.
+- **Reprise où il s'était arrêté** : un fichier continue à l'octet près, un flux garde les morceaux déjà enregistrés (quand le site le permet ; sinon il recommence). Une connexion qui ne répond plus est abandonnée après 30 secondes et reprise ; sur PC, elle bloquait toute la file sans fin.
 - La page Téléchargements affiche **la vitesse et le temps restant**.
 - **Grandes bibliothèques, bien plus rapides** (mesuré en simulant un téléphone modeste) : un roman de 5 000 chapitres s'ouvre cinq fois plus vite, un anime de plus de 1 000 épisodes près de quatre fois, un historique de 3 000 lignes sept fois. La liste des chapitres s'ouvre autour de celui que tu lis ; les épisodes sont rangés par centaines (« 401–500 »).
 - **Sur téléphone**, « Afficher le chapitre en cours » ne faisait rien : il y va.
