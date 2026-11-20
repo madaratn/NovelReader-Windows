@@ -2,13 +2,15 @@ import React,{useEffect,useRef,useState}from'react'
 import{t,plural,getLang}from'../i18n'
 
 // ---- Local videos -------------------------------------------------------
-export const fmtSize=(n:number)=>n>1e9?(n/1e9).toFixed(1)+' GB':(n/1e6).toFixed(0)+' MB'
+// Sizes as each language writes them: "1.2 GB" in English, "1,2 Go" in French.
+export const fmtUnit=(n:number,digits:number,unit:'MB'|'GB')=>{const x=n.toFixed(digits);return getLang()==='fr'?x.replace('.',',')+'\u00a0'+(unit==='MB'?'Mo':'Go'):x+' '+unit}
+export const fmtSize=(n:number)=>n>1e9?fmtUnit(n/1e9,1,'GB'):fmtUnit(n/1e6,0,'MB')
 export const fmtTime=(t:number)=>{t=Math.floor(t);const h=Math.floor(t/3600),m=Math.floor(t%3600/60),s=t%60;return(h?h+':'+String(m).padStart(2,'0'):String(m))+':'+String(s).padStart(2,'0')}
 
 // ---- Internet Archive (torrent streaming) -------------------------------
 // Public-domain / Creative Commons videos from archive.org, streamed from the
 // item's official torrent by the Electron main process.
-export const fmtMB=(n:number)=>(n/1048576).toFixed(n<10485760?1:0)+' MB'
+export const fmtMB=(n:number)=>fmtUnit(n/1048576,n<10485760?1:0,'MB')
 export const lsGet=(k:string)=>{try{return localStorage.getItem(k)}catch{return null}}
 export const lsSet=(k:string,v:string)=>{try{localStorage.setItem(k,v)}catch{}}
 try{if(localStorage.getItem('lastPage:books')==='comics')localStorage.setItem('lastPage:books','search')}catch{}

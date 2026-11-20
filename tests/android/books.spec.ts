@@ -895,3 +895,31 @@ test('Android: Video sources › Advanced stays inside the screen (long reposito
   expect(await page.evaluate(() => document.scrollingElement!.scrollWidth <= window.innerWidth)).toBe(true)
   if (process.env.SHOT) await page.locator('.sources-advanced').screenshot({ path: process.env.SHOT })
 })
+
+test('Android: a long novel opens around the chapter being read; "Show current chapter" goes to it', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('__long')) return; sessionStorage.setItem('__long', '1')
+    const chapters = Array.from({ length: 1200 }, (_, i) => ({ name: 'Chapter ' + (i + 1), path: '/c/' + (i + 1) }))
+    localStorage.setItem('library', JSON.stringify([{ id: 'long', name: 'The Long Road', author: 'Auth', path: '/novel/long', source: { id: 'testsrc', name: 'Test Source', url: 'https://raw.githubusercontent.com/lnreader/lnreader-plugins/plugins/v3.0.0/.js/src/plugins/testsrc.js', lang: 'English' }, chapterCount: 1200, chapters, addedAt: Date.now(), cover: '' }]))
+    localStorage.setItem('reading:long', JSON.stringify({ index: 799, path: '/c/800', at: Date.now() }))
+  })
+  await page.goto('/')
+  await page.locator('.libcard', { hasText: 'The Long Road' }).locator('.libcard-cover').click()
+  await expect(page.locator('.novelhead h1')).toHaveText('The Long Road')
+  // The page scrolls here (the list has no scroll bar of its own): it stays on the cover and "Continue",
+  // and the list holds the chapters around the 800th, not the 799 before it.
+  expect(await page.evaluate(() => Math.round(window.scrollY))).toBe(0)
+  expect(await page.locator('.chapterrow').count()).toBeLessThanOrEqual(260)
+  await expect(page.locator('.chapterrow').first()).toContainText('Chapter 760')
+  // "Show current chapter" used to do nothing on a phone (it moved a list that does not scroll).
+  await page.getByRole('button', { name: 'Show current chapter' }).click()
+  await expect(page.locator('.chapterrow.current')).toBeInViewport()
+  await expect(page.locator('.chapterrow.current')).toContainText('Reading · Ch. 800')
+  // The earlier chapters on request, added above without moving the screen.
+  await page.locator('.show-earlier').scrollIntoViewIfNeeded()
+  const first = page.locator('.chapterrow').first(), y = (await first.boundingBox())!.y
+  await page.locator('.show-earlier').click()
+  await expect.poll(() => page.locator('.chapterrow').count()).toBeGreaterThan(400)
+  expect(Math.abs((await page.locator('.chapterrow', { hasText: /^✓?Chapter 760/ }).first().boundingBox())!.y - y)).toBeLessThanOrEqual(2)
+  await expect(page.locator('.chapterrow').first()).toContainText('Chapter 520')
+})

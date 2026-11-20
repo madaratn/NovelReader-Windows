@@ -14,10 +14,17 @@ import java.util.concurrent.atomic.AtomicInteger
 
 // Offline video downloads on Android: the same behaviour and the same answers as
 // the PC (electron/video-downloads.cjs), so the interface is shared.
-//  - direct file -> <dir>/video.<ext>
+//  - direct file -> <dir>/<part>/video.<ext>
 //  - HLS         -> every segment / key / init section of the best variant (and its
 //                   audio renditions) next to a rewritten local playlist.
 // One download at a time; finished ones are served by the engine (DownloadRoutes).
+//
+// A download that is cut does not start over. Each stream is saved in its own part
+// (<dir>/p<hash of where it comes from>): a direct file goes on from the byte it
+// stopped at (Range), an HLS stream keeps the segments it has. The part stays when
+// every stream failed or the app was closed, and the next try (the interface asks
+// again, with fresh links) goes on from it; a part nobody came back to is deleted
+// after a week.
 
 @Serializable data class DlSub(val url: String = "", val label: String = "", val lang: String = "")
 @Serializable data class DlCandidate(val url: String = "", val type: String = "file", val title: String = "", val subtitles: List<DlSub> = emptyList())
@@ -40,15 +47,27 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class DlError(message: String, val status: Int = 0) : Exception(message)
 
-class VideoDownloads(val root: File, private val client: OkHttpClient, private val onActive: (Boolean) -> Unit = {}) {
+class VideoDownloads(
+    val root: File, private val client: OkHttpClient,
+    private val retryMs: Long = 600, private val patienceMs: Long = 90_000,
+    private val onActive: (Boolean) -> Unit = {},
+) {
     private class Job(var meta: DlItem, val candidates: List<DlCandidate>) {
         @Volatile var state = "queued"
         @Volatile var progress = 0.0
         @Volatile var bytes = 0L
         @Volatile var error = ""
+        /** Cancelled by the user. */
         @Volatile var aborted = false
+        /** The stream being saved failed: what it still has under way stops. */
+        @Volatile var stopped = false
         var base = 0.0
+        /** Requests under way, so that cancelling does not wait for the network. */
+        val calls: MutableSet<okhttp3.Call> = ConcurrentHashMap.newKeySet()
+        fun over() = aborted || stopped
+        fun hangUp() { for (c in calls) try { c.cancel() } catch (e: Exception) {} }
     }
+    private class Tries { var fails = 0; var since = 0L }
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     private val jobs = ConcurrentHashMap<String, Job>()
@@ -60,10 +79,26 @@ class VideoDownloads(val root: File, private val client: OkHttpClient, private v
     @Volatile var version = 0L
         private set
 
-    init { root.mkdirs() }
+    init {
+        root.mkdirs()
+        // Left by an earlier run: a folder that holds neither a finished download nor a
+        // part to go on from is deleted, and so is a part nobody came back to for a week.
+        try {
+            for (d in root.listFiles() ?: emptyArray()) {
+                if (!d.isDirectory) continue
+                // (A meta.json, even one that cannot be read: never delete what may be a whole video.)
+                if (metaFile(d.name).exists()) continue
+                val parts = d.listFiles { f -> f.isDirectory && isPart(f.name) && hasData(f) }
+                if (parts.isNullOrEmpty() || System.currentTimeMillis() - newest(d) > WEEK) d.deleteRecursively()
+            }
+        } catch (e: Exception) { println("[downloads] cleanup skipped: ${e.message}") }
+    }
 
     private fun changed() { version++ }
     private fun dirSize(d: File): Long = d.listFiles()?.sumOf { if (it.isDirectory) dirSize(it) else it.length() } ?: 0
+    private fun newest(d: File): Long = maxOf(d.lastModified(), d.listFiles()?.maxOfOrNull { if (it.isDirectory) newest(it) else it.lastModified() } ?: 0L)
+    /** Something of a stream is saved in this part (the notes for going on and the playlists do not count). */
+    private fun hasData(d: File) = d.listFiles()?.any { it.isFile && it.length() > 0 && !it.name.endsWith("resume.json") && !it.name.endsWith(".part") && !it.name.endsWith(".m3u8") } ?: false
     private fun metaFile(id: String) = File(File(root, id), "meta.json")
     private fun readMeta(id: String): DlItem? = try { json.decodeFromString<DlItem>(metaFile(id).readText()) } catch (e: Exception) { null }
 
@@ -84,6 +119,33 @@ class VideoDownloads(val root: File, private val client: OkHttpClient, private v
             if (e in EXTS) e else def
         } catch (e: Exception) { def }
         fun resolve(base: String, uri: String): String = try { URI(base).resolve(uri).toString() } catch (e: Exception) { uri }
+
+        private const val WEEK = 7L * 24 * 3600 * 1000
+        fun sha(s: String): String = MessageDigest.getInstance("SHA-1").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
+        // Query fields that change at every visit (signatures, expiry dates): left out when
+        // two links are compared to know whether they lead to the same file.
+        private val VOLATILE = Regex("^(t|ts|time|e|exp|expires?|expiry|s|sig|sign|signature|st|token|tok|auth|hash|md5|hmac|verify|nonce|session|sid|ip|policy|key-pair-id|hdnea|hdnts|hdntl|wmsauthsign|validfrom|validto|x-amz-.*|x-goog-.*)$", RegexOption.IGNORE_CASE)
+        private fun dec(s: String) = try { java.net.URLDecoder.decode(s, "UTF-8") } catch (e: Exception) { s }
+        private fun pathAndQuery(x: String): Pair<String, List<Pair<String, String>>> {
+            val plain = x.substringBefore('#')
+            val path = plain.substringBefore('?').replace(Regex("^[A-Za-z][A-Za-z0-9+.-]*://[^/]*"), "")
+            val query = plain.substringAfter('?', "").split('&').filter { it.isNotEmpty() }.map { dec(it.substringBefore('=')) to dec(it.substringAfter('=', "")) }
+            return path to query
+        }
+        /**
+         * Where a stream really comes from: the path on its own server (engine links carry
+         * it in ?url=), without the server name (they rotate) and without the fields above.
+         */
+        fun pathOf(u: String): String {
+            var (path, query) = pathAndQuery(u)
+            val up = query.firstOrNull { it.first == "url" }?.second
+            if (up != null && Regex("^https?:", RegexOption.IGNORE_CASE).containsMatchIn(up)) { val p = pathAndQuery(up); path = p.first; query = p.second }
+            val rest = query.filter { !VOLATILE.matches(it.first) }.map { it.first + "=" + it.second }.sorted().joinToString("&")
+            return if (rest.isEmpty()) path else "$path?$rest"
+        }
+        /** One stream of a download is saved in its own part of the folder, named after where it comes from. */
+        fun partOf(c: DlCandidate) = "p" + sha((if (c.type == "hls") "hls" else "file") + "|" + pathOf(c.url)).take(10)
+        fun isPart(name: String) = Regex("^p[0-9a-f]{10}$").matches(name)
         fun contentType(name: String): String = when (name.substringAfterLast('.', "").lowercase()) {
             "m3u8" -> "application/vnd.apple.mpegurl"; "ts" -> "video/mp2t"; "m4s" -> "video/iso.segment"; "mp4" -> "video/mp4"
             "m4a" -> "audio/mp4"; "aac" -> "audio/aac"; "vtt" -> "text/vtt"; "srt", "ass" -> "text/plain"
@@ -92,23 +154,53 @@ class VideoDownloads(val root: File, private val client: OkHttpClient, private v
     }
 
     // ---- network ---------------------------------------------------------------
-    private fun getBytes(url: String, job: Job, text: Boolean = false): ByteArray {
-        var last: Exception? = null
-        for (attempt in 0 until 4) {
-            if (job.aborted) throw DlError("aborted")
+    /** The server said no: asking again would get the same answer. */
+    private fun fatal(e: Throwable): Boolean {
+        val st = (e as? DlError)?.status ?: 0
+        return (st in 400..499 && st != 408 && st != 429) || noSpace(e)
+    }
+    private fun noSpace(e: Throwable) = e is java.io.IOException && Regex("ENOSPC|No space left", RegexOption.IGNORE_CASE).containsMatchIn(e.message ?: "")
+
+    private fun pause(ms: Long, job: Job) {
+        var left = ms
+        while (left > 0) { if (job.over()) throw DlError("aborted"); val step = minOf(left, 100L); Thread.sleep(step); left -= step }
+    }
+
+    /**
+     * After a failure: stop at once when the server said no or the download was cancelled;
+     * after a few quick tries while nothing is saved yet (a dead server must give way to
+     * the next one fast); after [patienceMs] once the download is under way, so that a
+     * short cut of the connection does not throw away what is saved.
+     */
+    private fun waitOrGiveUp(e: Exception, st: Tries, job: Job, patient: Boolean, quick: Int) {
+        if (job.over() || fatal(e)) throw e
+        if (st.since == 0L) st.since = System.currentTimeMillis()
+        if (if (patient && job.bytes > 0) System.currentTimeMillis() - st.since >= patienceMs else st.fails >= quick) throw e
+        pause(minOf(15000L, retryMs shl minOf(st.fails, 5)), job)
+        st.fails++
+    }
+
+    /** One request (a silent connection is dropped by the read timeout of the client). */
+    private fun <T> request(url: String, job: Job, range: String? = null, block: (okhttp3.Response) -> T): T {
+        if (job.over()) throw DlError("aborted")
+        val rb = Request.Builder().url(url)
+        if (range != null) rb.header("Range", range)
+        val call = client.newCall(rb.build())
+        job.calls.add(call)
+        try { return call.execute().use(block) } finally { job.calls.remove(call) }
+    }
+
+    /** A small resource kept in memory (playlist, key, segment, subtitle). */
+    private fun getBytes(url: String, job: Job, text: Boolean = false, patient: Boolean = true): ByteArray {
+        val st = Tries()
+        while (true) {
             try {
-                client.newCall(Request.Builder().url(url).build()).execute().use { r ->
+                return request(url, job) { r ->
                     if (!r.isSuccessful) throw DlError("HTTP " + r.code, r.code)
-                    return r.body.bytes()
+                    r.body.bytes()
                 }
-            } catch (e: Exception) {
-                last = e
-                val st = (e as? DlError)?.status ?: 0
-                if (job.aborted || (st in 400..499 && st != 429) || (text && attempt >= 1)) throw e
-                Thread.sleep(600L * (attempt + 1))
-            }
+            } catch (e: Exception) { waitOrGiveUp(e, st, job, patient, if (text) 1 else 3) }
         }
-        throw last ?: DlError("download failed")
     }
 
     private fun throttle(n: Int) {
@@ -116,30 +208,63 @@ class VideoDownloads(val root: File, private val client: OkHttpClient, private v
         if (limit > 0) Thread.sleep(minOf(30000L, n * 1000L / limit))
     }
 
+    /**
+     * A direct file, written as it arrives. When the connection drops or goes silent the
+     * file goes on from the byte it stopped at (Range) instead of starting over; the same
+     * on a later try, as long as the file still has the same length.
+     */
     private fun saveStream(url: String, file: File, job: Job) {
-        client.newCall(Request.Builder().url(url).build()).execute().use { r ->
-            if (!r.isSuccessful) throw DlError("HTTP " + r.code, r.code)
-            val total = r.body.contentLength()
-            var got = 0L
-            var tick = 0L
-            file.outputStream().use { out ->
-                val input = r.body.byteStream()
-                val buf = ByteArray(128 * 1024)
-                while (true) {
-                    if (job.aborted) throw DlError("aborted")
-                    val n = input.read(buf)
-                    if (n < 0) break
-                    out.write(buf, 0, n)
-                    got += n
-                    job.bytes = got
-                    job.progress = if (total > 0) minOf(0.99, got.toDouble() / total) else 0.0
-                    val now = System.currentTimeMillis()
-                    if (now - tick > 500) { tick = now; changed() }
-                    throttle(n)
-                }
-            }
-            if (got == 0L) throw DlError("Empty file")
+        val mark = File(file.path + ".resume.json")
+        var total = try { Regex("\"total\":(\\d+)").find(mark.readText())?.groupValues?.get(1)?.toLong() ?: 0L } catch (e: Exception) { 0L }
+        var got = if (total > 0 && file.isFile) file.length() else 0L
+        if (total <= 0 || got > total) { got = 0; total = 0 }
+        val st = Tries()
+        var tick = 0L
+        fun report() {
+            job.bytes = got
+            job.progress = if (total > 0) minOf(0.99, got.toDouble() / total) else 0.0
+            val now = System.currentTimeMillis()
+            if (now - tick > 500) { tick = now; changed() }
         }
+        if (got > 0) report()
+        while (total == 0L || got < total) {
+            try {
+                val again = request(url, job, if (got > 0) "bytes=$got-" else null) { r ->
+                    if (got > 0 && r.code == 416) { got = 0; total = 0; return@request true }
+                    if (!r.isSuccessful) throw DlError("HTTP " + r.code, r.code)
+                    if (got > 0) {
+                        val m = Regex("bytes\\s+(\\d+)-\\d*/(\\d+|\\*)", RegexOption.IGNORE_CASE).find(r.header("Content-Range") ?: "")
+                        if (r.code != 206) { got = 0; total = 0 } // the whole file is sent again: taken from the start
+                        else if (m == null || m.groupValues[1].toLong() != got || (total > 0 && m.groupValues[2] != "*" && m.groupValues[2].toLong() != total)) {
+                            got = 0; total = 0; return@request true // not the same file any more
+                        } else if (total == 0L && m.groupValues[2] != "*") total = m.groupValues[2].toLong()
+                    }
+                    if (got == 0L) {
+                        total = maxOf(0L, r.body.contentLength())
+                        if (total > 0) mark.writeText("{\"total\":$total}") else mark.delete()
+                    }
+                    java.io.FileOutputStream(file, got > 0).use { out ->
+                        val input = r.body.byteStream()
+                        val buf = ByteArray(128 * 1024)
+                        while (true) {
+                            if (job.over()) throw DlError("aborted")
+                            val n = input.read(buf)
+                            if (n < 0) break
+                            out.write(buf, 0, n)
+                            got += n
+                            st.fails = 0; st.since = 0
+                            report()
+                            throttle(n)
+                        }
+                    }
+                    false
+                }
+                if (again) continue
+                if (total == 0L) break // length not given: the end of the answer is the end of the file
+                if (got < total) throw DlError("The connection was cut")
+            } catch (e: Exception) { waitOrGiveUp(e, st, job, true, 3) }
+        }
+        if (got == 0L) throw DlError("Empty file")
     }
 
     // ---- HLS ---------------------------------------------------------------------
@@ -148,32 +273,75 @@ class VideoDownloads(val root: File, private val client: OkHttpClient, private v
         val text = String(getBytes(url, job, true))
         val out = ArrayList<String>()
         val files = LinkedHashMap<String, String>()
-        fun local(uri: String, ext: String): String = files.getOrPut(resolve(url, uri)) { prefix + files.size + ext }
+        val fixedNames = HashSet<String>()
+        fun local(uri: String, ext: String, fixed: Boolean): String {
+            val name = files.getOrPut(resolve(url, uri)) { prefix + files.size + ext }
+            if (fixed) fixedNames.add(name)
+            return name
+        }
         for (line in text.split(Regex("\r?\n"))) {
             if (Regex("^#EXT-X-(KEY|MAP|SESSION-KEY):").containsMatchIn(line) && line.contains("URI=\"")) {
-                val name = local(attr(line, "URI"), if (line.startsWith("#EXT-X-MAP")) ".mp4" else ".key")
+                val name = local(attr(line, "URI"), if (line.startsWith("#EXT-X-MAP")) ".mp4" else ".key", true)
                 out.add(line.replace(Regex("URI=\"[^\"]*\""), "URI=\"$name\""))
             } else if (line.isNotEmpty() && !line.startsWith("#")) {
-                out.add(local(line.trim(), extOf(line.trim(), url, ".ts")))
+                out.add(local(line.trim(), extOf(line.trim(), url, ".ts"), false))
             } else out.add(line)
         }
         if (files.isEmpty()) throw DlError("Empty playlist")
-        val done = AtomicInteger(0)
+        // What an earlier try saved is kept when this is the same list of files in the same
+        // order (the links may carry new tokens). Anything else starts this list over.
+        val mark = File(dir, prefix + "resume.json")
+        val sig = sha(files.keys.joinToString("\n") { pathOf(it) })
+        fun mine(): List<File> = dir.listFiles { f -> f.name.startsWith(prefix) && f.name.drop(prefix.length).firstOrNull()?.isDigit() == true }?.toList() ?: emptyList()
+        var keep = try { mark.readText().contains("\"$sig\"") } catch (e: Exception) { false }
+        fun wipe() { for (f in mine()) f.delete(); keep = false }
+        if (!keep) wipe() else for (f in mine()) if (f.name.endsWith(".part")) f.delete()
+        mark.writeText("{\"sig\":\"$sig\"}")
+        // A file is complete or absent: written under another name, then given its own.
+        fun save(name: String, buf: ByteArray) {
+            val part = File(dir, "$name.part")
+            val f = File(dir, name)
+            part.writeBytes(buf)
+            if (!part.renameTo(f)) { f.delete(); if (!part.renameTo(f)) throw java.io.IOException("Could not save $name") }
+        }
+        // Keys and init sections are small and always fetched again: with another key, the
+        // segments already here could not be read.
+        val fixed = files.entries.filter { it.value in fixedNames }.map { it.value to getBytes(it.key, job) }
+        if (keep && fixed.any { (name, buf) -> val f = File(dir, name); !f.isFile || !f.readBytes().contentEquals(buf) }) wipe()
+        for ((name, buf) in fixed) save(name, buf)
+        val done = AtomicInteger(fixed.size)
         val total = files.size
         val base = job.base
-        val futures = files.entries.map { (abs, name) ->
-            segments.submit {
-                val buf = getBytes(abs, job)
-                File(dir, name).writeBytes(buf)
-                synchronized(job) { job.bytes += buf.size }
-                throttle(buf.size)
-                job.progress = minOf(0.99, base + weight * done.incrementAndGet() / total)
-                changed()
-            }
+        fun step() { job.progress = minOf(0.99, base + weight * done.get() / total); changed() }
+        val todo = ArrayList<Pair<String, String>>()
+        for ((abs, name) in files) {
+            if (name in fixedNames) continue
+            val size = if (keep) File(dir, name).length() else 0L
+            if (size > 0) { done.incrementAndGet(); synchronized(job) { job.bytes += size } } else todo.add(abs to name)
         }
-        var failure: Throwable? = null
-        for (f in futures) try { f.get() } catch (e: java.util.concurrent.ExecutionException) { if (failure == null) failure = e.cause ?: e }
-        failure?.let { throw it }
+        step()
+        // Four at a time. The first failure stops the others: they used to go on to the
+        // end of the list before the next stream could be tried.
+        val failure = java.util.concurrent.atomic.AtomicReference<Throwable?>(null)
+        val futures = todo.map { (abs, name) ->
+            segments.submit(Runnable {
+                if (job.over()) return@Runnable
+                try {
+                    val buf = getBytes(abs, job)
+                    if (job.over()) return@Runnable
+                    save(name, buf)
+                    synchronized(job) { job.bytes += buf.size }
+                    done.incrementAndGet()
+                    step()
+                    throttle(buf.size)
+                } catch (e: Throwable) {
+                    if (failure.compareAndSet(null, e)) { job.stopped = true; job.hangUp() }
+                }
+            })
+        }
+        for (f in futures) try { f.get() } catch (e: Exception) { failure.compareAndSet(null, e) }
+        failure.get()?.let { throw it }
+        if (job.over()) throw DlError("aborted")
         job.base += weight
         val name = prefix + "index.m3u8"
         File(dir, name).writeText(out.joinToString("\n"))
@@ -216,40 +384,55 @@ class VideoDownloads(val root: File, private val client: OkHttpClient, private v
     // ---- jobs --------------------------------------------------------------------
     private fun runJob(job: Job) {
         val dir = File(root, job.meta.id)
+        dir.mkdirs()
+        // Parts of streams that are not offered any more cannot be gone on from.
+        val wanted = job.candidates.map { partOf(it) }.toSet()
+        for (f in dir.listFiles() ?: emptyArray()) if (f.name !in wanted) f.deleteRecursively()
         val errors = ArrayList<String>()
         for (c in job.candidates) {
             if (job.aborted) break
-            dir.deleteRecursively(); dir.mkdirs()
+            val part = partOf(c)
+            val pdir = File(dir, part)
+            job.stopped = false
             try {
+                pdir.mkdirs()
                 job.base = 0.0; job.bytes = 0; job.progress = 0.0
                 val file: String
-                if (c.type == "hls") file = downloadHls(c.url, dir, job)
+                if (c.type == "hls") file = downloadHls(c.url, pdir, job)
                 else {
                     val em = Regex("\\.(mkv|webm)(\\?|&|$)", RegexOption.IGNORE_CASE).find(try { java.net.URLDecoder.decode(c.url, "UTF-8") } catch (e: Exception) { c.url })
                     file = "video." + (em?.groupValues?.get(1)?.lowercase() ?: "mp4")
-                    saveStream(c.url, File(dir, file), job)
+                    saveStream(c.url, File(pdir, file), job)
                 }
                 val subs = ArrayList<DlSavedSub>()
                 for (s in c.subtitles.take(8)) try {
-                    val buf = getBytes(s.url, job)
+                    val buf = getBytes(s.url, job, patient = false)
                     val head = String(buf, 0, minOf(buf.size, 20))
                     val ext = if (head.trimStart().startsWith("WEBVTT")) ".vtt" else if (Regex("\\.ass(\\?|$)", RegexOption.IGNORE_CASE).containsMatchIn(s.url)) ".ass" else ".srt"
                     val name = "sub" + subs.size + ext
-                    File(dir, name).writeBytes(buf)
-                    subs.add(DlSavedSub(s.label, s.lang, name))
+                    File(pdir, name).writeBytes(buf)
+                    subs.add(DlSavedSub(s.label, s.lang, "$part/$name"))
                 } catch (e: Exception) { if (job.aborted) throw e }
-                val done = job.meta.copy(state = "done", progress = 1.0, type = if (c.type == "hls") "hls" else "file", file = file, title = c.title, subtitles = subs, size = dirSize(dir), finishedAt = System.currentTimeMillis(), bytes = 0, error = "")
+                // Done: the parts of the other streams and the notes for going on are not needed any more.
+                for (f in dir.listFiles() ?: emptyArray()) if (f.name != part) f.deleteRecursively()
+                for (f in pdir.listFiles() ?: emptyArray()) if (f.name.endsWith("resume.json") || f.name.endsWith(".part")) f.delete()
+                val done = job.meta.copy(state = "done", progress = 1.0, type = if (c.type == "hls") "hls" else "file", file = "$part/$file", title = c.title, subtitles = subs, size = dirSize(dir), finishedAt = System.currentTimeMillis(), bytes = 0, error = "")
                 metaFile(done.id).writeText(json.encodeToString(done))
                 job.meta = done; job.state = "done"; job.progress = 1.0
                 return
             } catch (e: Throwable) {
                 if (job.aborted) break
-                errors.add(e.message ?: e.toString())
+                val full = noSpace(e)
+                errors.add(if (full) "No space left on the disk" else (e.message ?: e.toString()))
                 println("[downloads] candidate failed: ${c.title}: ${e.message}")
+                // What was saved stays for the next try; a part with nothing in it goes.
+                if (!hasData(pdir)) pdir.deleteRecursively()
+                if (full) break
             }
         }
-        dir.deleteRecursively()
-        if (job.aborted) { jobs.remove(job.meta.id); return }
+        // Cancelled: nothing is kept.
+        if (job.aborted) { dir.deleteRecursively(); jobs.remove(job.meta.id); return }
+        if (dir.listFiles().isNullOrEmpty()) dir.delete()
         job.state = "error"; job.error = errors.lastOrNull() ?: "No downloadable stream"
     }
 
@@ -292,10 +475,12 @@ class VideoDownloads(val root: File, private val client: OkHttpClient, private v
         return out.sortedByDescending { it.createdAt }
     }
 
+    /** Cancelling leaves nothing behind (a failed download keeps its part until then). */
     fun cancel(id: String): Boolean {
         val j = jobs[id] ?: return false
         j.aborted = true
-        if (j.state == "queued" || j.state == "error") jobs.remove(id)
+        j.hangUp()
+        if (j.state == "queued" || j.state == "error") { jobs.remove(id); File(root, id).deleteRecursively() }
         changed()
         return true
     }
@@ -309,7 +494,7 @@ class VideoDownloads(val root: File, private val client: OkHttpClient, private v
     }
 
     fun clear(): Boolean {
-        for (j in jobs.values) j.aborted = true
+        for (j in jobs.values) { j.aborted = true; j.hangUp() }
         jobs.clear()
         root.listFiles()?.forEach { it.deleteRecursively() }
         changed()

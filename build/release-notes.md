@@ -1,3 +1,16 @@
+## NovelReader 0.39.0
+
+- **Téléchargements : un échec est réessayé tout seul**, avec des liens neufs (ceux des sites expirent) : tout de suite, puis 2 et 10 minutes plus tard. Ensuite seulement il t'attend, avec la raison en clair et un bouton « Réessayer ».
+- **Coupure ou fermeture** : sans connexion, un téléchargement attend qu'elle revienne. Si tu fermes l'application, il reprend au prochain lancement ; avant, la file était oubliée sans rien dire.
+- **Reprise où il s'était arrêté** : un fichier continue à l'octet près, un flux garde les morceaux déjà enregistrés (quand le site le permet ; sinon il recommence). Une connexion qui ne répond plus est abandonnée après 30 secondes ; avant, elle bloquait toute la file sans fin.
+- La page Téléchargements affiche **la vitesse et le temps restant**.
+- **Grandes bibliothèques, bien plus rapides** (mesuré en simulant un téléphone modeste) : un roman de 5 000 chapitres s'ouvre cinq fois plus vite, un anime de plus de 1 000 épisodes près de quatre fois, un historique de 3 000 lignes sept fois. La liste des chapitres s'ouvre autour de celui que tu lis ; les épisodes sont rangés par centaines (« 401–500 »).
+- **Sur téléphone**, « Afficher le chapitre en cours » ne faisait rien : il y va.
+- **Regarder ensemble** : la fenêtre reprenait par erreur l'habillage du menu de gauche (boutons sans cadre, grands vides, discussion cachée en bas). Elle est redessinée : la discussion et le champ du message restent visibles, les réglages (volume des voix, appuyer pour parler, caméras) ont leur page derrière la roue dentée, et sur téléphone elle se pose au-dessus de la barre du bas.
+- **Détails** : tailles écrites à la française (« 1,3 Go », « 37 % ») ; « Ajouter un profil » à côté de la liste des profils ; la petite fenêtre « Caster » reste dans la page.
+
+---
+
 ## NovelReader 0.38.0
 
 - **Affichage en couvertures** : les bibliothèques (livres, anime, séries, films) et Découvrir montrent maintenant tes titres comme un mur de couvertures, plusieurs par ligne sur PC et tablette, deux par ligne sur téléphone.

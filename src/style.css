@@ -702,7 +702,8 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .dl-row b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dl-row small{color:var(--text-3);font-size:var(--fs-sm)}
 .dl-row .libbar{margin-top:6px}
-.dl-state{color:var(--text-2);font-size:var(--fs-sm);white-space:nowrap}
+.dl-state{color:var(--text-2);font-size:var(--fs-sm);white-space:nowrap;font-variant-numeric:tabular-nums}
+.dl-actions{display:flex;gap:8px;align-items:center}
 .dl-row.error .dl-state{color:var(--text-danger)}
 .dl-head{display:flex;align-items:center;gap:14px}
 .dl-head .libcover{width:56px;height:80px;flex:none;border-radius:8px;font-size:18px}
@@ -816,21 +817,48 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
 .wp-open .wp-icon{width:20px;text-align:center;font-size:var(--fs-lg)}
 .wp-open.live{color:#3fb37f!important}
 .wp-badge{margin-left:auto;min-width:18px;height:18px;padding:0 6px;border-radius:999px;background:var(--bg-danger-solid);color:var(--on-accent);font-size:var(--fs-2xs);font-weight:700;line-height:18px;text-align:center}
-.wp-panel{position:fixed;right:18px;bottom:18px;z-index:150;width:340px;max-height:min(560px,calc(100vh - 36px));display:flex;flex-direction:column;border:1px solid var(--line-strong);border-radius:var(--radius-lg);background:var(--bg-surface);box-shadow:0 20px 60px rgba(0,0,0,.5);overflow:hidden;font-size:var(--fs-md)}
-.wp-panel header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line)}
-.wp-x{width:28px;height:28px;padding:0;border:0;border-radius:var(--radius-sm);background:none;color:var(--text-3);font-size:var(--fs-xl);cursor:pointer}.wp-x:hover{background:var(--bg-active)}
+.wp-panel{position:fixed;right:18px;bottom:18px;z-index:150;width:340px;max-height:min(680px,calc(100vh - 36px));display:flex;flex-direction:column;border:1px solid var(--line-strong);border-radius:var(--radius-lg);background:var(--bg-surface);box-shadow:0 20px 60px rgba(0,0,0,.5);overflow:hidden;font-size:var(--fs-md)}
+/* A party under way: a height of its own, so that the chat takes what the controls leave. */
+.wp-panel.live{height:min(680px,calc(100vh - 36px))}
+/* margin:0 — the page headers' own 32 px under the title left an empty band at the top of this small window */
+.wp-panel header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0;padding:6px 6px 6px 14px;border-bottom:1px solid var(--line);flex:none}
+.wp-panel header b{display:inline-flex;align-items:center;gap:8px}
+.wp-panel button{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 12px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--bg-raised);color:var(--text);font:inherit;font-size:var(--fs-sm);font-weight:600;cursor:pointer}
+.wp-panel button:hover:not(:disabled){background:var(--bg-active)}
+.wp-panel button:disabled{opacity:.55;cursor:default}
+.wp-panel button.primary{border-color:var(--line-accent-solid);background:var(--bg-accent);color:var(--on-accent)}
+.wp-panel button.primary:hover:not(:disabled){background:var(--bg-accent-hover,var(--bg-accent))}
+.wp-panel button.removebtn{border-color:var(--line-danger);background:none;color:var(--text-danger)}
+.wp-panel button.danger{border-color:var(--line-danger);background:var(--bg-danger);color:var(--text-danger)}
+.wp-panel .wp-x{width:36px;min-width:36px;padding:0;border:0;background:none;color:var(--text-2);font-size:var(--fs-xl)}
 .wp-body{display:flex;flex-direction:column;gap:10px;padding:12px;min-height:0;overflow:auto}
+.wp-panel.live .wp-body{flex:1;overflow:hidden}
+.wp-top{display:flex;flex-direction:column;gap:8px;flex:0 1 auto;min-height:0;overflow:auto;margin:-2px;padding:2px}
+/* The voice and camera buttons share their lines (each group used to take its own). */
+.wp-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px}.wp-controls>.wp-voice{display:contents}
+.wp-panel .wp-gear .icon{width:18px;height:18px}.wp-panel .wp-gear.on{background:var(--bg-active);color:var(--text-accent)}
+.wp-panel header b{flex:1;min-width:0}
+/* Options: a page of their own inside the window */
+.wp-options{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;overflow:auto}
+.wp-options h3{margin:0;font-size:var(--fs-md)}
+.wp-options>button{align-self:flex-start;margin-top:auto}
 .wp-help{margin:0;color:var(--text-3);line-height:1.45}
 .wp-field{display:flex;flex-direction:column;gap:6px;color:var(--text-3)}
 .wp-panel input{min-height:34px;padding:0 10px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--bg-raised);color:var(--text);font:inherit;box-sizing:border-box;width:100%}
 .wp-or{text-align:center;color:var(--text-3);font-size:var(--fs-xs)}
 .wp-join,.wp-say{display:flex;gap:8px}.wp-join input{text-transform:uppercase;letter-spacing:.2em;font-weight:700}
 .wp-error{margin:0;color:var(--text-danger)}
-.wp-code{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px dashed var(--line-accent-strong);border-radius:var(--radius-md)}
+.wp-code{display:flex;align-items:center;gap:10px;padding:6px 6px 6px 12px;border:1px dashed var(--line-accent-strong);border-radius:var(--radius-md)}
 .wp-code span{color:var(--text-3)}.wp-code b{flex:1;font-size:var(--fs-2xl);letter-spacing:.25em;color:var(--text-accent)}
 .wp-members{color:var(--text-2)}
-.wp-now{padding:8px 10px;border-radius:var(--radius-sm);background:var(--bg-raised);color:var(--text)}.wp-now.muted{color:var(--text-3)}
-.wp-chat{display:flex;flex-direction:column;gap:6px;min-height:120px;max-height:220px;overflow:auto;padding:6px;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--bg-sunken)}
+.wp-now{flex:none;padding:8px 10px;border-radius:var(--radius-sm);background:var(--bg-raised);color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wp-now.muted{color:var(--text-3);white-space:normal}
+.wp-chat{display:flex;flex-direction:column;gap:6px;flex:1 1 0;min-height:96px;overflow:auto;padding:8px;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--bg-sunken)}
+/* Phone: a sheet across the bottom of the screen, above the menu bar instead of over it. */
+.app.phone .wp-panel{left:8px;right:8px;width:auto;bottom:calc(76px + env(safe-area-inset-bottom));max-height:calc(100vh - 150px - env(safe-area-inset-bottom))}
+.app.phone .wp-panel.live{height:calc(100vh - 150px - env(safe-area-inset-bottom))}
+.app.phone.immersive .wp-panel{bottom:calc(12px + env(safe-area-inset-bottom))}
+.wp-say{flex:none}.wp-say input{flex:1;min-width:0}
+.wp-leaves{flex:none}
 .wp-msg{line-height:1.4;word-break:break-word}.wp-msg b{color:var(--text-accent-strong)}.wp-msg.mine b{color:#3fb37f}.wp-msg.system{color:var(--text-3);font-size:var(--fs-xs);font-style:italic}
 .wp-leave{align-self:flex-start}
 /* Sections of a video source (Anime / Series / Movies) */
@@ -847,8 +875,8 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
 .wp-member.in-voice{border-color:var(--line-info)}
 .wp-member.speaking{border-color:var(--line-ok);box-shadow:0 0 0 2px rgba(63,179,127,.35)}
 .wp-voice{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-.wp-vol{display:inline-flex;align-items:center;gap:6px;color:var(--text-3)}
-.wp-vol input{width:90px}
+.wp-vol{display:flex;align-items:center;gap:8px;color:var(--text-2);font-size:var(--fs-sm)}
+.wp-vol input{flex:1;min-width:60px;width:auto;min-height:0!important;padding:0;border:0;background:none}
 .wp-hint{margin:0;color:var(--text-3);font-size:var(--fs-xs)}
 /* Weekly source check */
 .scan-badge{display:inline-grid;place-items:center;width:16px;height:16px;margin-right:6px;border-radius:50%;font-size:var(--fs-2xs);font-weight:800;vertical-align:1px}
@@ -936,7 +964,7 @@ video[controlslist~="nofullscreen"]::-webkit-media-controls-fullscreen-button{di
 /* Cast to a TV */
 .cast-wrap{position:relative}
 .cast-btn.on{border-color:var(--line-ok);color:#3fb37f}
-.cast-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:60;width:300px;display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line-strong);border-radius:var(--radius-md);background:var(--bg-raised);box-shadow:0 12px 30px rgba(0,0,0,.5)}
+.cast-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:60;width:300px;max-width:calc(100vw - 16px);display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line-strong);border-radius:var(--radius-md);background:var(--bg-raised);box-shadow:0 12px 30px rgba(0,0,0,.5)}
 .cast-menu ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .cast-menu li button{width:100%;display:flex;align-items:center;gap:8px;text-align:left}
 .cast-menu li small{margin-left:auto;color:var(--text-3);font-size:var(--fs-2xs)}
@@ -1674,7 +1702,8 @@ html.android button.help-more{min-height:0}
 .app.phone .panel:not(.dl-group) .dl-row{grid-template-columns:minmax(0,1fr) auto;gap:4px 10px}
 .app.phone .panel:not(.dl-group) .dl-row>div{grid-area:1/1}
 .app.phone .panel:not(.dl-group) .dl-row>.dl-state{grid-area:2/1}
-.app.phone .panel:not(.dl-group) .dl-row>button{grid-area:1/2/span 2}
+.app.phone .panel:not(.dl-group) .dl-row>.dl-actions{grid-area:1/2/span 2;flex-direction:column;align-items:stretch}
+.app.phone .panel:not(.dl-group) .dl-row>.dl-state{white-space:normal}
 .app.phone .panel:not(.dl-group) .dl-row b{white-space:normal;overflow-wrap:anywhere}
 .app.phone .panel:not(.dl-group) .dl-row small{display:block}
 /* No keyboard on a phone: its shortcuts are not shown in the reading settings. */
@@ -1718,3 +1747,14 @@ html.android .rs-foot small{display:none}
 /* History: "Your year" and "Clear" side by side at the end of the title row. */
 .history-page header>div:first-child{min-width:0}
 .history-page header .libraryactions{flex:none;flex-wrap:nowrap}
+/* ---- Long lists ---- */
+/* At the top of a long list opened in its middle (a novel at chapter 2,500): the rows
+   before it. (The list keeps its place itself when rows are added above: the browser's
+   own way of doing it is switched off, they would both move it.) */
+.chapterlist{overflow-anchor:none}
+.show-earlier{flex:none;min-height:40px;border:1px dashed var(--line-strong);border-radius:var(--radius-md);background:transparent;color:var(--text-2);font:inherit;font-weight:600;cursor:pointer}
+.show-earlier:hover{background:var(--bg-raised);color:var(--text)}
+/* Episode 100 and after: the number is written smaller, so it stays whole in its badge
+   ("E401" and "E1150" were cut on both sides). */
+.episodebadge.long b{font-size:var(--fs-sm);letter-spacing:-.02em}
+.episodebadge.xlong b{font-size:var(--fs-2xs);letter-spacing:-.03em}

@@ -55,8 +55,9 @@ export function ProfilesPanel(){
     {p.kids&&<div className="pf-genres" role="group" aria-label={t('Genres allowed')}><small>{t('Genres allowed (none chosen: everything except titles for adults)')}</small>{KIDS_GENRES.map(g=>{const on=(p.genres||[]).includes(g);return <button key={g} className={'chip'+(on?' on':'')} aria-pressed={on} onClick={()=>withPin(pin=>nr().profileParental({pin,id:p.id,genres:on?(p.genres||[]).filter(x=>x!==g):[...(p.genres||[]),g]}))}>{t(g)}</button>})}</div>}
    </div>}
   </div>)}</div>
-  <ParentCode pinSet={pinSet} onDone={()=>{reload();loadParental()}}/>
+  {/* Adding a profile goes with the list; the parent code is a section of its own below. */}
   <form className="pf-add" onSubmit={e=>{e.preventDefault();add()}}><input value={name} onChange={e=>setName(e.target.value)} placeholder={t('New profile name')} aria-label={t('New profile name')}/><button className="primary" type="submit">{t('Add a profile')}</button></form>
+  <ParentCode pinSet={pinSet} onDone={()=>{reload();loadParental()}}/>
   {msg&&<p className="lib-update-status" role="status">{msg}</p>}
  </section>
 }

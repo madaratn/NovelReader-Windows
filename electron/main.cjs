@@ -376,5 +376,6 @@ app.whenReady().then(()=>{try{bookWeb=createBookWeb({session,BrowserWindow,log:m
 // The video engine (Java) must really be gone before an update replaces the files:
 // on Windows it is closed with its whole process tree, and waited for.
 function stopEngineNow(){engineSupervisor.stop();const p=miwayomiProcess;if(!p)return;miwayomiProcess=null;try{if(process.platform==='win32'&&p.pid)require('child_process').spawnSync('taskkill',['/pid',String(p.pid),'/T','/F'],{windowsHide:true,timeout:5000});else p.kill()}catch{try{p.kill()}catch{}}}
-app.on('before-quit',()=>{stopEngineNow();try{flare&&flare.stop()}catch{}try{videoDl&&videoDl.close()}catch{}})
+// The downloads stop first: stopping the engine under them would count as a failure of each.
+app.on('before-quit',()=>{try{videoDl&&videoDl.close()}catch{}stopEngineNow();try{flare&&flare.stop()}catch{}})
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()})

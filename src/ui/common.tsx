@@ -164,3 +164,48 @@ export function useShowMore(total:number,{first=60,step=120,reset=[] as any[],ke
  const more=limit<total?<div ref={ref} className="show-more-sentinel" aria-hidden="true"/>:null
  return{limit,more,showAll:()=>setLimit(total)}
 }
+
+/** The box that scrolls `el` (a list with its own scroll bar), or null when the page does. */
+// A small window hanging from a button stays on the screen and off the side menu,
+// wherever its button sits: it is pushed sideways by what would stick out.
+export function useKeepInView(ref:React.RefObject<HTMLElement|null>,on:boolean){
+ const place=()=>{const el=ref.current;if(!el)return
+  el.style.transform='';const r=el.getBoundingClientRect(),main=document.fullscreenElement?null:document.querySelector('main')?.getBoundingClientRect()
+  const lo=Math.max(8,(main?.left??0)+8),hi=window.innerWidth-8,dx=r.left<lo?Math.ceil(lo-r.left):r.right>hi?Math.floor(hi-r.right):0
+  if(dx)el.style.transform='translateX('+dx+'px)'}
+ React.useLayoutEffect(()=>{if(on)place()})
+ React.useEffect(()=>{if(!on)return;window.addEventListener('resize',place);return()=>window.removeEventListener('resize',place)},[on])
+}
+export const scrollBoxOf=(el:Element|null)=>{for(let p=el?.parentElement||null;p&&p!==document.body;p=p.parentElement){const o=getComputedStyle(p).overflowY;if((o==='auto'||o==='scroll')&&p.scrollHeight>p.clientHeight+1)return p}return null}
+// A long list opened in its middle (a novel at chapter 2,500 of 5,000): the rows around
+// that place at once, not the thousands before it. The later ones come as the end of
+// what is drawn comes near. The earlier ones come the same way in a list that has its
+// own scroll bar; when the page itself scrolls (a phone), the list simply starts a little
+// before that place, with a button to bring the earlier rows.
+// Rows added above push nothing: what is on screen stays where it is.
+export function useShowAround(total:number,{around=0,before=40,first=240,step=240,reset=[] as any[],label=''}={}){
+ // (`reset` values start again around the place: a filter, another order. Done while
+ // drawing, not after, so the first picture of the new list is already the right one.)
+ const sig=reset.map(String).join('\u0001')
+ const init=()=>{const from=Math.max(0,Math.min(around-before,total-first));return{from,to:Math.min(total,from+first),sig}}
+ const[state,setWin]=React.useState(init)
+ let win=state;if(state.sig!==sig){win=init();setWin(win)}
+ const top=React.useRef<HTMLButtonElement|null>(null),end=React.useRef<HTMLDivElement|null>(null),keep=React.useRef<{el:Element,top:number}|null>(null)
+ const earlier=()=>{const row=top.current?.nextElementSibling;if(row)keep.current={el:row,top:row.getBoundingClientRect().top};setWin(w=>({...w,from:Math.max(0,w.from-step)}))}
+ React.useEffect(()=>{
+  if(typeof IntersectionObserver==='undefined'){setWin(w=>({...w,from:0,to:total}));return}
+  const one=top.current||end.current;if(!one)return
+  const box=scrollBoxOf(one)
+  const io=new IntersectionObserver(es=>{for(const e of es){if(!e.isIntersecting)continue
+   if(e.target===end.current)setWin(w=>({...w,to:Math.min(total,w.to+step)}))
+   else if(box)earlier()}},{root:box,rootMargin:'1000px 0px'})
+  if(top.current)io.observe(top.current);if(end.current)io.observe(end.current)
+  return()=>io.disconnect()},[win.from,win.to,total])
+ React.useLayoutEffect(()=>{const k=keep.current;keep.current=null;if(!k||!k.el.isConnected)return
+  const d=k.el.getBoundingClientRect().top-k.top;if(Math.abs(d)<1)return
+  const box=scrollBoxOf(k.el);if(box)box.scrollTop+=d;else window.scrollBy(0,d)},[win.from])
+ const to=Math.min(win.to,total),from=Math.max(0,Math.min(win.from,to-1))
+ return{from,to,
+  before:from>0?<button ref={top} type="button" className="show-earlier" onClick={earlier}>{'↑ '+label}</button>:null,
+  after:to<total?<div ref={end} className="show-more-sentinel" aria-hidden="true"/>:null}
+}
