@@ -28,6 +28,13 @@ on:
         description: Publish the results for the app (release "source-status")
         type: boolean
         default: false
+      names:
+        description: Instead of the scan, write down how each source names its episodes and seasons (episode-names.json)
+        type: boolean
+        default: false
+      shard:
+        description: With "names" - this part of the sources only (e.g. 2/3)
+        default: 1/1
   # Every Monday: the app reads the published results (Sources pages, recommended pack).
   schedule:
     - cron: '17 3 * * 1,4'
@@ -69,7 +76,16 @@ jobs:
           mkdir -p data
           nohup java ${{ inputs.java_opts || '-Dcom.sun.security.enableAIAcaIssuers=true' }} -jar miwayomi-all.jar --host 127.0.0.1 --port 4567 --no-open --data "$PWD/data" > engine.log 2>&1 &
           for i in $(seq 1 90); do curl -fs http://127.0.0.1:4567/api/v1/health && break; sleep 2; done
+      - name: Episode names
+        if: ${{ inputs.names }}
+        env:
+          LANGS: ${{ inputs.langs || 'all,en,fr' }}
+          ONLY: ${{ inputs.only || '' }}
+          SHARD: ${{ inputs.shard || '1/1' }}
+          QUERIES: ${{ inputs.query || '' }}
+        run: node scripts/episode-names.mjs ${{ inputs.repos || 'https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json https://raw.githubusercontent.com/salmanbappi/extensions-repo/main/index.min.json https://raw.githubusercontent.com/msrofficial/anime-repo/repo/index.min.json' }}
       - name: Scan
+        if: ${{ !inputs.names }}
         env:
           LANGS: ${{ inputs.langs || 'all,en,fr,es' }}
           ONLY: ${{ inputs.only || '' }}
@@ -80,7 +96,7 @@ jobs:
         if: always()
         run: grep -iE -A3 "exception|error|caused by|failed to load|could not" engine.log | grep -v "^--$" | cut -c1-400 | head -300 || true
       - name: Publish the results for the app
-        if: ${{ github.event_name == 'schedule' || inputs.publish }}
+        if: ${{ !inputs.names && (github.event_name == 'schedule' || inputs.publish) }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -94,4 +110,5 @@ jobs:
           path: |
             source-scan.json
             source-scan.md
+            episode-names.json
             engine.log
