@@ -105,6 +105,9 @@ function seasonMarks(text:string):Mark[]{
  // Arabic: "الموسم 2", "الموسم الثاني", "الجزء الثامن"
  const ar=new RegExp(AR_SEASON+'\\s*[:\\-–]?\\s*(?:(\\d{1,3})(?!\\d)|('+AR_ORD+')(?![\\p{L}]))','gu')
  while((m=ar.exec(text))){const n=m[1]?Number(m[1]):arabicOrdinal(m[2]);if(n!=null)out.push({from:m.index,to:m.index+m[0].length,n})}
+ // British English: "Series 2 Episode 5" (only there: "series" is everywhere in titles)
+ const uk=/(?<![\p{L}\p{N}])series\s+(\d{1,2})(?=\s*[,:\-–—]?\s*(?:episode|ep\.?\s*\d|e\d))/giu
+ while((m=uk.exec(text)))out.push({from:m.index,to:m.index+m[0].length,n:Number(m[1])})
  // Chinese, Japanese, Korean: "第2季", "第2期", "シーズン2", "시즌 2", "2기"
  const cjk=/第\s*(\d{1,3})\s*[季期部]|(?:シーズン|시즌)\s*(\d{1,3})|(?<![\p{N}])(\d{1,2})\s*기(?![\p{L}])/gu
  while((m=cjk.exec(text)))out.push({from:m.index,to:m.index+m[0].length,n:Number(m[1]||m[2]||m[3])})
@@ -126,7 +129,7 @@ const TITLE_SEP=/^(?:\s*[:|]\s*|\s+[-–—]\s*|\s*[-–—]\s+)(?=\S)/u
 const TAIL_NOISE=/^[\s\-–—|:,.]*(?:(?:vf|vostfr|vost|vo|sub|dub|multi|hd|fhd|uhd|4k|\d{3,4}p|مترجم[ةه]?|مدبلج[ةه]?)[\s\-–—|:,.]*|\([^)]*\)[\s\-–—|:,.]*|\[[^\]]*\][\s\-–—|:,.]*)*$/iu
 
 // "Film 1 : Title", "OVA 2", "Special 3": listed beside the seasons, they are season 0.
-const SPECIAL=/^\s*(?:film|filme|movie|pel[ií]cula|special|spezial|sp[ée]cial|especial|speciale|ova|oav|ona|sp)\s*#?\s*(\d{1,3})\s*(?:$|[:\-–—|\[(])/iu
+const SPECIAL=/^\s*(?:film|filme|movie|pel[ií]cula|special|spezial|sp[ée]cial|especial|speciale|ova|oav|ona|sp)\s*#?\s*(\d{1,3})\s*(?:$|[:\-–—|\[(]|(?:vostfr|vost|vf|vo|sub|dub|multi|hd)(?![\p{L}]))/iu
 
 export function readName(raw:any):NameRead{
  const text=cleanName(raw);if(!text.trim())return NONE
@@ -186,10 +189,12 @@ export function readName(raw:any):NameRead{
   else if(codes.length)loose=codes[0].n
  }
  // "S2" on its own, before a number or the episode ("S2 - 05", "[S2] Episode 5")
- if(season==null&&loose==null&&(m=/(?<![\p{L}\p{N}])S(\d{1,2})(?![\p{L}\p{N}])/u.exec(text))&&m.index<cut){if(first)season=Number(m[1]);else loose=Number(m[1])}
+ let lone:Mark|null=null
+ if(season==null&&loose==null&&(m=/(?<![\p{L}\p{N}])S(\d{1,2})(?![\p{L}\p{N}])/u.exec(text))&&m.index<cut){lone={from:m.index,to:m.index+m[0].length,n:Number(m[1])};if(first)season=lone.n;else loose=lone.n}
  // ---- The episode ----
  if(first)return{season,loose,episode:first.n,said:true}
- return{season,loose,episode:bareNumber(rest,seasons),said:false}
+ const marks=lone?[...seasons,lone]:seasons
+ return{season,loose,episode:bareNumber(blank(text,marks),marks),said:false}
 }
 
 // Nothing says "episode": the number that most likely is one. A name that starts with a
@@ -280,11 +285,12 @@ export function plainSeasonNumber(label:any):number|null{
 }
 export type SeasonPlace={season:number,name?:string,films?:boolean,group:boolean,title:string}
 export function seasonPlaces(entries:any[],parent?:any):SeasonPlace[]{
- const p=String(parent||'').trim().toLowerCase()
+ // The names the title goes by (the one of its page, the one it was found under).
+ const parents=(Array.isArray(parent)?parent:[parent]).map(x=>String(x||'').trim().toLowerCase()).filter(Boolean)
  const rows=entries.map((s,i)=>{
   const title=plainName(s?.title||s?.name||'').trim();let label=title
   // "Naruto Saison 1hs" under "Naruto" is "Saison 1hs"; a film keeps its whole title.
-  if(p&&title.toLowerCase().startsWith(p)){const rest=title.slice(p.length).replace(/^[\s:\-–—|,]+/,'').trim();if(rest&&(plainSeasonNumber(rest)!=null||rest.split(/\s+/).length<=3))label=rest}
+  for(const p of parents){if(!title.toLowerCase().startsWith(p))continue;const rest=title.slice(p.length).replace(/^[\s:\-–—|,]+/,'').trim();if(rest&&(plainSeasonNumber(rest)!=null||rest.split(/\s+/).length<=3)){label=rest;break}}
   const raw=Number(s?.season_number),num=Number.isFinite(raw)&&raw>=0?raw:null
   return{i,title,label,num,plain:plainSeasonNumber(label),url:String(s?.url||s?.path||'')}
  })
@@ -339,7 +345,10 @@ export function readEpisodes<T extends any[]>(list:T):T{
  // A season said in a less sure place is believed when most names say one.
  const saying=rows.filter(x=>x.direct!=null||x.r.season!=null||x.sc!=null||x.r.loose!=null).length
  const trustLoose=saying*2>=rows.length
- for(const x of rows)x.s=x.direct??x.r.season??x.sc??x.packed??(trustLoose&&x.r.loose!=null?x.r.loose:1)
+ // "2.05" beside "Episode 5" is season 2 when the list is written that way - not when one
+ // special is numbered "12.5" among whole numbers.
+ const packedOk=rows.filter(x=>x.packed!=null).length*2>=rows.filter(x=>x.r.said&&x.f!=null).length
+ for(const x of rows)x.s=x.direct??x.r.season??x.sc??(packedOk?x.packed:null)??(trustLoose&&x.r.loose!=null?x.r.loose:1)
  // Some sources put a number after "S" that is no season: a "season" per film, or
  // "seasons" that come and go while the episodes count on (S14 for episodes 898 to 1074,
  // then S16, S31, S29…). Such a list is one list: everything goes back to one season.

@@ -1,3 +1,17 @@
+## NovelReader 0.39.1
+
+- **Les épisodes rangés dans la bonne saison.** Avec beaucoup de sources, plusieurs saisons se retrouvaient mélangées dans une seule liste, ou des épisodes sous la mauvaise saison : l'application lisait mal la façon dont chaque source écrit ses épisodes. Cas réels corrigés : « S01 - Episode 10 » (4KHDHub) et « T2 - E5 » (toutes les sources espagnoles) mettaient tout en saison 1 ; « S4 - Ep. 5 » (WatchAnimeWorld) rangeait la saison 4 dans la saison 1 ; « Épisode 8 Saison 1 » partait en saison 8.
+- **Le bon numéro d'épisode.** À côté du nom, beaucoup de sources envoient un numéro qui n'est pas celui de l'épisode : un compteur sur toutes les saisons, un code (112 pour saison 2 épisode 12) ou la place dans la liste. L'étiquette affichait « S2 E112 » ; elle affiche « S2 E12 ». La recherche de sous-titres, qui s'appuie sur ce numéro, tombe plus souvent juste.
+- **Anime-Sama affiche ses épisodes.** Cette source range chaque saison à part et l'application ne lui demandait pas la liste de ses saisons : résultat, aucun épisode. Elle les demande maintenant une par une et garde les noms de la source (« Saison 1 », « Saison 1hs », « Kai », les films sous leur titre). Un anime à quarante saisons et films met quelques dizaines de secondes à s'ouvrir la première fois.
+- **Films et épisodes spéciaux à part** : quand une source les liste avec les saisons (« Film 1 : … », saison 0), ils ont leur propre groupe, après les saisons, au lieu de se glisser dans la saison 1.
+- **Plus de fausses saisons** : un titre d'épisode qui cite une saison (« Episode 14 - … Season 4 Episode 14 ») ne crée plus une saison à lui tout seul. Et quand une source colle des « saisons » qui n'en sont pas (une par film, ou des numéros qui montent et descendent alors que les épisodes se suivent), la liste reste une seule liste, dans l'ordre.
+- **« Reprendre » et « Suivant »** savent s'il reste un épisode même quand la numérotation repart à 1 à chaque saison. La saison choisie dans la liste ne suit plus d'un titre à l'autre.
+- **Téléchargements** : un épisode garde sa saison dans son nom (« S2 · Episode 5 ») et la page les range par saison.
+- **AniLab remarche, et la fiche des titres de Torrentio Anime se charge** : le moteur ne transmettait pas le titre à la source, et celles qui le lisent échouaient.
+- **Vérifié sur du vrai** : les noms d'épisodes ont été relevés auprès de 246 sources (659 titres). Le rangement par saison change pour 44 titres et les numéros pour 68 ; ces noms réels servent désormais de tests.
+
+---
+
 ## NovelReader 0.39.0
 
 - **Téléchargements : un échec est réessayé tout seul**, avec des liens neufs (ceux des sites expirent) : tout de suite, puis 2 et 10 minutes plus tard. Ensuite seulement il t'attend, avec la raison en clair et un bouton « Réessayer ».

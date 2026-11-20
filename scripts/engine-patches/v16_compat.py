@@ -13,10 +13,11 @@
    copied Content-Length header, so the player saw a stream of unknown size and
    could not jump ahead), and when a video server ignores the requested byte
    range, the proxy skips to the requested place itself and answers 206.
-6. The title of an anime is given to the source with its address (&title=): the
-   routes built an anime from the address alone, and sources that read its title
-   failed with "lateinit property title has not been initialized" (Torrentio
-   Anime for the details; AniLab, Bingr, Fullraces for the episodes).
+6. The title of an anime is given to the source with its address (&title=) and
+   is never "not initialized": the routes built an anime from the address alone,
+   and sources that read its title failed with "lateinit property title has not
+   been initialized" (details of Torrentio Anime, Subsplease, Castle TV, Lunar,
+   Seanime; episodes of AniLab, Bingr, Fullraces).
 Usage: python v16_compat.py <miwayomi source root>
 """
 import sys
@@ -285,7 +286,14 @@ r = r.replace(old, """            val status = if (response.code == 206) HttpSta
         }""", 1)
 routes.write_text(r)
 
-# 6. The title goes with the address; details that come back without one keep it.
+# 6. The title of an anime is never "not initialized" (a source that reads it before
+#    writing it failed with "lateinit property title has not been initialized"), it goes
+#    to the source with the address, and details that come back without one keep it.
+edit("source-api/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SAnimeImpl.kt",
+     "    override lateinit var title: String\n",
+     "    // (Not lateinit: the routes build an anime from its address, and sources read the title.)\n"
+     "    override var title: String = \"\"\n",
+     "anime title never uninitialized")
 edit("server/src/main/kotlin/miwayomi/api/AnimeRoutes.kt",
      "            val anime = SAnime.create().also { it.url = url }\n",
      "            val anime = SAnime.create().also { it.url = url; it.title = call.request.queryParameters[\"title\"].orEmpty() }\n",
@@ -293,7 +301,7 @@ edit("server/src/main/kotlin/miwayomi/api/AnimeRoutes.kt",
 edit("server/src/main/kotlin/miwayomi/api/AnimeRoutes.kt",
      "            if (runCatching { res.url }.getOrNull().isNullOrBlank()) res.url = url\n",
      "            if (runCatching { res.url }.getOrNull().isNullOrBlank()) res.url = url\n"
-     "            if (runCatching { res.title }.getOrNull() == null) res.title = anime.title\n",
+     "            if (res.title.isBlank()) res.title = anime.title\n",
      "details without a title")
 
 print("v16 compatibility patches applied")

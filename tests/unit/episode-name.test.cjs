@@ -34,13 +34,13 @@ test('one name: the season and the episode, as the sources write them', () => {
     // The episode before the season, a number in the title of the series
     ['Episode 8 Saison 1', 8, 'S1E8'], ['Épisode 8 - Saison 1', -1, 'S1E8'], ['The 100 Saison 2 Episode 3', 3, 'S2E3'], ['Mob Psycho 100 Saison 2 01 Vostfr', 1, 'S2E1'], ['Kimetsu no Yaiba Saison 4 08 Vostfr', 8, 'S4E8'],
     // Seasons said in words
-    ['2nd Season Episode 5', 5, 'S2E5'], ['Second Season - Episode 5', 5, 'S2E5'], ['Season Two Episode 5', 5, 'S2E5'], ['Season II Episode 5', 5, 'S2E5'], ['Dr. Stone 3rd Season Episode 4', 4, 'S3E4'], ['Saison 3 Partie 2 Épisode 5', 5, 'S3E5'],
+    ['Series 2, Episode 5', 5, 'S2E5'], ['Monogatari Series Second Season Episode 3', 3, 'S2E3'], ['2nd Season Episode 5', 5, 'S2E5'], ['Second Season - Episode 5', 5, 'S2E5'], ['Season Two Episode 5', 5, 'S2E5'], ['Season II Episode 5', 5, 'S2E5'], ['Dr. Stone 3rd Season Episode 4', 4, 'S3E4'], ['Saison 3 Partie 2 Épisode 5', 5, 'S3E5'],
     // Chinese, glued forms, half episodes
     ['第167集', -1, 'S1E167'], ['第二季 第5集', -1, 'S2E5'], ['Ep5', -1, 'S1E5'], ['EP05', -1, 'S1E5'], ['Saison2 Episode3', -1, 'S2E3'], ['S2 - 05', -1, 'S2E5'], ['1x08', -1, 'S1E8'], ['Episode 12.5', 12.5, 'S1E12.5'],
     // No word for "episode": the number that most likely is one
     ['One Piece 1100 Vostfr', 1100, 'S1E1100'], ['86 Eighty Six 11 VOSTFR', -1, 'S1E11'], ['12 - The 2nd Raid', -1, 'S1E12'], ['[SubsPlease] Sousou no Frieren - 12 (1080p) [ABCD1234]', -1, 'S1E12'],
     // Films and specials listed beside the seasons: season 0
-    ['S0:E3 - Special', 3, 'S0E3'], ['Film 1 : The Crimson Bow and Arrow[Movie]', 1, 'S0E1'], ['Movie 12: Film Z English Subbed', 12, 'S0E12'], ['Shigatsu wa Kimi no Uso - S00E01 (OVA)', -1, 'S0E1'], ['T0 - Episodio 1', 1, 'S0E1'],
+    ['S0:E3 - Special', 3, 'S0E3'], ['Film 1 : The Crimson Bow and Arrow[Movie]', 1, 'S0E1'], ['Film 2 VOSTFR', -1, 'S0E2'], ['OAV 1', 1, 'S0E1'], ['Movie 12: Film Z English Subbed', 12, 'S0E12'], ['Shigatsu wa Kimi no Uso - S00E01 (OVA)', -1, 'S0E1'], ['T0 - Episodio 1', 1, 'S0E1'],
     // Not a season: the number sent is kept, the title of the film is left alone
     ['Movie', 1, 'S1E1'], ['Филм: Бързи и яростни 10', 2, 'S1E2'], ['3x3 Eyes Episode 2', 2, 'S1E2'], ['One Piece Dublado Episódio 891', 891, 'S1E891'], ['Shingeki no Kyojin Episode 80 (From You, 2000 Years Ago)', 80, 'S1E80']
   ]) assert.strictEqual(code1(ep(name, number)), want, name)
@@ -53,6 +53,12 @@ test('a season said in the title of the episode is not the season', () => {
   assert.strictEqual(episodeNo(ep('Season 1 Episode 8 - Season 2 teaser'), 0), 8)
   assert.strictEqual(episodeNo(ep('S5 Ep. 5 - No Regrets: Part 2', 5), 0), 5)
   assert.strictEqual(readName('Shingeki no Kyojin: Chronicle (Recap of 59 episodes)').said, false)
+})
+
+test('a number with a fraction is a packed season only when the list is written that way', () => {
+  assert.deepStrictEqual(read([['Episode 3', 1.3], ['Episode 2', 1.2], ['Episode 3', 2.3], ['Episode 1', 2.1]]), ['S1E3', 'S1E2', 'S2E3', 'S2E1'])
+  // one special numbered "12.1" among whole numbers stays in its season
+  assert.deepStrictEqual(read([['Episode 13', 13], ['Episode 1', 12.1], ['Episode 12', 12], ['Episode 11', 11]]).map(c => c.slice(0, 2)), ['S1', 'S1', 'S1', 'S1'])
 })
 
 test('the season said only under the name, or packed in the number', () => {
