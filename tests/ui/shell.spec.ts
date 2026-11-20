@@ -153,6 +153,12 @@ test("what's new: shown once after an update, never on a first install", async (
   expect(await dlg.locator('li').count()).toBeGreaterThan(0)
   await expect(dlg.locator('li b').first()).not.toHaveText('')
   expect(await dlg.innerText()).not.toContain('**')
+  // Long notes: the window opens on its first line, and "OK" is there without scrolling
+  // (the whole window used to scroll, and the focus on "OK" opened it at its end).
+  await expect(dlg.locator('h2')).toBeInViewport()
+  await expect(dlg.locator('li').first()).toBeInViewport()
+  await expect(dlg.getByRole('button', { name: 'OK' })).toBeInViewport()
+  expect(await dlg.locator('ul').evaluate(el => el.scrollTop)).toBe(0)
   await dlg.getByRole('button', { name: 'OK' }).click()
   await expect(dlg).toHaveCount(0)
   await page.reload()

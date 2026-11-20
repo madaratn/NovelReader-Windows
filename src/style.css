@@ -1084,7 +1084,9 @@ html.android select{background-color:transparent;color:inherit}
 @keyframes seekflash{0%{opacity:0;transform:translateY(-50%) scale(.85)}25%{opacity:1;transform:translateY(-50%) scale(1)}100%{opacity:0;transform:translateY(-50%) scale(1)}}
 @media (prefers-reduced-motion:reduce){.seek-flash{animation-duration:.01s;animation-fill-mode:none}}
 /* "What's new" after an update */
-.whats-new{padding:18px 20px;gap:10px;overflow:auto}.whats-new h2{margin:0}.whats-new ul{margin:0;padding-left:20px;display:grid;gap:8px;line-height:1.45}.whats-new .libraryactions{justify-content:flex-end}
+/* The list scrolls between the title and "OK", which stay in place: the window opens on
+   its first line (when the whole window scrolled, the focus on "OK" opened it at the end). */
+.whats-new{padding:18px 20px;gap:10px}.whats-new h2{margin:0;flex:none}.whats-new ul{flex:1 1 auto;min-height:0;overflow:auto;margin:0;padding:2px 6px 2px 20px;display:grid;gap:8px;line-height:1.45}.whats-new .libraryactions{flex:none;justify-content:flex-end}
 .pc-share-link{font-size:1.05em;user-select:all}
 /* "Continue" panel */
 .home-panel{width:min(860px,100%);max-height:84vh}

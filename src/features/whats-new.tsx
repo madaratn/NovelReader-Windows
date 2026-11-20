@@ -7,7 +7,8 @@ export function parseNotes(md:string){
  const version=(/^##\s*NovelReader\s+([\d.]+)/m.exec(md)||[])[1]||''
  // Only the newest version (the file keeps the earlier ones below it).
  const first=md.split(/\r?\n(?=##\s*NovelReader\s)|\r?\n---\s*(?:\r?\n|$)/).find(x=>/^##\s*NovelReader\s/m.test(x))||md
- const items=first.split(/\r?\n/).filter(l=>/^\s*-\s+/.test(l)).map(l=>l.replace(/^\s*-\s+/,'').trim())
+ // (French: the space before ":", ";", "?", "!", "»" and after "«" does not break, as in the rest of the interface.)
+ const items=first.split(/\r?\n/).filter(l=>/^\s*-\s+/.test(l)).map(l=>l.replace(/^\s*-\s+/,'').trim().replace(/ (?=[:;?!»])/g,'\u00a0').replace(/« /g,'«\u00a0'))
  return{version,items}}
 // **bold** only (the notes use nothing else).
 const rich=(s:string)=>s.split(/\*\*(.+?)\*\*/g).map((p,i)=>i%2?<b key={i}>{p}</b>:<React.Fragment key={i}>{p}</React.Fragment>)
@@ -22,6 +23,6 @@ export function WhatsNew({text=notes}:{text?:string}){
  const close=()=>{localStorage.setItem('whatsNewSeen',version);setOpen(false)}
  return <div className="qs-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)close()}} onKeyDown={e=>{if(e.key==='Escape')close()}}><div className="qs whats-new" role="dialog" aria-modal="true" aria-label={t("What's new")}>
   <h2>{t("What's new in {version}",{version})}</h2>
-  <ul>{items.map((x,i)=><li key={i}>{rich(x)}</li>)}</ul>
+  <ul tabIndex={0} aria-label={t("What's new")}>{items.map((x,i)=><li key={i}>{rich(x)}</li>)}</ul>
   <div className="libraryactions"><button className="primary" autoFocus onClick={close}>{t('OK')}</button></div>
  </div></div>}
