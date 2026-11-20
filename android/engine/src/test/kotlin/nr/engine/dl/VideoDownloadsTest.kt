@@ -257,6 +257,17 @@ class VideoDownloadsTest {
         q.cancel(id)
         repeat(100) { if (File(root, id).exists()) Thread.sleep(20) }
         assertFalse("the folder is gone within two seconds", File(root, id).exists()); assertTrue(q.list().none { it.id == id })
+        // Cancelled, then asked for again at once: the new download is not swept away with the old one.
+        var hang = true
+        routes["/again.mp4"] = { r -> if (hang) { r.ranged(film, 1500); Thread.sleep(8000) } else r.ranged(film) }
+        val p = DlStart("movie", "d", "D", "", "/d", "D", 0.0, "k", listOf(DlCandidate(base() + "/again.mp4")))
+        val other = q.start(p).id
+        repeat(100) { if ((q.list().firstOrNull { it.id == other }?.bytes ?: 0) < 1500) Thread.sleep(20) }
+        q.remove(other); hang = false
+        assertEquals(other, q.start(p).id)
+        val d = waitFor(other, q)
+        assertEquals(d.error, "done", d.state)
+        assertTrue(film.contentEquals(File(root, "$other/${d.file}").readBytes()))
     }
 
     @Test fun sameStreamSamePartWhateverTheTokens() {

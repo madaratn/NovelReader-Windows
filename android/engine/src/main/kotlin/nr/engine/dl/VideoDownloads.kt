@@ -430,8 +430,13 @@ class VideoDownloads(
                 if (full) break
             }
         }
-        // Cancelled: nothing is kept.
-        if (job.aborted) { dir.deleteRecursively(); jobs.remove(job.meta.id); return }
+        // Cancelled: nothing is kept. (Unless the same episode was asked for again meanwhile:
+        // the folder and the place in the list are its own now.)
+        if (job.aborted) {
+            val now = jobs[job.meta.id]
+            if (now == null || now === job) { dir.deleteRecursively(); jobs.remove(job.meta.id, job) }
+            return
+        }
         if (dir.listFiles().isNullOrEmpty()) dir.delete()
         job.state = "error"; job.error = errors.lastOrNull() ?: "No downloadable stream"
     }
@@ -443,7 +448,7 @@ class VideoDownloads(
         if (candidates.isEmpty()) throw DlError("This episode has no stream that can be downloaded.")
         val id = idFor(p.kind, p.mediaId, p.episodeUrl)
         val cur = jobs[id]
-        if (cur != null && (cur.state == "queued" || cur.state == "downloading")) return DlId(id)
+        if (cur != null && !cur.aborted && (cur.state == "queued" || cur.state == "downloading")) return DlId(id)
         val meta = DlItem(id = id, kind = p.kind, mediaId = p.mediaId, mediaName = p.mediaName, cover = p.cover, episodeUrl = p.episodeUrl, episodeName = p.episodeName, episodeNo = p.episodeNo, mediaKey = p.mediaKey, createdAt = System.currentTimeMillis())
         val job = Job(meta, candidates)
         jobs[id] = job
@@ -452,7 +457,7 @@ class VideoDownloads(
         worker.execute {
             try {
                 if (!job.aborted && job.state == "queued") { job.state = "downloading"; changed(); runJob(job) }
-                else if (job.aborted) jobs.remove(id)
+                else if (job.aborted) jobs.remove(id, job)
             } catch (e: Throwable) { job.state = "error"; job.error = e.message ?: e.toString() }
             finally { if (pending.decrementAndGet() == 0) onActive(false); changed() }
         }

@@ -56,7 +56,10 @@ function createVideoDownloads({root,log=()=>{},notify=()=>{},fetchImpl=globalThi
  const dirSize=dir=>{let n=0;try{for(const f of fs.readdirSync(dir,{withFileTypes:true})){const p=path.join(dir,f.name);n+=f.isDirectory()?dirSize(p):fs.statSync(p).size}}catch{}return n}
  const newest=dir=>{let n=0;try{n=fs.statSync(dir).mtimeMs;for(const f of fs.readdirSync(dir,{withFileTypes:true})){const p=path.join(dir,f.name);n=Math.max(n,f.isDirectory()?newest(p):fs.statSync(p).mtimeMs)}}catch{}return n}
  const names=dir=>{try{return fs.readdirSync(dir)}catch{return[]}}
- const drop=p=>fs.rmSync(p,{recursive:true,force:true})
+ // Best effort: on Windows a file still being written cannot always go at once. The
+ // download that is being cancelled deletes its folder again once its file is closed,
+ // and what could still be left is cleared at the next start.
+ const drop=p=>{try{fs.rmSync(p,{recursive:true,force:true,maxRetries:2,retryDelay:40})}catch(e){log('not deleted yet',String(e&&e.message||e))}}
  // Nothing is announced while the app closes: the downloads stopped then are not cancelled ones.
  const changed=()=>{if(!closing)notify()}
  // One stream of a download is saved in its own part of the folder, named after
@@ -238,7 +241,8 @@ function createVideoDownloads({root,log=()=>{},notify=()=>{},fetchImpl=globalThi
   }
   // Cancelled: nothing is kept. The app closing is not a cancellation: the part stays.
   if(closing)return
-  if(job.abort.signal.aborted){drop(dir);jobs.delete(meta.id);return}
+  // (Unless the same episode was asked for again meanwhile: the folder and the place in the list are its own now.)
+  if(job.abort.signal.aborted){const now=jobs.get(meta.id);if(!now||now===job){drop(dir);jobs.delete(meta.id)}return}
   if(!names(dir).length)drop(dir)
   job.state='error';job.error=errors[errors.length-1]||'No downloadable stream'
  }
@@ -251,7 +255,7 @@ function createVideoDownloads({root,log=()=>{},notify=()=>{},fetchImpl=globalThi
   const p=payload||{};if(!p.mediaId||!p.episodeUrl)throw new Error('Missing episode')
   if(!Array.isArray(p.candidates)||!p.candidates.length)throw new Error('This episode has no stream that can be downloaded.')
   const id=SAFE(p.kind)+'_'+SAFE(p.mediaId).slice(0,40)+'_'+require('crypto').createHash('sha1').update(String(p.mediaId)+'|'+String(p.episodeUrl)).digest('hex').slice(0,10)
-  const cur=jobs.get(id);if(cur&&(cur.state==='queued'||cur.state==='downloading'))return{id}
+  const cur=jobs.get(id);if(cur&&!cur.abort.signal.aborted&&(cur.state==='queued'||cur.state==='downloading'))return{id}
   const meta={id,kind:String(p.kind||''),mediaId:String(p.mediaId),mediaName:String(p.mediaName||''),cover:String(p.cover||''),episodeUrl:String(p.episodeUrl),episodeName:String(p.episodeName||''),episodeNo:Number(p.episodeNo)||0,mediaKey:String(p.mediaKey||''),candidates:p.candidates.map(c=>({url:String(c.url),type:c.type==='hls'?'hls':'file',title:String(c.title||''),subtitles:(c.subtitles||[]).map(s=>({url:String(s.url),label:String(s.label||''),lang:String(s.lang||'')}))})).filter(c=>/^http:\/\/127\.0\.0\.1:\d+\//.test(c.url)),createdAt:Date.now()}
   if(!meta.candidates.length)throw new Error('This episode has no stream that can be downloaded.')
   jobs.set(id,{meta,state:'queued',progress:0,bytes:0,error:'',abort:new AbortController()});queue.push(id);changed();pump();return{id}
@@ -266,7 +270,7 @@ function createVideoDownloads({root,log=()=>{},notify=()=>{},fetchImpl=globalThi
  // Cancelling leaves nothing behind (a failed download keeps its part until then).
  function cancel(id){const j=jobs.get(String(id));if(!j)return false;j.abort.abort();if(j.state==='queued'||j.state==='error'){jobs.delete(j.meta.id);drop(path.join(root,j.meta.id))}changed();return true}
  function remove(id){const sid=SAFE(id);cancel(sid);jobs.delete(sid);drop(path.join(root,sid));changed();return true}
- function clear(){for(const j of jobs.values())j.abort.abort();jobs.clear();queue.length=0;for(const id of fs.readdirSync(root))fs.rmSync(path.join(root,id),{recursive:true,force:true});changed();return true}
+ function clear(){for(const j of jobs.values())j.abort.abort();jobs.clear();queue.length=0;for(const id of names(root))drop(path.join(root,id));changed();return true}
  function usage(){return{bytes:dirSize(root),count:list().filter(x=>x.state==='done').length,folder:root}}
 
  function serve(){

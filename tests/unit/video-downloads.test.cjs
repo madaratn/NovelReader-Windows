@@ -203,6 +203,12 @@ test('closing the app keeps what is saved and the next start goes on from it; ca
    for(let i=0;i<100&&!(two.list().find(x=>x.id===c.id)?.bytes>=1500);i++)await new Promise(r=>setTimeout(r,20))
    two.cancel(c.id);for(let i=0;i<100&&fs.existsSync(path.join(root,c.id));i++)await new Promise(r=>setTimeout(r,20))
    assert.ok(!fs.existsSync(path.join(root,c.id)));assert.ok(!two.list().some(x=>x.id===c.id))
+   // Cancelled, then asked for again at once: the new download is not swept away with the old one
+   const d=two.start({...p,mediaId:'d'})
+   for(let i=0;i<100&&!(two.list().find(x=>x.id===d.id)?.bytes>=1500);i++)await new Promise(r=>setTimeout(r,20))
+   two.remove(d.id);hang=false;const again=two.start({...p,mediaId:'d'})
+   assert.equal(again.id,d.id);const redo=await waitDone(two,d.id);assert.equal(redo.state,'done',redo.error)
+   assert.deepEqual(fs.readFileSync(path.join(root,d.id,redo.file)),BODY)
   }finally{two.close()}
  }finally{one.close();f.close()}
 })
