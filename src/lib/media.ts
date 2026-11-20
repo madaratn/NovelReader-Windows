@@ -2,6 +2,7 @@
 // covers, saved playback positions and readable engine errors.
 import{lsGet}from'./util'
 import{engineFetch}from'./engine'
+import{readEpisodes,seasonPlaces,orderedEpisodes,episodeNo,countNo}from'./episode-name'
 export function mediaPosKey(mediaKey:string){return 'mediapos:'+mediaKey}
 export function readMediaPos(mediaKey:string):{t:number,d:number,done?:boolean,at?:number}|null{try{return JSON.parse(localStorage.getItem(mediaPosKey(mediaKey))||'null')}catch{return null}}
 // "Error invoking remote method 'x': Error: Miwayomi HTTP 500 — {"error":"…"}" → "…"
@@ -11,20 +12,69 @@ export type MediaKind='Anime'|'Series'|'Movie'
 // Any script (Arabic, Cyrillic, CJK…), with loose Arabic spellings (hamza, alef maqsura, ta marbuta).
 export function mediaNorm(v:any){return String(v||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f\u064b-\u065f\u0670]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/ـ/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim()}
 export function mediaCover(a:any){return String(a?.thumbnailUrl||a?.thumbnail_url||a?.thumbnail||a?.coverUrl||a?.cover_url||a?.cover||a?.posterUrl||a?.poster_url||a?.poster||a?.imageUrl||a?.image_url||a?.image||'').trim()}
-export async function enrichMediaCover(a:any){if(mediaCover(a))return{...a,thumbnail:mediaCover(a)};const sid=String(a?.sourceId||'');const url=a?.url||a?.path;if(!sid||!url)return a;try{const d=await engineFetch('/api/v1/anime/'+encodeURIComponent(sid)+'/details?url='+encodeURIComponent(url));return{...a,...d,sourceId:sid,url:a.url||a.path||d?.url,thumbnail:mediaCover(d)||mediaCover(a)}}catch{return a}}
+export async function enrichMediaCover(a:any){if(mediaCover(a))return{...a,thumbnail:mediaCover(a)};const sid=String(a?.sourceId||'');const url=a?.url||a?.path;if(!sid||!url)return a;try{const d=await fetchDetails(sid,url,a?.name||a?.title);return{...a,...d,sourceId:sid,url:a.url||a.path||d?.url,thumbnail:mediaCover(d)||mediaCover(a)}}catch{return a}}
 
-// Episode and season numbers, from the source's fields or from the name in many
-// languages ("S2 E5", "Episode 5", "Épisode 5", "5. Bölüm", "Sezon 2", "الحلقة ٥"…).
-// Sources often send -1 or 0 when they do not know the number: the name is used then.
-const digits=(t:string)=>t.replace(/[\u0660-\u0669]/g,d=>String(d.charCodeAt(0)-0x660)).replace(/[\u06F0-\u06F9]/g,d=>String(d.charCodeAt(0)-0x6F0))
-const SEASON_RE=[/\bS(\d+)\s*[.:-]?\s*E\d+/i,/(\d+)\s*\.?\s*(?:sezon|season|saison|temporada)\b/i,/(?:season|saison|sezon|temporada|staffel|stagione|الموسم|موسم)\s*[:#-]?\s*(\d+)/i]
-const EP_RE=[/\bS\d+\s*[.:-]?\s*E(\d+(?:\.\d+)?)/i,/(?:episode|épisode|episodio|epis[oó]dio|folge|b[öo]l[üu]m|capitulo|cap[ií]tulo|الحلقة|حلقة|\bep\.?|\beps?)\s*[:#-]?\s*(\d+(?:\.\d+)?)/i,/(\d+(?:\.\d+)?)\s*\.?\s*(?:b[öo]l[üu]m|episode|épisode|ep\b|الحلقة)/i,/\bE(\d+(?:\.\d+)?)\b/]
-const nameOf=(ep:any)=>digits(String(ep?.name||ep?.title||''))
-export function episodeNo(ep:any,fallback:number){const n=Number(ep?.number??ep?.episodeNumber??ep?.episode_number);if(Number.isFinite(n)&&n>0)return n;const text=nameOf(ep);for(const re of EP_RE){const m=text.match(re);if(m)return Number(m[1])}let rest=text;for(const re of SEASON_RE)rest=rest.replace(re,' ');const nums=(rest.match(/\d+(?:\.\d+)?/g)||[]).map(Number),noYears=nums.filter(x=>!(x>=1900&&x<=2099&&Number.isInteger(x)));const pick=noYears.length?noYears[0]:nums[0];return pick!=null?pick:fallback}
-export function seasonNo(ep:any){const direct=Number(ep?.season??ep?.seasonNumber??ep?.season_number);if(Number.isFinite(direct)&&direct>0)return direct;const text=nameOf(ep);for(const re of SEASON_RE){const m=text.match(re);if(m)return Number(m[1])}return 1}
-// Season, then episode number. Episodes without any number keep the source's order,
-// read from the oldest (sources list the newest first).
-export function orderedEpisodes(list:any[]=[]){const known=list.some(ep=>{const n=Number(ep?.number??ep?.episodeNumber??ep?.episode_number);return(Number.isFinite(n)&&n>0)||/\d/.test(nameOf(ep))});return list.map((ep,i)=>({ep,s:seasonNo(ep),n:episodeNo(ep,known?Number.MAX_SAFE_INTEGER:list.length-i),i})).sort((a,b)=>a.s-b.s||a.n-b.n||a.i-b.i).map(x=>x.ep)}
+// Episode and season numbers: read from what the sources send (src/lib/episode-name.ts).
+export{seasonNo,episodeNo,episodeCode,orderedEpisodes,readEpisodes,seasonOrder,seasonHasName,plainName}from'./episode-name'
+
+// Where an episode stands in its list ("is there one after it?"), what the next one is
+// called, and its number for the lists kept elsewhere (AniList, MyAnimeList).
+export function episodePlace(media:any,ep:any):{pos?:number,next?:number,track:number}{
+ const list=orderedEpisodes(media?.episodes||[]),i=list.indexOf(ep)
+ return{...(i>=0?{pos:i+1,...(list[i+1]?{next:episodeNo(list[i+1],i+2)}:{})}:{}),track:countNo(ep)}
+}
+
+// ---- The episodes of a title ----------------------------------------------------------
+// One call for every place that needs them. A source that lists its seasons one by one
+// (Anime-Sama…) gives no episode for the title itself: it is then asked for its seasons
+// and for the episodes of each, and every episode says which season it is from. The list
+// comes back read: `season` and `number` are written on each episode.
+const epList=(d:any):any[]=>Array.isArray(d)?d:(d?.episodes||d?.items||d?.list||[])
+// (The title goes with the address: some sources read it, and the engine has no other way to know it.)
+export const urlArg=(url:any,title?:any)=>'?url='+encodeURIComponent(String(url))+(title?'&title='+encodeURIComponent(String(title).slice(0,200)):'')
+export const fetchDetails=(sourceId:any,url:any,title?:any)=>engineFetch('/api/v1/anime/'+encodeURIComponent(String(sourceId))+'/details'+urlArg(url,title))
+export type EpisodeOpts={title?:any,names?:any[],onSeasons?:(done:number,total:number)=>void}
+const noSeasonList=new Set<string>() // sources that said they have no list of seasons
+const notThatWay=(e:any)=>/UnsupportedOperation|Not used|not supported|NotImplemented|not implemented/i.test(String(e?.message||e))
+const seasonLists=new Map<string,{at:number,list:any[]}>() // (a title with 40 seasons is 40 requests: kept a while)
+export async function fetchEpisodes(sourceId:any,url:any,opts:EpisodeOpts={}):Promise<any[]>{
+ const id=String(sourceId),sid=encodeURIComponent(id),key=id+'\n'+url
+ const kept=seasonLists.get(key);if(kept&&Date.now()-kept.at<15*60e3)return kept.list
+ let eps:any[]=[],err:any=null
+ try{eps=epList(await engineFetch('/api/v1/anime/'+sid+'/episodes'+urlArg(url,opts.title)))}catch(e){err=e}
+ // No episode for the title itself (or "not done that way"): its seasons, if it lists them.
+ // A site that does not answer is not asked a second question.
+ if(!eps.length&&!noSeasonList.has(id)&&(!err||notThatWay(err))){
+  const list=await seasonEpisodes(id,String(url),opts).catch(()=>[] as any[])
+  if(list.length){readEpisodes(list);seasonLists.set(key,{at:Date.now(),list});if(seasonLists.size>40)seasonLists.delete(seasonLists.keys().next().value as string);return list}
+ }
+ if(!eps.length&&err)throw err
+ return readEpisodes(eps)
+}
+// How many seasons could not be loaded (a site that answers one request in three…).
+export const missingSeasons=(list:any):number=>Number(list?.missingSeasons)||0
+async function seasonEpisodes(id:string,url:string,opts:EpisodeOpts):Promise<any[]>{
+ const sid=encodeURIComponent(id);let data:any
+ try{data=await engineFetch('/api/v1/anime/'+sid+'/seasons'+urlArg(url,opts.title))}
+ catch(e:any){if(notThatWay(e))noSeasonList.add(id);return[]}
+ const seasons=(Array.isArray(data)?data:(data?.seasons||data?.items||[])).filter((s:any)=>s&&(s.url||s.path))
+ if(!seasons.length)return[]
+ const places=seasonPlaces(seasons,[...(opts.names||[]),opts.title]),lists:any[][]=seasons.map(()=>[]),queue=seasons.map((_:any,i:number)=>i)
+ let done=0,failed=0;opts.onSeasons?.(0,seasons.length)
+ const one=async(i:number)=>{const s=seasons[i];for(let k=0;k<2;k++){try{lists[i]=epList(await engineFetch('/api/v1/anime/'+sid+'/episodes'+urlArg(s.url||s.path,s.title||s.name)));return}catch{if(k)failed++}}}
+ await Promise.all(Array.from({length:Math.min(3,seasons.length)},async()=>{while(queue.length){await one(queue.shift()!);done++;opts.onSeasons?.(done,seasons.length)}}))
+ const out:any[]=[],count=new Map<number,number>()
+ places.forEach((pl,i)=>{
+  const mark={season:pl.season,...(pl.films?{season_films:true}:pl.name?{season_name:pl.name}:{})}
+  for(const ep of lists[i]){
+   // One film per entry: the film is called by the name of its entry, and counted in the group.
+   if(pl.group){const n=(count.get(pl.season)||0)+1;count.set(pl.season,n);out.push({...ep,...(lists[i].length===1&&pl.title?{name:pl.title}:{}),...mark,number:n})}
+   else out.push({...ep,...mark})
+  }
+ })
+ if(failed)Object.defineProperty(out,'missingSeasons',{value:failed,enumerable:false})
+ return out
+}
 
 
 // ---- Watch statistics (per day: seconds watched, episodes finished) ----------

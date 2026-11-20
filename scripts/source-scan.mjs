@@ -44,7 +44,14 @@ async function checkSource(src) {
   out.list = true
   for (const a of items.slice(0, 3)) {
     try {
-      const eps = list(await api(`/api/v1/anime/${sid}/episodes?url=${encodeURIComponent(a.url || a.path)}`, { timeout: 40000 }), 'episodes', 'items')
+      // Like the app: the title goes with the address (some sources read it), and a source
+      // that lists its seasons one by one is asked for them when the title has no episode.
+      const at = x => `?url=${encodeURIComponent(x.url || x.path)}&title=${encodeURIComponent(clean(x.title || x.name))}`
+      let eps = list(await api(`/api/v1/anime/${sid}/episodes${at(a)}`, { timeout: 40000 }), 'episodes', 'items')
+      if (!eps.length) {
+        const seasons = list(await api(`/api/v1/anime/${sid}/seasons${at(a)}`, { timeout: 30000 }).catch(() => []), 'seasons', 'items')
+        if (seasons.length) eps = list(await api(`/api/v1/anime/${sid}/episodes${at(seasons[0])}`, { timeout: 40000 }), 'episodes', 'items')
+      }
       if (!eps.length) { out.error = 'no episode'; continue }
       out.episodes = true
       const ep = eps[eps.length - 1]

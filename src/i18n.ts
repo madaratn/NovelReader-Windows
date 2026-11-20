@@ -1247,6 +1247,10 @@ const FR: Record<string, string> = {
   '{n} s': '{n} s',
   '{time} left': 'reste {time}',
   'Options': 'Options',
+  'Films and specials': 'Films et épisodes spéciaux',
+  'Loading the seasons… {done}/{total}': 'Chargement des saisons… {done}/{total}',
+  'One season could not be loaded: open the title again in a moment.': 'Une saison n\'a pas pu être chargée : rouvre le titre dans un instant.',
+  '{n} seasons could not be loaded: open the title again in a moment.': '{n} saisons n\'ont pas pu être chargées : rouvre le titre dans un instant.',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')

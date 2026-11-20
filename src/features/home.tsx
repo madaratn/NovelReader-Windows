@@ -25,7 +25,7 @@ export function continueItems(libs:Record<QuickKind,any[]>,max=12):HomeItem[]{
   out.push({kind:'books',item:n,name:String(n.name||''),sub:String(c?.name||c?.title||t('Chapter {n}',{n:r.index+1})),at:r.at,progress:total?Math.min(1,(r.index+(r.progress||0))/total):0,cover:n.cover||''})}
  for(const kind of ['anime','series','movies'] as QuickKind[])for(const a of libs[kind]||[]){if(a.shelf==='dropped'||a.shelf==='completed')continue
   const info=read('lastEpInfo:'+idOf(a));if(!info?.url||!info.at)continue
-  const pos=readMediaPos(posKey(kind,a,info.url)),count=Number(a.episodes)||0,done=!!pos?.done,hasNext=kind!=='movies'&&done&&(info.n||0)<count
+  const pos=readMediaPos(posKey(kind,a,info.url)),count=Number(a.episodes)||0,done=!!pos?.done,hasNext=kind!=='movies'&&done&&(Number(info.pos)||info.n||0)<count
   if(done&&!hasNext)continue // watched to the end, nothing after it
   const ep=kind==='movies'?'':String(info.name||(info.n?t('Episode {n}',{n:info.n}):''))
   out.push({kind,item:a,name:String(a.name||a.title||''),sub:hasNext?t('Next episode after {ep}',{ep}):ep,at:info.at,progress:!done&&pos?.d?Math.min(1,pos.t/pos.d):0,cover:mediaCover(a)||'',resume:{url:info.url,next:hasNext}})}
