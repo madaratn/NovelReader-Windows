@@ -7,7 +7,7 @@
 - **Plus de fausses saisons** : un titre d'épisode qui cite une saison (« Episode 14 - … Season 4 Episode 14 ») ne crée plus une saison à lui tout seul. Et quand une source colle des « saisons » qui n'en sont pas (une par film, ou des numéros qui montent et descendent alors que les épisodes se suivent), la liste reste une seule liste, dans l'ordre.
 - **« Reprendre » et « Suivant »** savent s'il reste un épisode même quand la numérotation repart à 1 à chaque saison. La saison choisie dans la liste ne suit plus d'un titre à l'autre.
 - **Téléchargements** : un épisode garde sa saison dans son nom (« S2 · Episode 5 ») et la page les range par saison.
-- **AniLab remarche, et la fiche des titres de Torrentio Anime se charge** : le moteur ne transmettait pas le titre à la source, et celles qui le lisent échouaient.
+- **AniLab remarche, et la fiche des titres (résumé, genres) se charge de nouveau** avec Torrentio Anime, Subsplease, Castle TV et Lunar : le moteur ne transmettait pas le titre à la source, et celles qui le lisent échouaient.
 - **Vérifié sur du vrai** : les noms d'épisodes ont été relevés auprès de 246 sources (659 titres). Le rangement par saison change pour 44 titres et les numéros pour 68 ; ces noms réels servent désormais de tests.
 
 ---
