@@ -1230,6 +1230,23 @@ const FR: Record<string, string> = {
   'Covers': 'Couvertures',
   'No timer': 'Aucune',
   'Show': 'Afficher',
+  'Earlier chapters': 'Chapitres précédents',
+  'Waiting for the connection': 'En attente de connexion',
+  'Waiting for the connection… Click to cancel.': 'En attente de connexion… Clique pour annuler.',
+  'Trying again soon': 'Nouvel essai bientôt',
+  'New try at {time}': 'Nouvel essai à {time}',
+  'It failed; a new try is coming. Click to cancel.': 'Échec ; un nouvel essai va suivre. Clique pour annuler.',
+  'Retry': 'Réessayer',
+  'There is no room left to save this video.': 'Il n\'y a plus de place pour enregistrer cette vidéo.',
+  'The download was interrupted.': 'Le téléchargement a été interrompu.',
+  'The link to this video expired or was removed.': 'Le lien de cette vidéo a expiré ou a été retiré.',
+  'The video server is not answering.': 'Le serveur vidéo ne répond pas.',
+  'The connection was cut during the download.': 'La connexion a été coupée pendant le téléchargement.',
+  'This server sent nothing that can be saved.': 'Ce serveur n\'a rien envoyé qui puisse être enregistré.',
+  '{n}%': '{n} %',
+  '{n} s': '{n} s',
+  '{time} left': 'reste {time}',
+  'Options': 'Options',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')
@@ -1238,8 +1255,9 @@ export function t(key: string, vars?: Record<string, string | number>): string {
   // Phone / tablet: the same sentences, without "PC".
   if (onDevice()) out = out.replace(/\bthis PC\b/g, 'this device').replace(/\bce PC\b/g, 'cet appareil').replace(/\ba Windows notification\b/g, 'a notification').replace(/\bune notification Windows\b/g, 'une notification')
   if (vars) out = out.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m))
-  // French: a line never starts with ":", ";", "?", "!" or "»", nor ends with "«" (the space beside them does not break).
-  if (lang === 'fr') out = out.replace(/ (?=[:;?!»])/g, '\u00a0').replace(/« /g, '«\u00a0')
+  // French: a line never starts with ":", ";", "?", "!" or "»", nor ends with "«" (the space beside them does not break),
+  // and a number stays with its unit ("37 %", "2 h 05 min", "150 Mo").
+  if (lang === 'fr') out = out.replace(/ (?=[:;?!»])/g, '\u00a0').replace(/« /g, '«\u00a0').replace(/(\d) (?=(?:%|(?:Mo|Go|min|h|s)(?![\p{L}\p{N}])))/gu, '$1\u00a0')
   return out
 }
 

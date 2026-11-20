@@ -4,7 +4,7 @@
 import React,{useEffect,useMemo,useRef}from'react'
 import{t,plural,getLang}from'../i18n'
 import{historyDays,clearHistory,dayOf,recentTitles,readHistory,type HistoryLine}from'../lib/history'
-import{Help,Cover,Icon}from'../ui/common'
+import{Help,Cover,Icon,useShowMore}from'../ui/common'
 import{mediaCover,readMediaPos}from'../lib/media'
 import{timeAgo}from'../lib/util'
 import type{QuickKind}from'./quick-search'
@@ -73,10 +73,17 @@ export function HistoryPage({libs,onOpen,onBack,onYear}:{libs:Record<QuickKind,a
  // With lines from the phone and the PC, each says where it was read or watched.
  const both=new Set(days.flatMap(d=>d.lines.map(x=>x.on||'pc'))).size>1
  const dayLabel=(day:string)=>day===dayOf(Date.now())?t('Today'):day===dayOf(Date.now()-86400e3)?t('Yesterday'):new Date(day+'T12:00:00').toLocaleDateString(getLang(),{weekday:'long',day:'numeric',month:'long'})
- const shown=days.map(d=>({...d,lines:d.lines.filter(x=>filter==='all'||x.kind===filter)})).filter(d=>d.lines.length)
+ const shown=useMemo(()=>days.map(d=>({...d,lines:d.lines.filter(x=>filter==='all'||x.kind===filter)})).filter(d=>d.lines.length),[days,filter])
+ // A long history (a thousand lines): the latest days at once, the older ones while
+ // scrolling. One search table for the titles and one clock format for all the lines
+ // (a search in the libraries and a new format for each line made the page wait).
+ const more=useShowMore(shown.reduce((n,d)=>n+d.lines.length,0),{first:120,step:240,reset:[filter]})
+ const drawn:typeof shown=[];{let left=more.limit;for(const d of shown){if(left<=0)break;drawn.push(d.lines.length<=left?d:{...d,lines:d.lines.slice(0,left)});left-=d.lines.length}}
+ const titles=useMemo(()=>{const m=new Map<string,any>();for(const k of Object.keys(libs) as QuickKind[])for(const a of libs[k]||[]){const id=k+'|'+String(k==='books'?a.id:(a.id||a.url||a.name));if(!m.has(id))m.set(id,a)}return m},[libs])
+ const clock=useMemo(()=>new Intl.DateTimeFormat(getLang(),{hour:'2-digit',minute:'2-digit'}),[])
  return <div className="history-page"><header><div><button className="backbtn" onClick={onBack}>{'← '+t('Back')}</button><h1>{t('History')}</h1><p>{t('What you read and watched, day by day (on the PC and the phone when they are synced).')}</p></div><div className="libraryactions">{onYear&&<button className="primary" onClick={onYear}>{'🎉 '+t('Your year {y}',{y:new Date().getFullYear()})}</button>}{days.length>0&&<button onClick={()=>{if(window.confirm(t('Clear the whole history? This cannot be undone.'))){clearHistory();setDays([])}}}>{t('Clear')}</button>}</div></header>
   {days.length>0&&<div className="shelftabs" role="tablist" aria-label={t('Show')}>{(['all','books','anime','series','movies'] as const).map(k=><button key={k} role="tab" aria-selected={filter===k} className={'shelftab'+(filter===k?' on':'')} onClick={()=>setFilter(k)}>{k==='all'?t('All'):t(KIND[k])}</button>)}</div>}
-  {shown.length===0?<p className="settings-help">{t('Nothing yet.')}</p>:<div className="home-history">{shown.map(d=><div key={d.day}><h2>{dayLabel(d.day)}</h2><ul>{d.lines.map((x,i)=>{const item=findHistoryItem(libs,x);return <li key={i}><small>{new Date(x.at).toLocaleTimeString(getLang(),{hour:'2-digit',minute:'2-digit'})} · {t(KIND[x.kind])}{both?(x.on==='phone'?' · 📱 '+t('Phone'):' · 💻 PC'):''}</small>{item?<button className="linkbtn" onClick={()=>onOpen({kind:x.kind,item,name:x.name,sub:x.sub,at:x.at,progress:0,cover:''})}>{x.name}</button>:<b>{x.name}</b>}{x.sub&&<span>{x.sub}</span>}</li>})}</ul></div>)}</div>}
+  {shown.length===0?<p className="settings-help">{t('Nothing yet.')}</p>:<div className="home-history">{drawn.map(d=><div key={d.day}><h2>{dayLabel(d.day)}</h2><ul>{d.lines.map((x,i)=>{const item=titles.get(x.kind+'|'+x.id);return <li key={i}><small>{clock.format(new Date(x.at))} · {t(KIND[x.kind])}{both?(x.on==='phone'?' · 📱 '+t('Phone'):' · 💻 PC'):''}</small>{item?<button className="linkbtn" onClick={()=>onOpen({kind:x.kind,item,name:x.name,sub:x.sub,at:x.at,progress:0,cover:''})}>{x.name}</button>:<b>{x.name}</b>}{x.sub&&<span>{x.sub}</span>}</li>})}</ul></div>)}{more.more}</div>}
  </div>}
 
 // ---- On the phone: what the PC sent ("Continue on my phone") ------------------

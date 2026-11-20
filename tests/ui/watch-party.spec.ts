@@ -139,7 +139,11 @@ test('watch party: when one video is loading, everyone waits, then starts again 
   await a.locator('.wp-open').click()
   await a.locator('.wp-field input').fill('Ali')
   await a.getByRole('button', { name: 'Start a watch party' }).click()
+  // What is chosen once is under "Options", out of the way until asked for
+  await expect(a.locator('.wp-check')).toHaveCount(0)
+  await a.locator('.wp-gear').click()
   await expect(a.locator('.wp-check', { hasText: 'Wait for people whose video is loading' })).toBeVisible()
+  await a.locator('.wp-options').getByRole('button', { name: /Back/ }).click()
   const code = (await a.locator('.wp-code b').innerText()).trim()
   await b.locator('.wp-open').click()
   await b.locator('.wp-field input').fill('Sara')
@@ -171,7 +175,9 @@ test('watch party: when one video is loading, everyone waits, then starts again 
   expect(Math.abs(ta - tb)).toBeLessThan(1.6)
   expect(ta).toBeGreaterThanOrEqual(at - 0.5)
   // With the option off, nobody waits
+  await a.locator('.wp-gear').click()
   await a.getByLabel('Wait for people whose video is loading').uncheck()
+  await a.locator('.wp-options').getByRole('button', { name: /Back/ }).click()
   await b.evaluate(() => { (window as any).__stuck = true })
   await a.waitForTimeout(3000)
   await expect(a.locator('.wp-wait')).toHaveCount(0)

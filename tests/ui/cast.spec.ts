@@ -80,6 +80,13 @@ test('cast: no TV found explains what to check', async ({ page }) => {
   await page.evaluate(() => { (window as any).novelReader.castScan = async () => [] })
   await page.getByRole('button', { name: /^Cast$/ }).click()
   await expect(page.locator('.cast-menu')).toContainText('No TV found. Check that the TV is on and on the same Wi-Fi as this PC')
+  // The little window hangs from a button on the left: it stays inside the page, off the side menu
+  const box = () => page.evaluate(() => { const m = document.querySelector('.cast-menu')!.getBoundingClientRect(), main = document.querySelector('main')!.getBoundingClientRect(); return { left: m.left - main.left, right: innerWidth - m.right } })
+  expect((await box()).left).toBeGreaterThanOrEqual(8)
+  // …and inside a phone screen too
+  await page.setViewportSize({ width: 360, height: 740 })
+  await expect.poll(async () => (await box()).left).toBeGreaterThanOrEqual(0)
+  expect((await box()).right).toBeGreaterThanOrEqual(0)
 })
 
 test('touch: two quick taps on a side of the video go 10 s back or forward; one tap or the middle do nothing', async ({ page }) => {

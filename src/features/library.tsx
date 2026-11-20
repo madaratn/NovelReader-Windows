@@ -1,8 +1,8 @@
-import React,{useEffect,useRef,useState}from'react'
+import React,{useEffect,useLayoutEffect,useRef,useState}from'react'
 import{t,plural}from'../i18n'
 import{ReadingStats}from'../features/stats'
 import{lsGet,lsSet,timeAgo}from'../lib/util'
-import{EmptyState,Cover,Icon,MoreMenu,GenreFilter,useShowMore,ViewToggle}from'../ui/common'
+import{EmptyState,Cover,Icon,MoreMenu,GenreFilter,useShowMore,useShowAround,ViewToggle}from'../ui/common'
 import{useCardView}from'../lib/card-view'
 import{useAnnotations}from'./annotations'
 
@@ -87,10 +87,17 @@ export function NovelDetail({novel,filter,setFilter,loading,onBack,onOpenChapter
   .filter(x=>!q||x.label.toLowerCase().includes(q)||String(x.i+1)===q||String(x.i+1).startsWith(q)&&/^\d+$/.test(q))
   .filter(x=>!hideRead||x.i>=current)
  if(newestFirst)rows.reverse()
- // Long novels: the rows around the current chapter at once, the rest while scrolling.
+ // Long novels: the rows around the current chapter at once (not the thousands before
+ // it), the rest while scrolling.
  const curPos=rows.findIndex(r=>r.i===current)
- const rowsMore=useShowMore(rows.length,{first:Math.max(200,curPos+100),step:300,reset:[novel.id,q,hideRead,newestFirst]})
- const jumpToCurrent=(smooth=true)=>{const el=listRef.current?.querySelector<HTMLElement>('.chapterrow.current');if(el&&listRef.current){const box=listRef.current;box.scrollTo({top:el.offsetTop-box.offsetTop-box.clientHeight/2+el.clientHeight/2,behavior:smooth?'smooth':'auto'})}}
+ const win=useShowAround(rows.length,{around:Math.max(0,curPos),reset:[novel.id,q,hideRead,newestFirst],label:t('Earlier chapters')})
+ // The current chapter in the middle of the list. The list has its own scroll bar on a
+ // PC; on a phone the page scrolls, and it only moves when asked ("Show current chapter"):
+ // opening a novel leaves its cover and "Continue" on screen.
+ const jumpToCurrent=(smooth=true,page=false)=>{const el=listRef.current?.querySelector<HTMLElement>('.chapterrow.current'),box=listRef.current;if(!el||!box)return
+  if(getComputedStyle(box).overflowY!=='visible')box.scrollTo({top:el.offsetTop-box.offsetTop-box.clientHeight/2+el.clientHeight/2,behavior:smooth?'smooth':'auto'})
+  else if(page)el.scrollIntoView({block:'center',behavior:smooth?'smooth':'auto'})}
+ useLayoutEffect(()=>{jumpToCurrent(false)},[novel.id,q,hideRead,newestFirst])
  useEffect(()=>{requestAnimationFrame(()=>jumpToCurrent(false))},[novel.id])
  useEffect(()=>{if(!loading)setClicked(-1)},[loading])
  const open=(c:any,i:number)=>{setClicked(i);onOpenChapter(c,i)}
@@ -109,7 +116,7 @@ export function NovelDetail({novel,filter,setFilter,loading,onBack,onOpenChapter
       <select value={dlCount} aria-label={t('How many chapters to download')} onChange={e=>{setDlCount(e.target.value);lsSet('offlineBatch',e.target.value)}}><option value="10">{t('Next {n} chapters',{n:10})}</option><option value="50">{t('Next {n} chapters',{n:50})}</option><option value="all">{t('All remaining chapters')}</option></select>
       <button onClick={download} disabled={!chapters.length}>{t('Download')}</button>
       {offline.size>0&&<button className="ghostbtn" onClick={removeDownloads}>{t('Delete downloads')}</button>}</>}</div>
-     <div className="libraryactions">{r?<button className="primary" disabled={loading} onClick={()=>{setClicked(-2);onContinue()}}>{loading&&clicked===-2?t('Loading…'):t('Continue · Ch. {n}',{n:current+1})}</button>:<button className="primary" disabled={loading||!chapters.length} onClick={()=>open(chapters[0],0)}>{t('Start reading')}</button>}{r&&<button onClick={()=>{if(hideRead){setHideRead(false);lsSet('chapterHideRead','0')}requestAnimationFrame(()=>jumpToCurrent())}}>{t('Show current chapter')}</button>}{notesCount>0&&onShowNotes&&<button onClick={onShowNotes}><Icon name="bookmark" inline/>{plural(notesCount,'{n} saved passage','{n} saved passages')}</button>}</div>
+     <div className="libraryactions">{r?<button className="primary" disabled={loading} onClick={()=>{setClicked(-2);onContinue()}}>{loading&&clicked===-2?t('Loading…'):t('Continue · Ch. {n}',{n:current+1})}</button>:<button className="primary" disabled={loading||!chapters.length} onClick={()=>open(chapters[0],0)}>{t('Start reading')}</button>}{r&&<button onClick={()=>{if(hideRead){setHideRead(false);lsSet('chapterHideRead','0')}if(filter)setFilter('');requestAnimationFrame(()=>requestAnimationFrame(()=>jumpToCurrent(true,true)))}}>{t('Show current chapter')}</button>}{notesCount>0&&onShowNotes&&<button onClick={onShowNotes}><Icon name="bookmark" inline/>{plural(notesCount,'{n} saved passage','{n} saved passages')}</button>}</div>
    </div>
   </section>
   <section className="chapterarea">
@@ -117,9 +124,9 @@ export function NovelDetail({novel,filter,setFilter,loading,onBack,onOpenChapter
     <div className="rs-seg chapter-order" role="radiogroup" aria-label={t('Order')}><button role="radio" aria-checked={!newestFirst} className={!newestFirst?'on':''} onClick={()=>{setNewestFirst(false);lsSet('chapterOrder','asc')}}>{t('Oldest first')}</button><button role="radio" aria-checked={newestFirst} className={newestFirst?'on':''} onClick={()=>{setNewestFirst(true);lsSet('chapterOrder','desc')}}>{t('Newest first')}</button></div>
     <label className="hideread"><input type="checkbox" checked={hideRead} onChange={e=>{setHideRead(e.target.checked);lsSet('chapterHideRead',e.target.checked?'1':'0')}}/> {t('Hide read')}</label></div>
    <small className="chaptercount">{rows.length===total?plural(total,'{n} chapter','{n} chapters'):t('{done} of {total} chapters',{done:rows.length,total})}</small>
-   {rows.length===0?<p className="chapterempty">{t('No chapter matches.')}</p>:<div className="chapterlist" ref={listRef}>{rows.slice(0,rowsMore.limit).map(({c,i,label})=>{const state=i<current?'read':i===current?'current':'';return <button className={'chapterrow '+state} disabled={loading} onClick={()=>open(c,i)} key={(c.path||c.url||'chapter')+i} aria-current={state==='current'?'true':undefined}>
+   {rows.length===0?<p className="chapterempty">{t('No chapter matches.')}</p>:<div className="chapterlist" ref={listRef}>{win.before}{rows.slice(win.from,win.to).map(({c,i,label})=>{const state=i<current?'read':i===current?'current':'';return <button className={'chapterrow '+state} disabled={loading} onClick={()=>open(c,i)} key={(c.path||c.url||'chapter')+i} aria-current={state==='current'?'true':undefined}>
     <span className="chaptername">{state==='read'&&<span className="chaptercheck" aria-label={t('Already read')}>✓</span>}{label}</span>{offline.has(c.path||c.url)&&<span className="offline-mark" title={t('Available offline')} aria-label={t('Available offline')}>⤓</span>}
-    <small>{loading&&clicked===i?t('Loading…'):state==='current'?t('Reading · Ch. {n}',{n:i+1}):t('Ch. {n}',{n:i+1})}</small></button>})}{rowsMore.more}</div>}
+    <small>{loading&&clicked===i?t('Loading…'):state==='current'?t('Reading · Ch. {n}',{n:i+1}):t('Ch. {n}',{n:i+1})}</small></button>})}{win.after}</div>}
   </section>
  </>
 }

@@ -201,7 +201,8 @@ async function dlFake(page: Page) {
     w.__dl = { items: [] as any[], started: [] as any[], cb: null as any }
     const fire = () => w.__dl.cb && w.__dl.cb()
     w.__dlPatch = {
-      dlStart: async (p: any) => { w.__dl.started.push(p); const id = 'series_' + w.__dl.started.length; w.__dl.items.push({ ...p, candidates: undefined, id, state: 'downloading', progress: 0.42, bytes: 5e6 }); setTimeout(fire, 0); return { id } },
+      // Like the engine: the same episode keeps its id, a new start replaces the failed one. w.__dl.fail makes it fail.
+      dlStart: async (p: any) => { w.__dl.started.push(p); const old = w.__dl.items.find((x: any) => x.mediaId === p.mediaId && x.episodeUrl === p.episodeUrl); const id = old ? old.id : 'series_' + (w.__dl.items.length + 1); w.__dl.items = w.__dl.items.filter((x: any) => x !== old); w.__dl.items.push(w.__dl.fail ? { ...p, candidates: undefined, id, state: 'error', progress: 0, error: w.__dl.fail } : { ...p, candidates: undefined, id, state: 'downloading', progress: 0.42, bytes: 5e6 }); setTimeout(fire, 0); return { id } },
       dlList: async () => w.__dl.items.map((x: any) => ({ ...x })),
       dlBase: async () => 'http://127.0.0.1:9',
       dlUsage: async () => ({ bytes: w.__dl.items.reduce((n: number, x: any) => n + (x.size || 0), 0), count: w.__dl.items.filter((x: any) => x.state === 'done').length, folder: 'C:/dl' }),
@@ -356,6 +357,90 @@ test('offline downloads: download an episode, play it from this PC, manage it in
   await expect(page.locator('.downloads-page .remote-player video')).toHaveAttribute('src', 'http://127.0.0.1:9/series_1/video.mp4')
   await page.locator('.dl-group').getByRole('button', { name: 'Delete' }).click()
   await expect(page.locator('.lib-empty')).toContainText('No downloads yet')
+})
+
+test('a download that fails is tried again with fresh links, then left to you with the reason, Retry and Remove', async ({ page }) => {
+  await dlFake(page)
+  await page.clock.install()
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns')]) })
+  await page.evaluate(() => { const w = window as any; Object.assign(w.novelReader, w.__dlPatch); w.__dl.fail = 'HTTP 403' })
+  const starts = () => page.evaluate(() => (window as any).__dl.started.length)
+  const asked = () => page.evaluate(() => (window as any).__engine.calls.filter((c: string) => c.includes('/videos')).length)
+  await page.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
+  const cell = page.locator('.episodecell').nth(1)
+  await cell.hover()
+  await cell.getByRole('button', { name: 'Download for offline viewing' }).click()
+  // Tried again at once, and the links are asked for again (they are what expires)
+  await expect.poll(starts).toBe(2)
+  expect(await asked()).toBe(2)
+  // The next try waits two minutes: said on the episode and on the Downloads page, not shown as a failure
+  await expect(cell.locator('.ep-dl')).toHaveText('↻')
+  await expect(cell.locator('.ep-dl')).toHaveAttribute('title', 'It failed; a new try is coming. Click to cancel.')
+  await nav(page, 'Downloads')
+  const row = page.locator('.downloads-list .dl-row')
+  await expect(row.locator('.dl-state')).toHaveText(/^New try at \d/)
+  await expect(row.getByRole('button', { name: 'Retry' })).toHaveCount(0)
+  await page.clock.fastForward('02:05')
+  await expect.poll(starts).toBe(3)
+  await page.clock.fastForward('10:05')
+  await expect.poll(starts).toBe(4)
+  // Three new tries failed: it is left to you, with the reason in plain words
+  await expect(row.locator('.dl-state')).toHaveText('Failed')
+  await expect(row.locator('.notice-text > span')).toHaveText('The link to this video expired or was removed.')
+  await expect(row.locator('.notice-details pre')).toContainText('HTTP 403')
+  await page.clock.fastForward('30:00')
+  expect(await starts()).toBe(4)
+  // Retry asks again; this time it downloads
+  await page.evaluate(() => { (window as any).__dl.fail = '' })
+  await row.getByRole('button', { name: 'Retry' }).click()
+  await expect(row.locator('.dl-state')).toContainText('42% · 5.0 MB')
+  expect(await starts()).toBe(5)
+  // Cancelling forgets it: nothing comes back by itself
+  await row.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page.locator('.lib-empty')).toContainText('No downloads yet')
+  await page.clock.fastForward('30:00')
+  expect(await starts()).toBe(5)
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('dlArgs') || '[]').length)).toBe(0)
+})
+
+test('a download cut by the app closing starts again at the next launch; without a connection it waits for it', async ({ page, context }) => {
+  await dlFake(page)
+  await page.clock.install()
+  const job = (n: number, extra: any = {}) => ({ kind: 'series', media: { id: 'series1', name: 'Lanterns', sourceId: '42', sourceName: 'Mapple', url: '/series/1' }, ep: { url: '/ep/' + n, name: 'S1 E' + n + ' - Chapter ' + n, episode_number: n }, index: n - 1, live: true, at: Date.now() - 600_000, id: 'series_' + n, ...extra })
+  // As the app left things when it was closed: episode 2 was downloading, episode 4 waited behind it, episode 3 had failed for good
+  await openVideo(page, { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify([item('series', 1, 'Lanterns')]), dlArgs: JSON.stringify([job(2), job(4), job(3, { tries: 3, err: 'HTTP 404' })]) })
+  await page.evaluate(() => Object.assign((window as any).novelReader, (window as any).__dlPatch))
+  const starts = () => page.evaluate(() => (window as any).__dl.started.map((p: any) => p.episodeUrl))
+  await nav(page, 'Downloads')
+  const rows = page.locator('.downloads-list .dl-row')
+  await expect(rows).toHaveCount(3)
+  await expect(rows.filter({ hasText: 'Chapter 2' }).locator('.dl-state')).toHaveText('Trying again soon')
+  // What had failed before stays failed (nothing is hidden), and can still be asked for again
+  const failed = rows.filter({ hasText: 'Chapter 3' })
+  await expect(failed.locator('.dl-state')).toHaveText('Failed')
+  await expect(failed.locator('.notice-text > span')).toHaveText('The link to this video expired or was removed.')
+  await expect(failed.getByRole('button', { name: 'Retry' })).toBeVisible()
+  expect(await starts()).toEqual([])
+  // They start again one after the other, in the order they had been asked for
+  await page.clock.fastForward(5000)
+  await expect.poll(starts).toEqual(['/ep/2', '/ep/4'])
+  await expect(rows.filter({ hasText: 'Chapter 2' }).locator('.dl-state')).toContainText('42%')
+  // The connection goes: a failure now is not counted, the download waits
+  await context.setOffline(true)
+  await page.evaluate(() => { const w = window as any; w.__dl.fail = 'fetch failed'; const it = w.__dl.items.find((x: any) => x.episodeUrl === '/ep/2'); Object.assign(it, { state: 'error', error: 'fetch failed', progress: 0 }); w.__dl.cb() })
+  await expect(rows.filter({ hasText: 'Chapter 2' }).locator('.dl-state')).toHaveText('Waiting for the connection')
+  await page.clock.fastForward('20:00')
+  expect(await starts()).toEqual(['/ep/2', '/ep/4'])
+  // It comes back: the download starts again by itself
+  await page.evaluate(() => { (window as any).__dl.fail = '' })
+  await context.setOffline(false)
+  await page.clock.fastForward(4000)
+  await expect.poll(starts).toEqual(['/ep/2', '/ep/4', '/ep/2'])
+  await expect(rows.filter({ hasText: 'Chapter 2' }).locator('.dl-state')).toContainText('42%')
+  // Removing the failed one forgets it too
+  await failed.getByRole('button', { name: 'Remove' }).click()
+  await expect(rows).toHaveCount(2)
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('dlArgs') || '[]').map((j: any) => j.ep.url).sort())).toEqual(['/ep/2', '/ep/4'])
 })
 
 test('up next: next episode of each title in progress, opens on that episode', async ({ page }) => {

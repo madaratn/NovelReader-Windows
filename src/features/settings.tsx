@@ -10,7 +10,7 @@ import type{ThemePref}from'../lib/theme'
 import type{FolderSync}from'./sync'
 import{t,plural,LANGS}from'../i18n'
 import type{Lang}from'../i18n'
-import{fmtDateTime,lsGet,lsSet}from'../lib/util'
+import{fmtDateTime,fmtUnit,lsGet,lsSet}from'../lib/util'
 import{Help,NoticeText}from'../ui/common'
 import{ReportPanel}from'./report'
 import{ProfilesPanel}from'./profiles'
@@ -92,7 +92,7 @@ export function SettingsPage({lang,onLang,onWelcome,onShortcuts,update,onImportL
   </section>}
   {sync&&<SyncSettings sync={sync}/>}{!android&&<PcShareSettings/>}
   <section className="panel settings-block"><h2>{t('Offline chapters')}</h2>
-   <p className="settings-help">{usage&&usage.chapters?t('{chapters} for {novels} use {size} on this PC.',{chapters:plural(usage.chapters,'{n} chapter','{n} chapters'),novels:plural(usage.novels,'{n} novel','{n} novels'),size:(usage.bytes/1048576).toFixed(1)+' MB'}):t('No chapter downloaded yet. Use Download on a novel page to read without an internet connection.')}</p>
+   <p className="settings-help">{usage&&usage.chapters?t('{chapters} for {novels} use {size} on this PC.',{chapters:plural(usage.chapters,'{n} chapter','{n} chapters'),novels:plural(usage.novels,'{n} novel','{n} novels'),size:fmtUnit(usage.bytes/1048576,1,'MB')}):t('No chapter downloaded yet. Use Download on a novel page to read without an internet connection.')}</p>
    {usage&&usage.chapters>0&&<div className="libraryactions"><button className={clearConfirm?'danger':undefined} onClick={async()=>{if(!clearConfirm){setClearConfirm(true);setTimeout(()=>setClearConfirm(false),6000);return}await window.novelReader.offlineClear?.();setClearConfirm(false);setUsage({bytes:0,chapters:0,novels:0})}}>{clearConfirm?t('Confirm: delete all downloads'):t('Delete all downloaded chapters')}</button></div>}
   </section>
   <AniListPanel onSearch={q=>window.dispatchEvent(new CustomEvent('nr-search-anime',{detail:q}))}/>

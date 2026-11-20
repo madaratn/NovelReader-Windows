@@ -489,7 +489,7 @@ export function WatchPartyButton(){
 }
 export function WatchPartyPanel(){
  const[hideCams,setHideCams]=useHideCams()
- const snap=useParty(),[open,setOpen]=useState(false),[name,setName]=useState(partyName),[code,setCode]=useState(''),[text,setText]=useState(''),[copied,setCopied]=useState(false),[invited,setInvited]=useState(false),chatRef=useRef<HTMLDivElement>(null)
+ const snap=useParty(),[open,setOpen]=useState(false),[name,setName]=useState(partyName),[code,setCode]=useState(''),[text,setText]=useState(''),[copied,setCopied]=useState(false),[invited,setInvited]=useState(false),[opts,setOpts]=useState(false),chatRef=useRef<HTMLDivElement>(null)
  // Invitation links (novelreader://party/CODE): open the panel and join.
  useEffect(()=>{const nr:any=window.novelReader;const handle=(url:string)=>{const m=/^novelreader:\/\/party\/([A-Z0-9]{6})/i.exec(String(url||''));if(!m)return;const c=m[1].toUpperCase();setCode(c);setOpen(true);if(party.snap.status==='ready'&&party.snap.code===c)return;if(partyName())party.join(c);else setTimeout(()=>(document.querySelector('.wp-field input') as HTMLInputElement|null)?.focus(),50)};nr?.takeDeepLink?.().then(handle).catch(()=>{});return nr?.onDeepLink?.(handle)},[])
  useEffect(()=>{const f=()=>setOpen(true);window.addEventListener('nr-party-open',f);return()=>window.removeEventListener('nr-party-open',f)},[])
@@ -498,8 +498,9 @@ export function WatchPartyPanel(){
  if(!open)return null
  const saveName=()=>{lsSet('partyName',name.trim().slice(0,30))}
  const ready=snap.status==='ready'
- return <aside className="wp-panel" role="dialog" aria-label={t('Watch together')}>
-  <header><b><Icon name="users" inline/>{t('Watch together')}</b><button className="wp-x" aria-label={t('Minimize')} title={t('Minimize')} onClick={()=>setOpen(false)}>–</button></header>
+ // A <div>, not an <aside>: the rules of the side menu (aside, aside button) reached this window too.
+ return <div className={'wp-panel'+(ready?' live':'')} role="dialog" aria-label={t('Watch together')}>
+  <header><b><Icon name="users" inline/>{t('Watch together')}</b>{ready&&<button className={'wp-x wp-gear'+(opts?' on':'')} aria-label={t('Options')} title={t('Options')} aria-pressed={opts} onClick={()=>setOpts(o=>!o)}><Icon name="gear"/></button>}<button className="wp-x" aria-label={t('Minimize')} title={t('Minimize')} onClick={()=>setOpen(false)}>–</button></header>
   {!snap.role||snap.status==='error'?<div className="wp-body">
    <p className="wp-help">{t('Each person plays the video from their own sources (install the same source). Play, pause, position and episode are shared.')}</p>
    <label className="wp-field">{t('Your name')}<input value={name} maxLength={30} onChange={e=>setName(e.target.value)} onBlur={saveName} placeholder={t('e.g. Ali')}/></label>
@@ -508,25 +509,37 @@ export function WatchPartyPanel(){
    <form className="wp-join" onSubmit={e=>{e.preventDefault();saveName();party.join(code)}}><input value={code} onChange={e=>setCode(e.target.value.toUpperCase())} maxLength={7} placeholder={t('Code (6 letters)')} aria-label={t('Watch party code')}/><button type="submit" disabled={code.trim().length<6||snap.status==='connecting'}>{t('Join')}</button></form>
    {snap.status==='error'&&<p className="wp-error" role="alert">{snap.error}</p>}
   </div>:<div className="wp-body">
-   {snap.status==='connecting'?<p className="wp-help"><span className="spinner"/> {snap.reconnecting?t('Reconnecting to the watch party…'):snap.role==='host'?t('Creating the watch party…'):t('Joining…')}</p>:<>
+   {snap.status==='connecting'?<p className="wp-help"><span className="spinner"/> {snap.reconnecting?t('Reconnecting to the watch party…'):snap.role==='host'?t('Creating the watch party…'):t('Joining…')}</p>:opts?
+    // What is chosen once and left alone has its own page (the gear), out of the way of the party.
+    <div className="wp-options">
+     <h3>{t('Options')}</h3>
+     {snap.voice==='on'&&<><label className="wp-vol"><Icon name="volume" inline/>{t('Volume of the voices')}<input type="range" min={0} max={1} step={0.05} defaultValue={voiceVolume()} onChange={e=>party.setVolume(Number(e.target.value))} aria-label={t('Volume of the voices')}/></label><label className="wp-check"><input type="checkbox" checked={snap.ptt} onChange={e=>party.setPtt(e.target.checked)}/> {t('Push to talk (hold V)')}</label><label className="wp-check"><input type="checkbox" defaultChecked={lsGet('partyDuck')!=='0'} onChange={e=>lsSet('partyDuck',e.target.checked?'1':'0')}/> {t('Lower the film while someone speaks')}</label></>}
+     <label className="wp-check"><input type="checkbox" checked={hideCams} onChange={e=>setHideCams(e.target.checked)}/> {t("Hide the others' cameras")}</label>
+     {snap.role==='host'&&<label className="wp-check"><input type="checkbox" defaultChecked={lsGet('partyWait')!=='0'} onChange={e=>lsSet('partyWait',e.target.checked?'1':'0')}/> {t('Wait for people whose video is loading')}</label>}
+     {snap.voice==='on'&&<p className="wp-hint">{t('Tip: use headphones so the film does not come back through your microphone.')}</p>}
+     <button onClick={()=>setOpts(false)}>{'← '+t('Back')}</button>
+    </div>:<>
+    {/* What is set once stays on top and scrolls if it must; the chat takes the rest and the message field stays in sight. */}
+    <div className="wp-top">
     <div className="wp-code"><span>{t('Code')}</span><b>{snap.code}</b><button onClick={()=>{navigator.clipboard?.writeText(snap.code).catch(()=>{});setCopied(true);setTimeout(()=>setCopied(false),2000)}}>{copied?'✓':t('Copy')}</button></div>
     <button className="wp-invite" onClick={async()=>{const text=await inviteText(snap.code);navigator.clipboard?.writeText(text).catch(()=>{});(window as any).__lastInvite=text;setInvited(true);setTimeout(()=>setInvited(false),3000)}}>{invited?'✓ '+t('Invitation copied: paste it in Discord, WhatsApp…'):<><Icon name="link" inline/>{t('Copy an invitation link')}</>}</button>
     <div className="wp-members" aria-label={plural(snap.members.length,'{n} person','{n} people')}>{snap.members.map(m=><span key={m.id} className={'wp-member'+(m.voice?' in-voice':'')+(snap.speaking.includes(m.id)?' speaking':'')} title={m.voice?(m.muted?t('In the voice channel (muted)'):t('In the voice channel')):''}>{m.voice?(m.muted?<Icon name="mute" inline/>:<Icon name="mic" inline/>):''}{m.cam?<Icon name="camera" inline/>:''}{m.name}{m.id===snap.selfId?' ('+t('you')+')':''}</span>)}</div>
-    <div className="wp-voice">{snap.voice==='off'?<button onClick={()=>party.voiceJoin()}><><Icon name="mic" inline/>{t('Join the voice channel')}</></button>:snap.voice==='joining'?<span className="wp-help">{t('Allowing the microphone…')}</span>:<><button className={snap.muted?'danger':''} aria-pressed={snap.muted} onClick={()=>party.setMuted(!snap.muted)}>{snap.muted?<><Icon name="mute" inline/>{t('Unmute')}</>:<><Icon name="mic" inline/>{t('Mute')}</>}</button><label className="wp-vol" title={t('Volume of the voices')}><Icon name="volume" inline/><input type="range" min={0} max={1} step={0.05} defaultValue={voiceVolume()} onChange={e=>party.setVolume(Number(e.target.value))} aria-label={t('Volume of the voices')}/></label><button className="removebtn" onClick={()=>party.voiceLeave()}>{t('Leave the voice channel')}</button></>}</div>
-    {snap.voice==='on'&&<div className="wp-voice-opts"><label className="wp-check"><input type="checkbox" checked={snap.ptt} onChange={e=>party.setPtt(e.target.checked)}/> {t('Push to talk (hold V)')}</label>{snap.ptt&&<span className={'wp-ptt'+(snap.talking?' on':'')}>{snap.talking?<><Icon name="mic" inline/>{t('Talking…')}</>:t('Microphone off until you hold V')}</span>}<label className="wp-check"><input type="checkbox" defaultChecked={lsGet('partyDuck')!=='0'} onChange={e=>lsSet('partyDuck',e.target.checked?'1':'0')}/> {t('Lower the film while someone speaks')}</label></div>}
+    <div className="wp-controls">
+     <div className="wp-voice">{snap.voice==='off'?<button onClick={()=>party.voiceJoin()}><><Icon name="mic" inline/>{t('Join the voice channel')}</></button>:snap.voice==='joining'?<span className="wp-help">{t('Allowing the microphone…')}</span>:<><button className={snap.muted?'danger':''} aria-pressed={snap.muted} onClick={()=>party.setMuted(!snap.muted)}>{snap.muted?<><Icon name="mute" inline/>{t('Unmute')}</>:<><Icon name="mic" inline/>{t('Mute')}</>}</button><button className="removebtn" onClick={()=>party.voiceLeave()}>{t('Leave the voice channel')}</button></>}</div>
+     <div className="wp-voice">{snap.cam==='on'?<button className="removebtn" onClick={()=>party.camStop()}><><Icon name="camera" inline/>{t('Turn my camera off')}</></button>:<button disabled={snap.cam==='starting'} onClick={()=>party.camStart()}>{snap.cam==='starting'?t('Allowing the camera…'):<><Icon name="camera" inline/>{t('Turn my camera on')}</>}</button>}</div>
+    </div>
+    {snap.voice==='on'&&snap.ptt&&<span className={'wp-ptt'+(snap.talking?' on':'')} role="status">{snap.talking?<><Icon name="mic" inline/>{t('Talking…')}</>:t('Microphone off until you hold V')}</span>}
     {snap.voiceError&&<p className="wp-error" role="alert">{snap.voiceError}</p>}
-    <div className="wp-voice">{snap.cam==='on'?<button className="removebtn" onClick={()=>party.camStop()}><><Icon name="camera" inline/>{t('Turn my camera off')}</></button>:<button disabled={snap.cam==='starting'} onClick={()=>party.camStart()}>{snap.cam==='starting'?t('Allowing the camera…'):<><Icon name="camera" inline/>{t('Turn my camera on')}</>}</button>}<label className="wp-check"><input type="checkbox" checked={hideCams} onChange={e=>setHideCams(e.target.checked)}/> {t("Hide the others' cameras")}</label></div>
     {snap.camError&&<p className="wp-error" role="alert">{snap.camError}</p>}
-    {snap.voice==='on'&&<p className="wp-hint">{t('Tip: use headphones so the film does not come back through your microphone.')}</p>}
     {snap.missing&&<div className="wp-missing" role="status"><p>{t('You do not have the source "{name}". NovelReader looks for the same episode in your other sources.',{name:snap.missing.sourceName||'?'})}</p><button className="primary" disabled={snap.missingState==='installing'} onClick={()=>party.installMissing()}>{snap.missingState==='installing'?t('Installing…'):t('Install {name}',{name:snap.missing.sourceName||t('the source')})}</button>{snap.missingError&&<p className="wp-error">{snap.missingError}</p>}</div>}
-    {snap.role==='host'&&<label className="wp-check"><input type="checkbox" defaultChecked={lsGet('partyWait')!=='0'} onChange={e=>lsSet('partyWait',e.target.checked?'1':'0')}/> {t('Wait for people whose video is loading')}</label>}
+    </div>
     {snap.state?.media?<div className="wp-now">▶ {snap.state.media.name}{snap.state.episodeName&&snap.state.media.kind!=='movie'?' · '+snap.state.episodeName:''}</div>:<div className="wp-now muted">{t('Open an episode: everyone will follow.')}</div>}
     <div className="wp-chat" ref={chatRef}>{snap.chat.map((c,i)=><div key={i} className={'wp-msg'+(c.mine?' mine':'')+(c.system?' system':'')}>{c.system?c.text:<><b>{c.name}</b> {c.text}</>}</div>)}</div>
     <form className="wp-say" onSubmit={e=>{e.preventDefault();party.say(text);setText('')}}><input value={text} onChange={e=>setText(e.target.value)} placeholder={t('Message…')} aria-label={t('Message')}/><button type="submit" disabled={!text.trim()}>{t('Send')}</button></form>
    </>}
-   <div className="wp-leaves">{snap.role==='host'&&snap.members.length>1&&<button onClick={()=>party.handOver()}>{t('Leave ({name} becomes the host)',{name:snap.members[1].name})}</button>}<button className="removebtn wp-leave" onClick={()=>party.leave()}>{snap.role==='host'?t('End the watch party'):t('Leave')}</button></div>
+   {!(ready&&opts)&&<div className="wp-leaves">{snap.role==='host'&&snap.members.length>1&&<button onClick={()=>party.handOver()}>{t('Leave ({name} becomes the host)',{name:snap.members[1].name})}</button>}<button className="removebtn wp-leave" onClick={()=>party.leave()}>{snap.role==='host'?t('End the watch party'):t('Leave')}</button></div>}
   </div>}
- </aside>
+ </div>
 }
 
 // ---- Over the video: reactions, chat in fullscreen, fullscreen with the party ----

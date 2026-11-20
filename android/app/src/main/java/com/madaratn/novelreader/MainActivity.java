@@ -31,6 +31,9 @@ public class MainActivity extends BridgeActivity {
     private int orientationBefore;
     private GestureLayer gestures;
     static MainActivity current;
+    /** When the process that draws the page last went away, and how many times in a row. */
+    private static long pageGoneAt;
+    private static int pageGoneCount;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -57,6 +60,23 @@ public class MainActivity extends BridgeActivity {
         final Context appContext = getApplicationContext();
         nr.engine.Engine.INSTANCE.setOnDownloadsActive(active -> DownloadService.set(appContext, active));
         nr.engine.Engine.INSTANCE.start(getApplication());
+        // Android can take away the process that draws the page (memory running short, or a
+        // crash in it). Left alone, that closes the whole app, and with it the video engine
+        // and the downloads under way. The interface is built again instead; the engine and
+        // the downloads go on. (Three times within a minute: something is really wrong, the
+        // app is left to close.)
+        bridge.addWebViewListener(new com.getcapacitor.WebViewListener() {
+            @Override
+            public boolean onRenderProcessGone(android.webkit.WebView view, android.webkit.RenderProcessGoneDetail detail) {
+                long now = android.os.SystemClock.elapsedRealtime();
+                pageGoneCount = now - pageGoneAt < 60_000 ? pageGoneCount + 1 : 1;
+                pageGoneAt = now;
+                android.util.Log.w("novelreader", "page process gone (crash: " + detail.didCrash() + "), " + pageGoneCount + " time(s) in a row");
+                if (pageGoneCount >= 3) return false;
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> { if (!isFinishing() && !isDestroyed()) recreate(); });
+                return true;
+            }
+        });
         // Capacitor closes full-screen video at once; the player needs it.
         bridge.getWebView().setWebChromeClient(new FullscreenClient(bridge));
         // The reader sets its own text size: no automatic enlarging of paragraphs.

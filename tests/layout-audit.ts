@@ -87,6 +87,8 @@ export async function crampedProblems(page: Page): Promise<string[]> {
     }
     // The sentence under a page title is read whole (no "…" in the middle of it).
     for (const el of Array.from(document.querySelectorAll('main>header p, main header>div>p')).filter(shown)) { const h = el as HTMLElement; if (h.scrollHeight > h.clientHeight + 2) out.push('sentence cut: ' + name(el)) }
+    // A number or a word in a small box (a badge) is whole ("E401" was cut on both sides of its square).
+    for (const el of Array.from(document.querySelectorAll('span,b,small,strong')).filter(shown)) { const h = el as HTMLElement, s = getComputedStyle(h); if (s.overflowX === 'hidden' && s.textOverflow !== 'ellipsis' && h.clientWidth > 0 && h.clientWidth < 90 && h.scrollWidth > h.clientWidth + 1 && (h.textContent || '').trim()) out.push('cut in its box: ' + name(el) + ' "' + (h.textContent || '').trim().slice(0, 20) + '"') }
     // Siblings of one row over one another.
     const byParent = new Map<Element, Element[]>()
     for (const el of controls) { const p = el.parentElement; if (!p) continue; const pos = getComputedStyle(el).position; if (pos === 'absolute' || pos === 'fixed' || pos === 'sticky') continue; (byParent.get(p) || byParent.set(p, []).get(p)!).push(el) }

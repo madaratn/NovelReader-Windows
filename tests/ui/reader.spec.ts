@@ -6,7 +6,8 @@ const LIB = [novel('mol', 'Mother of Learning', 1534)]
 test('chapter page opens on the current chapter with read ones marked', async ({ page }) => {
   await open(page, { library: LIB, reading: { mol: { index: 249 } } })
   await page.locator('.libtitle').click()
-  await expect(page.locator('.chapterrow.read')).toHaveCount(249)
+  // (A long list: the forty chapters before the current one are drawn, not the 249.)
+  await expect(page.locator('.chapterrow.read')).toHaveCount(40)
   const current = page.locator('.chapterrow.current')
   await expect(current).toContainText('Reading · Ch. 250')
   await expect(current).toBeInViewport()
