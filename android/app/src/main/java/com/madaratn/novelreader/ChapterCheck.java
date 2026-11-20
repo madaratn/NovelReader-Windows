@@ -117,6 +117,16 @@ public class ChapterCheck {
                     }
                 }, "NRBackground");
                 w.setWebViewClient(new WebViewClient() {
+                    // The process that draws pages is shared by the whole app: when Android takes it
+                    // away, every page must say it copes, or the app is closed. This check just ends.
+                    @Override
+                    public boolean onRenderProcessGone(WebView view, android.webkit.RenderProcessGoneDetail detail) {
+                        if (holder[0] == view) holder[0] = null;
+                        try { view.destroy(); } catch (Exception ignored) {}
+                        done.countDown();
+                        return true;
+                    }
+
                     @Override
                     public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                         // Only the app's own files are served to this page (same address as the app: same saved data).

@@ -21,7 +21,7 @@ fi
 # the page's own process gone), so that the cause can be fixed instead of guessed.
 if [ "$code" = 3 ]; then
   echo "--- why the app went away"
-  timeout 40 adb logcat -d 2>/dev/null | grep -iE 'lowmemorykiller|lmkd|Fatal signal|FATAL EXCEPTION|am_proc_died|has died|Killing [0-9]+:com\.madaratn|RenderProcessGone|Render process|crashed|OutOfMemory|WIN DEATH|ANR in' | grep -v 'Handling local request' | tail -40
+  timeout 40 adb logcat -d 2>/dev/null | grep -iE 'lowmemorykiller|lmkd|Fatal signal|FATAL EXCEPTION|am_proc_died|has died|Killing [0-9]+:com\.madaratn|RenderProcessGone|Render process|crashed|OutOfMemory|WIN DEATH|ANR in' | grep -vE 'Handling local request|Rescheduling restart|Scheduling restart' | tail -40
   echo "--- memory"; timeout 20 adb shell cat /proc/meminfo 2>/dev/null | head -5
 fi
 # Restart with the extensions installed above: they are opened several at a time at

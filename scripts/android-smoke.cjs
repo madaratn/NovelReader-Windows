@@ -15,14 +15,18 @@ async function connect() {
   throw new Error('No app page in the WebView debugger')
 }
 ;(async () => {
-  const ws = new WebSocket(await connect())
-  await new Promise((ok, ko) => { ws.onopen = ok; ws.onerror = ko })
   // The app (or its page) going away in the middle used to end this script without a
-  // word and with success: nothing after that point had been checked. It is a failure.
-  let finished = false
-  ws.onclose = () => { if (!finished) { console.error('The app went away before the end of the checks (the connection to its page closed)'); process.exit(3) } }
-  let id = 0; const waiting = new Map()
-  ws.onmessage = m => { const d = JSON.parse(m.data); if (d.id && waiting.has(d.id)) { waiting.get(d.id)(d); waiting.delete(d.id) } }
+  // word and with success: nothing after that point had been checked. It is a failure
+  // (unless this script took the page away itself, see "page process gone" below).
+  let ws, finished = false, id = 0; const waiting = new Map()
+  async function attach() {
+    const next = new WebSocket(await connect())
+    await new Promise((ok, ko) => { next.onopen = ok; next.onerror = ko })
+    next.onmessage = m => { const d = JSON.parse(m.data); if (d.id && waiting.has(d.id)) { waiting.get(d.id)(d); waiting.delete(d.id) } }
+    next.onclose = () => { if (!finished && ws === next) { console.error('The app went away before the end of the checks (the connection to its page closed)'); process.exit(3) } }
+    ws = next
+  }
+  await attach()
   const evaluate = (fn, arg) => new Promise((ok, ko) => {
     const n = ++id; waiting.set(n, d => d.error ? ko(new Error(d.error.message)) : d.result.exceptionDetails ? ko(new Error(JSON.stringify(d.result.exceptionDetails).slice(0, 400))) : ok(d.result.result.value))
     ws.send(JSON.stringify({ id: n, method: 'Runtime.evaluate', params: { expression: `(${fn})(${JSON.stringify(arg)})`, awaitPromise: true, returnByValue: true, userGesture: true } }))
@@ -228,8 +232,12 @@ async function connect() {
         row.kind = hls ? 'hls' : /\.mpd/i.test(raw) ? 'dash' : 'file'
         const qs = 'sourceId=' + src.id + '&url=' + encodeURIComponent(raw) + '&headers=' + encodeURIComponent(Object.entries(vid.headers || {}).map(([k, x]) => k + ': ' + x).join('\n'))
         const r = await fetch('http://127.0.0.1:4567/api/v1/' + (hls ? 'hls' : 'proxy') + '?' + qs, { headers: hls ? {} : { Range: 'bytes=0-65535' } })
-        const body = hls ? await r.text() : await r.arrayBuffer()
-        const size = hls ? body.length : body.byteLength
+        // Only the start of a file is read. A server that ignores the range sends the whole
+        // film: read to its end, it filled the memory of the page until Android killed it,
+        // and the app with it (which is how most runs of this script used to end).
+        let body = '', size = 0
+        if (hls) { body = await r.text(); size = body.length }
+        else { const rd = r.body.getReader(); while (size < 65536) { const { done, value } = await rd.read(); if (done) break; size += value.byteLength } try { await rd.cancel() } catch {} }
         const good = r.ok && (hls ? body.includes('#EXT') : size > 1000)
         row.steps.push((hls ? 'HLS playlist ' : 'video bytes ') + r.status + ' ' + size + (good ? ' ✓' : ' ✗'))
         if (good) { row.ok = true; row.play = { sourceId: src.id, sourceName: src.name, url: a.url, title: a.title, episodes: eps.length } }
@@ -338,6 +346,37 @@ async function connect() {
   dl.left = await evaluate(async id => { await window.novelReader.dlRemove(id); return (await window.novelReader.dlList()).length }, dl.id)
   console.log('downloads:', JSON.stringify(dl))
   if (!(dl.item && dl.item.state === 'done' && dl.full && dl.full.same && dl.outside && dl.outside.status === 206 && dl.outside.got === dl.wantPart && dl.part && dl.part.status === 206 && dl.part.same && dl.fresh && dl.fresh.got === dl.wantPart && dl.meta === 404 && dl.left === 0)) { console.error('Offline video downloads failed on Android'); process.exit(1) }
+
+  // ---- The process that draws the page is taken away. Android does it when memory runs
+  // short, and Chromium then closes the whole app unless every page of the app says it
+  // copes. The app must stay (same process: the engine and the downloads go on) and the
+  // interface must come back by itself. ----
+  const sh = c => { try { return require('child_process').execSync(c, { timeout: 20000, stdio: ['ignore', 'pipe', 'ignore'] }).toString() } catch { return '' } }
+  const pageProcs = () => sh('adb shell ps -A -o PID,NAME').split('\n').filter(l => /webview:sandboxed_process/.test(l)).map(l => l.trim().split(/\s+/)[0])
+  const pid0 = sh('adb shell pidof com.madaratn.novelreader').trim(), procs0 = pageProcs(), old = ws
+  let how = 'kill'
+  ws = null // (its closing is expected now)
+  for (const p of procs0) sh('adb shell su 0 kill -9 ' + p)
+  await sleep(2000)
+  if (pageProcs().some(p => procs0.includes(p))) { how = 'Page.crash'; try { old.send(JSON.stringify({ id: ++id, method: 'Page.crash' })) } catch {} await sleep(2000) }
+  const gone = procs0.length > 0 && !pageProcs().some(p => procs0.includes(p))
+  let back = null
+  for (let i = 0; i < 4 && !back; i++) {
+    await sleep(3000)
+    try {
+      await attach()
+      back = await evaluate(async () => {
+        for (let i = 0; i < 60; i++) { if (document.querySelector('#root')?.children.length && window.novelReader) break; await new Promise(r => setTimeout(r, 500)) }
+        const st = await window.novelReader.miwayomiStatus().catch(e => ({ error: String(e) }))
+        return { ready: !!document.querySelector('#root')?.children.length, engine: !!st.online, sources: st.health && st.health.animeSources }
+      })
+    } catch (e) { back = null }
+  }
+  const pid1 = sh('adb shell pidof com.madaratn.novelreader').trim()
+  console.log('page process gone:', JSON.stringify({ how, gone, samePid: !!pid0 && pid0 === pid1, back }))
+  if (!gone) console.log('::warning::The process that draws the page could not be taken away on this emulator: that check did not run')
+  else if (!(back && back.ready && back.engine && pid0 && pid0 === pid1)) { console.error('The app did not survive the loss of the process that draws its page'); process.exit(1) }
+  if (!ws) await attach()
 
   // Read aloud: the phone's voices behind speechSynthesis. Emulator images do not always
   // ship a voice: reported, and checked only when there is one.

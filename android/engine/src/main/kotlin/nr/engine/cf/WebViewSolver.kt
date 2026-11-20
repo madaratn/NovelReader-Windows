@@ -39,7 +39,16 @@ class WebViewSolver(private val app: Application) {
         userAgent = wv.settings.userAgentString
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(wv, true)
-        wv.webViewClient = WebViewClient()
+        wv.webViewClient = object : WebViewClient() {
+            // The process that draws pages is shared by the whole app: when Android takes it
+            // away, every page must say it copes, or the app is closed. A new hidden page is
+            // made at the next check.
+            override fun onRenderProcessGone(view: WebView, detail: android.webkit.RenderProcessGoneDetail): Boolean {
+                if (webView === view) webView = null
+                try { view.destroy() } catch (e: Exception) {}
+                return true
+            }
+        }
         webView = wv
     }
 
