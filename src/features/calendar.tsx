@@ -23,7 +23,7 @@ export function CalendarPage({libs,onOpen}:{libs:{anime:any[],series:any[]},onOp
  return <div className="calendar-page">
   <header><div><h1>{t('Release calendar')}</h1><p>{t('The next episodes of the anime and series in your libraries, for the next two weeks. Times are in your time zone.')}</p></div><button disabled={busy} onClick={()=>load(true)}>{busy?t('Checking…'):t('Refresh')}</button></header>
   {count===0?<p className="settings-help">{t('Add anime or series to your libraries to see when their next episodes come out.')}</p>:<>
-  <div className="shelf-tabs" role="tablist">{(['all','anime','series'] as const).map(k=><button key={k} role="tab" aria-selected={filter===k} className={'shelftab'+(filter===k?' active':'')} onClick={()=>setFilter(k)}>{k==='all'?t('All'):k==='anime'?t('Anime'):t('Series')}</button>)}</div>
+  <div className="shelftabs" role="tablist" aria-label={t('Show')}>{(['all','anime','series'] as const).map(k=><button key={k} role="tab" aria-selected={filter===k} className={'shelftab'+(filter===k?' on':'')} onClick={()=>setFilter(k)}>{k==='all'?t('All'):k==='anime'?t('Anime'):t('Series')}</button>)}</div>
   {error&&<div className="anime-toast error" role="status"><NoticeText text={t('The release dates could not be fetched:')+' '+error}/></div>}
   {list===null?<p className="settings-help" role="status">{t('Checking…')}</p>:days.length===0?<p className="settings-help">{t('No episode announced for your titles in the next two weeks.')}</p>:
   <div className="calendar-days">{days.map(d=><section key={d.day} className="calendar-day"><h2>{dayLabel(d.at)}</h2><ul>{d.items.map((a,i)=>{const item=find(a);return <li key={a.kind+a.itemId+i}>

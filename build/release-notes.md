@@ -1,3 +1,23 @@
+## NovelReader 0.38.0
+
+- **Affichage en couvertures** : les bibliothèques (livres, anime, séries, films) et Découvrir montrent maintenant tes titres comme un mur de couvertures, plusieurs par ligne sur PC et tablette, deux par ligne sur téléphone.
+  - La progression est une ligne sous la couverture, « +3 nouveaux » une pastille dessus.
+  - Le bouton sous chaque couverture reprend la lecture (« Ch. 42 ») ou ouvre les épisodes ; la couverture et le titre ouvrent la fiche, comme avant.
+- **Liste détaillée toujours disponible** : les deux boutons à côté du filtre (couvertures / liste) changent l'affichage. Le choix est gardé et vaut pour toute l'application.
+- **Sur téléphone**, chaque écran a été repris un par un :
+  - **Épisodes** : « vu » et « télécharger » sont toujours visibles à droite de chaque épisode. Avant, ils n'apparaissaient qu'au survol de la souris, donc jamais sur un téléphone.
+  - **Fiche d'un titre** : la couverture, le titre et la progression sont côte à côte (le titre passait sous la couverture).
+  - **Bibliothèques** : filtre, tri et affichage sur une ligne (le tri est une icône qui ouvre sa liste), « Vérifier les nouveaux chapitres » en entier sur la suivante ; le menu « ⋯ » d'une carte s'ouvre vers le haut près de la barre du bas.
+  - **Lecture, téléchargements, historique, réglages** : champ de recherche du chapitre sur toute la largeur, titres entiers, listes alignées, phrases qui ne sont plus coupées par « … ».
+- **Réglages de traduction du lecteur** : le menu (langue, « Toujours traduire ce roman ») s'ouvrait sans s'afficher sur téléphone et dans une fenêtre de moins de 980 px. Il s'affiche partout.
+- **Sur PC** : dans une fenêtre moyenne, le filtre des bibliothèques garde sa place (il se réduisait à un mot) ; une fiche ouverte depuis Découvrir a un en-tête lisible ; l'onglet choisi est marqué dans Historique et Calendrier ; dans « Ton année », un titre sans image garde une petite vignette (elle remplissait la page).
+- **Thème clair** : il reprend exactement les formes du thème sombre. Des cadres apparaissaient en thème clair seulement (autour de « Plus », sous les onglets de Découvrir, dans le menu « ⋯ »). Avec un thème de lecture sombre dans l'application claire, les boutons du lecteur sont assortis et « ← Chapitres » est lisible.
+- **Lecteur vidéo** : le cadre garde la forme d'un écran pendant le chargement, donc la page ne saute plus quand l'image arrive. Le bouton plein écran de la vidéo, grisé depuis la 0.37, est retiré : le plein écran est dans la barre du lecteur, avec F ou un double-clic.
+- **Livres** : quand un site ne répond plus pendant l'ouverture d'un roman, l'application le dit après une minute au lieu d'attendre sans fin ; la vérification des nouveaux chapitres ne reste plus bloquée sur ce site.
+- **Français** : le bouton « Lire » de Découvrir et de la recherche s'affichait « Lu » ; « Bibliothèque » tient en entier dans la barre du bas du téléphone ; plus de « ? » ou « : » seul en début de ligne.
+
+---
+
 ## NovelReader 0.37.0
 
 - **Plein écran complet (PC)** : le plein écran montre maintenant tout le lecteur, pas seulement l'image.
@@ -7,7 +27,7 @@
   - Touche F, double-clic sur l'image ou bouton « Plein écran » au-dessus de la vidéo.
 - **Moteur vidéo qui se relance tout seul** : si le moteur n'a pas fini de démarrer ou s'est arrêté (mémoire, antivirus, sortie de veille), la demande l'attend et le relance au lieu d'échouer avec « fetch failed ».
 - **Flux impossible à décoder** : deux réparations sont tentées, puis le lecteur passe à un autre flux à la même position, au lieu de rester bloqué sur une image figée.
-- **Lecture des livres** : le chapitre suivant est chargé pendant que vous lisez, donc « Chapitre suivant » s'ouvre tout de suite.
+- **Lecture des livres** : le chapitre suivant est chargé pendant que tu lis, donc « Chapitre suivant » s'ouvre tout de suite.
 - **Finition de l'interface** :
   - Plus aucun bouton, liste ou case avec l'aspect gris du navigateur : tout est dessiné par l'application, en thème sombre et clair (cases à cocher, menu « ⋯ », listes, barres de défilement sombres).
   - Même police partout (Inter, fournie avec l'application), sur PC et sur téléphone.

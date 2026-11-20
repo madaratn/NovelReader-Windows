@@ -15,6 +15,7 @@ async function boot(page: Page) {
     library: [novel('n1', 'Shadow Slave', 2400, { author: 'Guiltythree' }), novel('n2', 'Lord of the Mysteries', 1430), novel('n3', 'Omniscient Reader', 551), novel('n4', 'Reverend Insanity', 2334)],
     reading: { n1: { index: 1200 }, n2: { index: 40 } },
     storage: {
+      cardView: process.env.VIEW || 'posters',
       animeLibrary: JSON.stringify(media('anime', 6)), seriesLibrary: JSON.stringify(media('series', 4)), movieLibrary: JSON.stringify(media('movie', 5)),
       'lastEpInfo:series2': JSON.stringify({ url: '/ep/3', name: 'S1 E3 - OutKast', n: 3, at: Date.now() - 3600_000 }),
       'lastEpInfo:series0': JSON.stringify({ url: '/ep/4', name: 'S1 E4', n: 4, at: Date.now() - 86400_000 }),
