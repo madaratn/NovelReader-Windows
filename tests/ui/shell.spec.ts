@@ -117,7 +117,9 @@ test('TV mode: arrows move between buttons; a game controller moves, opens and g
     const w = window as any
     w.__pad = { buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })), axes: [0, 0, 0, 0] }
     Object.defineProperty(navigator, 'getGamepads', { value: () => [{ id: 'Xbox Wireless Controller (STANDARD GAMEPAD)', ...w.__pad }] })
-    w.__tap = async (i: number) => { w.__pad.buttons[i].pressed = true; await new Promise(r => setTimeout(r, 80)); w.__pad.buttons[i].pressed = false; await new Promise(r => setTimeout(r, 80)) }
+    // (Held for three frames at least: the controller is read once per frame, and a frame can be late on a busy machine.)
+    const frames = (n: number) => new Promise<void>(r => { const f = () => (--n <= 0 ? r() : requestAnimationFrame(f)); requestAnimationFrame(f) })
+    w.__tap = async (i: number) => { w.__pad.buttons[i].pressed = true; await frames(3); await new Promise(r => setTimeout(r, 80)); w.__pad.buttons[i].pressed = false; await frames(3); await new Promise(r => setTimeout(r, 80)) }
   })
   await open(page, { library: [novel('n1', 'Lord of Mysteries', 5), novel('n2', 'Shadow Slave', 5)], storage: { tvMode: '1' } })
   await expect(page.locator('html.tv-mode')).toHaveCount(1)
@@ -232,5 +234,8 @@ test('Your year: time read and watched, titles followed the most, from the Histo
   await expect(yp.locator('.year-line')).toContainText('January')
   await expect(yp.locator('.year-top li').first()).toContainText('Alpha')
   await expect(yp.locator('.year-top li').first()).toContainText('3 days')
+  // (A title without a picture keeps the size of a small cover: its coloured initials once filled the page.)
+  const cover = await yp.locator('.year-top li').first().locator('.libcover').boundingBox()
+  expect(Math.round(cover!.width)).toBe(40); expect(Math.round(cover!.height)).toBe(56)
   await expect(yp.locator('.year-genres .chip')).toHaveText(['Fantasy', 'Mystery'])
 })

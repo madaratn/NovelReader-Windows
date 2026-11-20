@@ -85,6 +85,8 @@ export async function crampedProblems(page: Page): Promise<string[]> {
         else if (!cut && (tr.right > br.right + 2 || tr.left < br.left - 2)) out.push('label sticks out: ' + name(el) + ' (' + Math.round(br.width) + ' px for ' + Math.round(tr.width) + ')')
       }
     }
+    // The sentence under a page title is read whole (no "…" in the middle of it).
+    for (const el of Array.from(document.querySelectorAll('main>header p, main header>div>p')).filter(shown)) { const h = el as HTMLElement; if (h.scrollHeight > h.clientHeight + 2) out.push('sentence cut: ' + name(el)) }
     // Siblings of one row over one another.
     const byParent = new Map<Element, Element[]>()
     for (const el of controls) { const p = el.parentElement; if (!p) continue; const pos = getComputedStyle(el).position; if (pos === 'absolute' || pos === 'fixed' || pos === 'sticky') continue; (byParent.get(p) || byParent.set(p, []).get(p)!).push(el) }
@@ -95,6 +97,79 @@ export async function crampedProblems(page: Page): Promise<string[]> {
     }
     return [...new Set(out)].slice(0, 12)
   })
+}
+
+// A menu or a panel that is open must really be seen: inside the window, and not cut by a
+// parent that scrolls (a menu hanging under a button of a row that scrolls sideways is
+// there for the page, with its size and its place, and invisible for the person).
+// Checked where the eye lands first: its two top corners and its middle.
+export const POPUPS = '.more-pop,.translate-menu,.readersettings,.findbar,.tts-panel,.sub-panel,.sub-finder,.cast-panel,.pf-menu,.home-panel,.qs-panel,.m-sheet,.kbd-dialog,.stats-tip,[role=dialog],[role=menu]'
+export async function popupProblems(page: Page, selector = POPUPS): Promise<string[]> {
+  return page.evaluate((sel) => {
+    const out: string[] = []
+    const vw = document.documentElement.clientWidth, vh = window.innerHeight
+    const name = (el: Element) => el.tagName.toLowerCase() + '.' + String(el.getAttribute('class') || '').split(/\s+/).slice(0, 2).join('.')
+    for (const el of Array.from(document.querySelectorAll(sel))) {
+      const r = el.getBoundingClientRect(), s = getComputedStyle(el)
+      if (r.width < 40 || r.height < 24 || s.display === 'none' || s.visibility === 'hidden') continue
+      let faded = false; for (let p: Element | null = el; p; p = p.parentElement) if (Number(getComputedStyle(p).opacity) === 0) faded = true
+      if (faded) continue
+      if (r.left < -1 || r.right > vw + 1) { out.push('out of the window: ' + name(el) + ' ' + Math.round(r.left) + '..' + Math.round(r.right) + ' / ' + vw); continue }
+      const top = Math.max(r.top, 0), bottom = Math.min(r.bottom, vh); if (bottom - top < 24) continue // scrolled away
+      for (const [x, y] of [[r.left + 10, top + 10], [r.right - 10, top + 10], [(r.left + r.right) / 2, (top + bottom) / 2]]) {
+        const at = document.elementFromPoint(x, y)
+        if (!at || !(el === at || el.contains(at))) { out.push('not seen: ' + name(el) + ' at ' + Math.round(x) + ',' + Math.round(y) + ' (there: ' + (at ? name(at) : 'nothing') + ')'); break }
+      }
+    }
+    return [...new Set(out)]
+  }, selector)
+}
+
+// The light theme is made of copies of the dark rules with other colours
+// (scripts/light-theme.cjs): it must change colours and nothing else. A border, an
+// outline, a shadow or a picture that appears or vanishes with the theme, a padding
+// that changes: a copy won or lost against a rule it should not have (a "border:0"
+// left out of the copies once drew boxes around links, in the light theme only).
+export async function themeDifferences(page: Page): Promise<string[]> {
+  const snap = () => page.evaluate(() => Array.from(document.querySelectorAll('body *')).map(el => {
+    const s = getComputedStyle(el), r = el.getBoundingClientRect()
+    return { n: el.tagName.toLowerCase() + '.' + String(el.getAttribute('class') || '').split(/\s+/).slice(0, 3).join('.') + (el.parentElement ? ' in ' + el.parentElement.tagName.toLowerCase() + '.' + String(el.parentElement.getAttribute('class') || '').split(/\s+/).slice(0, 2).join('.') : ''),
+      shown: r.width > 1 && r.height > 1 && s.visibility !== 'hidden' && s.display !== 'none',
+      border: [s.borderTopWidth, s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth].join(' ') + ' ' + [s.borderTopStyle, s.borderRightStyle, s.borderBottomStyle, s.borderLeftStyle].join(' '),
+      outline: s.outlineStyle === 'none' ? 'none' : s.outlineStyle + ' ' + s.outlineWidth,
+      picture: s.backgroundImage === 'none' ? 'none' : 'one', shadow: s.boxShadow === 'none' ? 'none' : 'one',
+      display: s.display, padding: s.padding, opacity: s.opacity } }))
+  const was = await page.evaluate(() => { const st = document.createElement('style'); st.id = 'audit-no-motion'; st.textContent = '*,*::before,*::after{transition:none!important;animation:none!important}'; document.head.appendChild(st); return document.documentElement.dataset.theme || '' })
+  const set = (th: string) => page.evaluate(th => { if (th) document.documentElement.dataset.theme = th; else delete document.documentElement.dataset.theme }, th)
+  let out: string[] = []
+  try {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      // Dark, light, dark again: what also changes between the two dark ones is the page
+      // living its life (a check in progress, a list that fills in), not the theme.
+      await set('dark'); await page.waitForTimeout(120); const a = await snap()
+      await set('light'); await page.waitForTimeout(120); const b = await snap()
+      await set('dark'); await page.waitForTimeout(120); const c = await snap()
+      if (a.length !== b.length || a.length !== c.length) continue // the page was still filling in: once more
+      const seen = new Set<string>()
+      for (let i = 0; i < a.length; i++) {
+        const x = a[i] as any, y = b[i] as any, z = c[i] as any
+        if (!x.shown && !y.shown) continue
+        const d = ['border', 'outline', 'picture', 'shadow', 'display', 'padding', 'opacity'].filter(k => x[k] !== y[k] && x[k] === z[k]).map(k => k + ' ' + x[k] + ' (dark) / ' + y[k] + ' (light)')
+        if (d.length) seen.add('changes with the theme: ' + x.n + ': ' + d.join(', '))
+      }
+      out = [...seen].slice(0, 12)
+      break
+    }
+  } finally {
+    await set(was); await page.evaluate(() => document.getElementById('audit-no-motion')?.remove())
+  }
+  return out
+}
+
+// Everything the audits know how to see, in one list: wider than the window, too small
+// for the finger or the pointer, squeezed, cut, hidden, or left with the browser's look.
+export async function allProblems(page: Page, min: number, opt: { native?: boolean, themes?: boolean } = {}): Promise<string[]> {
+  return [...await layoutProblems(page), ...(await smallTargets(page, min)).map(x => 'smaller than ' + min + ' px: ' + x), ...await crampedProblems(page), ...await popupProblems(page), ...(opt.native === false ? [] : await nativeLook(page)), ...(opt.themes ? await themeDifferences(page) : [])]
 }
 
 // Controls left with the look of the browser (grey bevelled button, white list, sunken
@@ -129,6 +204,7 @@ export const SIZES = {
 // Pages that are not in the menu (Settings, History, Your year), opened the way a
 // person does, on the PC (sidebar) or the phone (top bar and More sheet).
 export async function openSettings(page: Page) {
+  await page.locator('main').waitFor() // (right after a reload, nothing is there yet)
   const side = page.locator('aside.sidebar').getByRole('button', { name: 'Settings' })
   if (await side.isVisible().catch(() => false)) return side.click()
   await page.locator('.m-bottom button').last().click()

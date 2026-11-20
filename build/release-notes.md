@@ -7,7 +7,19 @@
 - Le menu « ⋯ » d'une carte reste entièrement dans l'écran, même sur une carte étroite au bord gauche.
 - **Lecteur vidéo** : le cadre garde la forme d'un écran pendant le chargement, donc la page ne saute plus quand l'image arrive.
 - **Livres** : quand un site ne répond plus pendant l'ouverture d'un roman, l'application le dit après une minute au lieu d'attendre sans fin ; la vérification des nouveaux chapitres ne reste plus bloquée sur ce site.
-- **Français** : le bouton « Lire » de Découvrir et de la recherche s'affichait « Lu » ; « Bibliothèque » tient en entier dans la barre du bas du téléphone.
+- **Sur téléphone** (chaque écran a été repris à l'œil, pas seulement mesuré) :
+  - **Épisodes** : « vu » et « télécharger » sont toujours visibles à droite de chaque épisode. Avant, ils n'apparaissaient qu'au survol de la souris, donc jamais sur un téléphone.
+  - **Fiche d'un titre** : la couverture, le titre et la progression sont côte à côte (le titre passait sous la couverture).
+  - **Bibliothèques** : filtre, tri et affichage sur une ligne (le tri est une icône qui ouvre sa liste), « Vérifier les nouveaux chapitres » en entier sur la suivante.
+  - **Lecture** : la recherche dans le chapitre a un champ sur toute la largeur.
+  - **Téléchargements, historique, Découvrir, réglages** : titres entiers, listes alignées, plus de bouton seul sur une deuxième ligne. La phrase sous le titre d'une page n'est plus coupée par « … ».
+- **Réglages de traduction du lecteur** : le menu (langue, « Toujours traduire ce roman ») s'ouvrait sans s'afficher sur téléphone et dans une fenêtre de moins de 980 px. Il s'affiche partout.
+- **Fenêtre moyenne sur PC** : le filtre des bibliothèques garde sa place (il se réduisait à un mot) ; une fiche ouverte depuis Découvrir a un en-tête lisible (« Retour », la source et « Pas dans ta bibliothèque » ne s'écrasent plus).
+- **Historique et Calendrier** : l'onglet choisi (Tout, Livres, Anime…) est maintenant marqué.
+- **Ton année** : un titre sans image garde une petite vignette (elle remplissait la page) ; les six chiffres sont rangés par trois.
+- **Thème clair** : il reprend exactement les formes du thème sombre. Des cadres apparaissaient en thème clair seulement (autour de « Plus », sous les onglets de Découvrir, dans le menu « ⋯ »). Avec un thème de lecture sombre dans l'application claire, les boutons du lecteur sont assortis et « ← Chapitres » est lisible.
+- **Lecteur vidéo** : le bouton plein écran de la vidéo, grisé depuis la 0.37, est retiré ; le plein écran reste dans la barre du lecteur, avec F ou un double-clic.
+- **Français** : le bouton « Lire » de Découvrir et de la recherche s'affichait « Lu » ; « Bibliothèque » tient en entier dans la barre du bas du téléphone ; plus de « ? », « : » ou « » » seul en début de ligne ; la minuterie de la lecture à voix haute indique « Aucune ».
 
 ---
 

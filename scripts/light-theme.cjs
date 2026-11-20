@@ -3,6 +3,14 @@
 // remapped by role. Used by vite.config.ts at build/dev time, so the light
 // theme follows style.css automatically.
 //
+// The copies weigh exactly what the rules they are made from weigh (their scope is
+// inside :where(), which adds nothing), and they carry every declaration of the
+// families they touch (border, outline, background, shadow, colour), "none" and "0"
+// included. They come after the whole style sheet, in the same order: so the copy of
+// the rule that wins in the dark theme wins in the light one, for the same reasons.
+// (Copies used to weigh more than their rule and to leave "border:0" out: a border
+// taken away by a later rule came back in the light theme only.)
+//
 // Roles: backgrounds (dark -> light surfaces, keeping their hierarchy),
 // text (light -> dark, never lighter than a readable grey), borders (dark ->
 // light greys), shadows (softened). Accent colors keep their hue. The novel
@@ -58,7 +66,7 @@ function role(prop) {
   if (/^(color|fill|accent-color|--muted|--focus|caret-color|text-decoration-color)$/.test(prop)) return 'text'
   if (/^(border|outline)|^--side-border|^--media-line|border-top-color|border-color/.test(prop)) return 'border'
   if (/box-shadow|text-shadow/.test(prop)) return 'shadow'
-  if (/^(background|background-color)$|^--side-bg|^--side-hover|^--media-card|^--accent-soft/.test(prop)) return 'bg'
+  if (/^background(-|$)|^--side-bg|^--side-hover|^--media-card|^--accent-soft/.test(prop)) return 'bg'
   return null
 }
 
@@ -106,30 +114,33 @@ function onAccentBackground(decls) {
 }
 
 function transformDecls(decls) {
-  // Every colour declaration of the rule is re-emitted (mapped or not) so the
-  // scoped copies keep the same precedence between themselves as the originals.
+  // Every declaration of the colour families is re-emitted (mapped or not, "none" and
+  // "0" too) so the copies keep the same precedence between themselves as the originals.
+  // ("all:unset" is not copied: it would undo, in the light theme only, what later rules
+  // of the same weight add. A rule that resets everything must outweigh the rules it
+  // undoes, as .engine-row button.help-more does, and then it wins in both themes.)
   const keepWhite = onAccentBackground(decls)
-  let hasColor = false
   const out = decls.split(';').map(d => {
     const i = d.indexOf(':'); if (i < 0) return null
     const prop = d.slice(0, i).trim().toLowerCase(), val = d.slice(i + 1).trim()
+    if (!prop || !val) return null
     const r = role(prop); if (!r) return null
-    if (/^(none|0)$/.test(val)) return null
-    COLOR_RE.lastIndex = 0
-    if (COLOR_RE.test(val)) hasColor = true
     COLOR_RE.lastIndex = 0
     const nv = val.replace(COLOR_RE, m => (r === 'text' && keepWhite && lum(parseColor(m) || { r: 0, g: 0, b: 0 }) > 0.9) ? m : mapColor(m, r))
     return `${prop}:${nv}`
   }).filter(Boolean)
-  return out.length && hasColor ? out.join(';') : (out.length ? out.join(';') : null)
+  return out.length ? out.join(';') : null
 }
 
+// The tokens (on :root) must outweigh the dark ones; every other copy weighs what its
+// rule weighs. ("html.android .x" is the root element itself with a class: the theme is
+// read on it, not on a parent of it.)
 const scope = sel => sel.split(',').map(s => {
   s = s.trim()
   if (s === ':root' || s === 'html') return ':root[data-theme=light]'
   if (/^:root/.test(s)) return s.replace(/^:root/, ':root[data-theme=light]')
-  if (/^(html|body)\b/.test(s)) return ':root[data-theme=light] ' + s.replace(/^html\s*/, '')
-  return ':root[data-theme=light] ' + s
+  if (/^html(?![\w-])/.test(s)) return s.replace(/^html/, 'html:where([data-theme=light])')
+  return ':where(:root[data-theme=light]) ' + s
 }).join(',')
 
 function walk(css) {

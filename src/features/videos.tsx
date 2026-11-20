@@ -1,7 +1,7 @@
 import React,{useEffect,useRef,useState}from'react'
 import{t,plural,getLang}from'../i18n'
 import{clamp,fmtMB,fmtSize,fmtTime,isTyping,lsGet,lsSet}from'../lib/util'
-import{Help,NoticeText}from'../ui/common'
+import{Help,Icon,NoticeText}from'../ui/common'
 import{togglePlayerFull}from'./player-full'
 
 export function readPos(url:string):{t:number,d:number,done?:boolean,at?:number}|null{try{return JSON.parse(localStorage.getItem('localpos:'+url)||'null')}catch{return null}}
@@ -127,7 +127,7 @@ export function LocalVideos(){
   {folders.length===0&&!loading?<section className="panel lib-empty"><h2>{t('Add your video folders')}</h2><p>{t('Pick a folder on this PC that contains videos (MP4, WebM, MKV…). Sub-folders are scanned too, and each one becomes its own group.')}</p><button className="primary" onClick={async()=>{await window.novelReader.localAddFolder();refresh()}}>{t('Add folder…')}</button></section>:<>
    {inProgress.length>0&&!q&&<section className="panel"><h2>{t('Continue watching')}</h2><div className="localgrid compact">{inProgress.map(x=>card(x.v))}</div></section>}
    {videos.length>0&&<section className="panel"><div className="lib-toolbar"><div className="searchbar"><input placeholder={t('Filter videos…')} value={filter} onChange={e=>setFilter(e.target.value)} aria-label={t('Filter videos…')}/></div>
-     <label className="lib-sort">{t('Sort')}<select value={sort} onChange={e=>{const v=e.target.value==='added'?'added':'name';setSort(v);lsSet('localSort',v)}}><option value="name">{t('By folder and name')}</option><option value="added">{t('Recently added')}</option></select></label></div>
+     <label className="lib-sort"><Icon name="sort"/><span className="lib-sort-label">{t('Sort')}</span><select value={sort} onChange={e=>{const v=e.target.value==='added'?'added':'name';setSort(v);lsSet('localSort',v)}}><option value="name">{t('By folder and name')}</option><option value="added">{t('Recently added')}</option></select></label></div>
     {shown.length===0?<p>{t('No video matches “{q}”.',{q:filter})}</p>:groups.map(([g,list])=><div className="localgroup" key={g||'_'}>{g&&<h3>{g} <small>{list.length}</small></h3>}<div className="localgrid">{list.map(card)}</div></div>)}
    </section>}
    <details className="panel folders-panel" open={videos.length===0}><summary><h2>{t('Folders')}</h2><small>{plural(folders.length,'{n} folder','{n} folders')}</small></summary>

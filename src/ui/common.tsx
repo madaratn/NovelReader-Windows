@@ -63,6 +63,7 @@ export const ICONS:Record<string,string>={
  list:'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01',
  comics:'M4 4h16v16H4zM4 12h16M12 4v8',
  search:'M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM20 20l-4.8-4.8',
+ sort:'M7 4v16M3.5 16.5 7 20l3.5-3.5M17 20V4M13.5 7.5 17 4l3.5 3.5',
  plug:'M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0zM12 17v4',
  folder:'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
  archive:'M3 4h18v4H3zM5 8v12h14V8M10 12h4',
@@ -107,8 +108,17 @@ export class ErrorBoundary extends React.Component<{children:React.ReactNode,res
 export function MoreMenu({label,children,className='',up=false}:{label?:string,children:React.ReactNode,className?:string,up?:boolean}){
  const[open,setOpen]=React.useState(false),ref=React.useRef<HTMLDivElement>(null),pop=React.useRef<HTMLDivElement>(null)
  // The menu opens under its button, to the left of it; near the left edge of the screen
- // (a narrow card in the first column) it is moved back inside.
- React.useLayoutEffect(()=>{const el=pop.current;if(!open||!el)return;el.style.right='';const over=8-el.getBoundingClientRect().left;if(over>0)el.style.right=(-over)+'px'},[open])
+ // (a narrow card in the first column) it is moved back inside. Near the bottom (the last
+ // cards, over the phone's bottom bar) it opens upwards; with no room either way, the
+ // page moves to show it whole.
+ React.useLayoutEffect(()=>{const el=pop.current;if(!open||!el)return;el.style.right='';el.style.top='';el.style.bottom=''
+  const over=8-el.getBoundingClientRect().left;if(over>0)el.style.right=(-over)+'px'
+  if(up)return
+  const edge=(sel:string,side:'top'|'bottom',none:number)=>{const b=document.querySelector(sel);const r=b?b.getBoundingClientRect():null;return r&&r.height>0?r[side]:none}
+  const floor=edge('.m-bottom','top',window.innerHeight)-8,ceil=edge('.m-top','bottom',0)+8,r=el.getBoundingClientRect()
+  if(r.bottom<=floor)return
+  if((ref.current as HTMLElement).getBoundingClientRect().top-6-r.height>=ceil){el.style.top='auto';el.style.bottom='calc(100% + 6px)'}
+  else el.scrollIntoView({block:'nearest'})},[open])
  React.useEffect(()=>{if(!open)return;const out=(e:MouseEvent)=>{if(ref.current&&!ref.current.contains(e.target as Node))setOpen(false)};const esc=(e:KeyboardEvent)=>{if(e.key==='Escape'){e.stopPropagation();setOpen(false)}};document.addEventListener('mousedown',out);document.addEventListener('keydown',esc,true);return()=>{document.removeEventListener('mousedown',out);document.removeEventListener('keydown',esc,true)}},[open])
  return <div ref={ref} className={'more-menu'+(open?' open':'')+(up?' up':'')+(className?' '+className:'')}><button type="button" className="more-btn" aria-expanded={open} aria-label={label||t('More actions')} title={label||t('More actions')} onClick={()=>setOpen(o=>!o)}><Icon name="more"/></button>{open&&<div className="more-pop" ref={pop} role="group" aria-label={label||t('More actions')} onClick={e=>{if((e.target as HTMLElement).closest('button'))setOpen(false)}}>{children}</div>}</div>
 }

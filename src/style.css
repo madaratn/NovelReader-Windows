@@ -251,6 +251,7 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .lib-toolbar .searchbar{flex:1}
 .lib-sort{display:flex;align-items:center;gap:8px;color:var(--text-3);font-size:var(--fs-sm);white-space:nowrap;min-height:47px}
 .lib-sort select{min-height:40px;padding:0 10px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-surface);color:var(--text);font:inherit;font-size:var(--fs-md)}
+.lib-sort .icon{display:none}
 .libgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
 .libcard{display:grid;grid-template-columns:96px minmax(0,1fr);gap:16px;padding:14px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--bg-surface)}
 .libcard:hover{border-color:var(--line-strong)}
@@ -264,7 +265,7 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .lib-undo{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);width:auto;min-width:300px}
 .lib-undo>div{display:flex;align-items:center;gap:6px}
 .lib-undo .undo-btn{font-size:var(--fs-md)!important;font-weight:700;padding:6px 10px!important;border:1px solid currentColor!important;border-radius:var(--radius-sm)}
-@media (max-width:700px){.lib-resume{grid-template-columns:56px minmax(0,1fr)}.lib-resume>.primary{grid-column:1/-1}.lib-toolbar{flex-direction:column;align-items:stretch}.libgrid{grid-template-columns:1fr}}
+@media (max-width:700px){.lib-resume{grid-template-columns:56px minmax(0,1fr)}.lib-resume>.primary{grid-column:1/-1}.libgrid{grid-template-columns:1fr}}
 
 /* ---- Local Videos / Internet Archive players ------------------------------ */
 .player-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -464,7 +465,6 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 .findbar button{width:32px;height:32px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--bg-raised);color:var(--text);cursor:pointer}
 .findbar button:disabled{opacity:.4}
 .findcount{min-width:70px;color:var(--text-3);font-size:var(--fs-sm);text-align:center}
-.readerpage .find-toggle{font-size:17px;font-weight:400}
 ::highlight(nr-find){background-color:rgba(255,207,92,.38);color:inherit}
 ::highlight(nr-find-current){background-color:#ffcf5c;color:#1b1608}
 
@@ -544,8 +544,11 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 @media(max-width:700px){.media-player-title{align-items:flex-start;flex-direction:column}.media-player-title>small{white-space:normal}}
 
 /* Series detail compact identity + season-aware episode badges */
-.series-detail-head{margin-bottom:14px}
-.series-detail-head .backbtn{margin-bottom:10px}
+/* Top of a title page: "back" on the left, the choice of source on the right; what there
+   is to say (not in the library yet, source changed) has a line of its own under them. */
+.series-detail-head{margin-bottom:14px;flex-wrap:wrap;gap:10px 16px}
+.series-detail-head .backbtn{white-space:nowrap}
+.series-detail-head .source-picker{margin:0 0 0 auto;justify-content:flex-end}
 .series-title-row{display:flex;align-items:flex-end;justify-content:space-between;gap:18px}
 .series-title-row h1{margin:2px 0 0;font-size:var(--fs-3xl);line-height:1.15;letter-spacing:-.35px}
 .series-title-row p{margin:0;color:var(--text-3);font-size:var(--fs-sm);white-space:nowrap}
@@ -685,7 +688,8 @@ main#main:has(.readerpage.rtheme-black){background:#000}
 /* Offline downloads: per-episode button, movie button, Downloads page */
 .ep-dl{position:absolute;bottom:-6px;right:-6px;min-width:22px;height:22px;padding:0 6px;border:1px solid var(--line-strong);border-radius:999px;background:var(--bg-raised);color:var(--text);font-size:var(--fs-xs);line-height:20px;cursor:pointer;opacity:0;transition:opacity .15s}
 .episodecell:hover .ep-dl,.ep-dl:focus-visible,.ep-dl.done,.ep-dl.active,.ep-dl.error,.ep-dl.busy{opacity:1}
-.ep-dl.done{background:#2b6cb0;border-color:var(--line-info);color:var(--on-accent)}
+/* (White on this blue: 7.4:1.) */
+.ep-dl.done{background:#1f5694;border-color:var(--line-info);color:var(--on-accent)}
 .ep-dl.done.confirm,.ep-dl.error{background:var(--bg-danger-solid);border-color:var(--line-danger);color:var(--on-accent)}
 .ep-dl.active{background:var(--bg-accent-soft);border-color:var(--line-accent-strong);color:var(--text-accent);font-size:var(--fs-2xs)}
 .dl-wide{min-height:36px;padding:0 14px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--bg-raised);color:var(--text);font:inherit;font-size:var(--fs-md);cursor:pointer;margin-left:8px}
@@ -870,6 +874,10 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
    "Extracting…" shows between two episodes. Always dark, whatever the theme of the app,
    like everything drawn over the picture ("Skip intro", the countdown, the party's
    chat): the colour tokens are set again to their dark values there. */
+/* The video's own full screen button shows the picture alone, so it is switched off where
+   the player has its own (in its bar, with F or a double click). Switched off, the browser
+   leaves it in place, greyed out, which looks broken: it is taken away. */
+video[controlslist~="nofullscreen"]::-webkit-media-controls-fullscreen-button{display:none}
 .media-fs-name{display:none}
 .media-player-top:fullscreen,.player-stage{color-scheme:dark;--focus:#b3a8ff;--accent:#8b7cff;--text-2:#b4b9c8;--text-3:#adb2c3;--bg-page:#090a0d;--bg-sunken:#0d1016;--bg-surface:#11141b;--bg-raised:#161a24;--bg-active:#1d2130;--bg-strong:#2b3040;--bg-accent:#523bcd;--bg-accent-bright:#8b7cff;--bg-accent-soft:#201c3d;--bg-ok:#173025;--bg-ok-solid:#3fb37f;--bg-danger:#2a171c;--bg-danger-solid:#d9545f;--bg-warn:#231d12;--bg-info:#132033;--text-strong:#ffffff;--text:#e6e8ef;--text-accent:#b8afff;--text-accent-strong:#b0a8ff;--text-ok:#86d9ab;--text-danger:#f4a0aa;--text-warn:#f2c879;--text-info:#9cc7f5;--line:#262b3a;--line-strong:#353b50;--line-accent:#6258c4;--line-accent-dim:#3d3578;--line-accent-solid:#523bcd;--line-accent-strong:#8b7cff;--line-ok:#3d765b;--line-danger:#8a4552;--line-warn:#5a4a24;--line-info:#355078}
 .media-player-top:fullscreen{position:relative;width:100vw;height:100vh;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;overflow:hidden;background:#000!important;color:#e6e8ef!important;box-shadow:none!important}
@@ -995,7 +1003,10 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
  .novelhead-cover{grid-row:1/span 4}
  .novelhead-meta{display:contents}
  .novelhead-meta>*{grid-column:1/-1}
- .novelhead-meta>h1,.novelhead-meta>p,.novelhead-meta>.libbar,.novelhead-meta>small{grid-column:2;margin:0}
+ .novelhead-meta>.media-kicker,.novelhead-meta>h1,.novelhead-meta>p,.novelhead-meta>.libbar,.novelhead-meta>small{grid-column:2;margin:0}
+ /* (A video title has one line more beside its cover: "SERIES", over the name.) */
+ .media-hero .novelhead-cover{grid-row:1/span 5}
+ .series-detail-head .source-picker{flex-basis:100%;margin-left:0;justify-content:flex-start}
  .novelhead-meta>h1{font-size:var(--fs-2xl)!important;line-height:1.2}
  .novelhead-meta>.offlinebar{margin-top:10px;flex-wrap:wrap}
  .novelhead-meta>.libraryactions>button{flex:1 1 140px}
@@ -1007,6 +1018,9 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
  .readerbar-title{min-width:0;text-align:left}
  .readerbar-title b,.readerbar-title small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
  .readertools{grid-column:1/-1;display:flex;justify-content:space-between;gap:6px;overflow-x:auto}
+ /* (That row scrolls sideways when it must, and what scrolls cuts a menu hanging under
+    one of its buttons: there, the translation menu hangs from the bar itself.) */
+ .translate-ctl{position:static}
 }
 /* ---- Android, larger screens (foldable open, tablet): the menu keeps its names,
    and folds to icons with its button (like on the PC) ---- */
@@ -1040,7 +1054,7 @@ html.android .resultgrid{grid-template-columns:repeat(auto-fill,minmax(min(100%,
 html.android .libgrid{grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr))}
 html.android .libmeta,html.android .libcard p,html.android .libcard small{font-size:var(--fs-md)}
 html.android .libcard h2,html.android .libtitle{font-size:var(--fs-xl)}
-html.android .tabs button,html.android .shelf-tabs button{min-height:44px}
+html.android .tabs button,html.android .shelftabs button{min-height:44px}
 html.android .settings-check{min-height:44px;align-items:center}
 html.android .settings-check input{width:22px;height:22px}
 /* Android: no keyboard there. */
@@ -1245,8 +1259,8 @@ main header+h2.sources-block{margin-top:4px}
  .m-modes button span{text-overflow:clip}
  main>header,main header:first-child{margin:0 0 12px!important;padding-top:0!important}
  main>header h1,main header>div>h1{font-size:var(--fs-3xl)!important;line-height:1.15;margin:0 0 4px}
- /* The line under a page title: short on a phone (two lines at most). */
- main>header p,main header>div>p{font-size:var(--fs-md);line-height:1.4;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+ /* The line under a page title: smaller on a phone, and whole (the longest takes three lines). */
+ main>header p,main header>div>p{font-size:var(--fs-md);line-height:1.4;margin:0;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
  /* Shelf and state tabs: one row that scrolls sideways instead of three wrapped rows. */
  .shelftabs,.season-chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
  .shelftabs::-webkit-scrollbar,.season-chips::-webkit-scrollbar{display:none}
@@ -1297,13 +1311,20 @@ html.tv .libcard .libcover{width:100%!important;height:auto!important}
 /* Close button of panels: a round icon button everywhere */
 .iconbtn{display:inline-grid;place-items:center;width:var(--h-md);height:var(--h-md);padding:0;border:1px solid transparent;border-radius:var(--radius-pill);background:transparent;color:var(--text-2);font-size:20px;line-height:1;cursor:pointer}
 .iconbtn:hover{background:var(--bg-active);color:var(--text)}
-/* Phone library: "check for new…" and the sort on one row, so the titles come sooner */
+/* Phone library: the filter, the sort and the display on one row; "check for new…" under
+   them, on one line. */
 @media (max-width:600px){
  .lib-toolbar{display:grid!important;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;margin-bottom:12px}
- .lib-toolbar>.searchbar{grid-column:1/-1}
- .lib-toolbar>.lib-update{min-height:var(--h-lg);white-space:normal;line-height:1.2;padding:4px 10px}
- .lib-toolbar>.lib-sort{display:flex;align-items:center;gap:6px;margin:0}
- .lib-toolbar>.lib-sort select{max-width:150px;height:var(--h-lg)}
+ .lib-toolbar>.searchbar{margin:0}
+ .lib-toolbar>.searchbar:only-child{grid-column:1/-1}
+ .lib-toolbar>.lib-update{grid-column:1/-1;min-height:var(--h-lg);white-space:normal;line-height:1.2;padding:4px 10px}
+ /* The sort is an icon there: its list of orders opens when it is touched (the list
+    itself is laid over the icon, invisible, so it stays the system's own picker). */
+ .lib-toolbar>.lib-sort{position:relative;display:grid;place-items:center;width:var(--h-lg);height:var(--h-lg);min-height:0;margin:0;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--bg-sunken);color:var(--text)}
+ .lib-toolbar>.lib-sort .icon{display:block}
+ .lib-toolbar>.lib-sort .lib-sort-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+ .lib-toolbar>.lib-sort select{position:absolute;inset:0;width:100%;height:100%;min-height:0;max-width:none;padding:0;border:0;opacity:0;cursor:pointer}
+ .lib-toolbar>.lib-sort:has(select:focus-visible){outline:2px solid var(--focus);outline-offset:2px}
 }
 /* Text buttons had no colour of their own: the browser's black showed, unreadable on
    the dark and mauve panels (history of the Continue panel). */
@@ -1323,7 +1344,7 @@ html.android .home-card{transition:none}
 /* Title opened from a search, not in the library: read / watch it as it is, or add it */
 .preview-bar{display:flex;align-items:center;flex-wrap:wrap;gap:10px 14px;margin:10px 0;padding:10px 14px;border:1px dashed var(--line-accent);border-radius:var(--radius-md);background:var(--bg-accent-soft);color:var(--text-2);font-size:var(--fs-sm)}
 .preview-bar span{flex:1 1 220px}
-.series-detail-head .preview-bar{margin:12px 0 0}
+.series-detail-head .preview-bar,.series-detail-head .switch-note{flex:1 1 100%;order:1;margin:0}
 /* "New episodes" message while NovelReader is in front */
 .new-eps-toast{position:fixed;right:20px;bottom:20px;z-index:60;max-width:min(460px,calc(100vw - 32px));margin:0;background:var(--bg-raised);border:1px solid var(--line-accent);color:var(--text)}
 .new-eps-toast>div{display:flex;align-items:center;gap:6px;flex:none}
@@ -1418,7 +1439,9 @@ html.android .home-card{transition:none}
 /* Rows "text + button" (sources, engine…): the button goes under the text when there is no room. */
 .engine-row{flex-wrap:wrap}
 .engine-row>div{flex:1 1 260px;min-width:0}
-@media (max-width:600px){.engine-row>button,.engine-row>.primary{flex:1 1 100%;white-space:normal}}
+/* (Buttons in a group keep their size at the end of the row, like a button alone.) */
+.engine-row>.libraryactions{flex:0 1 auto;justify-content:flex-end}
+@media (max-width:600px){.engine-row>button,.engine-row>.primary,.engine-row>.libraryactions{flex:1 1 100%;white-space:normal}.engine-row>.libraryactions>button{flex:1 1 auto;white-space:normal}}
 /* Discover › For you */
 .foryou-group{margin:18px 0 6px}
 .foryou-group h2{margin:0 0 10px;font-size:var(--fs-lg,1.15rem);color:var(--text-strong);overflow-wrap:anywhere}
@@ -1435,7 +1458,9 @@ html.mini-mode .mini-on .player-stage video{width:100vw!important;height:100vh!i
 .foryou-group h2 small{font-size:var(--fs-sm);font-weight:400;color:var(--text-3)}
 /* Your year */
 .year-page header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:16px}
-.year-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;max-width:900px}
+/* Six figures: three by three (two by two on a phone), never five and one alone. */
+.year-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-width:900px}
+@media (max-width:600px){.year-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .year-tiles>div{display:grid;gap:4px;padding:14px;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--bg-raised)}
 .year-tiles b{font-size:1.5rem;color:var(--text-strong);font-variant-numeric:tabular-nums}
 .year-tiles small{color:var(--text-2)}
@@ -1444,7 +1469,8 @@ html.mini-mode .mini-on .player-stage video{width:100vw!important;height:100vh!i
 .year-block h2{margin:0 0 10px;font-size:var(--fs-lg,1.15rem)}
 .year-top{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .year-top li{display:flex;align-items:center;gap:12px;min-width:0}
-.year-top .cover,.year-top img{flex:none;width:40px;height:56px;border-radius:6px;object-fit:cover}
+/* (A title without a picture has its initials on a colour: the same small size.) */
+.year-top .libcover{flex:none;width:40px;height:56px;border-radius:6px;object-fit:cover;font-size:13px;letter-spacing:0}
 .year-rank{flex:none;width:26px;text-align:center;font-weight:700;font-size:1.2rem;color:var(--text-accent)}
 .year-title{display:grid;gap:2px;min-width:0}
 .year-title button,.year-title b{text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1514,12 +1540,12 @@ html.mini-mode .mini-on .player-stage video{width:100vw!important;height:100vh!i
  .app.phone .libgrid.posters .libcard .libraryactions>.primary,.app.phone .resultgrid.posters .resultactions button{min-height:44px}
  .app.phone .libgrid.posters .libcard .more-btn{width:44px;height:44px}
  .app.phone .libgrid.posters .libcard-meta{gap:0}
- /* The filter and the display choice on one row, the check and the sort on the next. */
+ /* The filter, the sort and the display choice on one row; the check on the next. */
  .lib-toolbar:has(>.view-toggle){grid-template-columns:minmax(0,1fr) auto auto}
- .lib-toolbar:has(>.view-toggle)>.searchbar{grid-column:1/span 2}
- .lib-toolbar>.view-toggle{grid-column:3;justify-self:end}
- .lib-toolbar:has(>.view-toggle)>.lib-update{grid-column:1}
- .lib-toolbar:has(>.view-toggle)>.lib-sort{grid-column:2/span 2;justify-self:end}
+ .lib-toolbar:has(>.view-toggle)>.searchbar{grid-area:1/1}
+ .lib-toolbar:has(>.view-toggle)>.lib-sort{grid-area:1/2}
+ .lib-toolbar>.view-toggle{grid-area:1/3;justify-self:end}
+ .lib-toolbar:has(>.view-toggle)>.lib-update{grid-area:2/1/auto/-1}
  .app.phone .view-toggle{gap:6px;padding:0;border:0;background:transparent}
  .app.phone .view-toggle button{width:44px;height:44px;border:1px solid var(--line);background:var(--bg-sunken)}
  .app.phone .view-toggle button.on{background:var(--bg-accent);border-color:var(--line-accent-solid)}
@@ -1586,12 +1612,33 @@ input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.5;cursor:defau
    row squeeze them under their text. */
 .app.phone .more-btn,.app.phone .player-trackbar .player-more .more-btn,.app.phone button:has(>svg:only-child),.app.phone button:has(>.glyph:only-child),.app.phone .anime-toast button,.app.phone .tts-btn,.app.phone .tts-close,.app.phone .findbar button,.app.phone .iconbtn{min-width:44px}
 .app.phone .more-pop>button{min-height:44px}
+/* (When the page moves to show a menu, it stops above the bottom bar.) */
+.app.phone .more-pop{scroll-margin-bottom:calc(84px + env(safe-area-inset-bottom))}
 /* The week chart: seven bars, each as wide as a finger, on the narrowest phone too. */
 .app.phone .stats-body{padding-inline:0}
 .app.phone .stats-tiles{margin-inline:14px}
 .app.phone .stats-bars{gap:0}
 .app.phone .stats-chart{margin-inline:-3px}
 .ep-watch{width:24px;height:24px;line-height:22px}
+.ep-dl{min-width:24px;height:24px;line-height:22px}
+/* Episodes where there is no pointer to hover with (a phone, a tablet): "watched" and
+   "download" are always there, on the right of the row, as large as a finger needs
+   (44 px) with their round mark drawn in the middle. With a mouse they stay small
+   marks on the corners of the card, shown when the card is pointed at. */
+@media (hover:none){.ep-watch,.ep-dl{opacity:1}}
+.app.phone .episodecell .episodecard,html.android .episodecell .episodecard{grid-template-columns:42px minmax(0,1fr);padding-right:52px;transform:none}
+.app.phone .episodecell:has(.ep-dl) .episodecard,html.android .episodecell:has(.ep-dl) .episodecard{padding-right:96px}
+.app.phone .episodeplay,html.android .episodeplay{display:none}
+.app.phone .episodetitle,html.android .episodetitle{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;overflow-wrap:anywhere}
+.app.phone .episodecell .ep-watch,.app.phone .episodecell .ep-dl,html.android .episodecell .ep-watch,html.android .episodecell .ep-dl{top:50%;bottom:auto;right:4px;translate:0 -50%;width:44px;min-width:44px;height:44px;min-height:44px;padding:9px;border:0;border-radius:50%;background-clip:content-box!important;opacity:1;font-size:var(--fs-sm);line-height:26px;text-align:center}
+.app.phone .episodecell:has(.ep-dl) .ep-watch,html.android .episodecell:has(.ep-dl) .ep-watch{right:48px}
+.app.phone .episodecell .ep-dl.active,html.android .episodecell .ep-dl.active{padding-inline:3px;border-radius:16px/22px;font-size:var(--fs-2xs)}
+html.android .episodegrid{grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))}
+/* Find in the chapter, on a phone: the field on a line of its own, as wide as the page;
+   the count and the arrows under it. */
+.app.phone .findbar{left:0;right:0;flex-wrap:wrap}
+.app.phone .findbar input{flex:1 1 100%;width:auto;min-width:0}
+.app.phone .findbar .findcount{flex:1;min-width:0;padding-left:4px;text-align:left}
 .notice-details summary{min-height:24px;padding:4px 0}
 .pf-color{width:24px;height:24px}
 html.android .pf-color{width:32px;height:32px;min-height:32px}
@@ -1599,3 +1646,73 @@ html.android .pf-color{width:32px;height:32px;min-height:32px}
 .app.phone .pf-colors{display:flex;flex-wrap:wrap;width:100%}.app.phone .pf-colors .pf-color{width:44px;height:44px;min-height:44px}
 .app.phone label:has(>input[type=checkbox]),.app.phone label:has(>input[type=radio]){min-height:44px;display:flex;align-items:center;gap:8px}
 .app.phone input[type=checkbox],.app.phone input[type=radio]{width:24px;height:24px}
+/* ---- Phone, second pass (what the eye catches and the measurements do not) ---- */
+/* "More" at the end of a sentence stays in its line (a button is 44 px high on a phone,
+   which pushed the last line down); its touch area still reaches above and below. */
+.app.phone button.help-more{min-height:0;padding:12px 8px;margin:-12px -8px}
+html.android button.help-more{min-height:0}
+/* Appearance and language: equal parts across the row, a long label on two lines
+   (the third choice no longer falls alone on a second row). */
+.app.phone .settings-seg{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);width:100%;min-width:0}
+.app.phone .settings-seg button{padding:4px 6px;white-space:normal;line-height:1.15;overflow-wrap:anywhere}
+/* Episodes: "n / total watched" on its line, the two buttons share the next one. */
+.app.phone .episode-tools{flex-wrap:wrap;gap:8px}
+.app.phone .episode-tools small{flex:1 1 100%}
+.app.phone .episode-tools button{flex:1 1 0;white-space:normal;line-height:1.2}
+/* Discover: one row per list, its name on the left, and the display choice at the end
+   of the last one. */
+.app.phone .discover-bar label{display:grid;grid-template-columns:52px minmax(0,1fr);flex:1 1 100%;gap:8px;min-width:0}
+.app.phone .discover-bar label:last-of-type{flex:1 1 0;min-width:200px}
+.app.phone .discover-bar select{width:100%;max-width:none;min-width:0}
+/* Downloads: the title whole on a line of its own, the size and the buttons under it;
+   while it downloads, the progress under the title and "Cancel" beside them. */
+.app.phone .dl-group .dl-row{gap:6px 8px}
+.app.phone .dl-group .dl-row>div{display:contents}
+.app.phone .dl-group .dl-row b{grid-column:1/-1;white-space:normal;overflow-wrap:anywhere}
+.app.phone .panel:not(.dl-group) .dl-row{grid-template-columns:minmax(0,1fr) auto;gap:4px 10px}
+.app.phone .panel:not(.dl-group) .dl-row>div{grid-area:1/1}
+.app.phone .panel:not(.dl-group) .dl-row>.dl-state{grid-area:2/1}
+.app.phone .panel:not(.dl-group) .dl-row>button{grid-area:1/2/span 2}
+.app.phone .panel:not(.dl-group) .dl-row b{white-space:normal;overflow-wrap:anywhere}
+.app.phone .panel:not(.dl-group) .dl-row small{display:block}
+/* No keyboard on a phone: its shortcuts are not shown in the reading settings. */
+html.android .rs-foot small{display:none}
+/* Translation settings on a phone: as wide as the bar, like the other panels of the reader. */
+.app.phone .translate-menu{left:0;right:0;width:auto}
+/* Middle-sized windows (a window that does not fill the screen, a tablet): the filter
+   keeps its room. Two rows there: the filter and the display choice, then "check for
+   new…" and the sort. (Narrow menu up to 980 px; with the wide menu, up to 1132 px.) */
+@media (min-width:601px) and (max-width:980px){
+ .lib-toolbar:has(>.lib-update){display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px 12px;align-items:center;margin-bottom:18px}
+ .lib-toolbar:has(>.lib-update)>.searchbar{grid-column:1/span 2;margin:0}
+ .lib-toolbar:has(>.lib-update)>.view-toggle{grid-column:3;justify-self:end}
+ .lib-toolbar:has(>.lib-update)>.lib-update{grid-column:1;justify-self:start}
+ .lib-toolbar:has(>.lib-update)>.lib-sort{grid-column:2/span 2;justify-self:end}
+}
+@media (min-width:981px) and (max-width:1132px){
+ .app:not(.collapsed) .lib-toolbar:has(>.lib-update){display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px 12px;align-items:center;margin-bottom:18px}
+ .app:not(.collapsed) .lib-toolbar:has(>.lib-update)>.searchbar{grid-column:1/span 2;margin:0}
+ .app:not(.collapsed) .lib-toolbar:has(>.lib-update)>.view-toggle{grid-column:3;justify-self:end}
+ .app:not(.collapsed) .lib-toolbar:has(>.lib-update)>.lib-update{grid-column:1;justify-self:start}
+ .app:not(.collapsed) .lib-toolbar:has(>.lib-update)>.lib-sort{grid-column:2/span 2;justify-self:end}
+}
+/* History on a phone: the title and what was read on one line, the time under it. */
+.app.phone .home-history li{flex-wrap:wrap;gap:0 8px;padding:5px 0}
+.app.phone .home-history li small{order:1;flex:1 1 100%;min-width:0}
+.app.phone .home-history li .linkbtn,.app.phone .home-history li b{flex:0 1 auto;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app.phone .home-history li .linkbtn{min-width:44px;min-height:0;padding:12px 0;margin:-12px 0}
+.app.phone .home-history li span{flex:1 1 40px;min-width:0}
+/* Downloads on a phone: the two choices one under the other, their lists aligned. */
+.app.phone .dl-settings label{display:grid;grid-template-columns:112px minmax(0,1fr);flex:1 1 100%;min-width:0}
+.app.phone .dl-settings select{width:100%;min-width:0}
+.app.phone .year-title .linkbtn{min-width:44px;min-height:0;padding:12px 0;margin:-12px 0}
+/* Tunisian TV, on the Sources page: its button on the right of its text, like the packs above it. */
+@media (min-width:601px){
+ .tntv-row>div{flex:1;display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:18px;align-items:center}
+ .tntv-row>div>h2,.tntv-row>div>p{grid-column:1}
+ .tntv-row .tntv-key{grid-column:2;grid-row:1/span 2;margin-top:0;align-items:center}
+ .tntv-row .anime-toast{grid-column:1/-1}
+}
+/* History: "Your year" and "Clear" side by side at the end of the title row. */
+.history-page header>div:first-child{min-width:0}
+.history-page header .libraryactions{flex:none;flex-wrap:nowrap}

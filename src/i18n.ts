@@ -815,7 +815,7 @@ const FR: Record<string, string> = {
   'Stop the AI subtitles': 'Arrêter les sous-titres IA',
   'In the player, 💬 Subtitles finds subtitles for any video: online for films and series, or written by AI on this PC.': 'Dans le lecteur, 💬 Sous-titres trouve des sous-titres pour n\'importe quelle vidéo : en ligne pour les films et séries, ou écrits par l\'IA sur ce PC.',
   'Online subtitles (Wyzie Subs)': 'Sous-titres en ligne (Wyzie Subs)',
-  'Free key, once: open sub.wyzie.io/redeem, get your key and paste it here. 1,000 searches a day.': 'Clé gratuite, une seule fois : ouvre sub.wyzie.io/redeem, récupère ta clé et colle-la ici. 1 000 recherches par jour.',
+  'Free key, once: open sub.wyzie.io/redeem, get your key and paste it here. 1,000 searches a day.': 'Clé gratuite, une seule fois : ouvre sub.wyzie.io/redeem, récupère ta clé et colle-la ici. 1 000 recherches par jour.',
   'Wyzie Subs key': 'Clé Wyzie Subs',
   'Saved': 'Enregistrée',
   'When a film or episode has no subtitles, add the best ones found online by itself': 'Quand un film ou un épisode n\'a pas de sous-titres, ajouter tout seul les meilleurs trouvés en ligne',
@@ -1228,6 +1228,8 @@ const FR: Record<string, string> = {
   'This stream cannot be decoded on this device. Pick another quality or server.': 'Ce flux ne peut pas être décodé sur cet appareil. Choisis une autre qualité ou un autre serveur.',
   'Display': 'Affichage',
   'Covers': 'Couvertures',
+  'No timer': 'Aucune',
+  'Show': 'Afficher',
 }
 
 const onDevice = () => typeof document !== 'undefined' && document.documentElement.classList.contains('android')
@@ -1236,6 +1238,8 @@ export function t(key: string, vars?: Record<string, string | number>): string {
   // Phone / tablet: the same sentences, without "PC".
   if (onDevice()) out = out.replace(/\bthis PC\b/g, 'this device').replace(/\bce PC\b/g, 'cet appareil').replace(/\ba Windows notification\b/g, 'a notification').replace(/\bune notification Windows\b/g, 'une notification')
   if (vars) out = out.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m))
+  // French: a line never starts with ":", ";", "?", "!" or "»", nor ends with "«" (the space beside them does not break).
+  if (lang === 'fr') out = out.replace(/ (?=[:;?!»])/g, '\u00a0').replace(/« /g, '«\u00a0')
   return out
 }
 

@@ -21,14 +21,19 @@ async function prepare(page: Page, theme: string) {
   await setup(page, {
     library: [{ ...novel('n1', LONG, 30), genres: ['Fantasy'] } as any, novel('n2', 'Shadow Slave', 12)],
     reading: { n1: { index: 3 } },
-    storage: { ...historySeed(), appTheme: theme, cardView: 'posters', animeLibrary: JSON.stringify([vid('anime', 1, 'Frieren')]), seriesLibrary: JSON.stringify([vid('series', 1, 'Lanterns')]), movieLibrary: JSON.stringify([vid('movie', 1, 'Dune')]) },
+    storage: { ...historySeed(), appTheme: theme, cardView: 'posters', 'mediapos:series:series1:/ep/3': JSON.stringify({ t: 0, d: 0, done: true, at: 1 }), animeLibrary: JSON.stringify([vid('anime', 1, 'Frieren')]), seriesLibrary: JSON.stringify([vid('series', 1, 'Lanterns')]), movieLibrary: JSON.stringify([vid('movie', 1, 'Dune')]) },
   })
   // A series that really plays, for the player's own bar, menu and full screen.
   const clip = fs.readFileSync(path.join(__dirname, 'fixtures', 'clip.webm'))
   await page.route('http://127.0.0.1:4567/api/v1/proxy**', r => r.fulfill({ status: 200, body: clip, headers: { 'Content-Type': 'video/webm', 'Access-Control-Allow-Origin': '*' } }))
   await page.addInitScript(() => {
     const w = window as any, base = w.novelReader
+    // Downloads: one episode kept, one on its way (their marks on the episode rows, and the Downloads page).
+    const dl = [
+      { id: 'd1', kind: 'series', mediaId: 'series1', mediaName: 'Lanterns', episodeUrl: '/ep/1', episodeName: 'S1 E1 - Episode 1', episodeNo: 1, mediaKey: '', state: 'done', progress: 1, size: 412e6, file: 'video.mp4', subtitles: [] },
+      { id: 'd2', kind: 'series', mediaId: 'series1', mediaName: 'Lanterns', episodeUrl: '/ep/2', episodeName: 'S1 E2 - Episode 2', episodeNo: 2, mediaKey: '', state: 'downloading', progress: 0.37, bytes: 151e6 }]
     w.novelReader = { ...base, miwayomiStatus: async () => ({ online: true, baseUrl: 'http://127.0.0.1:4567' }),
+      dlList: async () => dl, dlBase: async () => 'http://127.0.0.1:9', dlUsage: async () => ({ bytes: 412e6, count: 1, folder: '' }), dlStart: async () => ({ id: 'x' }), dlRemove: async () => true, dlCancel: async () => true, dlConfigure: async () => true, onDownloadsChanged: () => () => {},
       miwayomiFetch: async (p: string) => {
         if (p.includes('/details')) return { title: 'Lanterns', description: 'A mystery.', genre: ['Drama'], status: 2 }
         if (p.includes('/episodes')) return [1, 2, 3].map(n => ({ name: 'S1 E' + n + ' - Episode ' + n, url: '/ep/' + n, episode_number: n }))

@@ -4,7 +4,7 @@
 // two buttons are drawn over one another (tests/layout-audit.ts).
 import { test, expect, type Page } from '@playwright/test'
 import { setup, novel } from './helpers'
-import { layoutProblems, smallTargets, crampedProblems, nativeLook, tourOverlays, SIZES, openSettings, openHistory, openYear, historySeed } from '../layout-audit'
+import { allProblems, popupProblems, themeDifferences, tourOverlays, SIZES, openSettings, openHistory, openYear, historySeed } from '../layout-audit'
 
 const LONG = 'The Extraordinarily Long Title Of A Story That Never Seems To End Volume Twelve'
 const vid = (kind: string, i: number, name: string) => ({ id: kind + i, name, sourceId: '42', sourceName: 'Mapple', url: '/' + kind + '/' + i, thumbnail: '', episodes: kind === 'movie' ? 1 : 8, genres: ['Drama', 'Mystery'], addedAt: Date.now() - i * 3600_000 })
@@ -47,12 +47,14 @@ async function prepare(page: Page, view: 'posters' | 'list' = 'posters', lang: '
 
 for (const [size, viewport] of Object.entries(SIZES)) {
   test(`layout at ${size} size (${viewport.width}×${viewport.height}): nothing wider than the screen`, async ({ page }) => {
-    test.setTimeout(120_000)
+    test.setTimeout(180_000)
     await page.setViewportSize(viewport)
     await prepare(page)
     const found: Record<string, string[]> = {}
     const min = viewport.width <= 600 ? 44 : 24 // the phone layout is used with fingers
-    const check = async (where: string) => { await page.waitForTimeout(250); const p = [...await layoutProblems(page), ...(await smallTargets(page, min)).map(x => 'smaller than ' + min + ' px: ' + x), ...await crampedProblems(page), ...await nativeLook(page)]; if (p.length) { found[where] = p; console.log('LAYOUT ' + size + ' | ' + where + ' | ' + p.join(' ; ')) } }
+    // (At the two ends, each step is also compared in the two themes: same shapes, other colours.)
+    const themes = size === 'smallPhone' || size === 'window'
+    const check = async (where: string) => { await page.waitForTimeout(250); const p = await allProblems(page, min, { themes }); if (p.length) { found[where] = p; console.log('LAYOUT ' + size + ' | ' + where + ' | ' + p.join(' ; ')) } }
     await page.goto('/')
     for (const [mode, name] of PAGES) {
       await page.evaluate(([m, p]) => { localStorage.setItem('mode', m); localStorage.setItem('lastPage:' + m, p) }, [mode, name])
@@ -102,7 +104,7 @@ for (const size of ['smallPhone', 'window'] as const) {
     for (const [mode, name] of PAGES.filter(([, p]) => /^(library|discover|anime|animeDiscover|series|seriesDiscover|movies|movieDiscover)$/.test(p))) {
       await page.evaluate(([m, p]) => { localStorage.setItem('mode', m); localStorage.setItem('lastPage:' + m, p) }, [mode, name])
       await page.reload(); await page.locator('main').waitFor(); await page.waitForTimeout(250)
-      const p = [...await layoutProblems(page), ...(await smallTargets(page, min)).map(x => 'smaller than ' + min + ' px: ' + x), ...await crampedProblems(page), ...await nativeLook(page)]
+      const p = await allProblems(page, min)
       if (p.length) { found[mode + ' › ' + name] = p; console.log('LAYOUT list ' + size + ' | ' + mode + ' › ' + name + ' | ' + p.join(' ; ')) }
     }
     expect(found, JSON.stringify(found, null, 1)).toEqual({})
@@ -122,7 +124,7 @@ for (const size of ['smallPhone', 'window'] as const) for (const view of ['poste
     for (const [mode, name] of PAGES) {
       await page.evaluate(([m, p]) => { localStorage.setItem('mode', m); localStorage.setItem('lastPage:' + m, p) }, [mode, name])
       await page.reload(); await page.locator('main').waitFor(); await page.waitForTimeout(250)
-      const p = [...await layoutProblems(page), ...(await smallTargets(page, min)).map(x => 'smaller than ' + min + ' px: ' + x), ...await crampedProblems(page), ...await nativeLook(page)]
+      const p = await allProblems(page, min)
       if (p.length) { found[mode + ' › ' + name] = p; console.log('LAYOUT fr ' + size + ' ' + view + ' | ' + mode + ' › ' + name + ' | ' + p.join(' ; ')) }
     }
     // A title's page and its player, with the French labels.
@@ -132,9 +134,28 @@ for (const size of ['smallPhone', 'window'] as const) for (const view of ['poste
     await page.locator('.media-hero').waitFor(); await page.waitForTimeout(300)
     for (const [where, go] of [['series page', async () => {}], ['series page, playing', async () => { await page.locator('.media-hero .primary').click(); await page.waitForTimeout(800) }]] as const) {
       await go()
-      const p = [...await layoutProblems(page), ...(await smallTargets(page, min)).map(x => 'smaller than ' + min + ' px: ' + x), ...await crampedProblems(page), ...await nativeLook(page)]
+      const p = await allProblems(page, min)
       if (p.length) { found[where] = p; console.log('LAYOUT fr ' + size + ' ' + view + ' | ' + where + ' | ' + p.join(' ; ')) }
     }
     expect(found, JSON.stringify(found, null, 1)).toEqual({})
   })
 }
+
+// The reader's panels (reading settings, read aloud, translation settings, find) open under
+// its tool bar: each one must really be seen, at every width. (Under 980 px the row of
+// tools can scroll sideways, and what scrolls cuts a menu hanging under one of its
+// buttons: the translation settings were there for the page and invisible for the person.)
+for (const [w, h] of [[360, 780], [390, 844], [820, 900], [1280, 800]] as const) test(`reader panels are really seen at ${w} px`, async ({ page }) => {
+  await page.setViewportSize({ width: w, height: h })
+  await setup(page, { library: [novel('n1', 'Alpha', 30)], reading: { n1: { index: 3 } } })
+  await page.goto('/')
+  await page.locator('.libcard').first().locator('.libcard-cover').click()
+  await page.getByRole('button', { name: /Continue · Ch\./ }).first().click(); await page.locator('.readerpage').waitFor()
+  const found: Record<string, string[]> = {}
+  for (const [name, btn, panel] of [['reading settings', '.readersettings-btn', '.readersettings'], ['read aloud', '.tts-toggle', '.tts-panel'], ['translation settings', '.translate-more', '.translate-menu'], ['find', '.find-toggle', '.findbar']]) {
+    await page.locator(btn).click(); await page.locator(panel).waitFor(); await page.waitForTimeout(250)
+    const p = [...await popupProblems(page, panel), ...(w === 390 || w === 1280 ? await themeDifferences(page) : [])]; if (p.length) found[name] = p
+    await page.locator(btn).click(); await page.locator(panel).waitFor({ state: 'detached' })
+  }
+  expect(found, JSON.stringify(found, null, 1)).toEqual({})
+})
