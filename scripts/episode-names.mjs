@@ -32,8 +32,10 @@ const words = s => String(s || '').toLowerCase().normalize('NFD').replace(/[Ì€-Í
 // One episode, short: [name, number, line under the name].
 const row = ep => { const r = [String(ep.name ?? ep.title ?? ''), ep.episode_number ?? ep.number ?? null]; if (ep.scanlator) r.push(String(ep.scanlator)); return r }
 
-async function episodesOf(sid, url, timeout = 40000) {
-  const eps = list(await api(`/api/v1/anime/${sid}/episodes?url=${encodeURIComponent(url)}`, { timeout }), 'episodes', 'items')
+// (The title goes with the address, as in the app: some sources read it.)
+const titled = title => title ? '&title=' + encodeURIComponent(String(title).slice(0, 200)) : ''
+async function episodesOf(sid, url, title, timeout = 40000) {
+  const eps = list(await api(`/api/v1/anime/${sid}/episodes?url=${encodeURIComponent(url)}${titled(title)}`, { timeout }), 'episodes', 'items')
   return { count: eps.length, episodes: eps.slice(0, MAX_EPISODES).map(row) }
 }
 
@@ -59,17 +61,17 @@ async function sampleSource(src) {
     const t = { how, title: clean(a.title || a.name), url: String(url).slice(0, 160) }
     if (a.season_number != null && a.season_number !== -1) t.season_number = a.season_number
     if (a.fetch_type) t.fetch_type = a.fetch_type
-    try { const d = await api(`/api/v1/anime/${sid}/details?url=${encodeURIComponent(url)}`, { timeout: 20000 }); if (d?.fetch_type) t.details_fetch_type = d.fetch_type; if (d?.season_number != null && d.season_number !== -1) t.details_season_number = d.season_number }
+    try { const d = await api(`/api/v1/anime/${sid}/details?url=${encodeURIComponent(url)}${titled(t.title)}`, { timeout: 20000 }); if (d?.title) t.details_title = clean(d.title).slice(0, 80); if (d?.fetch_type) t.details_fetch_type = d.fetch_type; if (d?.season_number != null && d.season_number !== -1) t.details_season_number = d.season_number }
     catch (e) { t.details_error = e.message.slice(0, 120) }
-    try { Object.assign(t, await episodesOf(sid, url)) } catch (e) { t.episodes_error = e.message.slice(0, 160) }
+    try { Object.assign(t, await episodesOf(sid, url, t.title)) } catch (e) { t.episodes_error = e.message.slice(0, 160) }
     try {
-      const seasons = list(await api(`/api/v1/anime/${sid}/seasons?url=${encodeURIComponent(url)}`, { timeout: 25000 }), 'seasons', 'items')
+      const seasons = list(await api(`/api/v1/anime/${sid}/seasons?url=${encodeURIComponent(url)}${titled(t.title)}`, { timeout: 25000 }), 'seasons', 'items')
       t.seasons = seasons.slice(0, 40).map(s => ({ title: clean(s.title || s.name), url: String(s.url || '').slice(0, 160), season_number: s.season_number, ...(s.fetch_type ? { fetch_type: s.fetch_type } : {}) }))
       t.seasons_count = seasons.length
       // The episodes of the first seasons, as the source gives them season by season.
       for (const [k, s] of seasons.slice(0, 3).entries()) {
         if (left() < 8000) break
-        try { const r = await episodesOf(sid, s.url, 30000); t.seasons[k].count = r.count; t.seasons[k].episodes = r.episodes.slice(0, 40) } catch (e) { t.seasons[k].episodes_error = e.message.slice(0, 120) }
+        try { const r = await episodesOf(sid, s.url, s.title, 30000); t.seasons[k].count = r.count; t.seasons[k].episodes = r.episodes.slice(0, 40) } catch (e) { t.seasons[k].episodes_error = e.message.slice(0, 120) }
       }
     } catch (e) { t.seasons_error = e.message.slice(0, 160) }
     out.titles.push(t)

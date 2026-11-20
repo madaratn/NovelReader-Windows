@@ -12,7 +12,7 @@ import{parental,kidsBlock}from'./parental'
 import{altTitles}from'../lib/alt-titles'
 import{forYou,seedsOf,type ForYou}from'../lib/recommend'
 import{genreAllowed}from'../lib/parental'
-import{mediaPosKey,readMediaPos,mediaNorm,mediaCover,enrichMediaCover,episodeNo,seasonNo,orderedEpisodes,cleanEngineError,readWatchStats,watchDayKey,watchedCount,type MediaKind}from'../lib/media'
+import{mediaPosKey,readMediaPos,mediaNorm,mediaCover,enrichMediaCover,episodeNo,seasonNo,seasonOrder,seasonHasName,plainName,orderedEpisodes,fetchEpisodes,fetchDetails,cleanEngineError,readWatchStats,watchDayKey,watchedCount,type MediaKind}from'../lib/media'
 import{engineFetch}from'../lib/engine'
 import{sourceAdvice}from'../lib/source-advice'
 import{catalogByGenre,genresFor,type CatalogTitle}from'../lib/genre-catalog'
@@ -23,7 +23,7 @@ export const mediaEpCount=(a:any)=>Array.isArray(a?.episodes)?a.episodes.length:
 const mediaItemKey=(a:any)=>String(a?.id||a?.url||a?.path||a?.name||'')
 export async function scanNewEpisodes(list:any[],onProgress?:(done:number,found:number,failed:number)=>void){
  let done=0,found=0,failed=0;const counts=new Map<string,number>(),names:string[]=[],queue=list.filter((a:any)=>a&&a.sourceId&&(a.url||a.path))
- await Promise.all(Array.from({length:4},async()=>{while(queue.length){const a=queue.shift();try{const d=await engineFetch('/api/v1/anime/'+encodeURIComponent(String(a.sourceId))+'/episodes?url='+encodeURIComponent(a.url||a.path));const n=(Array.isArray(d)?d:(d?.episodes||d?.items||[])).length;counts.set(mediaItemKey(a),n);if(n>mediaEpCount(a)&&mediaEpCount(a)>0){found++;names.push(String(a.name||a.title||''))}}catch{failed++}done++;onProgress?.(done,found,failed)}}))
+ await Promise.all(Array.from({length:4},async()=>{while(queue.length){const a=queue.shift();try{const n=(await fetchEpisodes(a.sourceId,a.url||a.path,{title:a.name||a.title})).length;counts.set(mediaItemKey(a),n);if(n>mediaEpCount(a)&&mediaEpCount(a)>0){found++;names.push(String(a.name||a.title||''))}}catch{failed++}done++;onProgress?.(done,found,failed)}}))
  return{counts,found,failed,done,names}
 }
 export function applyEpisodeCounts(items:any[],counts:Map<string,number>){return items.map((a:any)=>{const n=counts.get(mediaItemKey(a));if(n==null||!n)return a;const prev=mediaEpCount(a);return n>prev&&prev>0?{...a,episodes:n,newEpisodes:(a.newEpisodes||0)+(n-prev)}:{...a,episodes:Math.max(n,prev)}})}
@@ -38,11 +38,11 @@ export function MediaLibrary({kind,items,onChange,onOpen,onSearch,loading,onResu
  const last=items.map((a:any)=>{if(a.shelf==='dropped')return null;let info:any=null;try{info=JSON.parse(lsGet('lastEpInfo:'+String(a.id||a.url||a.name))||'null')}catch{}if(!info?.url)return null;const pos=readMediaPos(keyPrefix+(a.id||a.url||a.name)+(kind==='Movie'?'':':'+info.url));return{a,info,pos}}).filter(Boolean).sort((x:any,y:any)=>(y.info.at||0)-(x.info.at||0))[0] as any
  const fmt=(sec:number)=>{const s=Math.max(0,Math.floor(sec||0)),h=Math.floor(s/3600),m=Math.floor(s%3600/60),r=s%60;return (h?h+':'+String(m).padStart(2,'0'):String(m))+':'+String(r).padStart(2,'0')}
  const open=(a:any)=>{if(a.newEpisodes){save(items.map(x=>x===a?{...x,newEpisodes:0}:x))}onOpen?.(a)}
- const resume=(r:any)=>{const nx=kind!=='Movie'&&r.pos?.done&&(r.info.n||0)<epCount(r.a);onResumeIntent?.(r.a,r.info.url,nx);open(r.a)}
+ const resume=(r:any)=>{const nx=kind!=='Movie'&&r.pos?.done&&(Number(r.info.pos)||r.info.n||0)<epCount(r.a);onResumeIntent?.(r.a,r.info.url,nx);open(r.a)}
  // "Up next": every title in progress with its next episode (or the one to finish).
  const upNext=kind==='Movie'?[]:items.map((a:any)=>{if(a.shelf==='dropped'||a===last?.a)return null;let info:any=null;try{info=JSON.parse(lsGet('lastEpInfo:'+String(a.id||a.url||a.name))||'null')}catch{}if(!info?.url)return null;const pos=readMediaPos(keyPrefix+(a.id||a.url||a.name)+':'+info.url),n=Number(info.n)||1,total=epCount(a)
-  if(pos?.done&&total&&n>=total)return null
-  return{a,info,pos,next:Boolean(pos?.done),n:pos?.done?n+1:n,left:pos&&!pos.done&&pos.d>0?Math.max(1,Math.round((pos.d-pos.t)/60)):0}}).filter(Boolean).sort((x:any,y:any)=>(y.info.at||0)-(x.info.at||0)).slice(0,10) as any[]
+  if(pos?.done&&total&&(Number(info.pos)||n)>=total)return null
+  return{a,info,pos,next:Boolean(pos?.done),n:pos?.done?(Number(info.next)||n+1):n,left:pos&&!pos.done&&pos.d>0?Math.max(1,Math.round((pos.d-pos.t)/60)):0}}).filter(Boolean).sort((x:any,y:any)=>(y.info.at||0)-(x.info.at||0)).slice(0,10) as any[]
  // "Check for new episodes": compare each title's episode count with its source.
  const[upd,setUpd]=useState<{running:boolean,done:number,total:number,found:number,failed:number,at:number}>({running:false,done:0,total:0,found:0,failed:0,at:0})
  const checkNew=async()=>{const list=items.filter((a:any)=>a.sourceId&&(a.url||a.path));if(!list.length)return;setUpd({running:true,done:0,total:list.length,found:0,failed:0,at:0});const r=await scanNewEpisodes(list,(done,found,failed)=>setUpd(u=>({...u,done,found,failed})));save(applyEpisodeCounts(items,r.counts));lsSet('lastEpisodeCheck',String(Date.now()));setUpd({running:false,done:r.done,total:list.length,found:r.found,failed:r.failed,at:Date.now()})}
@@ -65,7 +65,7 @@ export function MediaLibrary({kind,items,onChange,onOpen,onSearch,loading,onResu
  const restore=()=>{if(!undo)return;const next=[...items];next.splice(Math.min(undo.index,next.length),0,{...undo.item,addedAt:Date.now()});save(next);setUndo(null)}
  return <div className="media-page books-ui"><header><div><h1>{kind==='Anime'?t('Anime Library'):kind==='Series'?t('Series Library'):t('Movie Library')}</h1><p>{kind==='Anime'?plural(items.length,'{n} anime saved on this PC.','{n} anime saved on this PC.'):kind==='Series'?plural(items.length,'{n} series saved on this PC.','{n} series saved on this PC.'):plural(items.length,'{n} movie saved on this PC.','{n} movies saved on this PC.')}</p></div></header>
  {items.length===0?<EmptyState icon={kind==='Movie'?'film':kind==='Series'?'tv':'play'} title={t('Your library is empty')} text={t('Search a title, pick a result: it is saved here.')} action={t('Search a title')} onAction={onSearch}/>:<>
-  {last&&!q&&<section className="lib-resume" onClick={()=>resume(last)}><Cover src={mediaCover(last.a)} name={last.a.name||last.a.title||kind}/><div className="lib-resume-meta"><small>{t('Continue where you left off')} · {timeAgo(last.info.at)}</small><h2>{last.a.name||last.a.title}</h2><p>{[kind==='Movie'?'':(last.info.name||t('Episode {n}',{n:last.info.n})),last.pos&&!last.pos.done?t('stopped at {time}',{time:fmt(last.pos.t)}):last.pos?.done?t('finished'):''].filter(Boolean).join(' · ')}</p>{last.pos&&last.pos.d>0&&<div className="libbar"><span style={{width:Math.min(100,last.pos.t/last.pos.d*100)+'%'}}/></div>}</div><button className="primary" onClick={e=>{e.stopPropagation();resume(last)}}>{kind==='Movie'?t('Resume the movie'):last.pos?.done&&(last.info.n||0)<epCount(last.a)?t('Next · Ep. {n}',{n:(Number(last.info.n)||1)+1}):t('Continue · Ep. {n}',{n:last.info.n||1})}</button></section>}
+  {last&&!q&&<section className="lib-resume" onClick={()=>resume(last)}><Cover src={mediaCover(last.a)} name={last.a.name||last.a.title||kind}/><div className="lib-resume-meta"><small>{t('Continue where you left off')} · {timeAgo(last.info.at)}</small><h2>{last.a.name||last.a.title}</h2><p>{[kind==='Movie'?'':(last.info.name||t('Episode {n}',{n:last.info.n})),last.pos&&!last.pos.done?t('stopped at {time}',{time:fmt(last.pos.t)}):last.pos?.done?t('finished'):''].filter(Boolean).join(' · ')}</p>{last.pos&&last.pos.d>0&&<div className="libbar"><span style={{width:Math.min(100,last.pos.t/last.pos.d*100)+'%'}}/></div>}</div><button className="primary" onClick={e=>{e.stopPropagation();resume(last)}}>{kind==='Movie'?t('Resume the movie'):last.pos?.done&&(Number(last.info.pos)||last.info.n||0)<epCount(last.a)?t('Next · Ep. {n}',{n:Number(last.info.next)||(Number(last.info.n)||1)+1}):t('Continue · Ep. {n}',{n:last.info.n||1})}</button></section>}
   {upNext.length>0&&!q&&<section className="upnext"><h2>{t('Up next')}</h2><div className="upnext-row">{upNext.map((r:any)=><button key={String(r.a.id||r.a.url||r.a.name)} className="upnext-card" onClick={()=>{onResumeIntent?.(r.a,r.info.url,r.next);open(r.a)}} title={r.a.name||r.a.title}><Cover src={mediaCover(r.a)} name={r.a.name||r.a.title||kind}/><span className="upnext-meta"><b>{r.a.name||r.a.title}</b><small>{r.next?t('Next · Ep. {n}',{n:r.n}):t('Continue · Ep. {n}',{n:r.n})}{r.left?' · '+t('{n} min left',{n:r.left}):''}</small>{r.pos&&!r.pos.done&&r.pos.d>0&&<span className="libbar"><span style={{width:Math.min(100,r.pos.t/r.pos.d*100)+'%'}}/></span>}</span></button>)}</div></section>}
   {!q&&<WatchStats/>}
   <div className="shelftabs" role="tablist" aria-label={t('Shelves')}>{[{id:'all',label:t('All'),n:items.length},...VSHELVES.map(x=>({...x,n:counts[x.id]||0}))].map(x=><button key={x.id} role="tab" aria-selected={shelf===x.id} className={'shelftab'+(shelf===x.id?' on':'')} onClick={()=>{setShelf(x.id);lsSet('mediaShelf:'+kind,x.id)}}>{x.label} <small>{x.n}</small></button>)}</div>
@@ -114,9 +114,14 @@ export function EpisodeGrid({eps,prefix,mediaId,selected,disabled,onPlay,renderE
  const all=eps.map((ep,i)=>({ep,i}))
  // Seasons: chips to show one season (the one you are in by default), or all with a
  // heading per season. Order: first to last, or last to first (remembered).
- const seasons=[...new Set(eps.map(ep=>seasonNo(ep)))].sort((a,b)=>a-b)
+ const seasons=[...new Set(eps.map(ep=>seasonNo(ep)))].sort(seasonOrder)
+ // What a season is called: the name its source gives it ("Saison 1hs", "Kai"), "Films",
+ // or simply "Season 2". The films and specials listed beside the seasons are season 0.
+ const seasonLabel=(sn:number)=>{const ep=eps.find(e=>seasonNo(e)===sn);return ep?.season_films?t('Films'):ep?.season_name?plainName(ep.season_name):sn===0?t('Films and specials'):t('Season {n}',{n:sn})}
  const current=(()=>{const sel=selected?eps.indexOf(selected):-1;if(sel>=0)return seasonNo(eps[sel]);const next=all.find(x=>!posOf(x.ep,x.i)?.done);return next?seasonNo(next.ep):seasons[0]})()
- const[season,setSeason]=useState<number|'all'|null>(null)
+ // (The season chosen is the choice made for this title: another title starts on its own.)
+ const[pick,setPick]=useState<{id:string,season:number|'all'}|null>(null)
+ const season=pick&&pick.id===mediaId&&(pick.season==='all'||seasons.includes(pick.season))?pick.season:null,setSeason=(v:number|'all')=>setPick({id:mediaId,season:v})
  const[desc,setDesc]=useState(()=>lsGet('epOrder')==='desc')
  const shown=seasons.length>1?(season??current):'all'
  let list=all.filter(x=>shown==='all'||seasonNo(x.ep)===shown)
@@ -133,14 +138,14 @@ export function EpisodeGrid({eps,prefix,mediaId,selected,disabled,onPlay,renderE
  if(parts)list=parts[partNow]
  if(desc)list=[...list].reverse()
  const partLabel=(p:{ep:any,i:number}[])=>episodeNo(p[0].ep,p[0].i+1)+'–'+episodeNo(p[p.length-1].ep,p[p.length-1].i+1)
- const cellOf=(ep:any,i:number)=>{const label=ep.name||ep.title||t('Episode {n}',{n:episodeNo(ep,i+1)}),active=selected===ep,pos=posOf(ep,i),done=!!pos?.done,pct=!done&&pos&&pos.d>0?Math.min(100,pos.t/pos.d*100):0
-   return <div className="episodecell" key={(ep.url||ep.path||ep.name||'ep')+i}><button className={'episodecard'+(active?' active':'')+(done?' watched':'')} disabled={disabled} onClick={()=>onPlay(ep)}><span className={'episodebadge'+(String(episodeNo(ep,i+1)).length>3?' xlong':String(episodeNo(ep,i+1)).length>2?' long':'')}>S{seasonNo(ep)}<b>E{episodeNo(ep,i+1)}</b></span><span className="episodetitle">{label}</span><span className="episodeplay">{active?'▶':'▷'}</span>{pct>0&&<span className="episodeprog" style={{width:pct+'%'}}/>}</button>
+ const cellOf=(ep:any,i:number)=>{const label=plainName(ep.name||ep.title)||t('Episode {n}',{n:episodeNo(ep,i+1)}),active=selected===ep,pos=posOf(ep,i),done=!!pos?.done,pct=!done&&pos&&pos.d>0?Math.min(100,pos.t/pos.d*100):0
+   return <div className="episodecell" key={(ep.url||ep.path||ep.name||'ep')+i}><button className={'episodecard'+(active?' active':'')+(done?' watched':'')} disabled={disabled} onClick={()=>onPlay(ep)}><span className={'episodebadge'+(String(episodeNo(ep,i+1)).length>3?' xlong':String(episodeNo(ep,i+1)).length>2?' long':'')}>{seasonNo(ep)>0&&!seasonHasName(ep)&&'S'+seasonNo(ep)}<b>E{episodeNo(ep,i+1)}</b></span><span className="episodetitle">{label}</span><span className="episodeplay">{active?'▶':'▷'}</span>{pct>0&&<span className="episodeprog" style={{width:pct+'%'}}/>}</button>
     <button className={'ep-watch'+(done?' on':'')} aria-pressed={done} title={done?t('Mark as unwatched'):t('Mark as watched (and the previous ones with Shift)')} aria-label={done?t('Mark as unwatched'):t('Mark as watched')} onClick={e=>setWatched(e.shiftKey&&!done?all.slice(0,i+1):[{ep,i}],!done)}>{done?'✓':''}</button>{renderExtra?.(ep,i)}</div>}
  const rows:any[]=[];let lastS:number|null=null
- for(const{ep,i}of list){const sn=seasonNo(ep);if(shown==='all'&&seasons.length>1&&sn!==lastS){rows.push(<h3 className="season-head" key={'s'+sn}>{t('Season {n}',{n:sn})}</h3>);lastS=sn}rows.push(cellOf(ep,i))}
+ for(const{ep,i}of list){const sn=seasonNo(ep);if(shown==='all'&&seasons.length>1&&sn!==lastS){rows.push(<h3 className="season-head" key={'s'+sn}>{seasonLabel(sn)}</h3>);lastS=sn}rows.push(cellOf(ep,i))}
  return <>
   <div className="episode-tools"><small>{t('{n} / {total} watched',{n:watched,total:eps.length})}</small>{eps.length>1&&<button onClick={()=>{const d=!desc;setDesc(d);lsSet('epOrder',d?'desc':'asc')}} title={t('Order of the episodes')}>{desc?'↓ '+t('Last to first'):'↑ '+t('First to last')}</button>}{eps.length>0&&<button onClick={()=>setWatched(all,watched<eps.length)}>{watched<eps.length?t('Mark all as watched'):t('Mark all as unwatched')}</button>}</div>
-  {seasons.length>1&&<div className="season-chips" role="tablist" aria-label={t('Seasons')}>{seasons.map(sn=><button key={sn} role="tab" aria-selected={shown===sn} className={'chip'+(shown===sn?' on':'')} onClick={()=>setSeason(sn)}>{t('Season {n}',{n:sn})} <small>{eps.filter(ep=>seasonNo(ep)===sn).length}</small></button>)}<button role="tab" aria-selected={shown==='all'} className={'chip'+(shown==='all'?' on':'')} onClick={()=>setSeason('all')}>{t('All seasons')}</button></div>}
+  {seasons.length>1&&<div className="season-chips" role="tablist" aria-label={t('Seasons')}>{seasons.map(sn=><button key={sn} role="tab" aria-selected={shown===sn} className={'chip'+(shown===sn?' on':'')} onClick={()=>setSeason(sn)}>{seasonLabel(sn)} <small>{eps.filter(ep=>seasonNo(ep)===sn).length}</small></button>)}<button role="tab" aria-selected={shown==='all'} className={'chip'+(shown==='all'?' on':'')} onClick={()=>setSeason('all')}>{t('All seasons')}</button></div>}
   {parts&&<div className="season-chips ep-parts" role="tablist" aria-label={t('Episodes')} ref={partsRow}>{(desc?parts.map((p,k)=>[p,k] as const).reverse():parts.map((p,k)=>[p,k] as const)).map(([p,k])=><button key={k} role="tab" aria-selected={partNow===k} className={'chip'+(partNow===k?' on':'')} onClick={()=>setPart(k)}>{partLabel(p)}</button>)}</div>}
   <div className="episodegrid">{rows}</div>
  </>
@@ -388,7 +393,7 @@ export async function findOnOtherSources(kind:MediaKind,title:string,known:AltSo
   for(const{a,score}of ranked){
    // Checked against the title's details: the year, and film or series (episode count).
    const url=a.url||a.path
-   const[det,eps]=await Promise.all([engineFetch('/api/v1/anime/'+sid+'/details?url='+encodeURIComponent(url)).catch(()=>null),engineFetch('/api/v1/anime/'+sid+'/episodes?url='+encodeURIComponent(url)).then((e:any)=>Array.isArray(e)?e:(e?.episodes||e?.items||e?.list||[])).catch(()=>null)])
+   const[det,eps]=await Promise.all([fetchDetails(src.id,url,a.title||a.name).catch(()=>null),fetchEpisodes(src.id,url,{title:a.title||a.name}).catch(()=>null)])
    const gotYear=yearOf(a.year,det?.year,det?.releaseDate,det?.release_date,a.title,a.name,det?.title,det?.description)
    if(want.year&&gotYear&&Math.abs(want.year-gotYear)>1)continue
    const n=Array.isArray(eps)?eps.length:undefined

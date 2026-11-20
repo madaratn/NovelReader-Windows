@@ -25,7 +25,7 @@ export async function anilistOnWatched(key:string,library:any[],save:(items:any[
  const st:AniListStatus=await nr().anilistStatus();if(!st.connected)return
  const item=library.find(a=>key.startsWith('anime:'+String(a.id||a.url||a.name)+':'));if(!item)return
  let info:any=null;try{info=JSON.parse(lsGet('lastEpInfo:'+String(item.id||item.url||item.name))||'null')}catch{}
- const n=Number(info?.n)||0;if(!n||!key.endsWith(':'+info.url))return
+ const n=Number(info?.track??info?.n)||0;if(!n||!key.endsWith(':'+info.url))return
  try{
   let id=Number(item.anilistId)||0,name=item.anilistTitle||''
   if(!id){const m=await matchAniList(item.name||item.title||'');if(!m){note(t('AniList: no match for {title}',{title:item.name||''}),false);return}id=m.id;name=m.title?.english||m.title?.romaji||'';save(library.map(a=>a===item?{...a,anilistId:id,anilistTitle:name}:a))}

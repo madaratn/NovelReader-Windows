@@ -13,6 +13,10 @@
    copied Content-Length header, so the player saw a stream of unknown size and
    could not jump ahead), and when a video server ignores the requested byte
    range, the proxy skips to the requested place itself and answers 206.
+6. The title of an anime is given to the source with its address (&title=): the
+   routes built an anime from the address alone, and sources that read its title
+   failed with "lateinit property title has not been initialized" (Torrentio
+   Anime for the details; AniLab, Bingr, Fullraces for the episodes).
 Usage: python v16_compat.py <miwayomi source root>
 """
 import sys
@@ -280,4 +284,16 @@ r = r.replace(old, """            val status = if (response.code == 206) HttpSta
             call.proxyStream(response, contentType, status, range)
         }""", 1)
 routes.write_text(r)
+
+# 6. The title goes with the address; details that come back without one keep it.
+edit("server/src/main/kotlin/miwayomi/api/AnimeRoutes.kt",
+     "            val anime = SAnime.create().also { it.url = url }\n",
+     "            val anime = SAnime.create().also { it.url = url; it.title = call.request.queryParameters[\"title\"].orEmpty() }\n",
+     "title given to the source", count=-1)
+edit("server/src/main/kotlin/miwayomi/api/AnimeRoutes.kt",
+     "            if (runCatching { res.url }.getOrNull().isNullOrBlank()) res.url = url\n",
+     "            if (runCatching { res.url }.getOrNull().isNullOrBlank()) res.url = url\n"
+     "            if (runCatching { res.title }.getOrNull() == null) res.title = anime.title\n",
+     "details without a title")
+
 print("v16 compatibility patches applied")
