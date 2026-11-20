@@ -84,6 +84,12 @@ jobs:
           SHARD: ${{ inputs.shard || '1/1' }}
           QUERIES: ${{ inputs.query || '' }}
         run: node scripts/episode-names.mjs ${{ inputs.repos || 'https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json https://raw.githubusercontent.com/salmanbappi/extensions-repo/main/index.min.json https://raw.githubusercontent.com/msrofficial/anime-repo/repo/index.min.json' }}
+      # The whole result in the log (compressed), readable where artifacts are not.
+      - name: Episode names (data)
+        if: ${{ always() && inputs.names }}
+        run: |
+          ls -la episode-names.json
+          gzip -9 -c episode-names.json | base64 -w 200 | sed 's/^/NAMESB64:/'
       - name: Scan
         if: ${{ !inputs.names }}
         env:
