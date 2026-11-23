@@ -38,7 +38,7 @@ export function posNow(s:SyncState,c:Clock):number{
  return s.time+(Math.max(0,c.now-c.recvAt)/1000+0.25)*rate
 }
 
-export const DRIFT={ok:0.03,start:0.08,max:0.06,min:0.015,gain:0.3,hard:1}
+export const DRIFT={ok:0.03,start:0.08,max:0.06,min:0.02,gain:0.5,hard:1}
 /** What a player does about its gap with the group (gap = where it should be − where it is, in
  * seconds; positive = it is late). Small gaps are left alone; then the speed changes by a few
  * percent until the gap is closed (`correcting` = it was already doing so); a big gap is a jump. */

@@ -1,5 +1,6 @@
 import { test, expect, BrowserContext } from '@playwright/test'
 import { setup } from './helpers'
+import { pc as partyPc, series, start, join, openEpisode, video } from './party-helpers'
 
 // Real connection through the public PeerJS server (needs internet): run with LIVE_PEER=1.
 test.skip(!process.env.LIVE_PEER, 'needs internet (LIVE_PEER=1)')
@@ -42,4 +43,34 @@ test('live watch party over PeerJS: create, join, chat both ways', async ({ brow
   await expect.poll(() => live(b), { timeout: 30_000 }).toBe(true)
   await a.getByRole('button', { name: 'End the watch party' }).click()
   await expect(b.locator('.wp-error')).toHaveText('The host closed the watch party.', { timeout: 15_000 })
+})
+
+// The stream of a friend's video over the real connection: the call is made through
+// PeerJS itself (its options for the film's sound, swapping tracks on its connection).
+test('live watch party over PeerJS: a friend without the source watches the host\'s video (picture, sound, pause)', async ({ browser }) => {
+  test.setTimeout(150_000)
+  const ca = await browser.newContext(), cb = await browser.newContext()
+  const a = await partyPc(ca, [series(1, 'Lanterns')], { real: true })
+  const b = await partyPc(cb, [], { real: true, sources: [] })
+  const code = await start(a)
+  await join(b, 'Sara', code)
+  await expect(a.locator('.wp-member')).toHaveText(['Ali (you)', 'Sara'], { timeout: 30_000 })
+  await openEpisode(a)
+  // (The button comes once Sara knows Ali has the video: a few seconds over the network.)
+  await b.locator('.wp-missing').getByRole('button', { name: 'Watch the stream of Ali' }).click({ timeout: 30_000 })
+  await expect(b.locator('.party-theater')).toBeVisible()
+  await expect.poll(() => b.locator('.pt-video').evaluate((v: HTMLVideoElement) => v.videoWidth), { timeout: 45_000 }).toBe(320)
+  const frames = () => b.evaluate(async () => (await (window as any).__nrParty.viewStats())?.inFrames || 0)
+  const f0 = await frames()
+  await expect.poll(frames, { timeout: 15_000 }).toBeGreaterThan(f0 + 10)
+  // The film's sound arrives with the picture
+  const sound = () => b.locator('.pt-video').evaluate((v: HTMLVideoElement) => { const st = v.srcObject as MediaStream | null; return !!st && st.getAudioTracks().some(t => t.readyState === 'live') })
+  await expect.poll(sound, { timeout: 15_000 }).toBe(true)
+  // Sara pauses from her screen: Ali's player stops
+  await b.locator('.pt-stage').hover({ position: { x: 300, y: 300 } })
+  await b.locator('.pt-bar').getByRole('button', { name: 'Pause' }).click()
+  await expect.poll(() => video(a).evaluate((v: HTMLVideoElement) => v.paused), { timeout: 15_000 }).toBe(true)
+  await expect(a.locator('.wp-stream')).toHaveText('Sara is watching your video.')
+  // In step with the host's clock over the real connection
+  expect(await b.evaluate(() => (window as any).__nrParty.snap.synced)).toBe(true)
 })

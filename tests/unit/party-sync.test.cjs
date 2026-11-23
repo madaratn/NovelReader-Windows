@@ -67,14 +67,15 @@ test('drift: nothing for a tiny gap, a few percent of speed, a jump when far', (
   assert.deepEqual(driftFix(0.02, false), { jump: false, factor: 1 })
   assert.deepEqual(driftFix(0.06, false), { jump: false, factor: 1 }) // not started yet
   // Late by 0.1 s: a little faster.
-  let f = driftFix(0.1, false); assert.equal(f.jump, false); near(f.factor, 1.03)
+  let f = driftFix(0.1, false); assert.equal(f.jump, false); near(f.factor, 1.05)
   // Early by 0.1 s: a little slower.
-  f = driftFix(-0.1, false); near(f.factor, 0.97)
+  f = driftFix(-0.1, false); near(f.factor, 0.95)
   // Never more than 6 %.
   near(driftFix(0.6, false).factor, 1 + DRIFT.max)
   near(driftFix(-0.9, false).factor, 1 - DRIFT.max)
   // Once correcting, it goes on until the gap is really small.
-  near(driftFix(0.05, true).factor, 1 + DRIFT.min)
+  near(driftFix(0.035, true).factor, 1 + DRIFT.min)
+  near(driftFix(0.05, true).factor, 1.025)
   assert.equal(driftFix(0.02, true).factor, 1)
   // Far off: jump.
   assert.deepEqual(driftFix(1.2, true), { jump: true, factor: 1 })
@@ -87,7 +88,7 @@ test('drift: following the rule closes a half second gap in a few seconds', () =
   let gap = 0.5, correcting = false, t = 0
   while (t < 30) { const f = driftFix(gap, correcting); if (f.factor === 1) break; correcting = true; gap -= (f.factor - 1) * 0.25; t += 0.25 }
   assert.ok(Math.abs(gap) < DRIFT.ok + 1e-9, 'gap left: ' + gap)
-  assert.ok(t > 5 && t < 15, 'took ' + t + ' s')
+  assert.ok(t > 5 && t < 11, 'took ' + t + ' s')
 })
 
 test('what someone did: said by recent versions, read from the difference otherwise', () => {

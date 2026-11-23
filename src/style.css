@@ -849,14 +849,28 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
 .wp-or{text-align:center;color:var(--text-3);font-size:var(--fs-xs)}
 .wp-join,.wp-say{display:flex;gap:8px}.wp-join input{text-transform:uppercase;letter-spacing:.2em;font-weight:700}
 .wp-error{margin:0;color:var(--text-danger)}
-.wp-code{display:flex;align-items:center;gap:10px;padding:6px 6px 6px 12px;border:1px dashed var(--line-accent-strong);border-radius:var(--radius-md)}
-.wp-code span{color:var(--text-3)}.wp-code b{flex:1;font-size:var(--fs-2xl);letter-spacing:.25em;color:var(--text-accent)}
+.wp-share{display:flex;align-items:stretch;gap:6px}
+.wp-code{flex:1;min-width:0;display:flex;align-items:center;gap:4px;padding:2px 2px 2px 12px;border:1px dashed var(--line-accent-strong);border-radius:var(--radius-md)}
+.wp-code b{flex:1;min-width:0;font-size:var(--fs-xl);letter-spacing:.2em;color:var(--text-accent);white-space:nowrap}
+.wp-panel .wp-ico{flex:none;width:34px;min-width:34px;height:34px;padding:0;border:0;background:none;color:var(--text-2)}
+.wp-panel .wp-ico .icon{width:18px;height:18px}
+.wp-copied{color:var(--text-ok);font-size:var(--fs-xs);line-height:1.35}
+.wp-missing-actions{display:flex;flex-wrap:wrap;gap:8px}
 .wp-now{flex:none;padding:8px 10px;border-radius:var(--radius-sm);background:var(--bg-raised);color:var(--text);min-width:0}.wp-now.muted{color:var(--text-3)}
 .wp-chat{display:flex;flex-direction:column;gap:6px;flex:1 1 0;min-height:96px;overflow:auto;padding:8px;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--bg-sunken)}
 /* Phone: a sheet across the bottom of the screen, above the menu bar instead of over it. */
 .app.phone .wp-panel{left:8px;right:8px;width:auto;bottom:calc(76px + env(safe-area-inset-bottom));max-height:calc(100vh - 150px - env(safe-area-inset-bottom))}
 .app.phone .wp-panel.live{height:calc(100vh - 150px - env(safe-area-inset-bottom))}
 .app.phone.immersive .wp-panel{bottom:calc(12px + env(safe-area-inset-bottom))}
+/* On a phone every control of the party is a finger wide and high. */
+.app.phone .wp-panel button,.app.phone .wp-panel select,.app.phone .wp-panel input:not([type=checkbox]):not([type=range]){min-height:44px}
+.app.phone .wp-panel .wp-x,.app.phone .wp-panel .wp-more,.app.phone .wp-panel .wp-qr-btn,.app.phone .wp-panel .wp-recent-x,.app.phone .wp-panel .wp-ico{width:44px;min-width:44px;height:44px}
+.app.phone .wp-panel button.wp-link{min-width:44px;padding:0 4px}
+.app.phone .wp-person-row{min-height:44px}
+.app.phone .wp-panel .wp-check{min-height:44px}
+.app.phone .pt-btn,.app.phone .pt-close{width:44px;height:44px}
+.app.phone .po-bar button{width:44px;height:44px}
+.app.phone .pt-veil button,.app.phone .pt-sound{min-height:44px}
 .wp-say{flex:none}.wp-say input{flex:1;min-width:0}
 .wp-leaves{flex:none}
 .wp-msg{line-height:1.4;word-break:break-word}.wp-msg b{color:var(--text-accent-strong)}.wp-msg.mine b{color:#3fb37f}.wp-msg.system{color:var(--text-3);font-size:var(--fs-xs);font-style:italic}
@@ -892,13 +906,12 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
 .wp-person-more .wp-vol{align-self:stretch}
 .wp-person-more button{min-height:30px}
 .wp-tools{display:flex;gap:6px}
-.wp-panel .wp-tool{flex:1 1 0;min-width:0;flex-direction:column;gap:3px;min-height:52px;padding:6px 4px;font-size:var(--fs-xs);font-weight:600;line-height:1.1;color:var(--text-2)}
+.wp-panel .wp-tool{flex:1 1 0;min-width:0;flex-direction:column;gap:3px;min-height:52px;padding:6px 2px;font-size:var(--fs-xs);font-weight:600;line-height:1.1;color:var(--text-2)}
 .wp-panel .wp-tool .icon{width:20px;height:20px}
 .wp-panel .wp-tool>span:last-child{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wp-panel .wp-tool .spinner{width:16px;height:16px;margin:2px 0}
 .wp-panel .wp-tool.on{border-color:var(--line-ok);background:var(--bg-ok);color:var(--text-ok)}
 .wp-panel .wp-tool.on.off,.wp-panel .wp-tool.leave{border-color:var(--line-danger);background:var(--bg-danger);color:var(--text-danger)}
-.wp-panel .wp-tool.leave{flex:0 1 72px}
 .wp-select{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--text-2);font-size:var(--fs-sm)}
 .wp-select>span{display:inline-flex;align-items:center;gap:6px;min-width:0}
 .wp-select select{flex:none;max-width:52%;min-height:32px;padding:0 8px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--bg-raised);color:var(--text);font:inherit;font-size:var(--fs-sm)}
@@ -932,7 +945,7 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
 .scan-badge{display:inline-grid;place-items:center;width:16px;height:16px;margin-right:6px;border-radius:50%;font-size:var(--fs-2xs);font-weight:800;vertical-align:1px}
 .scan-badge.ok{background:#1f5c43;color:var(--text-ok)}.scan-badge.partial{background:#5c451f;color:var(--text-warn)}.scan-badge.dead{background:var(--bg-danger);color:var(--text-danger)}
 .scan-line{display:block;font-size:var(--fs-xs)}.scan-line.ok{color:var(--text-ok)}.scan-line.partial{color:var(--text-warn)}.scan-line.dead{color:var(--text-danger)}
-.wp-invite{width:100%}
+.wp-panel .wp-invite{flex:none;min-height:40px}
 .sub-translate{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
 .sub-auto{display:flex;align-items:center;gap:6px;font-size:var(--fs-sm);color:var(--text-2)}
 .sub-err{color:var(--text-danger)}
@@ -957,7 +970,7 @@ html.tv-mode .resultcard:focus-within,html.tv-mode .libcard:focus-within,html.tv
    leaves it in place, greyed out, which looks broken: it is taken away. */
 video[controlslist~="nofullscreen"]::-webkit-media-controls-fullscreen-button{display:none}
 .media-fs-name{display:none}
-.media-player-top:fullscreen,.player-stage{color-scheme:dark;--focus:#b3a8ff;--accent:#8b7cff;--text-2:#b4b9c8;--text-3:#adb2c3;--bg-page:#090a0d;--bg-sunken:#0d1016;--bg-surface:#11141b;--bg-raised:#161a24;--bg-active:#1d2130;--bg-strong:#2b3040;--bg-accent:#523bcd;--bg-accent-bright:#8b7cff;--bg-accent-soft:#201c3d;--bg-ok:#173025;--bg-ok-solid:#3fb37f;--bg-danger:#2a171c;--bg-danger-solid:#d9545f;--bg-warn:#231d12;--bg-info:#132033;--text-strong:#ffffff;--text:#e6e8ef;--text-accent:#b8afff;--text-accent-strong:#b0a8ff;--text-ok:#86d9ab;--text-danger:#f4a0aa;--text-warn:#f2c879;--text-info:#9cc7f5;--line:#262b3a;--line-strong:#353b50;--line-accent:#6258c4;--line-accent-dim:#3d3578;--line-accent-solid:#523bcd;--line-accent-strong:#8b7cff;--line-ok:#3d765b;--line-danger:#8a4552;--line-warn:#5a4a24;--line-info:#355078}
+.media-player-top:fullscreen,.player-stage,.pt-stage{color-scheme:dark;--focus:#b3a8ff;--accent:#8b7cff;--text-2:#b4b9c8;--text-3:#adb2c3;--bg-page:#090a0d;--bg-sunken:#0d1016;--bg-surface:#11141b;--bg-raised:#161a24;--bg-active:#1d2130;--bg-strong:#2b3040;--bg-accent:#523bcd;--bg-accent-bright:#8b7cff;--bg-accent-soft:#201c3d;--bg-ok:#173025;--bg-ok-solid:#3fb37f;--bg-danger:#2a171c;--bg-danger-solid:#d9545f;--bg-warn:#231d12;--bg-info:#132033;--text-strong:#ffffff;--text:#e6e8ef;--text-accent:#b8afff;--text-accent-strong:#b0a8ff;--text-ok:#86d9ab;--text-danger:#f4a0aa;--text-warn:#f2c879;--text-info:#9cc7f5;--line:#262b3a;--line-strong:#353b50;--line-accent:#6258c4;--line-accent-dim:#3d3578;--line-accent-solid:#523bcd;--line-accent-strong:#8b7cff;--line-ok:#3d765b;--line-danger:#8a4552;--line-warn:#5a4a24;--line-info:#355078}
 .media-player-top:fullscreen{position:relative;width:100vw;height:100vh;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;overflow:hidden;background:#000!important;color:#e6e8ef!important;box-shadow:none!important}
 .media-player-top:fullscreen .media-fs-name{display:inline}
 .media-player-top:fullscreen .media-player-title{position:absolute;z-index:7;top:0;left:0;right:0;margin:0;padding:14px 20px 0;align-items:baseline;flex-direction:row;pointer-events:none;transition:opacity .25s var(--ease)}
@@ -985,6 +998,10 @@ video[controlslist~="nofullscreen"]::-webkit-media-controls-fullscreen-button{di
 .party-overlay.full .po-bar{left:auto;top:auto;right:16px;bottom:72px}
 .po-bar button{position:relative;width:34px;height:34px;padding:0;border:0;border-radius:50%;background:none;font-size:var(--fs-xl);line-height:1;cursor:pointer}
 .po-bar button:hover{background:rgba(255,255,255,.14)}
+.po-bar .po-emo.on{background:rgba(255,255,255,.2)}
+.po-emos{position:absolute;left:0;top:calc(100% + 6px);display:flex;gap:2px;padding:4px;border-radius:999px;background:rgba(10,12,18,.84)}
+.party-theater .po-emos,.party-overlay.full .po-emos{top:auto;bottom:calc(100% + 6px)}
+.party-overlay.full .po-emos{left:auto;right:0}
 .po-badge{position:absolute;top:-2px;right:-2px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--bg-danger-solid);color:var(--on-accent);font-size:var(--fs-2xs);font-weight:700;line-height:16px}
 .po-flies{position:absolute;inset:0}
 .po-fly{position:absolute;bottom:70px;display:flex;flex-direction:column;align-items:center;font-size:var(--fs-4xl);animation:po-up 3.2s ease-out forwards;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
@@ -1043,7 +1060,6 @@ video[controlslist~="nofullscreen"]::-webkit-media-controls-fullscreen-button{di
 .pt-seek:disabled{cursor:default;opacity:.6}
 .pt-seek:focus-visible,.pt-vol:focus-visible,.pt-btn:focus-visible,.pt-close:focus-visible{outline:2px solid var(--focus);outline-offset:4px}
 .pt-cue{position:absolute;left:8%;right:8%;bottom:78px;z-index:4;display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:none;transition:bottom .2s}
-.pt-stage.idle .pt-cue{bottom:30px}
 .pt-cue span{padding:2px 10px;border-radius:4px;background:rgba(0,0,0,.6);color:#fff;font-size:clamp(16px,2.6vw,30px);line-height:1.3;text-align:center;text-shadow:0 1px 2px #000}
 .pt-veil{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;background:rgba(0,0,0,.62);color:#fff;text-align:center}
 .pt-veil p{margin:0;max-width:520px;font-size:var(--fs-lg);line-height:1.4}
@@ -1057,6 +1073,8 @@ video[controlslist~="nofullscreen"]::-webkit-media-controls-fullscreen-button{di
 .pt-stage.idle .po-bar{opacity:0}
 .party-theater .po-toast,.party-theater .po-voices{top:66px}
 .party-theater .po-chat{bottom:124px}
+/* On a wide window the picture stands beside the party's panel instead of under it. */
+@media (min-width:1000px){body.party-panel-open .party-theater:not(:has(.pt-stage.full)){padding-right:376px}}
 @media (max-width:640px){.pt-vol{display:none}.pt-bar{gap:6px;padding-left:10px;padding-right:10px}.pt-top{padding-left:12px;padding-right:12px}}
 .result-langs{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}.lang-tag{padding:1px 8px;border-radius:999px;background:var(--bg-active);border:1px solid var(--line);color:var(--text-2);font-size:var(--fs-2xs)}
 

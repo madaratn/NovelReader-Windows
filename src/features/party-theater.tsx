@@ -17,6 +17,13 @@ export function PartyTheater(){
  const vref=useRef<HTMLVideoElement>(null),stageRef=useRef<HTMLDivElement>(null)
  const[,tick]=useState(0),[muted,setMuted]=useState(false),[vol,setVol]=useState(savedVolume),[tap,setTap]=useState(false),[drag,setDrag]=useState<number|null>(null),[idle,setIdle]=useState(false),[size,setSize]=useState(''),[full,setFull]=useState(false),[pictures,setPictures]=useState(false)
  const stream=view?.stream||null
+ // Where the picture is inside the screen (black bands above and below on a phone held
+ // upright): the subtitle line sits on the picture, above the bars when they show.
+ const[box,setBox]=useState({w:0,h:0,ar:16/9})
+ useEffect(()=>{const el=stageRef.current,v=vref.current;if(!on||!el||!v)return
+  const f=()=>setBox({w:el.clientWidth,h:el.clientHeight,ar:v.videoWidth&&v.videoHeight?v.videoWidth/v.videoHeight:16/9})
+  f();const ro=typeof ResizeObserver!=='undefined'?new ResizeObserver(f):null;ro?.observe(el);v.addEventListener('resize',f);v.addEventListener('loadedmetadata',f)
+  return()=>{ro?.disconnect();v.removeEventListener('resize',f);v.removeEventListener('loadedmetadata',f)}},[on])
  // The picture and the sound. A browser may refuse sound before the first click: it starts silent and says so.
  useEffect(()=>{const v=vref.current;if(!v)return;if(v.srcObject!==stream)v.srcObject=stream;setPictures(false);if(!stream)return
   v.muted=muted;v.volume=vol
@@ -63,11 +70,14 @@ export function PartyTheater(){
  const st=snap.state,name=snap.members.find(m=>m.id===view.id)?.name||t('Guest')
  const dur=st?.dur&&Number.isFinite(st.dur)&&st.dur>0?st.dur:0,pos=drag??Math.min(dur||Infinity,now()),can=party.canControl()&&!!st?.media
  const theirs=snap.presence[view.id],waiting=view.state==='on'&&(!pictures||(!!theirs&&!theirs.can))
+ const picH=box.w&&box.h?Math.min(box.h,box.w/box.ar):0,band=picH?(box.h-picH)/2:0
+ // (Bars showing: 78 px for the controls, and the reactions above them where the screen is narrow.)
+ const cueBottom=Math.round(Math.max(band+picH*0.04,idle?30:box.w&&box.w<900?134:78))
  const title=st?.media?st.media.name+(st.episodeName&&st.media.kind!=='movie'?' · '+st.episodeName:''):''
  return <div className="party-theater" role="dialog" aria-label={t('Stream of {name}',{name})}>
   <div className={'pt-stage'+(idle?' idle':'')+(full?' full':'')} ref={stageRef}>
    <video className="pt-video" ref={vref} autoPlay playsInline onPlaying={()=>setPictures(true)} onLoadedData={()=>setPictures(true)}/>
-   {snap.cue&&view.state==='on'&&<div className="pt-cue" aria-live="off">{snap.cue.split('\n').map((l,i)=><span key={i}>{l}</span>)}</div>}
+   {snap.cue&&view.state==='on'&&<div className="pt-cue" aria-live="off" style={{bottom:cueBottom}}>{snap.cue.split('\n').map((l,i)=><span key={i}>{l}</span>)}</div>}
    {(view.state!=='on'||waiting)&&<div className="pt-veil" role="status">
     {view.state==='error'?<><p>{view.error}</p><div className="pt-veil-actions"><button className="primary" onClick={()=>party.watch(view.id)}>{t('Try again')}</button><button onClick={close}>{t('Close')}</button></div></>
      :<><span className="spinner" aria-hidden="true"/><p>{view.state==='asking'?t('Connecting to the stream of {name}…',{name}):theirs&&!theirs.can?t('Waiting for the video of {name}…',{name}):t('The picture is coming…')}</p></>}

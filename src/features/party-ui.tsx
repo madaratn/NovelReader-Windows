@@ -4,7 +4,7 @@
 // The logic (connection, clock, calls) is in watch-party.tsx.
 import React,{useEffect,useRef,useState}from'react'
 import{createPortal}from'react-dom'
-import{t,plural}from'../i18n'
+import{t,plural,getLang}from'../i18n'
 import{lsGet,lsSet}from'../lib/util'
 import{Icon}from'../ui/common'
 import{QrCode}from'./qr'
@@ -78,7 +78,7 @@ function MicPicker(){
  if(list.length<2)return null
  return <label className="wp-select"><span><Icon name="mic" inline/>{t('Microphone')}</span><select value={list.some(x=>x.deviceId===cur)?cur:''} onChange={e=>{setCur(e.target.value);party.setMic(e.target.value)}}><option value="">{t('System default')}</option>{list.map((d,i)=><option key={d.deviceId} value={d.deviceId}>{d.label||t('Microphone {n}',{n:i+1})}</option>)}</select></label>
 }
-const hhmm=(at:number)=>{try{return new Date(at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}catch{return''}}
+const hhmm=(at:number)=>{try{return new Date(at).toLocaleTimeString(getLang()==='fr'?'fr-FR':[],{hour:'2-digit',minute:'2-digit'})}catch{return''}}
 
 export function WatchPartyPanel(){
  const[hideCams,setHideCams]=useHideCams()
@@ -89,7 +89,11 @@ export function WatchPartyPanel(){
  useEffect(()=>{const nr:any=window.novelReader;const handle=(url:string)=>{const m=/^novelreader:\/\/party\/([A-Z0-9]{6})/i.exec(String(url||''));if(!m)return;const c=m[1].toUpperCase();setCode(c);setOpen(true);if(party.snap.status==='ready'&&party.snap.code===c)return;if(partyName())party.join(c);else setTimeout(()=>(document.querySelector('.wp-field input') as HTMLInputElement|null)?.focus(),50)};nr?.takeDeepLink?.().then(handle).catch(()=>{});return nr?.onDeepLink?.(handle)},[])
  useEffect(()=>{const f=()=>setOpen(true);window.addEventListener('nr-party-open',f);return()=>window.removeEventListener('nr-party-open',f)},[])
  useEffect(()=>{party.panelOpen=open;if(open)party.seen()},[open])
+ // (The screen of a watched stream leaves room for this panel on a wide window.)
+ useEffect(()=>{document.body.classList.toggle('party-panel-open',open);return()=>document.body.classList.remove('party-panel-open')},[open])
  useEffect(()=>{chatRef.current?.scrollTo({top:1e9})},[snap.chat.length,snap.typing.length,open])
+ // The chat keeps its last line in sight when what is above it grows or shrinks (a person's options, the QR code).
+ useEffect(()=>{const el=chatRef.current;if(!el||typeof ResizeObserver==='undefined')return;const ro=new ResizeObserver(()=>el.scrollTo({top:1e9}));ro.observe(el);return()=>ro.disconnect()},[open,snap.status,opts])
  // (The words next to each name follow the players: looked at again every second.)
  useEffect(()=>{if(!open||snap.status!=='ready')return;const iv=setInterval(()=>tick(x=>x+1),1000);return()=>clearInterval(iv)},[open,snap.status])
  useEffect(()=>{if(snap.status!=='ready'){setOpts(false);setQr('');setWho('')}},[snap.status])
@@ -131,14 +135,21 @@ export function WatchPartyPanel(){
     </div>:<>
     {/* What is set once stays on top and scrolls if it must; the chat takes the rest and the message field stays in sight. */}
     <div className="wp-top">
-    <div className="wp-code"><span>{t('Code')}</span><b>{snap.code}</b><button onClick={()=>{navigator.clipboard?.writeText(snap.code).catch(()=>{});setCopied(true);setTimeout(()=>setCopied(false),2000)}}>{copied?'✓':t('Copy')}</button><button className={'wp-qr-btn'+(qr?' on':'')} aria-label={t('QR code for a phone')} title={t('QR code for a phone')} aria-pressed={!!qr} onClick={toggleQr}><Icon name="qr"/></button></div>
+    {/* The code, the invitation and its QR code on one row. */}
+    <div className="wp-share">
+     <div className="wp-code" title={t('Code of the watch party')}><b aria-label={t('Code')+' '+snap.code}>{snap.code}</b><button className="wp-ico" aria-label={t('Copy the code')} title={t('Copy the code')} onClick={()=>{navigator.clipboard?.writeText(snap.code).catch(()=>{});setCopied(true);setTimeout(()=>setCopied(false),2000)}}>{copied?'✓':<Icon name="copy"/>}</button></div>
+     <button className="wp-invite" aria-label={t('Copy an invitation link')} title={t('Copy an invitation link')} onClick={async()=>{const text=await inviteText(snap.code);navigator.clipboard?.writeText(text).catch(()=>{});(window as any).__lastInvite=text;setInvited(true);setTimeout(()=>setInvited(false),3000)}}><Icon name="link" inline/>{t('Invite')}</button>
+     <button className={'wp-qr-btn'+(qr?' on':'')} aria-label={t('QR code for a phone')} title={t('QR code for a phone')} aria-pressed={!!qr} onClick={toggleQr}><Icon name="qr"/></button>
+    </div>
+    {invited&&<div className="wp-copied" role="status">{'✓ '+t('Invitation copied: paste it in Discord, WhatsApp…')}</div>}
     {qr&&<div className="wp-qr"><QrCode text={qr} size={132} label={t('QR code of the invitation')}/><span>{t('Scan it with the phone: the invitation opens and NovelReader joins the party.')}</span></div>}
-    <button className="wp-invite" onClick={async()=>{const text=await inviteText(snap.code);navigator.clipboard?.writeText(text).catch(()=>{});(window as any).__lastInvite=text;setInvited(true);setTimeout(()=>setInvited(false),3000)}}>{invited?'✓ '+t('Invitation copied: paste it in Discord, WhatsApp…'):<><Icon name="link" inline/>{t('Copy an invitation link')}</>}</button>
+    {/* What this person needs first: they do not have the video (watch a friend's, or install the source). */}
+    {snap.missing&&!snap.view&&<div className="wp-missing" role="status"><p>{t('You do not have the source "{name}". NovelReader looks for the same episode in your other sources.',{name:snap.missing.sourceName||'?'})}</p><div className="wp-missing-actions">{sources.length>0&&<button className="primary" onClick={()=>{party.ownSources=false;party.watch(sources[0].id)}}><Icon name="signal" inline/>{t('Watch the stream of {name}',{name:sources[0].name})}</button>}<button className={sources.length?'':'primary'} disabled={snap.missingState==='installing'} onClick={()=>party.installMissing()}>{snap.missingState==='installing'?t('Installing…'):t('Install {name}',{name:snap.missing.sourceName||t('the source')})}</button></div>{snap.missingError&&<p className="wp-error">{snap.missingError}</p>}</div>}
     <div className="wp-people" role="group" aria-label={plural(snap.members.length,'{n} person','{n} people')}>{snap.members.map(m=><Person key={m.id} m={m} snap={snap} open={who===m.id} onToggle={()=>setWho(w=>w===m.id?'':m.id)}/>)}</div>
     {/* Voice, camera, stream: one row of buttons (their full names are read out and shown on hover). */}
     <div className="wp-tools" role="toolbar" aria-label={t('Voice, camera and stream')}>
-     {snap.voice==='off'&&<button className="wp-tool" onClick={()=>party.voiceJoin()} aria-label={t('Join the voice channel')} title={t('Join the voice channel')}><Icon name="mic"/><span>{t('Voice')}</span></button>}
-     {snap.voice==='joining'&&<button className="wp-tool" disabled aria-label={t('Allowing the microphone…')} title={t('Allowing the microphone…')}><span className="spinner" aria-hidden="true"/><span>{t('Voice')}</span></button>}
+     {snap.voice==='off'&&<button className="wp-tool" onClick={()=>party.voiceJoin()} aria-label={t('Join the voice channel')} title={t('Join the voice channel')}><Icon name="mic"/><span>{t('Voice chat')}</span></button>}
+     {snap.voice==='joining'&&<button className="wp-tool" disabled aria-label={t('Allowing the microphone…')} title={t('Allowing the microphone…')}><span className="spinner" aria-hidden="true"/><span>{t('Voice chat')}</span></button>}
      {snap.voice==='on'&&<><button className={'wp-tool on'+(snap.muted?' off':'')} aria-pressed={snap.muted} aria-label={snap.muted?t('Unmute'):t('Mute')} title={snap.muted?t('Unmute'):t('Mute')} onClick={()=>party.setMuted(!snap.muted)}><Icon name={snap.muted?'micoff':'mic'}/><span>{snap.muted?t('Muted'):t('Mic on')}</span></button>
       <button className="wp-tool leave" aria-label={t('Leave the voice channel')} title={t('Leave the voice channel')} onClick={()=>party.voiceLeave()}><Icon name="hangup"/><span>{t('Hang up')}</span></button></>}
      <button className={'wp-tool'+(snap.cam==='on'?' on':'')} disabled={snap.cam==='starting'} aria-pressed={snap.cam==='on'} aria-label={snap.cam==='on'?t('Turn my camera off'):snap.cam==='starting'?t('Allowing the camera…'):t('Turn my camera on')} title={snap.cam==='on'?t('Turn my camera off'):t('Turn my camera on')} onClick={()=>snap.cam==='on'?party.camStop():party.camStart()}>{snap.cam==='starting'?<span className="spinner" aria-hidden="true"/>:<Icon name="camera"/>}<span>{t('Camera')}</span></button>
@@ -149,10 +160,9 @@ export function WatchPartyPanel(){
     {snap.camError&&<p className="wp-error" role="alert">{snap.camError}</p>}
     {/* The stream: who sends, who watches, and the way back to it. */}
     {casting?<div className="wp-stream on" role="status"><Icon name="signal" inline/><span>{viewers.length?plural(viewers.length,'Your video is sent to everyone: {n} person watches it.','Your video is sent to everyone: {n} people watch it.'):t('Your video is sent to everyone: the others are connecting…')}</span></div>
-     :viewers.length?<div className="wp-stream on" role="status"><Icon name="signal" inline/><span>{t('{names}: watching your video.',{names:viewers.join(', ')})}</span></div>
+     :viewers.length?<div className="wp-stream on" role="status"><Icon name="signal" inline/><span>{viewers.length===1?t('{name} is watching your video.',{name:viewers[0]}):t('{names} are watching your video.',{names:viewers.join(', ')})}</span></div>
      :snap.view?<div className="wp-stream" role="status"><Icon name="signal" inline/><span>{t('You are watching the stream of {name}.',{name:nameOf(snap,snap.view.id)})}</span><button onClick={()=>{party.ownSources=true;party.unwatch()}}>{t('Stop')}</button></div>
      :caster?<div className="wp-stream" role="status"><Icon name="signal" inline/><span>{t('{name} is sending their video to everyone.',{name:nameOf(snap,caster)})}</span><button className="primary" onClick={()=>{party.ownSources=false;party.watch(caster)}}>{t('Watch')}</button></div>:null}
-    {snap.missing&&!snap.view&&<div className="wp-missing" role="status"><p>{t('You do not have the source "{name}". NovelReader looks for the same episode in your other sources.',{name:snap.missing.sourceName||'?'})}</p>{sources.length>0&&<button className="primary" onClick={()=>{party.ownSources=false;party.watch(sources[0].id)}}><Icon name="signal" inline/>{t('Watch the stream of {name}',{name:sources[0].name})}</button>}<button className={sources.length?'':'primary'} disabled={snap.missingState==='installing'} onClick={()=>party.installMissing()}>{snap.missingState==='installing'?t('Installing…'):t('Install {name}',{name:snap.missing.sourceName||t('the source')})}</button>{snap.missingError&&<p className="wp-error">{snap.missingError}</p>}</div>}
     </div>
     {snap.state?.media?<div className="wp-now"><span className="wp-now-title">▶ {snap.state.media.name}{snap.state.episodeName&&snap.state.media.kind!=='movie'?' · '+snap.state.episodeName:''}</span>{snap.lock&&<span className="wp-lock" role="img" aria-label={t('Only the host controls the playback.')} title={t('Only the host controls the playback.')}><Icon name="lock" inline/></span>}</div>:<div className="wp-now muted">{t('Open an episode: everyone will follow.')}</div>}
     <div className="wp-chat" ref={chatRef}>{snap.chat.map((c,i)=><div key={i} className={'wp-msg'+(c.mine?' mine':'')+(c.system?' system':'')+(c.old?' old':'')}>{c.system?c.text:<><b>{c.name}</b> {c.text}<time className="wp-time">{hhmm(c.at)}</time></>}</div>)}
@@ -174,6 +184,10 @@ export function PartyOverlay(){
  const snap=useParty(),active=snap.status==='ready'
  const[stage,setStage]=useState<HTMLElement|null>(null),[full,setFull]=useState(false),[flies,setFlies]=useState<Fly[]>([]),[typing,setTyping]=useState(false),[text,setText]=useState(''),[since]=useState(()=>Date.now()),[,tick]=useState(0),[toast,setToast]=useState<{id:number,text:string}|null>(null)
  const inputRef=useRef<HTMLInputElement>(null),seq=useRef(0),said=useRef(-1)
+ // A narrow picture (a phone held upright): the reactions open from one button, and close by themselves.
+ const[narrow,setNarrow]=useState(false),[emo,setEmo]=useState(false),[emoAt,setEmoAt]=useState(0)
+ useEffect(()=>{if(!stage||typeof ResizeObserver==='undefined')return;const f=()=>setNarrow(stage.clientWidth<520);f();const ro=new ResizeObserver(f);ro.observe(stage);return()=>ro.disconnect()},[stage])
+ useEffect(()=>{if(!emo)return;const tm=setTimeout(()=>setEmo(false),5000);return()=>clearTimeout(tm)},[emo,emoAt])
  // Find the player (it comes and goes with the pages).
  useEffect(()=>{if(!active){setStage(null);return}const look=()=>setStage(findStage());look();const iv=setInterval(look,1000);return()=>clearInterval(iv)},[active,!!snap.view])
  // Full screen is the whole player (features/player-full.ts), so this layer stays over the picture.
@@ -204,7 +218,9 @@ export function PartyOverlay(){
   {snap.count&&num>=0&&<div className="po-count" role="status" aria-label={num>0?String(num):t('Go!')}><b key={num}>{num>0?num:t('Go!')}</b><small>{t('{name} starts the video',{name:snap.count.name})}</small></div>}
   {full&&(recent.length>0||typing)&&<div className="po-chat">{recent.map((c,i)=><div key={c.at+':'+i} className={'po-line'+(c.system?' system':'')}>{c.system?c.text:<><b>{c.mine?t('You'):c.name}</b> {c.text}</>}</div>)}
    {typing&&<form className="po-say" onSubmit={e=>{e.preventDefault();party.say(text);setText('');setTyping(false)}}><input ref={inputRef} value={text} maxLength={500} onChange={e=>setText(e.target.value)} onKeyDown={e=>{e.stopPropagation();if(e.key==='Escape'){setTyping(false);setText('')}}} onBlur={()=>{if(!text)setTyping(false)}} placeholder={t('Message to the party…')} aria-label={t('Message to the party')}/></form>}</div>}
-  <div className="po-bar">{REACTIONS.map(e=><button key={e} onClick={()=>party.react(e)} aria-label={t('React {emoji}',{emoji:e})}>{e}</button>)}
+  {/* On a narrow picture (phone) the reactions fold behind one button: the bar stays as wide as the screen allows. */}
+  <div className={'po-bar'+(narrow?' compact':'')}>{narrow?<button className={'po-emo'+(emo?' on':'')} aria-expanded={emo} aria-label={t('Reactions')} title={t('Reactions')} onClick={()=>setEmo(x=>!x)}>{REACTIONS[0]}</button>:REACTIONS.map(e=><button key={e} onClick={()=>party.react(e)} aria-label={t('React {emoji}',{emoji:e})}>{e}</button>)}
+   {narrow&&emo&&<div className="po-emos" role="group" aria-label={t('Reactions')}>{REACTIONS.map(e=><button key={e} onClick={()=>{party.react(e);setEmoAt(Date.now())}} aria-label={t('React {emoji}',{emoji:e})}>{e}</button>)}</div>}
    {snap.v2&&party.canControl()&&!!snap.state?.media&&<button onClick={()=>party.countdown()} disabled={counting} title={t('Start together: 3, 2, 1')} aria-label={t('Start together: 3, 2, 1')}><Icon name="timer"/></button>}
    <button onClick={()=>{if(full)setTyping(true);else openPanel()}} title={full?t('Write a message (Enter)'):t('Open the chat')} aria-label={t('Chat')}><Icon name="chat"/>{!full&&snap.unread>0&&<span className="po-badge">{snap.unread}</span>}</button>
    <button onClick={toggleFull} title={full?t('Exit fullscreen'):t('Fullscreen with the party chat (F)')} aria-label={full?t('Exit fullscreen'):t('Fullscreen')}><Icon name={full?'minimize':'maximize'}/></button></div>

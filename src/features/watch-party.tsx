@@ -106,14 +106,14 @@ function fakeTransport():Transport{
  let chans:BroadcastChannel[]=[]
  let me=Math.random().toString(36).slice(2,8)
  const sig=new BroadcastChannel('wp-voice');chans.push(sig)
- const pcs=new Map<string,RTCPeerConnection>();let onCallCb:(c:Call)=>void=()=>{}
+ const pcs=new Map<string,RTCPeerConnection>(),ended=new Map<string,()=>void>();let onCallCb:(c:Call)=>void=()=>{}
  const mkCall=(peer:string,id:string,pc:RTCPeerConnection,incoming?:RTCSessionDescriptionInit,kind:CallKind='voice'):Call=>{let onS:(s:MediaStream)=>void=()=>{},onC:()=>void=()=>{};pc.ontrack=e=>onS(e.streams[0]);pc.onicecandidate=e=>{if(e.candidate)sig.postMessage({to:peer,from:me,id,ice:e.candidate.toJSON()})};pc.onconnectionstatechange=()=>{if(['closed','failed'].includes(pc.connectionState))onC()}
-  return{peer,kind,stats:()=>(window as any).__partyCamBlack?.(peer,kind)?Promise.resolve({state:'connected',inBytes:0,inFrames:0,outBytes:1,outFrames:1,height:0,fps:0}):callStats(pc),limit:bps=>capBitrate(()=>pc,bps),tune:q=>tuneVideo(()=>pc,q),replace:s=>swapTracks(pc,s),smooth:ms=>smoothPlayout(pc,ms),answer:async st=>{for(const tr of st.getTracks())pc.addTrack(tr,st);await pc.setRemoteDescription(incoming!);let a=await pc.createAnswer();if(kind==='stream'&&a.sdp)a={type:a.type,sdp:opusMusic(a.sdp)};await pc.setLocalDescription(a);sig.postMessage({to:peer,from:me,id,answer:a})},onStream:cb=>{onS=cb},onClose:cb=>{onC=cb},close:()=>{pc.close();sig.postMessage({to:peer,from:me,id,bye:1});onC()}}}
+  return{peer,kind,stats:()=>(window as any).__partyCamBlack?.(peer,kind)?Promise.resolve({state:'connected',inBytes:0,inFrames:0,outBytes:1,outFrames:1,height:0,fps:0}):callStats(pc),limit:bps=>capBitrate(()=>pc,bps),tune:q=>tuneVideo(()=>pc,q),replace:s=>swapTracks(pc,s),smooth:ms=>smoothPlayout(pc,ms),answer:async st=>{for(const tr of st.getTracks())pc.addTrack(tr,st);await pc.setRemoteDescription(incoming!);let a=await pc.createAnswer();if(kind==='stream'&&a.sdp)a={type:a.type,sdp:opusMusic(a.sdp)};await pc.setLocalDescription(a);sig.postMessage({to:peer,from:me,id,answer:a})},onStream:cb=>{onS=cb},onClose:cb=>{onC=cb;ended.set(id,()=>onC())},close:()=>{ended.delete(id);pc.close();sig.postMessage({to:peer,from:me,id,bye:1});onC()}}}
  sig.onmessage=async e=>{const d=e.data;if(d.to!==me)return;const pc=pcs.get(d.id)
   if(d.offer){const p2=new RTCPeerConnection();pcs.set(d.id,p2);onCallCb(mkCall(d.from,d.id,p2,d.offer,kindOf(d.kind)))}
   else if(d.answer&&pc)await pc.setRemoteDescription(d.answer)
   else if(d.ice&&pc)await pc.addIceCandidate(d.ice).catch(()=>{})
-  else if(d.bye&&pc){pc.close();pcs.delete(d.id)}}
+  else if(d.bye&&pc){pc.close();pcs.delete(d.id);ended.get(d.id)?.();ended.delete(d.id)}} // (the other side hung up: this call is closed too, as on the real network)
  const pipe=(name:string,peerId:string):Conn=>{const ch=new BroadcastChannel(name);chans.push(ch);let onMsg:(m:Msg)=>void=()=>{},onClose:()=>void=()=>{};ch.onmessage=e=>{const d=e.data;if(d.from===me)return;if(d.bye)onClose();else onMsg(d.m)};return{id:peerId,send:m=>ch.postMessage({from:me,m}),onMessage:cb=>{onMsg=cb},onClose:cb=>{onClose=cb},close:()=>{ch.postMessage({from:me,bye:1});ch.close()}}}
  return{
   // (A code already hosted by another window answers "here": taken, like on the real server.)
@@ -218,7 +218,7 @@ class Party{
   if(n%2===0)this.presenceTick()
   this.forgetTyping(now)
   if(this.snap.count&&(this.hostNow()??now)>this.snap.count.at+1500)this.set({count:null})},1000)}
- private dropGuest(c:Conn,quiet=false){if(!this.conns.includes(c))return;this.conns=this.conns.filter(x=>x!==c);this.seen_.delete(c);const n=this.names.get(c.id);this.names.delete(c.id);this.vers.delete(c.id);this.theirs.delete(c.id);this.typingAt.delete(c.id);this.voiceOf.delete(c.id);this.hangUp(c.id);this.stopServing(c.id);if(this.snap.view?.id===c.id)this.dropView();this.noteBuffer(c.id,false,0);if(n&&!quiet){this.system(t('{name} left.',{name:n}));partySound('leave')}if(this.snap.cast===c.id){this.applyCast('');this.sendOpts();this.system(t('The stream for everyone ended.'))}this.sendMembers()}
+ private dropGuest(c:Conn){if(!this.conns.includes(c))return;const quiet=this.kicked.delete(c.id);this.conns=this.conns.filter(x=>x!==c);this.seen_.delete(c);const n=this.names.get(c.id);this.names.delete(c.id);this.vers.delete(c.id);this.theirs.delete(c.id);this.typingAt.delete(c.id);this.voiceOf.delete(c.id);this.hangUp(c.id);this.stopServing(c.id);if(this.snap.view?.id===c.id)this.dropView();this.noteBuffer(c.id,false,0);if(n&&!quiet){this.system(t('{name} left.',{name:n}));partySound('leave')}if(this.snap.cast===c.id){this.applyCast('');this.sendOpts();this.system(t('The stream for everyone ended.'))}this.sendMembers()}
  private closeLinks(){clearInterval(this.alive);this.alive=null;this.voiceLeave(true);this.camStop(true);for(const c of this.camIn.values()){try{c.close()}catch{}}this.camIn.clear();this.dropView();this.stopServing();this.set({cams:[],typing:[],presence:{},viewers:[],count:null});for(const c of this.conns)c.close();this.conns=[];this.seen_.clear();this.names.clear();this.vers.clear();this.theirs.clear();this.typingAt.clear();this.mine=null;this.voiceOf.clear();this.buffering.clear();this.transport?.destroy();this.transport=null}
  private lost(next?:string){
   if(this.recovering||!this.snap.role)return
@@ -241,7 +241,8 @@ class Party{
  private handingOver=false
  handOver(){if(this.snap.role!=='host'||!this.conns.length)return this.leave();const next=this.conns[0].id;this.handingOver=true;for(const c of this.conns)c.send({t:'bye',next});setTimeout(()=>{this.leave('',true);this.handingOver=false},200)}
  /** The host removes someone (they can come back with the code). */
- kick(id:string){if(this.snap.role!=='host')return;const c=this.conns.find(x=>x.id===id);if(!c)return;const name=this.names.get(id)||t('Guest');c.send({t:'bye',kicked:true});this.system(t('{name} was removed from the watch party.',{name}));setTimeout(()=>{c.close();this.dropGuest(c,true)},150)}
+ kick(id:string){if(this.snap.role!=='host')return;const c=this.conns.find(x=>x.id===id);if(!c)return;const name=this.names.get(id)||t('Guest');this.kicked.add(id);c.send({t:'bye',kicked:true});this.system(t('{name} was removed from the watch party.',{name}));setTimeout(()=>{c.close();this.dropGuest(c)},150)}
+ private kicked=new Set<string>()
  private accept(c:Conn){
   if(this.handingOver){c.close();return}
   this.conns.push(c);this.seen_.set(c,Date.now());c.onMessage(m=>{this.seen_.set(c,Date.now());this.receive(m,c)})
@@ -266,7 +267,8 @@ class Party{
    if(!first&&!host){if(m.list.some(x=>x.id!==self&&!before.some(y=>y.id===x.id)))partySound('join');else if(before.some(y=>y.id!==self&&!m.list.some(x=>x.id===y.id)))partySound('leave')}
    if(first&&!host&&m.list[0]?.name&&m.list[0].id!==self&&this.snap.code!==lsGet('partyRoom'))rememberParty(this.snap.code,String(m.list[0].name))
    // The person whose stream I watched is gone; or they are back (I reconnected): ask again.
-   const v=this.snap.view;if(v&&!m.list.some(x=>x.id===v.id))this.dropView();else if(!v&&this.wantView&&m.list.some(x=>x.id===this.wantView))this.watch(this.wantView)}
+   const v=this.snap.view;if(v&&!m.list.some(x=>x.id===v.id))this.dropView();else if(!v&&this.wantView&&m.list.some(x=>x.id===this.wantView))this.watch(this.wantView)
+   for(const id of [...this.streamOut.keys()])if(!m.list.some(x=>x.id===id))this.stopServing(id)}
   else if(m.t==='voice'&&host){this.voiceOf.set(from.id,{on:!!m.on,muted:!!m.muted,cam:!!m.cam});if(!m.on)this.hangUp(from.id);this.sendMembers();this.syncCalls()}
   else if(m.t==='camfix'){if(m.to===self){if(this.snap.cam==='on'&&Number(m.n)>(this.camTry.get(String(m.from))||0)&&Number(m.n)<=3)this.camAgain(String(m.from),Number(m.n))}else if(host){const k=this.conns.find(x=>x.id===m.to);k?.send(m)}}
   else if(m.t==='chat'){const name=String(m.name||'').slice(0,30);this.addChat({name,text:String(m.text).slice(0,500),at:m.at});if(!this.panelOpen)partySound('message');for(const[id,x]of this.typingAt)if(x.name===name){this.typingAt.delete(id);this.pushTyping()}if(host)this.relay(m,from)}
@@ -274,9 +276,9 @@ class Party{
   else if(m.t==='buffer'&&host)this.noteBuffer(from.id,!!m.on,Number(m.time)||0)
   else if(m.t==='wait'&&!host)this.set({waiting:(m.list||[]).map(x=>({id:String(x.id),name:String(x.name)}))})
   else if(m.t==='me'&&host)this.theirs.set(from.id,cleanPresence(m.p))
-  else if(m.t==='presence'&&!host){const map:Record<string,Presence>={};for(const x of Array.isArray(m.list)?m.list:[])map[String(x?.id)]=cleanPresence(x);this.set({presence:map});this.retryView()}
+  else if(m.t==='presence'&&!host){const map:Record<string,Presence>={};for(const x of Array.isArray(m.list)?m.list:[])map[String(x?.id)]=cleanPresence(x);this.set({presence:map});this.retryView();this.pruneViewers()}
   else if(m.t==='typing'){const id=host?from.id:String(m.id||''),name=String(m.name||'').slice(0,30);if(id&&id!==self){this.typingAt.set(id,{name,until:Date.now()+4000});this.pushTyping()}if(host)this.relay({t:'typing',id,name},from)}
-  else if(m.t==='opts'&&!host){const lock=!!m.lock;if(lock!==this.snap.lock){this.set({lock});this.system(lock?t('Only the host controls the playback now.'):t('Everyone can control the playback again.'))}const cast=String(m.cast||'');if(cast!==this.snap.cast){this.system(cast?t('{name} is streaming their video to everyone.',{name:this.nameOf(cast)}):t('The stream for everyone ended.'));this.applyCast(cast)}}
+  else if(m.t==='opts'&&!host){const lock=!!m.lock;if(lock!==this.snap.lock){this.set({lock});this.system(lock?t('Only the host controls the playback now.'):t('Everyone can control the playback again.'))}const cast=String(m.cast||'');if(cast!==this.snap.cast){this.system(cast?t('{name} is sending their video to everyone.',{name:this.nameOf(cast)}):t('The stream for everyone ended.'));this.applyCast(cast)}}
   else if(m.t==='cast'&&host)this.hostCast(m.on?from.id:this.snap.cast===from.id?'':this.snap.cast)
   else if(m.t==='count'){const at=Number(m.at);if(!Number.isFinite(at)||(host&&this.snap.lock&&from.id!==this.snap.cast))return;this.set({count:{at,name:String(m.name||'').slice(0,30)}});if(host)this.relay(m,from)}
   else if(m.t==='stream'){if(m.to!==self)return;const peer=String(m.from||'');if(m.op==='ask')this.serve(peer);else if(m.op==='stop')this.stopServing(peer);else if(m.op==='no'&&this.snap.view?.id===peer)this.viewFailed(String(m.why||''))}
@@ -310,9 +312,9 @@ class Party{
   const text=kind==='play'?t('{name} resumed playback',{name}):kind==='pause'?t('{name} paused',{name}):kind==='seek'?t('{name} jumped to {time}',{name,time:clockTime(s.time)}):kind==='rate'?t('{name} set the speed to {rate}×',{name,rate:String(s.rate||1)}):kind==='episode'&&m?t('{name} started {title}',{name,title:m.kind==='movie'||!s.episodeName?m.name:s.episodeName}):''
   if(!text)return
   this.toast(text)
-  // In the chat too; several in a row from the same person (dragging the bar) leave one line.
-  const last=this.snap.chat[this.snap.chat.length-1],now=Date.now(),line:Chat={name:'',text,at:now,system:true,act:name}
-  this.set({chat:(last?.act===name&&now-last.at<4000?[...this.snap.chat.slice(0,-1),line]:[...this.snap.chat,line]).slice(-200)})
+  // In the chat too; the same thing several times in a row from the same person (dragging the bar) leaves one line.
+  const last=this.snap.chat[this.snap.chat.length-1],now=Date.now(),act=kind+':'+name,line:Chat={name:'',text,at:now,system:true,act}
+  this.set({chat:(last?.act===act&&now-last.at<4000?[...this.snap.chat.slice(0,-1),line]:[...this.snap.chat,line]).slice(-200)})
  }
  // ---- What everyone's player is doing (next to each name) ----
  private mine:Presence|null=null
@@ -324,7 +326,7 @@ class Party{
   if(this.snap.role==='guest'){if(this.snap.v2)this.conns[0]?.send({t:'me',p:this.mine});return}
   const list=[{id:this.snap.selfId,...this.mine},...this.conns.filter(c=>this.theirs.has(c.id)).map(c=>({id:c.id,...this.theirs.get(c.id)!}))]
   const map:Record<string,Presence>={};for(const x of list)map[x.id]=x
-  this.set({presence:map});if(this.conns.length)this.broadcast({t:'presence',list});this.retryView()}
+  this.set({presence:map});if(this.conns.length)this.broadcast({t:'presence',list});this.retryView();this.pruneViewers()}
  // "Sara is writing…": said at most every 2 s while typing, forgotten after 4 s.
  private typingAt=new Map<string,{name:string,until:number}>()
  private typedAt=0
@@ -412,17 +414,21 @@ class Party{
  /** Send my video to everyone (the others watch it instead of opening the episode). */
  castStart(){if(this.snap.status!=='ready'||this.snap.cast===this.snap.selfId)return;if(this.snap.role==='host')this.hostCast(this.snap.selfId);else this.conns[0]?.send({t:'cast',on:true})}
  castStop(){if(this.snap.cast!==this.snap.selfId)return;if(this.snap.role==='host')this.hostCast('');else this.conns[0]?.send({t:'cast',on:false})}
- private hostCast(id:string){if(this.snap.role!=='host'||id===this.snap.cast)return;this.system(id?t('{name} is streaming their video to everyone.',{name:this.nameOf(id)}):t('The stream for everyone ended.'));this.applyCast(id);this.sendOpts()}
+ private hostCast(id:string){if(this.snap.role!=='host'||id===this.snap.cast)return;this.system(id?t('{name} is sending their video to everyone.',{name:this.nameOf(id)}):t('The stream for everyone ended.'));this.applyCast(id);this.sendOpts()}
  // What a change of "who sends to everyone" means here: watch it, or go back to my own player.
  private applyCast(id:string){
   const was=this.snap.cast;if(was===id)return
   this.set({cast:id})
   if(id&&id!==this.snap.selfId){if(!this.ownSources)this.watch(id)}
-  else if(was&&this.snap.view?.id===was){this.unwatch(true);window.dispatchEvent(new Event('nr-party-reopen'))}
+  // It ended (stopped, or that person left): whoever followed it goes back to their own player.
+  else if(was&&was!==this.snap.selfId){if(this.snap.view?.id===was)this.unwatch(true);if(!this.ownSources&&this.snap.state?.media)window.dispatchEvent(new Event('nr-party-reopen'))}
   if(id===this.snap.selfId&&this.snap.view)this.unwatch()
+  if(was===this.snap.selfId)this.stopServing() // my video is no longer for everyone: nobody is sent it any more
  }
- /** Leave the stream sent to everyone and play with my own sources (or come back to it). */
- setOwnSources(on:boolean){this.ownSources=on;const cast=this.snap.cast;if(on){if(this.snap.view)this.unwatch();window.dispatchEvent(new Event('nr-party-reopen'))}else if(cast&&cast!==this.snap.selfId)this.watch(cast)}
+ // Someone who no longer watches my video (they closed it without a word, or their link
+ // dropped) is not sent to any more: their status says what they watch, every 2 s.
+ private gone=new Map<string,number>()
+ private pruneViewers(){for(const id of [...this.streamOut.keys()]){const p=this.snap.presence[id];if(p&&p.view!==this.snap.selfId){const n=(this.gone.get(id)||0)+1;this.gone.set(id,n);if(n>=3){this.gone.delete(id);this.stopServing(id)}}else this.gone.delete(id)}}
  // ---- Waiting for people whose video is loading ----
  // Each PC says when its video is stuck loading; the host decides to pause the group
  // (WatchPartyBridge) and tells everyone who is being waited for.
@@ -649,6 +655,9 @@ export function WatchPartyBridge({current,open}:{current:()=>PartyOpen|null,open
    // The host keeps the controls: what was done here is undone (back on the group's position), not sent.
    if(!party.canControl()){if(e){if(st&&sameEp(st)&&!pending.current){pending.current=st;pendingAt.current=party.snap.stateAt||Date.now()}if(Date.now()-lockSaid>4000){lockSaid=Date.now();party.toast(t('Only the host controls the playback.'))}}return}
    const why=reason||(type==='play'?'play':type==='pause'?'pause':type==='seeked'?'seek':type==='ratechange'?'rate':'episode')
+   // What is done here by hand wins over "keep the group's pause for 3 s" (set when someone else paused):
+   // pressing play right after a friend's pause used to be undone on this PC only.
+   if(e)enforce.current={until:0,s:null}
    party.share({media:c.media,episodeUrl:c.episodeUrl,episodeName:c.episodeName,episodeNumber:c.episodeNumber,playing:!v.paused,time:v.currentTime,rate:nudge.current.on?nudge.current.base:v.playbackRate,why,...(Number.isFinite(v.duration)?{dur:v.duration}:{})})}
   const evs=['play','pause','seeked','ratechange']
   let attachAt=0,settled=0,lastInput=0;const onCanPlay=()=>{if(!settled)settled=Date.now()+250}
@@ -665,6 +674,8 @@ const onInput=()=>{lastInput=Date.now()};window.addEventListener('pointerdown',o
    // (An episode page without a video yet, e.g. a source this PC does not have, is "no video".)
    party.reportPresence({ep:c&&v?c.media.sourceId+'|'+c.media.url+'|'+c.episodeUrl:'',pos:v?v.currentTime:0,playing:!!v&&!v.paused,buf:!!v&&!v.paused&&!v.seeking&&v.readyState<3,can:!!c&&canStream()})
    if(!v||!c){nudge.current.on=false;return}
+   // Watching someone's stream: a player that starts by itself underneath (an episode found in another source) would talk over it.
+   if(party.snap.view){if(!v.paused)v.pause();return}
    const en=enforce.current;if(en.s&&Date.now()<en.until&&sameEp(en.s)){const ex=expect_.current;if(!en.s.playing&&!v.paused){ex.pause++;v.pause()}}
    const key=c.media.sourceId+'|'+c.media.url+'|'+c.episodeUrl
    // Following someone: wait for the video, then apply their state, and once more a

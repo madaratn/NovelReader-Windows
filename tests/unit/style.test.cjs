@@ -43,12 +43,13 @@ test('the player in full screen and what is drawn over the picture are dark in b
  const root=postcss.parse(css),dark={},full={}
  root.walkRules(r=>{
   if(r.selector===':root'&&!Object.keys(dark).length)r.walkDecls(/^--(bg|text|line)/,d=>{dark[d.prop]=d.value})
-  if(r.selector==='.media-player-top:fullscreen,.player-stage')r.walkDecls(/^--(bg|text|line)/,d=>{full[d.prop]=d.value})})
+  if(r.selector==='.media-player-top:fullscreen,.player-stage,.pt-stage')r.walkDecls(/^--(bg|text|line)/,d=>{full[d.prop]=d.value})})
  assert.ok(Object.keys(dark).length>25)
  assert.deepEqual(full,dark)
  // and the light theme makes no copy of the full screen rules
  const light=lightTheme(css)
- assert.ok(!/:fullscreen|\.player-skip|\.player-next|\.po-bar|\.seek-flash|\.mini-bar/.test(light))
+ // (.pt-…: the screen of a stream watched in a watch party)
+ assert.ok(!/:fullscreen|\.player-skip|\.player-next|\.po-bar|\.seek-flash|\.mini-bar|\.pt-bar|\.pt-top|\.party-theater/.test(light))
 })
 
 test('the light theme: copies weigh what their rule weighs, and carry "0" and "none"',()=>{

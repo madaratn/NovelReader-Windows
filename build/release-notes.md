@@ -1,3 +1,17 @@
+## NovelReader 0.40.0
+
+- **Regarder ensemble sans avoir la source.** Un ami qui n'a pas la source, ou chez qui elle ne marche pas, peut regarder ta vidéo en direct : image, son du film en stéréo et sous-titres, d'un clic sur « Regarder la diffusion ». Tu peux aussi l'envoyer à tout le monde avec le bouton « Diffuser ». Plus besoin d'un partage d'écran à côté : il n'y a que la vidéo, sans l'interface autour, et le son du film ne dépend pas de ton volume.
+- **Des lecteurs vraiment ensemble.** Les PC s'accordent sur une horloge commune : l'écart entre deux lecteurs passe d'une seconde et demie au maximum à environ un dixième de seconde. Un petit retard se rattrape en douceur par la vitesse, sans saut ni rechargement ; en pause, tout le monde est sur la même image.
+- **On sait qui a fait quoi.** « Ali a mis en pause », « Sara a mis la vidéo à 12:34 » s'affiche sur la vidéo et dans la discussion. À côté de chaque nom : en phase, en chargement, pas de vidéo ouverte, regarde la diffusion.
+- **Ton salon garde son code.** Le même code à chaque séance (tu peux en changer), les salons où tu es déjà allé se rejoignent en un clic, et un QR code invite un téléphone.
+- **Sur Android**, le vocal fonctionne enfin (l'application ne demandait pas le micro), le lien d'invitation ouvre l'application directement dans la séance, et tout le panneau est à la taille du doigt.
+- **Pour l'hôte** : garder les commandes de lecture pour soi, retirer quelqu'un, et un compte à rebours « 3, 2, 1 » pour démarrer tous ensemble.
+- **Vocal** : un volume pour chaque personne (retenu pour les prochaines séances), le choix du micro, et le nom de celui qui parle s'affiche sur la vidéo.
+- **Discussion** : « Sara écrit… », l'heure des messages, et celui qui arrive en cours de route retrouve ce qui s'est dit. De petits sons signalent une arrivée, un départ ou un message (désactivables).
+- **Corrigé** : relancer la lecture juste après la pause d'un ami remettait ton lecteur en pause tout seul pendant que les autres repartaient ; quand l'hôte disparaît, la séance reprend plus vite avec un nouvel hôte. Un ami resté sur la version précédente peut toujours rejoindre (sans les nouveautés).
+
+---
+
 ## NovelReader 0.39.1
 
 - **Les épisodes rangés dans la bonne saison.** Avec beaucoup de sources, plusieurs saisons se retrouvaient mélangées dans une seule liste, ou des épisodes sous la mauvaise saison : l'application lisait mal la façon dont chaque source écrit ses épisodes. Cas réels corrigés : « S01 - Episode 10 » (4KHDHub) et « T2 - E5 » (toutes les sources espagnoles) mettaient tout en saison 1 ; « S4 - Ep. 5 » (WatchAnimeWorld) rangeait la saison 4 dans la saison 1 ; « Épisode 8 Saison 1 » partait en saison 8.

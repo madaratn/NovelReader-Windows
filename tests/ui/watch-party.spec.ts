@@ -226,7 +226,7 @@ test('watch party invitation link: copy it, and opening it joins directly', asyn
   await a.getByRole('button', { name: 'Start a watch party' }).click()
   const code = (await a.locator('.wp-code b').innerText()).trim()
   await a.getByRole('button', { name: /Copy an invitation link/ }).click()
-  await expect(a.locator('.wp-invite')).toContainText('Invitation copied')
+  await expect(a.locator('.wp-copied')).toContainText('Invitation copied')
   expect(await a.evaluate(() => (window as any).__lastInvite)).toBe(`Join my NovelReader watch party: https://madaratn.github.io/NovelReader-Windows/party/#${code} (code ${code})`)
   // The friend clicks the link: NovelReader opens with novelreader://party/CODE
   const b = await context.newPage()
