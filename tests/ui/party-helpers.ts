@@ -8,8 +8,11 @@ export const VTT = 'WEBVTT\n\n1\n00:00:00.200 --> 00:00:19.500\nHello there\nfri
 export const series = (i: number, name: string) => ({ id: 'series' + i, name, sourceId: '42', sourceName: 'Mapple', url: '/series/' + i, thumbnail: '', episodes: 4, addedAt: Date.now() })
 // clip: clip420.webm is an ordinary video; clip.webm has a colour format a call does not take (the picture is redrawn).
 // old: this page runs the interface of the previous release (PARTY_OLD_DIST); real: through the real connection server.
-export type Opts = { sources?: any[], clip?: string, subs?: boolean, storage?: Record<string, string>, old?: boolean, real?: boolean }
+export type Opts = { sources?: any[], clip?: string, subs?: boolean, storage?: Record<string, string>, old?: boolean, real?: boolean, lang?: 'en' | 'fr' }
 export const OLD = process.env.PARTY_OLD_DIST || ''
+// The version the old build announces in its "What's new" window: marked as read there, like
+// the current one is on the other pages (the window would cover the page).
+const oldNotes = () => { try { for (const f of fs.readdirSync(OLD + '/assets')) if (/^index-.*\.js$/.test(f)) { const m = /## NovelReader ([\d.]+)/.exec(fs.readFileSync(OLD + '/assets/' + f, 'utf8')); if (m) return m[1] } } catch {} return '' }
 export async function pc(context: BrowserContext, library: any[], opts: Opts = {}) {
   const page = await context.newPage()
   // Windows of one browser share their storage; two PCs do not (each has its room, its recent rooms, its name).
@@ -21,7 +24,8 @@ export async function pc(context: BrowserContext, library: any[], opts: Opts = {
     S.removeItem = function (k: string) { return r.call(this, this === localStorage ? P + k : k) }
     S.clear = function () { if (this !== localStorage) { for (const k of Object.keys(this)) r.call(this, k); return } for (const k of Object.keys(this)) if (k.startsWith(P)) r.call(this, k) }
   })
-  await setup(page, { storage: { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify(library), welcomeDone: '1', ...(opts.storage || {}) } })
+  const seen = opts.old ? oldNotes() : ''
+  await setup(page, { lang: opts.lang, storage: { mode: 'series', 'lastPage:series': 'series', seriesLibrary: JSON.stringify(library), welcomeDone: '1', ...(seen ? { whatsNewSeen: seen } : {}), ...(opts.storage || {}) } })
   const clip = fs.readFileSync('tests/ui/fixtures/' + (opts.clip || 'clip420.webm'))
   await page.route('http://127.0.0.1:4567/api/v1/proxy**', r => {
     if (r.request().url().includes('en.vtt')) return r.fulfill({ status: 200, body: VTT, headers: { 'Content-Type': 'text/vtt', 'Access-Control-Allow-Origin': '*' } })

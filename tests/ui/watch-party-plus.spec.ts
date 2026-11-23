@@ -182,11 +182,26 @@ test('cameras: off by default, small bubbles for everyone when turned on, enlarg
   // Click to enlarge
   await b.locator('.cam-bubble').click()
   await expect(b.locator('.cam-bubble')).toHaveClass(/big/)
-  // Drag the group somewhere else: remembered, and not taken as a click
-  const box = (await b.locator('.party-cams').boundingBox())!
-  await b.mouse.move(box.x + 20, box.y + 20); await b.mouse.down(); await b.mouse.move(box.x - 200, box.y + 120, { steps: 6 }); await b.mouse.up()
+  // Enlarged it would reach under the panel: the group sits next to the panel instead
+  const apart = () => b.evaluate(() => { const c = document.querySelector('.party-cams')!.getBoundingClientRect(), p = document.querySelector('.wp-panel')!.getBoundingClientRect(); return c.width > 200 && (c.right <= p.left || c.bottom <= p.top) })
+  await expect.poll(apart).toBe(true)
+  // Drag the group somewhere else, in one quick move that leaves the bubbles at once:
+  // remembered, and not taken as a click
+  const at = async () => { let last = '', box = { x: 0, y: 0, width: 0, height: 0 }; for (let i = 0; i < 20; i++) { box = (await b.locator('.party-cams').boundingBox())!; const now = JSON.stringify(box); if (now === last) break; last = now; await b.waitForTimeout(120) } return box }
+  const box = await at()
+  await b.mouse.move(box.x + 20, box.y + 20); await b.mouse.down(); await b.mouse.move(box.x - 200, box.y + 120, { steps: 2 }); await b.mouse.up()
   await expect(b.locator('.cam-bubble')).toHaveClass(/big/)
-  expect(await b.evaluate(() => JSON.parse(localStorage.getItem('partyCamsPos') || 'null'))).toEqual({ x: expect.any(Number), y: expect.any(Number) })
+  const kept = await b.evaluate(() => JSON.parse(localStorage.getItem('partyCamsPos') || 'null'))
+  expect(kept).toEqual({ x: expect.any(Number), y: expect.any(Number) })
+  expect(Math.abs(kept.x - (box.x - 220)) + Math.abs(kept.y - (box.y + 100))).toBeLessThan(3)
+  const moved = await at()
+  expect(Math.abs(moved.x - (box.x - 220)) + Math.abs(moved.y - (box.y + 100))).toBeLessThan(3)
+  // A click right after still enlarges and shrinks (the move did not leave anything half-done)
+  await b.waitForTimeout(200)
+  await b.locator('.cam-bubble').click()
+  await expect(b.locator('.cam-bubble')).not.toHaveClass(/big/)
+  await b.mouse.move(40, 400)
+  expect(await at()).toMatchObject({ x: moved.x, y: moved.y })
   // Sara turns hers on too: both see two bubbles
   await b.getByRole('button', { name: 'Turn my camera on' }).click()
   await expect(a.locator('.cam-bubble')).toHaveCount(2, { timeout: 15_000 })

@@ -42,6 +42,9 @@ export function PartyTheater(){
   const wake=()=>{setIdle(false);window.clearTimeout(timer);timer=window.setTimeout(()=>{if(party.snap.state?.playing&&party.snap.view?.state==='on'&&!el.querySelector(':focus-visible'))setIdle(true)},3000)}
   wake();const ev=['mousemove','pointerdown','keydown','touchstart'] as const
   ev.forEach(e=>el.addEventListener(e,wake,{passive:true}));return()=>{window.clearTimeout(timer);ev.forEach(e=>el.removeEventListener(e,wake))}},[on])
+ // Paused (by anyone): the bars come back, the play button at hand.
+ const playing=!!snap.state?.playing
+ useEffect(()=>{if(!playing)setIdle(false)},[playing])
  const now=()=>{const s=party.snap.state;return s?posNow(s,{hostNow:party.hostNow(),recvAt:party.snap.stateAt,now:Date.now()}):0}
  // Ask the group (the friend's player follows, and so does the picture).
  const ask=(patch:{playing?:boolean,time?:number},why:string)=>{const s=party.snap.state;if(!s?.media)return;if(!party.canControl()){party.toast(t('Only the host controls the playback.'));return}
@@ -74,7 +77,8 @@ export function PartyTheater(){
  // (Bars showing: 78 px for the controls, and the reactions above them where the screen is narrow.)
  const cueBottom=Math.round(Math.max(band+picH*0.04,idle?30:box.w&&box.w<900?134:78))
  const title=st?.media?st.media.name+(st.episodeName&&st.media.kind!=='movie'?' · '+st.episodeName:''):''
- return <div className="party-theater" role="dialog" aria-label={t('Stream of {name}',{name})}>
+ // (Back on a phone closes the stream: it reaches this window as an Escape made by the app, not by a key.)
+ return <div className="party-theater" role="dialog" aria-label={t('Stream of {name}',{name})} onKeyDown={e=>{if(e.key==='Escape'&&!e.nativeEvent.isTrusted){e.stopPropagation();close()}}}>
   <div className={'pt-stage'+(idle?' idle':'')+(full?' full':'')} ref={stageRef}>
    <video className="pt-video" ref={vref} autoPlay playsInline onPlaying={()=>setPictures(true)} onLoadedData={()=>setPictures(true)}/>
    {snap.cue&&view.state==='on'&&<div className="pt-cue" aria-live="off" style={{bottom:cueBottom}}>{snap.cue.split('\n').map((l,i)=><span key={i}>{l}</span>)}</div>}
@@ -94,7 +98,7 @@ export function PartyTheater(){
      onChange={e=>setDrag(Number(e.target.value))} onPointerUp={()=>{if(drag!=null){ask({time:drag},'seek');setDrag(null)}}} onKeyUp={()=>{if(drag!=null){ask({time:drag},'seek');setDrag(null)}}} onBlur={()=>setDrag(null)}
      style={{'--pt-fill':(dur?Math.min(100,pos/dur*100):0)+'%'} as React.CSSProperties}/>
     <span className="pt-time">{dur?clockTime(dur):'--:--'}</span>
-    <button className="pt-btn" onClick={()=>{setTap(false);setMuted(m=>!m)}} aria-label={muted||tap?t('Unmute'):t('Mute')} title={muted||tap?t('Unmute'):t('Mute')} aria-pressed={muted||tap}><Icon name={muted||tap||vol===0?'mute':'volume'}/></button>
+    <button className="pt-btn" onClick={()=>{setTap(false);setMuted(m=>!m)}} aria-label={muted||tap?t('Turn the sound on'):t('Turn the sound off')} title={muted||tap?t('Turn the sound on'):t('Turn the sound off')}><Icon name={muted||tap||vol===0?'mute':'volume'}/></button>
     <input className="pt-vol" type="range" min={0} max={1} step={0.05} value={muted||tap?0:vol} aria-label={t('Volume')} onChange={e=>{const v=Number(e.target.value);setVol(v);lsSet('partyStreamVolume',String(v));setTap(false);setMuted(v===0)}} style={{'--pt-fill':((muted||tap?0:vol)*100)+'%'} as React.CSSProperties}/>
     <button className="pt-btn" onClick={fullscreen} aria-label={full?t('Exit fullscreen'):t('Fullscreen')} title={full?t('Exit fullscreen'):t('Fullscreen')}><Icon name={full?'minimize':'maximize'}/></button>
    </div>

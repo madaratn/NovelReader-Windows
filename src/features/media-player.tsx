@@ -8,12 +8,10 @@ import{useMediaSession}from'./media-session'
 import{useCast}from'./cast'
 import{useAudioFix}from'./audio-fix'
 import{party}from'./watch-party'
+import{capturable}from'./party-stream'
 import React,{useEffect,useRef,useState}from'react'
 import type HlsT from'hls.js'
 // hls.js (about a third of the app's code) is loaded when a video needs it, not at start.
-// A video served by this PC itself (engine, downloads, torrents) answers with the permission a
-// page needs to capture it; the phone's engine does not, so nothing changes there.
-const capturable=(url:string)=>/^http:\/\/(127\.0\.0\.1|localhost):\d+\//i.test(url)&&!(window as any).Capacitor
 let Hls:any=null
 export const loadHls=():Promise<any>=>Hls?Promise.resolve(Hls):import('hls.js').then(m=>(Hls=m.default))
 import{t,plural}from'../i18n'

@@ -55,7 +55,11 @@ test('Android: the watch party fits the phone (start, people, options, a watched
   await a.getByRole('button', { name: 'Options for Sara' }).click()
   await a.getByRole('button', { name: 'QR code for a phone' }).click()
   await audit(a, 'people')
+  // A phone watches a stream but cannot send its player: no button and no settings for that
+  await expect(a.locator('.wp-tools button')).toHaveText(['Voice chat', 'Camera'])
   await a.locator('.wp-gear').click()
+  await expect(a.locator('.wp-options')).toContainText("Hide the others' cameras")
+  await expect(a.locator('.wp-options')).not.toContainText('Quality of the video I send')
   await audit(a, 'options')
   // Sara watches a stream (the picture is a drawing here): the bars and buttons fit a finger
   await b.evaluate(() => { const c = document.createElement('canvas'); c.width = 320; c.height = 180; const g = c.getContext('2d')!; setInterval(() => { g.fillStyle = '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0'); g.fillRect(0, 0, 320, 180) }, 100); const P = (window as any).__nrParty; P.set({ view: { id: P.snap.members[0].id, state: 'on', error: '', why: '', stream: (c as any).captureStream(10) }, cue: 'Hello there', state: { media: { kind: 'series', sourceId: '42', url: '/s/1', name: 'Lanterns' }, episodeUrl: '/ep/1', episodeName: 'S1 E1 - Chapter 1', playing: false, time: 12, rate: 1, by: 'Ali', dur: 600 } }) })
@@ -75,6 +79,16 @@ test('Android: the watch party fits the phone (start, people, options, a watched
   await expect(b.locator('.po-emos button')).toHaveCount(7)
   expect(await b.locator('.po-emos').evaluate(e => { const x = e.getBoundingClientRect(); return x.left >= 0 && x.right <= innerWidth })).toBe(true)
   await audit(b, 'reactions')
+  // Back (the phone's button): the panel is put away first, then the stream is closed; the party goes on
+  await b.locator('.pt-stage').tap({ position: { x: 180, y: 120 } }) // (the bars come back at a touch)
+  await b.locator('.po-bar').getByRole('button', { name: 'Chat' }).click() // the chat button over the picture opens the panel
+  await expect(b.locator('.wp-panel')).toBeVisible()
+  await b.evaluate(() => window.dispatchEvent(new Event('nrBack')))
+  await expect(b.locator('.wp-panel')).toHaveCount(0)
+  await expect(b.locator('.party-theater')).toBeVisible()
+  await b.evaluate(() => window.dispatchEvent(new Event('nrBack')))
+  await expect(b.locator('.party-theater')).toHaveCount(0)
+  expect(await b.evaluate(() => (window as any).__nrParty.snap.status)).toBe('ready')
 })
 
 test('Android: an invitation link opens the app on the party', async ({ context }) => {

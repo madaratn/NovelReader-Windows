@@ -22,8 +22,20 @@ const capture=(el:HTMLMediaElement|null):MediaStream|null=>{try{const f=(el as a
 const liveTrack=(s:MediaStream|null|undefined,kind:string)=>s?.getTracks().find(x=>x.kind===kind&&x.readyState==='live')||null
 /** The text of a subtitle line, without its markup. */
 export const cueText=(c:any)=>String(c?.text||'').replace(/<[^>]+>/g,'').replace(/\{\\[^}]*\}/g,'').trim().slice(0,600)
-/** Can the player of this window be sent to someone? (a video is loaded and this browser can capture it) */
-export function canStream(){const v=playerVideo();return!!v&&v.readyState>=2&&typeof (v as any).captureStream==='function'}
+/** A video served by this PC itself (engine, downloads, torrents) answers with the permission a
+ * page needs to capture it, so it can be loaded again that way; the phone's engine does not. */
+export const capturable=(url:string)=>/^http:\/\/(127\.0\.0\.1|localhost):\d+\//i.test(url)&&!(window as any).Capacitor
+/** Can this device send its player at all? (not the phone: see capturable) */
+export const canSend=()=>!(window as any).Capacitor&&typeof (HTMLMediaElement.prototype as any).captureStream==='function'
+// Tried once per video: capturing it works, or it can be loaded again with the permission.
+let probed:{src:string,ok:boolean}|null=null
+/** Can the player of this window be sent to someone? (a video is loaded, and it can be captured here) */
+export function canStream(){
+ const v=playerVideo();if(!v||v.readyState<2||typeof (v as any).captureStream!=='function')return false
+ const src=v.currentSrc||v.src||'';if(probed&&probed.src===src)return probed.ok
+ const st=capture(v);if(st)for(const tr of st.getTracks())try{tr.stop()}catch{}
+ probed={src,ok:!!st||capturable(src)};return probed.ok
+}
 
 export class StreamSource{
  private el:HTMLVideoElement|null=null

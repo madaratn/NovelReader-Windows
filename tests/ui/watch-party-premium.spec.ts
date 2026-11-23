@@ -50,7 +50,12 @@ test('a friend without the source watches the stream of the host: picture, sound
   test.setTimeout(90_000)
   const { pages: [a, b] } = await party(context, [{ name: 'Sara', opts: { sources: [] } }], { subs: true })
   await openEpisode(a)
-  // Sara does not have the source: one button to watch Ali's video instead
+  // Sara does not have the source: one button to watch Ali's video instead. It comes a moment
+  // after the box (once Ali's video is ready), below the first button, which stays where it was.
+  const install = b.locator('.wp-missing').getByRole('button', { name: 'Install Mapple' })
+  const place = (await install.boundingBox())!
+  await b.locator('.wp-missing').getByRole('button', { name: 'Watch the stream of Ali' }).waitFor()
+  expect(await install.boundingBox()).toMatchObject({ x: place.x, y: place.y })
   await b.locator('.wp-missing').getByRole('button', { name: 'Watch the stream of Ali' }).click()
   await expect(b.locator('.party-theater')).toBeVisible()
   await expect(b.getByRole('dialog', { name: 'Stream of Ali' })).toBeVisible()
@@ -213,8 +218,11 @@ test('my room keeps its code; a room joined before is one click away; a room alr
   await b.getByRole('button', { name: 'Leave', exact: true }).click()
   await expect(b.locator('.wp-recent-go')).toHaveText(new RegExp('Room of Ali\\s*' + mine))
   await expect(a.locator('.wp-member')).toHaveCount(1)
-  // Ali ends and starts again later: same code
+  // Ali ends: his room is closed for now, and Sara is told so (not that her code is wrong)
   await a.getByRole('button', { name: 'End the watch party' }).click()
+  await b.locator('.wp-recent-go').click()
+  await expect(b.locator('.wp-error')).toHaveText('The room of Ali is not open right now.')
+  // He starts again later: same code
   await a.getByRole('button', { name: 'Start a watch party' }).click()
   await expect(a.locator('.wp-code b')).toHaveText(mine)
   // One click for Sara
@@ -318,8 +326,31 @@ test('voice: a volume for each person, kept for the next time', async ({ context
   await expect.poll(() => a.evaluate(() => (document.querySelector('audio[data-wp-voice]') as HTMLAudioElement).volume)).toBeCloseTo(0.25, 2)
   expect(await a.evaluate(() => JSON.parse(localStorage.getItem('partyVolumes') || '{}'))).toEqual({ Sara: 0.25 })
   // The toolbar: muted shows, hanging up leaves the channel
-  await a.getByRole('button', { name: 'Mute', exact: true }).click()
-  await expect(a.getByRole('button', { name: 'Unmute' })).toHaveAttribute('aria-pressed', 'true')
+  await a.getByRole('button', { name: 'Mic on: Mute', exact: true }).click()
+  await expect(a.getByRole('button', { name: 'Muted: Unmute', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await a.getByRole('button', { name: 'Leave the voice channel' }).click()
   await expect(a.getByRole('button', { name: /Join the voice channel/ })).toBeVisible()
+})
+
+test('on a wide window the episodes and the player stand beside the panel, not under it', async ({ context }) => {
+  const a = await pc(context, [series(1, 'Lanterns')])
+  await start(a)
+  // What a click could want on the page, and that the panel would cover
+  const under = () => a.evaluate(() => {
+    const p = document.querySelector('.wp-panel')!.getBoundingClientRect()
+    return Array.from(document.querySelectorAll('main .episodecard, main .media-player-top, main video, main button, main select')).filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.right > p.left && r.left < p.right && r.bottom > p.top && r.top < p.bottom }).map(el => (el as HTMLElement).className || el.tagName)
+  })
+  await a.locator('.libcard', { hasText: 'Lanterns' }).getByRole('button', { name: 'Show episodes' }).click()
+  await expect(a.locator('.episodecard')).toHaveCount(4)
+  expect(await under()).toEqual([])
+  await a.locator('.episodecell').nth(0).locator('.episodecard').click()
+  await expect.poll(() => video(a).evaluate((v: HTMLVideoElement) => v.readyState), { timeout: 15_000 }).toBeGreaterThan(2)
+  expect(await under()).toEqual([])
+  // Nothing wider than its column either
+  expect(await a.evaluate(() => { const m = document.querySelector('main')!, lim = m.getBoundingClientRect().right - parseFloat(getComputedStyle(m).paddingRight) + 1; return Array.from(m.querySelectorAll('*')).filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.right > lim }).map(el => (el as HTMLElement).className || el.tagName) })).toEqual([])
+  // The panel put away: the player takes the whole width again
+  const width = () => a.locator('.media-player-top').evaluate(el => el.getBoundingClientRect().width)
+  const beside = await width()
+  await a.locator('.wp-x[aria-label="Minimize"]').click()
+  await expect.poll(width).toBeGreaterThan(beside + 300)
 })

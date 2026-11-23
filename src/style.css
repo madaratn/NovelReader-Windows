@@ -1020,6 +1020,7 @@ video[controlslist~="nofullscreen"]::-webkit-media-controls-fullscreen-button{di
 /* Watch party camera bubbles */
 .party-cams{position:fixed;top:76px;right:22px;z-index:140;display:flex;gap:10px;flex-wrap:wrap;max-width:min(420px,60vw);justify-content:flex-end;cursor:grab;touch-action:none;user-select:none}
 .party-cams.in-full{position:absolute;z-index:6}
+.party-cams.moving,.party-cams.moving .cam-bubble{cursor:grabbing}
 .cam-bubble{position:relative;margin:0;width:96px;height:96px;border-radius:50%;overflow:hidden;background:var(--bg-sunken);border:2px solid rgba(255,255,255,.75);box-shadow:0 6px 18px rgba(0,0,0,.45);cursor:pointer;transition:width .15s,height .15s,border-radius .15s}
 .cam-bubble.big{width:240px;height:180px;border-radius:var(--radius-lg)}
 .cam-bubble.speaking{border-color:var(--line-ok);box-shadow:0 0 0 3px rgba(63,179,127,.5),0 6px 18px rgba(0,0,0,.45)}
@@ -1067,14 +1068,16 @@ video[controlslist~="nofullscreen"]::-webkit-media-controls-fullscreen-button{di
 .pt-veil button,.pt-sound{min-height:38px;padding:0 16px;border:1px solid rgba(255,255,255,.4);border-radius:var(--radius-sm);background:rgba(255,255,255,.12);color:#fff;font:inherit;font-weight:600;cursor:pointer}
 .pt-veil button.primary{border-color:var(--line-accent-solid);background:var(--bg-accent);color:var(--on-accent)}
 .pt-sound{position:absolute;left:50%;top:50%;z-index:6;display:inline-flex;align-items:center;gap:8px;transform:translate(-50%,-50%);background:rgba(10,12,18,.88)}
-.pt-stage:hover .po-bar{opacity:1}
-.party-theater .po-bar{left:16px;top:auto;bottom:72px}
+/* (On the stream screen the reactions show and hide with the bars, touch or mouse.) */
+.party-theater .po-bar{left:16px;top:auto;bottom:72px;opacity:1}
 .party-theater .party-overlay.full .po-bar{left:auto;right:16px}
-.pt-stage.idle .po-bar{opacity:0}
+.pt-stage.idle .po-bar{opacity:0;pointer-events:none}
 .party-theater .po-toast,.party-theater .po-voices{top:66px}
 .party-theater .po-chat{bottom:124px}
 /* On a wide window the picture stands beside the party's panel instead of under it. */
 @media (min-width:1000px){body.party-panel-open .party-theater:not(:has(.pt-stage.full)){padding-right:376px}}
+/* The same for the page of a series or a film: the video and the list of episodes keep clear of the panel. */
+@media (min-width:1200px){body.party-panel-open main:has(.media-detail-page,.media-player-top){padding-right:376px}}
 @media (max-width:640px){.pt-vol{display:none}.pt-bar{gap:6px;padding-left:10px;padding-right:10px}.pt-top{padding-left:12px;padding-right:12px}}
 .result-langs{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}.lang-tag{padding:1px 8px;border-radius:999px;background:var(--bg-active);border:1px solid var(--line);color:var(--text-2);font-size:var(--fs-2xs)}
 
