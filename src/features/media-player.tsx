@@ -7,9 +7,13 @@ import{useSubFinder,type SubInfo}from'./sub-finder'
 import{useMediaSession}from'./media-session'
 import{useCast}from'./cast'
 import{useAudioFix}from'./audio-fix'
+import{party}from'./watch-party'
 import React,{useEffect,useRef,useState}from'react'
 import type HlsT from'hls.js'
 // hls.js (about a third of the app's code) is loaded when a video needs it, not at start.
+// A video served by this PC itself (engine, downloads, torrents) answers with the permission a
+// page needs to capture it; the phone's engine does not, so nothing changes there.
+const capturable=(url:string)=>/^http:\/\/(127\.0\.0\.1|localhost):\d+\//i.test(url)&&!(window as any).Capacitor
 let Hls:any=null
 export const loadHls=():Promise<any>=>Hls?Promise.resolve(Hls):import('hls.js').then(m=>(Hls=m.default))
 import{t,plural}from'../i18n'
@@ -171,6 +175,10 @@ function RemoteVideo({video,mediaKey,onNext,onPrev,onUnsupported,variants,onVari
  const hlsProbe=useRef('')
  const refused=useRef('')
  const sniffHls=async()=>{const u=String(video?.streamUrl||'');refused.current='';if(!u.includes('/api/v1/proxy?')||hlsProbe.current===u)return false;hlsProbe.current=u;try{const r=await fetch(u,{headers:{Range:'bytes=0-1023'}});const text=(await r.text()).replace(/^\uFEFF/,'').trimStart();if(text.startsWith('#EXTM3U')){console.log('[novelreader] stream is an HLS playlist without .m3u8, switching');setAsHls(u);return true}if(r.status>=400||/^<(!doctype|html)/i.test(text))refused.current=r.status>=400?String(r.status):'HTML'}catch{}return false}
+ // Watch party, "send my video": a video loaded without permission to capture it is loaded
+ // again with it, at the same position (the party says so with 'nr-party-capture').
+ const[capture,setCapture]=useState(0)
+ useEffect(()=>{const f=(e:Event)=>{const el=ref.current,u=String(video?.streamUrl||'');if(!el||hlsRef.current||el.crossOrigin||!capturable(u))return;const d=(e as CustomEvent).detail;if(d)d.ok=true;save(el);setCapture(n=>n+1)};window.addEventListener('nr-party-capture',f);return()=>window.removeEventListener('nr-party-capture',f)},[video?.streamUrl])
  // Loaded in the background as soon as a player shows; the video waits for it only when it is an HLS stream.
  const[hlsWaited,setHlsWaited]=useState(0)
  useEffect(()=>{loadHls().catch(()=>{})},[])
@@ -189,7 +197,11 @@ function RemoteVideo({video,mediaKey,onNext,onPrev,onUnsupported,variants,onVari
      else if(mediaFails===2){hls?.swapAudioCodec();hls?.recoverMediaError()}
      else{save(el);hls?.destroy();if(onUnsupported){setPlayError(t('This stream cannot be decoded on this device. Trying another stream…'));setTimeout(()=>onUnsupported(),250)}else setPlayError(t('This stream cannot be decoded on this device. Pick another quality or server.'))}
     }else{setPlayError(t('The video stream stopped because the HLS player could not recover.'));hls?.destroy()}})}
-  else{hlsRef.current=null;el.src=url;el.play().catch(()=>{})}
+  else{hlsRef.current=null
+   // Watch party: this video can be sent to a friend only when it was loaded with permission
+   // to capture it. Asked for when a party is on, or when the party asks later (below).
+   if(capturable(url)&&(capture>0||party.snap.status==='ready'))el.crossOrigin='anonymous';else if(el.hasAttribute('crossorigin'))el.removeAttribute('crossorigin')
+   el.src=url;el.play().catch(()=>{})}
   // Stall watchdog: if playback should be running but the time has not moved for a
   // while (segment request stuck, buffer hole), nudge the loader, skip the hole,
   // then move to another server at the same position.
@@ -208,7 +220,7 @@ function RemoteVideo({video,mediaKey,onNext,onPrev,onUnsupported,variants,onVari
   // The app is closed while it plays: the position is kept to the second.
   const bye=()=>save(el);window.addEventListener('pagehide',bye)
   return()=>{window.clearInterval(watch);window.clearInterval(npWatch);el.removeEventListener('play',kick);window.removeEventListener('pagehide',bye);save(el);el.removeEventListener('loadedmetadata',ready);hls?.destroy();hlsRef.current=null;el.removeAttribute('src');el.load()}
- },[video?.streamUrl,key,asHls,hlsWaited])
+ },[video?.streamUrl,key,asHls,hlsWaited,capture])
  const choices=(variants||[]).filter(Boolean),label=(v:any,i:number)=>String(v.videoTitle||v.title||v.quality||v.resolution||('Stream '+(i+1)))
  // Sources like Anichi publish sub and dub as separate streams ("HD-1 - Sub - 1080p" /
  // "HD-1 - Dub - 1080p"); offer them as an Audio choice that switches stream.

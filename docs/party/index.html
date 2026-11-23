@@ -24,7 +24,7 @@ small{display:block;margin-top:16px;color:var(--muted);font-size:13px}
  <div class="code" id="code">······</div>
  <a class="btn" id="open" href="#">Ouvrir NovelReader et rejoindre</a>
  <p>Pas encore NovelReader ?</p>
- <a class="alt" href="https://github.com/madaratn/NovelReader-Windows/releases/latest">Télécharger pour Windows</a>
+ <a class="alt" href="https://github.com/madaratn/NovelReader-Windows/releases/latest">Télécharger pour Windows ou Android</a>
  <small>Si rien ne s’ouvre : lance NovelReader, clique sur « Regarder ensemble » et tape le code ci-dessus.</small>
 </main>
 <script>
@@ -32,8 +32,11 @@ small{display:block;margin-top:16px;color:var(--muted);font-size:13px}
 const raw=(location.hash.slice(1)||new URLSearchParams(location.search).get('c')||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6)
 const link='novelreader://party/'+raw
 document.getElementById('code').textContent=raw||'······'
-const btn=document.getElementById('open');btn.href=link
-if(raw.length===6)setTimeout(()=>{location.href=link},400)
+// Android (Chrome): an "intent" link opens the app when it is installed, and goes to the download otherwise.
+const android=/Android/i.test(navigator.userAgent)
+const btn=document.getElementById('open')
+btn.href=android?'intent://party/'+raw+'#Intent;scheme=novelreader;package=com.madaratn.novelreader;S.browser_fallback_url='+encodeURIComponent('https://github.com/madaratn/NovelReader-Windows/releases/latest')+';end':link
+if(raw.length===6&&!android)setTimeout(()=>{location.href=link},400)
 </script>
 </body>
 </html>
