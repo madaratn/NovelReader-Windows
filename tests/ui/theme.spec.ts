@@ -3,6 +3,9 @@ import { open, novel, nav } from './helpers'
 
 // Every visible text must reach WCAG AA (4.5:1) against its background, in both themes.
 async function lowContrast(page: Page) {
+  // (A colour on its way from one state to another is not a colour of the theme: a button that
+  // has just changed, like "Stop" back to "Search", is measured once it has settled.)
+  await page.waitForTimeout(300)
   return page.evaluate(() => {
     const parse = (c: string) => { const m = c.match(/[\d.]+/g)!.map(Number); return { r: m[0], g: m[1], b: m[2], a: m[3] ?? 1 } }
     const L = ({ r, g, b }: any) => { const f = (v: number) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b) }
