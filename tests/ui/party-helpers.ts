@@ -37,6 +37,7 @@ export async function pc(context: BrowserContext, library: any[], opts: Opts = {
   await page.addInitScript((o: Opts) => {
     const w = window as any
     w.__partyFake = !o.real
+    w.__partyHook = true
     const eps = Array.from({ length: 4 }, (_, i) => ({ name: `S1 E${i + 1} - Chapter ${i + 1}`, url: '/ep/' + (i + 1), episode_number: i + 1 }))
     const sources = o.sources || [{ id: '42', name: 'Mapple', lang: 'en', pkg: 'p.mapple' }]
     const has = (id: string) => sources.some((s: any) => s.id === id)

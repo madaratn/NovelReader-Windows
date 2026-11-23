@@ -598,7 +598,7 @@ export async function inviteLink(code:string){const base=await (window.novelRead
 export async function inviteText(code:string){const link=await inviteLink(code);return t('Join my NovelReader watch party: {link} (code {code})',{link,code})}
 export const voiceVolume=()=>{const v=Number(lsGet('partyVoiceVolume'));return isFinite(v)&&lsGet('partyVoiceVolume')!==null?Math.min(1,Math.max(0,v)):1}
 export const party=new Party()
-if((window as any).__partyFake)(window as any).__nrParty=party // tests only
+if((window as any).__partyFake||(window as any).__partyHook)(window as any).__nrParty=party // tests only (the second: over the real server)
 export function useParty(){const[,bump]=useState(0);useEffect(()=>party.subscribe(()=>bump(x=>x+1)),[]);return party.snap}
 
 // ---- Bridge: follows the player of this window ---------------------------------
