@@ -58,7 +58,8 @@ export function useAudioFix(ref:React.RefObject<HTMLVideoElement|null>,streamUrl
  }
  // Start the converted sound a little ahead of the picture (ffmpeg needs a moment).
  function restart(i=track){const v=ref.current;if(!v||!base.current)return
-  stopAudio();const a=document.createElement('audio');a.className='audio-fix';a.preload='auto';a.style.display='none';document.body.appendChild(a);audio.current=a
+  stopAudio();const a=document.createElement('audio');a.className='audio-fix';a.preload='auto';a.crossOrigin='anonymous' // (so a watch party can send this sound with the picture; the converter answers with the permission)
+  ;a.style.display='none';document.body.appendChild(a);audio.current=a
   const from=Math.max(0,v.currentTime+(v.paused?0:lat.current));offset.current=from;startedAt.current=Date.now()
   a.src=base.current+'?src='+encodeURIComponent(streamUrl)+'&t='+from.toFixed(2)+'&track='+i
   a.volume=v.volume;a.muted=v.muted

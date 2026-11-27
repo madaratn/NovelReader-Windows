@@ -117,3 +117,52 @@ test('next episode: same server and same quality as chosen, even when the stream
   await page.locator('.player-row').getByRole('button', { name: 'Next →' }).click()
   await expect(quality.locator('option:checked')).toHaveText('HubCloud (FSL) [1080] [7.20 GB]')
 })
+
+// A button keeps the focus after a click (the episode card, "Next →"), and Space presses the
+// focused button: Space to pause used to load the episode again, or go on to the next one.
+test('Space pauses even when the clicked episode card or "Next →" keeps the focus; reached with Tab, a button is pressed', async ({ page }) => {
+  await open(page, {})
+  await page.locator('.episodecell').nth(0).locator('.episodecard').click()
+  await playing(page)
+  await expect(page.locator('.episodecard.active')).toBeFocused()
+  const mark = () => video(page).evaluate((v: any) => { v.__same = 1 })
+  const same = () => video(page).evaluate((v: any) => v.__same === 1)
+  const paused = () => video(page).evaluate((v: HTMLVideoElement) => v.paused)
+  await mark()
+  await page.keyboard.press(' ')
+  await expect.poll(paused).toBe(true)
+  await page.waitForTimeout(500)
+  expect(await same()).toBe(true) // the same video: not loaded again
+  await expect(page.locator('.player-loading')).toHaveCount(0)
+  await page.keyboard.press(' ')
+  await expect.poll(paused).toBe(false)
+  // The card of the episode already playing, clicked again: back to the player, not loaded again
+  await page.locator('.episodecard.active').click()
+  await page.waitForTimeout(500)
+  expect(await same()).toBe(true)
+  expect(await paused()).toBe(false)
+  // "Next →" clicked: Space then pauses episode 2, it does not go on to episode 3
+  await page.locator('.player-row').getByRole('button', { name: 'Next →' }).click()
+  await expect(page.locator('.media-player-top h2')).toContainText('Episode 2')
+  await playing(page)
+  await page.keyboard.press(' ')
+  await expect.poll(paused).toBe(true)
+  await page.waitForTimeout(500)
+  await expect(page.locator('.media-player-top h2')).toContainText('Episode 2')
+  // Reached with the keyboard (Tab), a button is pressed by Space, as it should be
+  await page.keyboard.press('Tab')
+  await page.locator('.episodecell').nth(0).locator('.episodecard').focus()
+  await page.keyboard.press(' ')
+  await expect(page.locator('.media-player-top h2')).toContainText('Episode 1')
+})
+
+test('the card of an episode whose stream failed loads it again', async ({ page }) => {
+  await open(page, {})
+  let fail = true
+  await page.route('http://127.0.0.1:4567/api/v1/proxy**', r => fail ? r.fulfill({ status: 404, body: 'gone' }) : r.fallback())
+  await page.locator('.episodecell').nth(0).locator('.episodecard').click()
+  await expect.poll(() => video(page).evaluate((v: HTMLVideoElement) => !!v.error), { timeout: 15_000 }).toBe(true)
+  fail = false
+  await page.locator('.episodecard.active').click()
+  await playing(page)
+})

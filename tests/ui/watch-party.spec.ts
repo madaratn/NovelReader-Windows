@@ -159,7 +159,8 @@ test('watch party: when one video is loading, everyone waits, then starts again 
   await expect.poll(() => video(b).evaluate((v: HTMLVideoElement) => !v.paused && v.currentTime > 2.5)).toBe(true)
   // Sara's video gets stuck loading (slow connection)
   await video(b).evaluate((v: HTMLVideoElement) => { const w = window as any; w.__stuck = true; const get = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'readyState')!.get!; Object.defineProperty(v, 'readyState', { configurable: true, get() { return w.__stuck ? 2 : get.call(this) } }); const buf = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'buffered')!.get!; Object.defineProperty(v, 'buffered', { configurable: true, get() { return w.__stuck ? { length: 0, start: () => 0, end: () => 0 } : buf.call(this) } }) })
-  await expect(a.locator('.wp-wait')).toContainText('Waiting for Sara… (video loading)', { timeout: 5000 })
+  // (Up to 5.5 s when Sara's player has just jumped to follow Ali: a jump is not taken for a slow connection for 4 s.)
+  await expect(a.locator('.wp-wait')).toContainText('Waiting for Sara… (video loading)', { timeout: 9000 })
   await expect(b.locator('.wp-wait')).toContainText('Your video is loading, the others are waiting for you…')
   await expect.poll(() => video(a).evaluate((v: HTMLVideoElement) => v.paused)).toBe(true)
   await expect.poll(() => video(b).evaluate((v: HTMLVideoElement) => v.paused)).toBe(true)
@@ -225,7 +226,7 @@ test('watch party invitation link: copy it, and opening it joins directly', asyn
   await a.getByRole('button', { name: 'Start a watch party' }).click()
   const code = (await a.locator('.wp-code b').innerText()).trim()
   await a.getByRole('button', { name: /Copy an invitation link/ }).click()
-  await expect(a.locator('.wp-invite')).toContainText('Invitation copied')
+  await expect(a.locator('.wp-copied')).toContainText('Invitation copied')
   expect(await a.evaluate(() => (window as any).__lastInvite)).toBe(`Join my NovelReader watch party: https://madaratn.github.io/NovelReader-Windows/party/#${code} (code ${code})`)
   // The friend clicks the link: NovelReader opens with novelreader://party/CODE
   const b = await context.newPage()

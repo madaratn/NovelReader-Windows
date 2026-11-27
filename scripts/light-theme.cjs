@@ -17,9 +17,10 @@
 // reader has its own themes and is left untouched.
 
 // (:where(...) is the base layer of style.css: tokens only, and a scoped copy would outweigh the rules meant to win over it.
-//  :fullscreen is the video player in full screen, and .player-skip, .po-… what is drawn over the
-//  picture: dark whatever the theme, their tokens are set to the dark values in style.css.)
-const EXCLUDE = /\.readerpage|\.readercontent|rtheme|::highlight|\.sw-|\.readerbar|tts-current|@keyframes|\.libcover|\.stats-fill|:where\(|:fullscreen|\.player-skip|\.player-next|\.player-skipped|\.seek-flash|\.mini-bar|\.po-|\.cast-panel|\.cast-vol/
+//  :fullscreen is the video player in full screen, and .player-skip, .po-…, .pt-… (the screen of a
+//  stream watched in a watch party) what is drawn over the picture: dark whatever the theme, their
+//  tokens are set to the dark values in style.css.)
+const EXCLUDE = /\.readerpage|\.readercontent|rtheme|::highlight|\.sw-|\.readerbar|tts-current|@keyframes|\.libcover|\.stats-fill|:where\(|:fullscreen|\.player-skip|\.player-next|\.player-skipped|\.seek-flash|\.mini-bar|\.po-|\.pt-|\.party-theater|\.cast-panel|\.cast-vol/
 
 function parseColor(c) {
   c = c.trim().toLowerCase()

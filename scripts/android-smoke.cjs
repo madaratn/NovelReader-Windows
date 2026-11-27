@@ -39,6 +39,22 @@ async function connect() {
   }
   console.log('interface:', JSON.stringify(shell))
   if (!shell.ready || !shell.android) throw new Error('Interface or Android bridge missing')
+  // Watch party on a real Android system:
+  // - an invitation (novelreader://party/CODE) reaches the running app and opens the panel on
+  //   that code (intent filter of the manifest, LinkPlugin.java, the page's own handling);
+  // - the microphone of the voice channel is declared, and the page gets it once allowed.
+  let party = { link: null, mic: null }
+  try {
+    const sh = c => require('child_process').execSync(c, { timeout: 30000 }).toString()
+    sh("adb shell am start -W -a android.intent.action.VIEW -d 'novelreader://party/ABC234' com.madaratn.novelreader")
+    for (let i = 0; i < 10 && !(party.link && party.link.panel); i++) { await sleep(1000); party.link = await evaluate(() => ({ panel: !!document.querySelector('.wp-panel'), code: document.querySelector('.wp-join input')?.value || '' })) }
+    await evaluate(() => { const b = document.querySelectorAll('.wp-panel header .wp-x'); b[b.length - 1]?.click() })
+    const declared = /android\.permission\.RECORD_AUDIO/.test(sh('adb shell dumpsys package com.madaratn.novelreader'))
+    sh('adb shell pm grant com.madaratn.novelreader android.permission.RECORD_AUDIO')
+    const got = await evaluate(async () => { try { const st = await Promise.race([navigator.mediaDevices.getUserMedia({ audio: true, video: false }), new Promise((_, ko) => setTimeout(() => ko(new Error('no answer in 20 s')), 20000))]); const n = st.getAudioTracks().filter(t => t.readyState === 'live').length; st.getTracks().forEach(t => t.stop()); return { tracks: n } } catch (e) { return { error: String(e && e.name || e) + ': ' + String(e && e.message || '') } } })
+    party.mic = { declared, ...got }
+  } catch (e) { party.error = String(e && e.message || e).slice(0, 300) }
+  console.log('watch party:', JSON.stringify(party))
   const r = await evaluate(async (manifest) => {
     const all = await (await fetch(manifest)).json()
     const list = (Array.isArray(all) ? all : all.plugins).filter(p => /english/i.test(p.lang))
@@ -433,6 +449,9 @@ async function connect() {
   finished = true
   ws.close()
   if (!installerOpened) { console.error('The update did not open Android\'s installer'); process.exit(1) }
+  if (!party.link || !party.link.panel || party.link.code !== 'ABC234') { console.error('An invitation link did not open the watch party in the app'); process.exit(1) }
+  // (No microphone on some emulators is not the app's doing; a refusal is: the permission is missing or not passed on.)
+  if (!party.mic || !party.mic.declared || /NotAllowed|Permission/i.test(String(party.mic.error || ''))) { console.error('The voice channel cannot get the microphone on Android'); process.exit(1) }
   if (v.ok < 2) { console.error('Fewer than 2 video sources stream on Android'); process.exit(1) }
   if (!played || played.step !== 'playing') { console.error('The player did not play'); process.exit(1) }
   console.log('Android smoke test OK')

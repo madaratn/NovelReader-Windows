@@ -18,7 +18,7 @@ Before distributing to others, follow the [family beta acceptance checklist](doc
 
 - **Books:** source extensions (LNReader-compatible), global search, shelves, reader, offline chapters, bookmarks/notes, translation, read aloud.
 - **Anime, series and movies:** extension-driven discovery and streaming, server/quality selection, remembered playback, local videos and offline downloads on supported devices.
-- **Watching together:** cross-PC Watch Party with synchronized playback, chat, voice and optional camera.
+- **Watching together:** Watch Party across PCs and phones: playback kept in step (common clock), chat, voice, optional camera, and the live stream of a friend's video for someone who does not have the source.
 - **Playback tools:** subtitles and translation, Chromecast/DLNA, selected external metadata services (AniList/MyAnimeList). Availability depends on platform, source and codec.
 - **Cross-device:** local Wi-Fi pairing by QR code with Windows for library/progress sync and 'Continue on phone'. The Windows PC must be running NovelReader; do not expose the pairing port to the internet.
 - **Languages:** French/English UI and other language support. Video-source availability can change without warning.
