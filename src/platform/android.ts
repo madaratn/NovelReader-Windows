@@ -149,7 +149,11 @@ export function installAndroidBridge(version:string,ios=false){
   ...androidSync,
   ...(ios?{syncChoose:undefined}:{...createAndroidUpdater(version),...downloads,...cast,...backup,...localVideos}),
   subsSearch,subsFetch,
-  takeDeepLink:async()=>'',inviteBase:async()=>'',onDeepLink:()=>()=>{},
+  // Invitations to a watch party (novelreader://party/CODE, LinkPlugin.java): the link the app was
+  // opened with, and the ones opened while it runs. The invitation itself is a small web page.
+  takeDeepLink:async()=>{try{return String((await (window as any).Capacitor?.Plugins?.Link?.take?.())?.url||'')}catch{return''}},
+  inviteBase:async()=>'https://madaratn.github.io/NovelReader-Windows/party/#',
+  onDeepLink:(cb:(url:string)=>void)=>{let h:any=null,off=false;const p=(window as any).Capacitor?.Plugins?.Link;if(!p?.addListener)return()=>{};Promise.resolve(p.addListener('open',(e:any)=>{try{cb(String(e?.url||''))}catch{}})).then(x=>{h=x;if(off)h?.remove?.()}).catch(()=>{});return()=>{off=true;h?.remove?.()}},
   sourceStatus:ios?async()=>null:sourceStatus,
   bookStatus:async()=>{const r=await fetch(STATUS+'book-status.json');return r.ok?r.json():null},
   backupAuto:async()=>({ok:false}),

@@ -199,7 +199,8 @@ function createTorrentManager({ cacheRoot, log = () => {} }) {
         if (start > end || start >= size) { res.writeHead(416, { 'Content-Range': 'bytes */' + size }); return res.end() }
         status = 206
       }
-      const headers = { 'Content-Type': type, 'Content-Length': String(end - start + 1), 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store' }
+      // (Access-Control-Allow-Origin: the player may capture this video to send it to a watch party.)
+      const headers = { 'Content-Type': type, 'Content-Length': String(end - start + 1), 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' }
       if (status === 206) headers['Content-Range'] = `bytes ${start}-${end}/${size}`
       res.writeHead(status, headers)
       if (req.method === 'HEAD') return res.end()

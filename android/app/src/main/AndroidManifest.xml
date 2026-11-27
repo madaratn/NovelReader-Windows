@@ -33,6 +33,14 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
 
+            <!-- Invitation to a watch party: novelreader://party/CODE (LinkPlugin.java) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="novelreader" />
+            </intent-filter>
+
         </activity>
 
         <service
@@ -81,9 +89,13 @@
     </queries>
 
     <!-- Permissions -->
-    <!-- Camera: only to scan the QR code of the phone link, when the person asks -->
+    <!-- Camera: to scan the QR code of the phone link, and for the camera bubble of a watch party; only when the person asks -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- Microphone: only for the voice channel of a watch party, when the person joins it -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />

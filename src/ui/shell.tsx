@@ -83,6 +83,8 @@ export function MobileNav({mode,page,onMode,onPage,onSearch,onHome,extra}:{mode:
  const current=isTopPage(mode,page)?page:PARENT[page]
  const items=navItems(mode),main=items.slice(0,4),rest=items.slice(4)
  useEffect(()=>{setMore(false)},[mode,page])
+ // The watch party opens its own window: this sheet gets out of its way.
+ useEffect(()=>{const f=()=>setMore(false);window.addEventListener('nr-party-open',f);return()=>window.removeEventListener('nr-party-open',f)},[])
  if(page==='reader')return null
  const go=(p:string)=>{setMore(false);onPage(p)}
  return <>
