@@ -1,0 +1,145 @@
+{
+ "ok": 6,
+ "log": [
+  "engine up in 0 s: {\"status\":\"ok\",\"service\":\"miwayomi\",\"mangaSources\":0,\"animeSources\":0}"
+ ],
+ "results": [
+  {
+   "name": "AnimeXin",
+   "version": "14.33",
+   "steps": [
+    "installed (1 source)",
+    "popular 30 (\"Soul Land Season 2\")",
+    "238 episodes",
+    "no video link (0)"
+   ],
+   "seconds": 5
+  },
+  {
+   "name": "LMAnime",
+   "version": "14.31",
+   "steps": [
+    "installed (1 source)",
+    "popular 20 (\"The Magic Chef Of Ice And Fire\")",
+    "156 episodes",
+    "2 links",
+    "HLS playlist 200 253957 ✓"
+   ],
+   "kind": "hls",
+   "ok": true,
+   "play": {
+    "sourceId": "7296222662412524790",
+    "sourceName": "LMAnime",
+    "url": "/the-magic-chef-of-ice-and-fire/",
+    "title": "The Magic Chef Of Ice And Fire",
+    "episodes": 156
+   },
+   "seconds": 4
+  },
+  {
+   "name": "StreamingCommunity",
+   "version": "14.25",
+   "steps": [
+    "installed (4 source)",
+    "popular 10 (\"The Hunger Games: Sunrise on the Reaping\")",
+    "2 episodes",
+    "3 links",
+    "HLS playlist 200 8843 ✓"
+   ],
+   "kind": "hls",
+   "ok": true,
+   "play": {
+    "sourceId": "665657603807796138",
+    "sourceName": "StreamingUnity (Movie)",
+    "url": "49895-the-hunger-games-sunrise-on-the-reaping",
+    "title": "The Hunger Games: Sunrise on the Reaping",
+    "episodes": 2
+   },
+   "seconds": 3
+  },
+  {
+   "name": "AnimeOnsen",
+   "version": "16.12",
+   "steps": [
+    "installed (1 source)",
+    "popular 30 (\"Kikansha no Mahou wa Tokubetsu desu 2nd \")",
+    "8 episodes",
+    "1 links",
+    "video bytes 206 8420 ✓"
+   ],
+   "kind": "dash",
+   "ok": true,
+   "play": {
+    "sourceId": "8542735178285060053",
+    "sourceName": "AnimeOnsen",
+    "url": "lfoEwtiZA56dL8OR",
+    "title": "Kikansha no Mahou wa Tokubetsu desu 2nd Season",
+    "episodes": 8
+   },
+   "seconds": 2
+  },
+  {
+   "name": "AnimeParadise",
+   "version": "16.4",
+   "steps": [
+    "installed (1 source)",
+    "popular 20 (\"Sousou no Frieren\")",
+    "28 episodes",
+    "1 links",
+    "video bytes 206 65536 ✓"
+   ],
+   "kind": "file",
+   "ok": true,
+   "play": {
+    "sourceId": "3319373396687010408",
+    "sourceName": "AnimeParadise",
+    "url": "{\"slug\":\"sousou-no-frieren\",\"id\":\"NIUsb960SxtXls4h\"}",
+    "title": "Sousou no Frieren",
+    "episodes": 28
+   },
+   "seconds": 3
+  },
+  {
+   "name": "MoviesMod",
+   "version": "16.5",
+   "steps": [
+    "installed (1 source)",
+    "popular 20 (\"The Hunting Wives (Season 1-2) Dual Audi\")",
+    "16 episodes",
+    "12 links",
+    "video bytes 206 65536 ✓"
+   ],
+   "kind": "file",
+   "ok": true,
+   "play": {
+    "sourceId": "2828515480418041073",
+    "sourceName": "Movies Mod",
+    "url": "/download-the-hunting-wives-hindi-480p-720p-1080p/",
+    "title": "The Hunting Wives (Season 1-2) Dual Audio {Hindi-English} WeB-DL 480p [190MB] || 720p [330MB] || 1080p [1.2GB]",
+    "episodes": 16
+   },
+   "seconds": 8
+  },
+  {
+   "name": "UniqueStream",
+   "version": "16.11",
+   "steps": [
+    "installed (1 source)",
+    "popular 20 (\"One Piece\")",
+    "1230 episodes",
+    "1 links",
+    "HLS playlist 200 998 ✓"
+   ],
+   "kind": "hls",
+   "ok": true,
+   "play": {
+    "sourceId": "1915898919039572670",
+    "sourceName": "UniqueStream",
+    "url": "/series/olTmHHez",
+    "title": "One Piece",
+    "episodes": 1230
+   },
+   "seconds": 7
+  }
+ ]
+}
