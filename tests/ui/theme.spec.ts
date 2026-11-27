@@ -4,9 +4,10 @@ import { open, novel, nav } from './helpers'
 // Every visible text must reach WCAG AA (4.5:1) against its background, in both themes.
 async function lowContrast(page: Page) {
   // (A colour on its way from one state to another is not a colour of the theme: a button that
-  // has just changed, like "Stop" back to "Search", is measured once it has settled.)
-  await page.waitForTimeout(300)
+  // has just changed, like "Stop" back to "Search", is measured at its final colour.)
+  await page.addStyleTag({ content: '*,*::before,*::after{transition:none!important}' })
   return page.evaluate(() => {
+    void document.body.offsetWidth
     const parse = (c: string) => { const m = c.match(/[\d.]+/g)!.map(Number); return { r: m[0], g: m[1], b: m[2], a: m[3] ?? 1 } }
     const L = ({ r, g, b }: any) => { const f = (v: number) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b) }
     const bgOf = (el: Element | null): any => { while (el) { const cs = getComputedStyle(el); if (cs.backgroundImage !== 'none') return null; const c = parse(cs.backgroundColor); if (c.a > 0.5) return c; el = el.parentElement } return parse(getComputedStyle(document.body).backgroundColor) }
@@ -32,6 +33,7 @@ for (const theme of ['light', 'dark'] as const) {
     expect(await lowContrast(page)).toEqual([])
     await page.locator('.qs-open').click().then(()=>page.locator('.qs-all').click()); await page.fill('.search-main input', 'shadow slave'); await page.locator('.search-main button').click()
     await expect(page.locator('.resultcard').first()).toBeVisible()
+    await expect(page.locator('.search-main button')).not.toHaveText(/Stop/, { timeout: 15_000 })
     expect(await lowContrast(page)).toEqual([])
     await nav(page, 'Sources'); expect(await lowContrast(page)).toEqual([])
     await nav(page, 'Settings'); expect(await lowContrast(page)).toEqual([])

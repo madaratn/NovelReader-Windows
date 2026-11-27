@@ -9,6 +9,7 @@ import{lsGet,lsSet}from'../lib/util'
 import{Icon}from'../ui/common'
 import{posNow,clockTime}from'../lib/party-sync'
 import{party,useParty}from'./watch-party'
+import{playerTakes}from'../lib/focus-origin'
 
 const savedVolume=()=>{const raw=lsGet('partyStreamVolume'),v=Number(raw);return raw!==null&&Number.isFinite(v)?Math.min(1,Math.max(0,v)):1}
 
@@ -55,18 +56,23 @@ export function PartyTheater(){
  const close=()=>{if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});party.ownSources=true;party.unwatch()}
  // Keys, like on the player: space, arrows, F, M. They stop here: a player of the app
  // left open underneath must not take them for itself.
- useEffect(()=>{if(!on)return;const k=(e:KeyboardEvent)=>{const el=e.target as HTMLElement;if(el&&(el.tagName==='INPUT'||el.tagName==='TEXTAREA'||el.tagName==='SELECT'||el.isContentEditable)||e.ctrlKey||e.metaKey||e.altKey)return
+ useEffect(()=>{if(!on)return;let spaceTaken=false
+  const k=(e:KeyboardEvent)=>{const el=e.target as HTMLElement;if(e.ctrlKey||e.metaKey||e.altKey)return
    const key=e.key.length===1?e.key.toLowerCase():e.key
    if(![' ','k','j','l','ArrowLeft','ArrowRight','f','m','n','p'].includes(key))return
-   e.stopPropagation()
-   if(key===' '&&el?.tagName==='BUTTON')return
-   e.preventDefault()
+   // A text field keeps its keys; Space on a button that kept the focus after a click is
+   // play/pause, on one reached with Tab it presses it; arrows move a slider (volume, position).
+   // (The player of the page underneath applies the same rule: it leaves such a key alone too.)
+   if(!playerTakes(el,key))return
+   e.stopPropagation();e.preventDefault();if(key===' ')spaceTaken=true
    if(key===' '||key==='k')toggle()
    else if(key==='ArrowLeft'||key==='j')jump(-10)
    else if(key==='ArrowRight'||key==='l')jump(10)
    else if(key==='f')fullscreen()
    else if(key==='m'){setTap(false);setMuted(m=>!m)}}
-  window.addEventListener('keydown',k,true);return()=>window.removeEventListener('keydown',k,true)},[on])
+  const up=(e:KeyboardEvent)=>{if(e.key===' '&&spaceTaken){spaceTaken=false;e.preventDefault();e.stopPropagation()}}
+  window.addEventListener('keydown',k,true);window.addEventListener('keyup',up,true)
+  return()=>{window.removeEventListener('keydown',k,true);window.removeEventListener('keyup',up,true)}},[on])
  // Whoever started a countdown from here starts the video at zero.
  useEffect(()=>{if(!on)return;return party.onMyCount(at=>{const s=party.snap.state;if(s?.playing)ask({playing:false},'pause');const ms=Math.max(0,at-(party.hostNow()??Date.now()));setTimeout(()=>{if(party.snap.view&&!party.snap.state?.playing)ask({playing:true},'play')},ms)})},[on])
  if(!view)return null

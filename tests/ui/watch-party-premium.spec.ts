@@ -93,6 +93,13 @@ test('a friend without the source watches the stream of the host: picture, sound
   await expect(b.locator('.pt-time').last()).toHaveText('1:00')
   await b.locator('.pt-bar').getByRole('button', { name: 'Play' }).click()
   await expect.poll(() => video(a).evaluate((v: HTMLVideoElement) => !v.paused)).toBe(true)
+  // Space with the focus left on that button: play/pause once (not the key, then the button again)
+  await b.keyboard.press(' ')
+  await expect.poll(() => video(a).evaluate((v: HTMLVideoElement) => v.paused)).toBe(true)
+  await b.waitForTimeout(700)
+  expect(await video(a).evaluate((v: HTMLVideoElement) => v.paused)).toBe(true)
+  await b.keyboard.press(' ')
+  await expect.poll(() => video(a).evaluate((v: HTMLVideoElement) => !v.paused)).toBe(true)
   // Closing the stream: Ali's player stops being captured
   await b.locator('.pt-stage').hover({ position: { x: 300, y: 300 } })
   await b.getByRole('button', { name: 'Close the stream' }).click()
@@ -353,4 +360,19 @@ test('on a wide window the episodes and the player stand beside the panel, not u
   const beside = await width()
   await a.locator('.wp-x[aria-label="Minimize"]').click()
   await expect.poll(width).toBeGreaterThan(beside + 300)
+})
+
+// A button keeps the focus after a click: Space used to press the episode card again, which
+// loaded the episode again on this PC only while the others went on playing.
+test('Space pauses the whole party even when the clicked episode card keeps the focus', async ({ context }) => {
+  const { pages: [a, b] } = await party(context, [{ name: 'Sara' }])
+  await play(a, b)
+  await expect(a.locator('.episodecard.active')).toBeFocused()
+  await video(a).evaluate((v: any) => { v.__same = 1 })
+  await a.keyboard.press(' ')
+  await expect.poll(() => video(b).evaluate((v: HTMLVideoElement) => v.paused)).toBe(true)
+  await expect(b.locator('.po-toast')).toHaveText('Ali paused')
+  expect(await video(a).evaluate((v: any) => v.__same === 1 && v.paused)).toBe(true)
+  await a.keyboard.press(' ')
+  await expect.poll(() => video(b).evaluate((v: HTMLVideoElement) => !v.paused)).toBe(true)
 })
